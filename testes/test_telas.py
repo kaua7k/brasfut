@@ -8,7 +8,7 @@ import apoio
 TELAS = ["/api/estado", "/api/painel", "/api/elenco", "/api/base", "/api/tabela",
          "/api/copas", "/api/competicoes", "/api/financas", "/api/infra",
          "/api/noticias", "/api/escalacao", "/api/treino", "/api/estadio",
-         "/api/mercado", "/api/avanco/opcoes"]
+         "/api/mercado", "/api/avanco/opcoes", "/api/carreira", "/api/config"]
 
 
 @unittest.skipUnless(apoio.tem_save_real(), "sem brasfut_save.json na pasta do jogo")

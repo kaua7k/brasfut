@@ -150,6 +150,68 @@ export interface DadosPainel {
   noticias: Noticia[]
   /** quem esta no ultimo ano (ou venceu): atalho para a fila de renovacao */
   contratos: AvisoContratos | null
+  /** clubes querendo o treinador */
+  propostas_emprego: PropostaEmprego[]
+  /** o resto do futebol: as ultimas manchetes */
+  mundo: Manchete[]
+}
+
+export interface PropostaEmprego {
+  id: number
+  clube: string
+  divisao: string
+  reputacao: number
+  expira: number
+  semanas: number
+}
+
+export interface Manchete {
+  texto: string
+  tipo: 'resultado' | 'tabela' | 'copa' | 'titulo' | 'mercado' | 'lesao' | string
+  rotulo: string
+  quando: string
+}
+
+export interface PassagemCarreira {
+  clube: string
+  divisao: string
+  periodo: string
+  atual: boolean
+  saida: string | null
+  j: number
+  v: number
+  e: number
+  d: number
+  gp: number
+  gc: number
+  aproveitamento: number | null
+  titulos: string[]
+  marcos: string[]
+  /** save de antes da sala de trofeus: o registro comeca no meio */
+  parcial: boolean
+}
+
+export interface TelaCarreira {
+  cabecalho: Cabecalho
+  titulo: string
+  subtitulo: string
+  tecnico: { nome: string; reputacao: number; rotulo: string }
+  totais: {
+    clubes: number
+    temporadas: number
+    titulos: number
+    j: number
+    v: number
+    e: number
+    d: number
+    gp: number
+    gc: number
+  }
+  trofeus: { nome: string; qtd: number; anos: string[] }[]
+  passagens: PassagemCarreira[]
+  opcoes: { dificuldade: string; sem_demissao: boolean; investidor: boolean }
+  propostas: PropostaEmprego[]
+  pode_pedir_demissao: boolean
 }
 
 export interface AvisoContratos {
@@ -240,6 +302,35 @@ export interface RespostaEstado {
   cabecalho?: Cabecalho
   clubes?: ClubeOpcao[]
   pendencia?: Pendencia | null
+  versao?: string
+  config?: Config
+  /** quem esta no save, para o menu dizer o que Continuar abre */
+  save?: { tecnico: string; clube: string; temporada: number; semana: number } | null
+}
+
+export type Dificuldade = 'facil' | 'normal' | 'dificil'
+
+/** Preferencias fora do save (brasfut_config.json). */
+export interface Config {
+  escala: 90 | 100 | 110 | 125
+  reduzir_animacoes: boolean
+  /** padroes que a tela de carreira nova ja traz marcados */
+  dificuldade: Dificuldade
+  sem_demissao: boolean
+  investidor: boolean
+}
+
+export interface OpcaoDificuldade {
+  id: Dificuldade
+  nome: string
+  desc: string
+}
+
+/** O que vale pelo save inteiro, escolhido na carreira nova. */
+export interface OpcoesCarreira {
+  dificuldade: Dificuldade
+  sem_demissao: boolean
+  investidor: boolean
 }
 
 // ============================================================================
@@ -428,6 +519,7 @@ export interface TelaNoticias {
   titulo: string
   subtitulo: string
   itens: { texto: string }[]
+  mundo: Manchete[]
 }
 
 export interface FichaJogador {

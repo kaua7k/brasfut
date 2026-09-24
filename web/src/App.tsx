@@ -27,11 +27,15 @@ import { Financas } from './telas/Financas'
 import { Infra } from './telas/Infra'
 import { Mercado, type AcaoMercado } from './telas/Mercado'
 import { Noticias } from './telas/Noticias'
+import { Carreira } from './telas/Carreira'
 import { Painel } from './telas/Painel'
 import { Treino, type AcaoTreino } from './telas/Treino'
 import type {
   Cabecalho,
   ClubeOpcao,
+  Config,
+  OpcoesCarreira,
+  RespostaEstado,
   Confirmar,
   DadosPainel,
   FichaJogador,
@@ -41,6 +45,7 @@ import type {
   ResumoTemporada,
   SituacaoJogo,
   TelaBase,
+  TelaCarreira,
   TelaCompeticoes,
   TelaElenco,
   TelaEscalacao,
@@ -64,6 +69,7 @@ type Conteudo =
   | { tipo: 'financas'; dados: TelaFinancas }
   | { tipo: 'infra'; dados: TelaInfra }
   | { tipo: 'noticias'; dados: TelaNoticias }
+  | { tipo: 'carreira'; dados: TelaCarreira }
   | { tipo: 'escalacao'; dados: TelaEscalacao }
   | { tipo: 'treino'; dados: TelaTreino }
   | { tipo: 'estadio'; dados: TelaEstadio }
@@ -80,6 +86,16 @@ interface Pergunta {
 export function App() {
   const [situacao, setSituacao] = useState<SituacaoJogo | null>(null)
   const [clubes, setClubes] = useState<ClubeOpcao[]>([])
+  const [versao, setVersao] = useState('')
+  const [save, setSave] = useState<RespostaEstado['save']>(null)
+  const [config, setConfig] = useState<Config | null>(null)
+
+  // escala e animacoes valem para o jogo inteiro, nao so para o menu
+  useEffect(() => {
+    if (!config) return
+    document.documentElement.style.setProperty('zoom', `${config.escala}%`)
+    document.documentElement.classList.toggle('sem-animacao', config.reduzir_animacoes)
+  }, [config])
   const [conteudo, setConteudo] = useState<Conteudo | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [recado, setRecado] = useState<string | null>(null)
@@ -152,6 +168,9 @@ export function App() {
             case 'noticias':
               setConteudo({ tipo: 'noticias', dados: (await api.noticias()).tela })
               break
+            case 'carreira':
+              setConteudo({ tipo: 'carreira', dados: (await api.carreira()).tela })
+              break
             case 'escalacao':
               setConteudo({ tipo: 'escalacao', dados: (await api.escalacao()).tela })
               break
@@ -181,6 +200,9 @@ export function App() {
     comErro(async () => {
       const r = await api.estado()
       setSituacao(r.jogo)
+      setVersao(r.versao ?? '')
+      setSave(r.save ?? null)
+      if (r.config) setConfig(r.config)
       // a pendencia (demissao) vai no save: reabrir o jogo tem que mostra-la
       if (r.pendencia) setPendencia(r.pendencia)
       // o hash manda na primeira tela: F5 nao joga o usuario de volta no Painel
@@ -217,16 +239,46 @@ export function App() {
       await irPara('painel')
     })
 
-  const criar = () =>
+  const criar = (nome: string, opcoes: OpcoesCarreira) =>
     comErro(async () => {
       setOcupado(true)
       try {
-        const r = await api.novo()
+        const r = await api.novo(nome, opcoes)
         setClubes(r.clubes ?? [])
         setSituacao('escolher_clube')
       } finally {
         setOcupado(false)
       }
+    })
+
+  // ----------------------------------------------------------------- carreira
+  const pedirDemissao = () =>
+    comErro(async () => {
+      setOcupado(true)
+      try {
+        const r = await api.pedirDemissao()
+        setPendencia(r.pendencia)
+      } finally {
+        setOcupado(false)
+      }
+    })
+
+  const responderProposta = (id: number, aceitar: boolean) =>
+    comErro(async () => {
+      setOcupado(true)
+      try {
+        const r = await api.responderProposta(id, aceitar)
+        setRecado(r.recado)
+        setConteudo({ tipo: 'painel', dados: r.painel })
+        if (window.location.hash.slice(1) !== 'painel') window.location.hash = 'painel'
+      } finally {
+        setOcupado(false)
+      }
+    })
+
+  const gravarConfig = (mudanca: Partial<Config>) =>
+    comErro(async () => {
+      setConfig((await api.gravarConfig(mudanca)).config)
     })
 
   const escolherClube = (id: number) =>
@@ -509,11 +561,15 @@ export function App() {
       <Abertura
         situacao={situacao}
         clubes={clubes}
+        versao={versao}
+        save={save}
+        config={config}
         erro={erro}
         ocupado={ocupado}
         aoAbrir={abrir}
         aoCriar={criar}
         aoEscolher={escolherClube}
+        aoConfig={gravarConfig}
       />
     )
   }
@@ -562,6 +618,7 @@ export function App() {
         {conteudo.tipo === 'painel' && (
           <Painel
             dados={conteudo.dados}
+            aoResponderProposta={responderProposta}
             aoDefinirAuto={definirAuto}
             mudandoAuto={mudandoAuto}
             aoIr={(destino) =>
@@ -604,6 +661,14 @@ export function App() {
           <Infra tela={conteudo.dados} ocupado={ocupado} aoInvestir={investir} />
         )}
         {conteudo.tipo === 'noticias' && <Noticias tela={conteudo.dados} />}
+        {conteudo.tipo === 'carreira' && (
+          <Carreira
+            tela={conteudo.dados}
+            ocupado={ocupado}
+            aoPedirDemissao={pedirDemissao}
+            aoResponderProposta={responderProposta}
+          />
+        )}
         {conteudo.tipo === 'escalacao' && (
           <Escalacao
             tela={conteudo.dados}
@@ -761,8 +826,9 @@ export function App() {
             })
           }
           aoNovaCarreira={() => {
+            // volta ao menu: carreira nova passa pelo nome e pelas opcoes
             setPendencia(null)
-            criar()
+            setSituacao('tem_save')
           }}
         />
       )}

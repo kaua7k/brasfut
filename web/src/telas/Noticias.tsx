@@ -1,16 +1,30 @@
-// O mural do clube: as ultimas 25 notas do motor, da mais recente para a mais
-// antiga. O Painel mostra so as ultimas; aqui fica a memoria.
+// O mural: as notas do meu clube e, na outra aba, o resto do futebol - goleada,
+// zebra, lideranca, eliminado, titulo, contratacao cara e craque machucado.
 
+import { useState } from 'react'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
 import type { TelaNoticias } from '../tipos'
+import { FeedMundo } from './Painel'
 
 export function Noticias({ tela }: { tela: TelaNoticias }) {
+  const [aba, setAba] = useState<'clube' | 'mundo'>('clube')
   return (
     <div className="tela">
       <CabecalhoTela titulo={tela.titulo} sub={tela.subtitulo} />
 
+      <div className="alavanca" role="tablist" style={{ marginBottom: 12 }}>
+        <button type="button" role="tab" aria-selected={aba === 'clube'} className={aba === 'clube' ? 'ativo' : ''} onClick={() => setAba('clube')}>
+          Meu clube
+        </button>
+        <button type="button" role="tab" aria-selected={aba === 'mundo'} className={aba === 'mundo' ? 'ativo' : ''} onClick={() => setAba('mundo')}>
+          Pelo mundo
+        </button>
+      </div>
+
       <section className="painel" style={{ overflow: 'hidden' }}>
-        {tela.itens.length === 0 ? (
+        {aba === 'mundo' ? (
+          <FeedMundo mundo={tela.mundo} vazio="O futebol ainda nao comecou. Avance a semana." />
+        ) : tela.itens.length === 0 ? (
           <div className="vazio">Nada publicado ainda. Avance a semana para comecar a historia.</div>
         ) : (
           tela.itens.map((n, i) => (

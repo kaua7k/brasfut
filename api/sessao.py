@@ -94,9 +94,11 @@ class Sessao(object):
         self._adotar(G)
         return G
 
-    def mundo_novo(self):
+    def mundo_novo(self, nome="Tecnico", opcoes=None):
         """Cria o mundo mas ainda sem clube: quem escolhe e a tela."""
-        G, texto = capturar(eng.criar_mundo, "Tecnico")
+        nome = " ".join(str(nome or "").split())[:40] or "Tecnico"
+        G, texto = capturar(eng.criar_mundo, nome)
+        eng.definir_opcoes_carreira(G, opcoes or {})
         self.anotar(texto)
         self._pendente_novo = G
         return G
@@ -113,10 +115,7 @@ class Sessao(object):
             if cid not in [o["id"] for o in self.pendencia["opcoes"]]:
                 raise ValueError("esse clube nao fez oferta")
             G = self.exigir()
-            antigo = G["clubes"][G["clube"]]
-            G["clube"] = cid
-            eng.herdar_preferencias(G, antigo)
-            eng.definir_objetivo(G)
+            eng.assumir_clube(G, cid, self.pendencia.get("saida") or "demitido")
             self.pendencia = None
             G.pop("pendencia_web", None)
             self.invalidar()
@@ -127,6 +126,8 @@ class Sessao(object):
         if cid not in G["clubes"]:
             raise ValueError("clube %r nao existe" % (cid,))
         G["clube"] = cid
+        if novo is not None:
+            eng.comecar_no_clube(G, G["clubes"][cid])
         G["clubes"][cid]["escalacao"] = eng.auto_escalar(G, G["clubes"][cid])
         eng.definir_objetivo(G)
         self._pendente_novo = None
@@ -136,6 +137,7 @@ class Sessao(object):
     def encerrar_carreira(self):
         """A outra saida da demissao, como no terminal: parar de vez."""
         G = self.exigir()
+        eng.encerrar_passagem(G, (self.pendencia or {}).get("saida") or "encerrou a carreira")
         self.pendencia = {"tipo": "carreira_encerrada", "titulo": "Carreira encerrada",
                           "historico": list(G.get("historico", []))[-12:], "opcoes": []}
         G["pendencia_web"] = self.pendencia
@@ -172,6 +174,7 @@ class Sessao(object):
             "titulo": "Voce foi demitido",
             "motivo": resumo.get("diretoria") or "A diretoria encerrou o seu ciclo.",
             "de": G["clubes"][atual]["nome"],
+            "saida": "demitido",
             "opcoes": [{"id": cl["id"], "nome": cl["nome"], "divisao": cl["divisao"],
                         "reputacao": cl["reputacao"], "caixa": eng.din(cl["dinheiro"]),
                         "elenco": len(cl["elenco"])} for cl in ofertas],
@@ -179,6 +182,30 @@ class Sessao(object):
         # vai no save: fechar o jogo aqui e reabrir nao pode devolver o clube
         G["pendencia_web"] = self.pendencia
         return None
+
+    def pedir_demissao(self):
+        """O treinador sai por vontade propria, a qualquer momento. Vira a
+        mesma pendencia da demissao, mas quem oferece emprego e quem cabe na
+        reputacao dele (eng.ofertas_ao_demissionario), nao a regra da demissao."""
+        G = self.exigir()
+        if self.pendencia:
+            raise ValueError("ja existe uma decisao pendente")
+        atual = G["clubes"][G["clube"]]
+        ofertas = eng.ofertas_ao_demissionario(G)
+        self.pendencia = {
+            "tipo": "novo_clube",
+            "titulo": "Voce pediu demissao",
+            "motivo": "Voce entregou o cargo no %s. Estes clubes querem o seu trabalho." % atual["nome"],
+            "de": atual["nome"],
+            "saida": "pediu demissao",
+            "opcoes": [{"id": cl["id"], "nome": cl["nome"], "divisao": cl["divisao"],
+                        "reputacao": cl["reputacao"], "caixa": eng.din(cl["dinheiro"]),
+                        "elenco": len(cl["elenco"])} for cl in ofertas],
+        }
+        G["pendencia_web"] = self.pendencia
+        G["propostas_emprego"] = []
+        self.invalidar()
+        return self.pendencia
 
     # ------------------------------------------------------------------- acoes
     def salvar(self):

@@ -6,6 +6,10 @@
 
 import type {
   ResumoTemporada,
+  TelaCarreira,
+  Config,
+  OpcaoDificuldade,
+  OpcoesCarreira,
   AbaMercado,
   Cabecalho,
   OpcaoAvanco,
@@ -21,6 +25,7 @@ import type {
   TelaMercado,
   TipoMesa,
   DadosPainel,
+  Pendencia,
   FichaJogador,
   PreviaEsquema,
   RespostaAcao,
@@ -76,7 +81,11 @@ export const api = {
   // ------------------------------------------------------------------ inicio
   estado: () => pedir<RespostaEstado>('/api/estado'),
   abrir: () => pedir<RespostaEstado>('/api/abrir', {}),
-  novo: () => pedir<RespostaEstado>('/api/novo', {}),
+  novo: (nome: string, opcoes: OpcoesCarreira) =>
+    pedir<RespostaEstado>('/api/novo', { nome, opcoes }),
+  config: () => pedir<{ config: Config; dificuldades: OpcaoDificuldade[] }>('/api/config'),
+  gravarConfig: (mudanca: Partial<Config>) =>
+    pedir<{ config: Config; dificuldades: OpcaoDificuldade[] }>('/api/config', mudanca),
   escolherClube: (id: number) => pedir<RespostaEstado>('/api/clube', { id }),
   encerrarCarreira: () => pedir<RespostaEstado>('/api/clube', { encerrar: true }),
   resumo: () => pedir<{ resumo: ResumoTemporada }>('/api/resumo'),
@@ -107,6 +116,10 @@ export const api = {
   financas: () => pedir<{ tela: TelaFinancas }>('/api/financas'),
   infra: () => pedir<{ tela: TelaInfra }>('/api/infra'),
   noticias: () => pedir<{ tela: TelaNoticias }>('/api/noticias'),
+  carreira: () => pedir<{ tela: TelaCarreira }>('/api/carreira'),
+  pedirDemissao: () => pedir<{ pendencia: Pendencia; cabecalho: Cabecalho }>('/api/carreira/demitir', {}),
+  responderProposta: (id: number, aceitar: boolean) =>
+    pedir<{ recado: string; painel: DadosPainel }>('/api/carreira/proposta', { id, aceitar }),
   ficha: (id: number) => pedir<{ ficha: FichaJogador }>('/api/ficha', { id }),
 
   // ------------------------------------------------------------------- acoes

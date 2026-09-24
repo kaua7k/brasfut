@@ -9,7 +9,7 @@ jogo perdido por causa disso seria culpa da arquitetura, nao do usuario.
 import json
 import traceback
 
-from . import avanco, competicoes, dto, mercado
+from . import avanco, competicoes, config, dto, mercado
 from .sessao import SESSAO, SemJogo
 import brasfut as eng
 
@@ -31,12 +31,39 @@ class ErroDeUso(Exception):
 @rota("GET", "/api/estado")
 def estado(_corpo):
     """A primeira pergunta do cliente: da para jogar, e de onde comeco?"""
+    base = {"versao": eng.VERSAO, "config": config.ler()}
     if SESSAO.G is None:
         if SESSAO.tem_save():
-            return {"jogo": "tem_save"}
-        return {"jogo": "sem_save"}
-    return {"jogo": "pronto", "cabecalho": dto.cabecalho(SESSAO.exigir()),
-            "pendencia": SESSAO.pendencia}
+            return dict(base, jogo="tem_save", save=_sobre_o_save())
+        return dict(base, jogo="sem_save")
+    return dict(base, jogo="pronto", cabecalho=dto.cabecalho(SESSAO.exigir()),
+                pendencia=SESSAO.pendencia)
+
+
+def _sobre_o_save():
+    """Quem esta no save, para o menu dizer o que 'Continuar' abre. Le o
+    arquivo sem adotar o mundo: abrir continua sendo decisao do usuario."""
+    try:
+        G = eng.carregar()
+    except Exception:
+        return None
+    c = G["clubes"].get(G.get("clube"))
+    return {"tecnico": G.get("tecnico") or "Tecnico", "clube": c["nome"] if c else "",
+            "temporada": G.get("temporada"), "semana": G.get("semana")}
+
+
+@rota("GET", "/api/config")
+def ver_config(_corpo):
+    return {"config": config.ler(), "dificuldades": _dificuldades()}
+
+
+@rota("POST", "/api/config")
+def gravar_config(corpo):
+    return {"config": config.gravar(corpo or {}), "dificuldades": _dificuldades()}
+
+
+def _dificuldades():
+    return [{"id": k, "nome": d["nome"], "desc": d["desc"]} for k, d in eng.DIFICULDADES.items()]
 
 
 @rota("GET", "/api/painel")
@@ -56,13 +83,15 @@ def abrir(_corpo):
 
 
 @rota("POST", "/api/novo")
-def novo(_corpo):
-    """Cria o mundo e devolve os clubes para escolher. Nada e salvo ainda."""
+def novo(corpo):
+    """Cria o mundo e devolve os clubes para escolher. Nada e salvo ainda.
+    Leva o nome do tecnico e as opcoes da carreira (dificuldade, sem demissao,
+    investidor), que valem pelo save inteiro."""
     with SESSAO.cadeado:
-        G = SESSAO.mundo_novo()
+        G = SESSAO.mundo_novo(corpo.get("nome"), corpo.get("opcoes"))
         clubes = [{"id": cid, "nome": c["nome"], "divisao": c["divisao"],
                    "reputacao": c["reputacao"]}
-                  for cid, c in G["clubes"].items() if c["divisao"] in ("A", "B")]
+                  for cid, c in G["clubes"].items() if c["divisao"] in "ABCD"]
         clubes.sort(key=lambda x: (x["divisao"], -x["reputacao"]))
         return {"jogo": "escolher_clube", "clubes": clubes}
 
@@ -257,6 +286,47 @@ def ver_financas(_corpo):
 def ver_infra(_corpo):
     with SESSAO.cadeado:
         return {"tela": dto.infra()}
+
+
+@rota("GET", "/api/carreira")
+def ver_carreira(_corpo):
+    with SESSAO.cadeado:
+        return {"tela": dto.carreira()}
+
+
+@rota("POST", "/api/carreira/demitir")
+def pedir_demissao(_corpo):
+    """Sai do clube por vontade propria. Vira pendencia com os clubes que
+    querem o treinador; o jogo nao anda ate ele escolher."""
+    with SESSAO.cadeado:
+        try:
+            SESSAO.pedir_demissao()
+        except ValueError as e:
+            raise ErroDeUso(str(e))
+        SESSAO.salvar()
+        return {"pendencia": SESSAO.pendencia, "cabecalho": dto.cabecalho(SESSAO.exigir())}
+
+
+@rota("POST", "/api/carreira/proposta")
+def responder_proposta(corpo):
+    """Aceita ou recusa um clube que quer o treinador."""
+    cid = corpo.get("id")
+    if not isinstance(cid, int):
+        raise ErroDeUso("falta o id do clube")
+    with SESSAO.cadeado:
+        G = SESSAO.exigir()
+        if corpo.get("aceitar"):
+            ok, recado = eng.aceitar_proposta_emprego(G, cid)
+            if ok:
+                SESSAO.invalidar()
+                SESSAO.esquecer_desfazer()
+                SESSAO.mesas = {}
+        else:
+            ok, recado = eng.recusar_proposta_emprego(G, cid)
+        if not ok:
+            raise ErroDeUso(recado)
+        SESSAO.salvar()
+        return {"recado": recado, "painel": dto.painel()}
 
 
 @rota("GET", "/api/noticias")

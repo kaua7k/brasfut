@@ -85,6 +85,17 @@ export function IconeCopas({ tamanho = 18 }: Props) {
   )
 }
 
+export function IconeCarreira({ tamanho = 18 }: Props) {
+  // taca: a sala de trofeus
+  return (
+    <svg {...base(tamanho)}>
+      <path d="M7 4h10v5a5 5 0 0 1-10 0z" />
+      <path d="M7 6H4.5a2.5 2.5 0 0 0 2.6 3.4M17 6h2.5a2.5 2.5 0 0 1-2.6 3.4" />
+      <path d="M12 14v3M8.5 20h7M9.5 17h5v3h-5z" />
+    </svg>
+  )
+}
+
 export function IconeMercado({ tamanho = 18 }: Props) {
   return (
     <svg {...base(tamanho)}>
@@ -219,6 +230,7 @@ export const ICONES_MENU: Record<string, (p: Props) => ReactElement> = {
   estadio: IconeEstadio,
   infra: IconeInfra,
   noticias: IconeNoticias,
+  carreira: IconeCarreira,
 }
 
 export function iconeDeEstado(estado: string, tamanho = 18) {

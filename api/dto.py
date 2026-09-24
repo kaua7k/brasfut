@@ -26,7 +26,7 @@ MENU = [
     ("tabela", "Tabela", True), ("copas", "Competicoes", True),
     ("mercado", "Mercado", True), ("financas", "Financas", True),
     ("estadio", "Estadio", True), ("infra", "Infraestrutura", True),
-    ("noticias", "Noticias", True),
+    ("noticias", "Noticias", True), ("carreira", "Carreira", True),
 ]
 
 
@@ -365,7 +365,29 @@ def painel():
         "resultados": _resultados(G),
         "noticias": _noticias(G),
         "contratos": _contratos_acabando(G),
+        "propostas_emprego": _propostas_emprego(G),
+        "mundo": _mundo(G, 6),
     }
+
+
+def _propostas_emprego(G):
+    """Clubes querendo o treinador: faixa no Painel com aceitar/recusar."""
+    return [{"id": o["id"], "clube": o["clube"], "divisao": o["divisao"],
+             "reputacao": o["reputacao"], "expira": o["expira"],
+             "semanas": max(0, o["expira"] - G["semana"])}
+            for o in eng.propostas_emprego(G)]
+
+
+ROTULO_FEED = {"resultado": "Resultado", "tabela": "Tabela", "copa": "Copa",
+               "titulo": "Titulo", "mercado": "Mercado", "lesao": "Lesao"}
+
+
+def _mundo(G, quantas):
+    """O feed do resto do futebol, do mais novo para o mais velho."""
+    return [{"texto": f["texto"], "tipo": f["tipo"], "rotulo": ROTULO_FEED.get(f["tipo"], ""),
+             "quando": ("semana %d" % f["s"]) if f["t"] == G["temporada"]
+                       else "%d, semana %d" % (f["t"], f["s"])}
+            for f in reversed(G.get("feed", [])[-quantas:])]
 
 
 def _contratos_acabando(G):
@@ -724,8 +746,73 @@ def noticias():
     for n in reversed(G["noticias"][-25:]):
         itens.append({"texto": _limpo(n).replace("\n", " ")})
     return {"cabecalho": cabecalho(G), "titulo": "Noticias",
-            "subtitulo": "o que se falou no clube nas ultimas semanas",
-            "itens": itens}
+            "subtitulo": "o seu clube e o resto do futebol",
+            "itens": itens, "mundo": _mundo(G, 80)}
+
+
+# ------------------------------------------------------------------ carreira
+SAIDAS = {"demitido": "demitido", "pediu demissao": "pediu demissao",
+          "encerrou a carreira": "encerrou a carreira"}
+
+
+def carreira():
+    """A sala de trofeus: o treinador, as tacas somadas e cada passagem."""
+    G = SESSAO.exigir()
+    passagens = eng.carreira(G)
+    rep = eng.rep_tecnico(G)
+    trofeus = {}
+    for p in passagens:
+        for t in p["titulos"]:
+            item = trofeus.setdefault(t["nome"], {"nome": t["nome"], "qtd": 0, "anos": []})
+            item["qtd"] += 1
+            item["anos"].append("%d (%s)" % (t["temporada"], p["clube"]))
+    ordem = list(eng.PESO_TITULO)
+    trofeus = sorted(trofeus.values(),
+                     key=lambda t: (ordem.index(t["nome"]) if t["nome"] in ordem else 99, -t["qtd"]))
+    tot = {k: sum(p[k] for p in passagens) for k in ("j", "v", "e", "d", "gp", "gc")}
+    anos = sorted({a for p in passagens
+                   for a in range(p["de"], (p["ate"] if p["ate"] is not None else G["temporada"]) + 1)})
+    op = eng.opcoes_carreira(G)
+    linhas = []
+    for p in reversed(passagens):
+        aprov = round(100.0 * (3 * p["v"] + p["e"]) / (3 * p["j"])) if p["j"] else None
+        linhas.append({
+            "clube": p["clube"], "divisao": p["divisao"],
+            "periodo": "%d - %s" % (p["de"], p["ate"] if p["ate"] is not None else "hoje"),
+            "atual": p["ate"] is None,
+            "saida": p["saida"],
+            "j": p["j"], "v": p["v"], "e": p["e"], "d": p["d"], "gp": p["gp"], "gc": p["gc"],
+            "aproveitamento": aprov,
+            "titulos": ["%s %d" % (t["nome"], t["temporada"]) for t in p["titulos"]],
+            "marcos": ["%d: %s" % (m["temporada"], m["texto"]) for m in reversed(p["marcos"])],
+            "parcial": bool(p.get("parcial")),
+        })
+    return {
+        "cabecalho": cabecalho(G), "titulo": "Carreira",
+        "subtitulo": "sala de trofeus e historico do treinador",
+        "tecnico": {"nome": G.get("tecnico") or "Tecnico", "reputacao": rep,
+                    "rotulo": _rotulo_rep(rep)},
+        "totais": {"clubes": len({p["clube_id"] for p in passagens}), "temporadas": len(anos),
+                   "titulos": sum(t["qtd"] for t in trofeus), **tot},
+        "trofeus": trofeus,
+        "passagens": linhas,
+        "opcoes": {"dificuldade": eng.DIFICULDADES[op["dificuldade"]]["nome"],
+                   "sem_demissao": op["sem_demissao"], "investidor": op["investidor"]},
+        "propostas": _propostas_emprego(G),
+        "pode_pedir_demissao": not SESSAO.pendencia,
+    }
+
+
+def _rotulo_rep(rep):
+    if rep >= 85:
+        return "lenda do futebol brasileiro"
+    if rep >= 70:
+        return "nome de Serie A, disputado pelos grandes"
+    if rep >= 55:
+        return "respeitado, com mercado na Serie A"
+    if rep >= 40:
+        return "em ascensao, conhecido na Serie B"
+    return "desconhecido fora do proprio clube"
 
 
 # --------------------------------------------------------------------- ficha

@@ -9,7 +9,7 @@ import base64, dataclasses, json, os, random, re, sys, zlib
 from typing import Any, Dict, List, Optional, Tuple
 from math import exp
 
-VERSAO = "2.4"
+VERSAO = "2.5"
 
 
 def pasta_base():
@@ -1988,6 +1988,9 @@ def simular(G, casa_id, fora_id, comp="liga", neutro=False):
                 risco *= 1.0 + 1.6 * max(0.0, (55 - j["cond"]) / 55.0)
                 if rng.random() < risco:
                     j["lesao"] = rng.choice(SEMANAS_LESAO) + 1
+                    if j["ovr"] >= CRAQUE_OVR and j["lesao"] >= LESAO_MANCHETE:
+                        manchete(G, "lesao", "%s, do %s, se machuca e fica %d semanas fora." % (
+                            j["nome"], dono["nome"], j["lesao"]))
                     eventos.append((rng.randint(ini, fim), lado, "lesao", pid, None))
                     usou = _trocar(G, dono, esc, banco, vagas, jogaram,
                                    rng.randint(ini, fim), lado, eventos, subs,
@@ -2574,7 +2577,7 @@ def encerrar_estaduais(G: Mundo) -> List[str]:
         campeao = est["campeao"]
         est["premiado"] = True
         cl = G["clubes"][campeao]
-        cl["titulos"][est["nome"]] = cl["titulos"].get(est["nome"], 0) + 1
+        dar_titulo(G, cl, est["nome"])
         premio = int(PREMIO_ESTADUAL + cl["reputacao"] * 22_000)
         cl["dinheiro"] += premio
         if campeao == G.get("clube"):
@@ -2818,6 +2821,83 @@ def noticia(G, txt):
     G["noticias"] = G["noticias"][-40:]
 
 
+# ----------------------------------------------------------------------------
+# PELO MUNDO
+#
+# As noticias acima sao do meu clube. O feed e o resto do futebol: goleada,
+# zebra, troca de lideranca, grande eliminado, titulo, contratacao cara e
+# craque machucado, de qualquer clube. So registra o que o motor ja decidiu -
+# nenhuma manchete inventa fato.
+# ----------------------------------------------------------------------------
+
+LIMITE_FEED = 300
+RESULTADOS_POR_SEMANA = 4    # o resto da rodada fica so na tabela
+GOLEADA = 4                  # diferenca de gols que vira manchete
+ZEBRA_REP = 20               # vencedor com tanto menos de reputacao que o perdedor
+GRANDE_REP = 72              # clube cuja eliminacao e noticia
+NEGOCIO_MANCHETE = 8_000_000
+CRAQUE_OVR = 78
+LESAO_MANCHETE = 4           # semanas
+NOME_COMP = {"liga": None, "copa": "Copa do Brasil", "lib": "Libertadores",
+             "sul": "Sul-Americana", "estadual": None}
+
+
+def manchete(G: Mundo, tipo: str, texto: str) -> None:
+    feed = G.setdefault("feed", [])
+    feed.append({"t": int(G.get("temporada", 0)), "s": int(G.get("semana", 0)),
+                 "tipo": tipo, "texto": texto})
+    del feed[:-LIMITE_FEED]
+
+
+def _onde(G: Mundo, r: Dict[str, Any]) -> str:
+    comp = NOME_COMP.get(r.get("comp"))
+    if comp:
+        return comp
+    div = G["clubes"][r["casa"]]["divisao"]
+    return "Serie %s" % div if div in "ABCD" else "rodada"
+
+
+def manchetes_da_semana(G: Mundo, jogos: List[Dict[str, Any]],
+                        lideres_antes: Dict[str, Optional[int]]) -> None:
+    candidatas = []   # (peso, texto): so as maiores da semana viram manchete
+    for r in jogos:
+        casa, fora = G["clubes"][r["casa"]], G["clubes"][r["fora"]]
+        # Serie D e continental entre estrangeiros enchem o feed sem interessar
+        if r.get("comp") == "liga" and casa["divisao"] not in "AB":
+            continue
+        if casa["divisao"] == "EX" and fora["divisao"] == "EX":
+            continue
+        placar = "%s %d x %d %s" % (casa["nome"], r["gc"], r["gf"], fora["nome"])
+        saldo = abs(r["gc"] - r["gf"])
+        if saldo >= GOLEADA:
+            candidatas.append((saldo * 10, "Goleada: %s (%s)." % (placar, _onde(G, r))))
+        elif saldo:
+            venc, perd = (casa, fora) if r["gc"] > r["gf"] else (fora, casa)
+            dif = perd["reputacao"] - venc["reputacao"]
+            if dif >= ZEBRA_REP:
+                candidatas.append((dif, "Zebra: %s (%s)." % (placar, _onde(G, r))))
+    candidatas.sort(key=lambda x: -x[0])
+    for _peso, texto in candidatas[:RESULTADOS_POR_SEMANA]:
+        manchete(G, "resultado", texto)
+    for div in "AB":
+        liga = G["ligas"][div]
+        if liga["rodada"] < 3:
+            continue
+        lider = classificacao(G, liga)[0]
+        if lideres_antes.get(div) is not None and lider != lideres_antes[div]:
+            t = liga["tabela"].get(str(lider)) or {}
+            manchete(G, "tabela", "%s assume a lideranca da Serie %s, com %d pontos." %
+                     (G["clubes"][lider]["nome"], div, t.get("p", 0)))
+
+
+def lideres(G: Mundo) -> Dict[str, Optional[int]]:
+    fora = {}
+    for div in "AB":
+        liga = G["ligas"][div]
+        fora[div] = classificacao(G, liga)[0] if liga["rodada"] >= 2 else None
+    return fora
+
+
 def jogar_rodada_liga(G, div):
     liga = G["ligas"][div]
     if liga["rodada"] >= len(liga["rodadas"]):
@@ -2880,6 +2960,10 @@ def jogar_fase_copa(G, chave):
                                       "volta": [r2["gf"], r2["gc"]],
                                       "penaltis": r2.get("penaltis"), "venc": venc})
         prox.append(venc)
+        perd = G["clubes"][b if venc == a else a]
+        if perd["reputacao"] >= GRANDE_REP and perd["divisao"] != "EX" and not final:
+            manchete(G, "copa", "%s elimina %s na %s (%s)." % (
+                G["clubes"][venc]["nome"], perd["nome"], cp["nome"], registro["fase"].lower()))
     cp.setdefault("historico", []).append(registro)
     cp["vivos"] = prox
     cp["fase"] += 1
@@ -2887,7 +2971,7 @@ def jogar_fase_copa(G, chave):
     if len(prox) == 1:
         cp["campeao"] = prox[0]
         c = G["clubes"][prox[0]]
-        c["titulos"][cp["nome"]] = c["titulos"].get(cp["nome"], 0) + 1
+        dar_titulo(G, c, cp["nome"])
         premio = {"copa": 78_000_000, "lib": 130_000_000, "sul": 30_000_000}[chave]
         if c["divisao"] != "EX":
             c["dinheiro"] += premio
@@ -2901,10 +2985,12 @@ def avancar_semana(G):
     if G.get("fase") == "estadual":
         return _semana_estadual(G)
     sem = G["semana"]
-    meus = []
+    meus, todos = [], []
+    antes = lideres(G)
     if sem <= SEMANAS_LIGA:
         for div in "ABCD":
             for r in jogar_rodada_liga(G, div):
+                todos.append(r)
                 if G["clube"] in (r["casa"], r["fora"]):
                     meus.append(r)
     for chave, cp in G["copas"].items():
@@ -2912,8 +2998,10 @@ def avancar_semana(G):
             continue
         if cp["fase"] < len(cp["semanas"]) and cp["semanas"][cp["fase"]] == sem:
             for r in jogar_fase_copa(G, chave):
+                todos.append(r)
                 if G["clube"] in (r["casa"], r["fora"]):
                     meus.append(r)
+    manchetes_da_semana(G, todos, antes)
     G["ultimos_meus"] = [dict(r) for r in meus]
     for r in meus:
         registrar_placar(G, r)
@@ -2922,6 +3010,7 @@ def avancar_semana(G):
     mercado_ia(G)
     saneamento_ia(G)
     if G["semana"] % SEMANAS_POR_MES == 0:
+        sondar_treinador(G)
         for pid, delta in progresso_mensal(G):
             j = G["jogadores"][pid]
             if delta > 0:
@@ -4973,13 +5062,281 @@ def avaliar_diretoria(G, posicao_final):
     alvo = G.get("objetivo_alvo", 16)
     if posicao_final <= alvo:
         return True, "A diretoria aprovou a temporada."
+    if opcoes_carreira(G)["sem_demissao"]:
+        return True, "A diretoria cobrou resultados, mas o seu cargo e intocavel (modo sem demissao)."
     margem = posicao_final - alvo
-    risco = 0.25 + margem * 0.14
+    risco = (0.25 + margem * 0.14) * dificuldade(G)["diretoria"]
     if posicao_final > 16:
-        risco += 0.30
+        risco += 0.30 * dificuldade(G)["diretoria"]
     if rng.random() < risco:
         return False, "A diretoria decidiu encerrar seu ciclo no %s." % G["clubes"][G["clube"]]["nome"]
     return True, "A diretoria cobrou resultados, mas manteve voce no cargo."
+
+
+# ----------------------------------------------------------------------------
+# OPCOES DA CARREIRA
+#
+# Escolhidas uma vez, na criacao do save, e guardadas em G["opcoes"]. Save
+# antigo nao tem a chave e joga com o padrao, que e o jogo de sempre.
+# ----------------------------------------------------------------------------
+
+DIFICULDADES = {
+    # diretoria: multiplica o risco de demissao; caixa: o caixa do primeiro clube
+    "facil": {"nome": "Facil", "diretoria": 0.5, "caixa": 1.4,
+              "desc": "diretoria paciente e 40% a mais de caixa no primeiro clube"},
+    "normal": {"nome": "Normal", "diretoria": 1.0, "caixa": 1.0,
+               "desc": "o jogo de sempre"},
+    "dificil": {"nome": "Dificil", "diretoria": 1.5, "caixa": 0.75,
+                "desc": "diretoria impaciente e 25% a menos de caixa no primeiro clube"},
+}
+
+OPCOES_PADRAO = {"dificuldade": "normal", "sem_demissao": False, "investidor": False}
+
+# o investidor compra o clube e poe dinheiro de uma vez, conforme a serie
+APORTE_INVESTIDOR = {"A": 150_000_000, "B": 60_000_000, "C": 25_000_000, "D": 10_000_000}
+
+
+def opcoes_carreira(G: Mundo) -> Dict[str, Any]:
+    fora = dict(OPCOES_PADRAO)
+    fora.update(G.get("opcoes") or {})
+    if fora["dificuldade"] not in DIFICULDADES:
+        fora["dificuldade"] = "normal"
+    return fora
+
+
+def dificuldade(G: Mundo) -> Dict[str, Any]:
+    return DIFICULDADES[opcoes_carreira(G)["dificuldade"]]
+
+
+def definir_opcoes_carreira(G: Mundo, opcoes: Dict[str, Any]) -> Dict[str, Any]:
+    """Grava so as chaves conhecidas, com o tipo certo."""
+    limpo = dict(OPCOES_PADRAO)
+    if opcoes.get("dificuldade") in DIFICULDADES:
+        limpo["dificuldade"] = opcoes["dificuldade"]
+    limpo["sem_demissao"] = bool(opcoes.get("sem_demissao"))
+    limpo["investidor"] = bool(opcoes.get("investidor"))
+    G["opcoes"] = limpo
+    return limpo
+
+
+def comecar_no_clube(G: Mundo, c: Clube) -> List[str]:
+    """O primeiro clube da carreira recebe o que as opcoes prometem: caixa da
+    dificuldade e, com investidor, o aporte. Devolve as noticias do dia."""
+    op = opcoes_carreira(G)
+    recados = []
+    mult = DIFICULDADES[op["dificuldade"]]["caixa"]
+    if mult != 1.0:
+        c["dinheiro"] = int(c["dinheiro"] * mult)
+    if op["investidor"]:
+        aporte = APORTE_INVESTIDOR.get(c["divisao"], APORTE_INVESTIDOR["D"])
+        c["dinheiro"] += aporte
+        c["reputacao"] = clamp(c["reputacao"] + 2, 10, 99)
+        recados.append("Investidor compra o %s e injeta %s no caixa." % (c["nome"], din(aporte)))
+    G["tecnico_rep"] = REP_TECNICO_INICIAL
+    G["carreira"] = [_passagem(G, c["id"])]
+    G["propostas_emprego"] = []
+    for r in recados:
+        noticia(G, r)
+    return recados
+
+
+# ----------------------------------------------------------------------------
+# CARREIRA DO TREINADOR
+#
+# O treinador tem reputacao propria (G["tecnico_rep"], 1 a 99), separada da do
+# clube: sobe com meta cumprida e titulo, cai com fracasso. E ela que decide
+# quem liga oferecendo emprego e quem aceita um treinador que pediu demissao.
+# Cada clube dirigido vira uma passagem em G["carreira"], com jogos, titulos e
+# marcos - a sala de trofeus le daqui e nunca apaga nada.
+# ----------------------------------------------------------------------------
+
+REP_TECNICO_INICIAL = 35
+PROPOSTA_VALIDADE = 4        # semanas que uma proposta de emprego fica de pe
+MAX_PROPOSTAS = 3
+# quanto cada titulo pesa na reputacao do treinador
+PESO_TITULO = {"Brasileirao Serie A": 12, "Libertadores": 12, "Copa do Brasil": 8,
+               "Sul-Americana": 6, "Brasileirao Serie B": 6, "Brasileirao Serie C": 4,
+               "Brasileirao Serie D": 3}
+PESO_TITULO_OUTROS = 3       # estaduais e regionais
+
+
+def _passagem(G: Mundo, cid: int, parcial: bool = False) -> Dict[str, Any]:
+    c = G["clubes"][cid]
+    return {"clube_id": cid, "clube": c["nome"], "divisao": c["divisao"],
+            "de": int(G["temporada"]), "ate": None, "saida": None,
+            "j": 0, "v": 0, "e": 0, "d": 0, "gp": 0, "gc": 0,
+            "titulos": [], "marcos": [],
+            # save de antes da sala de trofeus: o registro comeca no meio
+            "parcial": parcial}
+
+
+def carreira(G: Mundo) -> List[Dict[str, Any]]:
+    """As passagens do treinador, da primeira a atual. Save antigo ganha a
+    passagem atual aberta na primeira leitura."""
+    lst = G.setdefault("carreira", [])
+    if not lst and G.get("clube") in G.get("clubes", {}):
+        lst.append(_passagem(G, G["clube"], parcial=True))
+    return lst
+
+
+def passagem_atual(G: Mundo) -> Optional[Dict[str, Any]]:
+    lst = carreira(G)
+    if lst and lst[-1]["ate"] is None and lst[-1]["clube_id"] == G.get("clube"):
+        return lst[-1]
+    return None
+
+
+def rep_tecnico(G: Mundo) -> int:
+    if "tecnico_rep" not in G:
+        # save antigo: quem ja tem estrada comeca mais conhecido
+        G["tecnico_rep"] = int(min(70, REP_TECNICO_INICIAL + 3 * len(G.get("historico", []))))
+    return int(G["tecnico_rep"])
+
+
+def mexer_rep_tecnico(G: Mundo, delta: float) -> None:
+    G["tecnico_rep"] = int(round(clamp(rep_tecnico(G) + delta, 1, 99)))
+
+
+def contar_jogo_na_carreira(G: Mundo, gm: int, gs: int) -> None:
+    p = passagem_atual(G)
+    if not p:
+        return
+    p["j"] += 1
+    p["gp"] += int(gm)
+    p["gc"] += int(gs)
+    p["v" if gm > gs else ("e" if gm == gs else "d")] += 1
+
+
+def dar_titulo(G: Mundo, cl: Clube, nome: str) -> None:
+    """Conta a taca para o clube e, se for o meu, para a sala de trofeus."""
+    cl["titulos"][nome] = cl["titulos"].get(nome, 0) + 1
+    manchete(G, "titulo", "%s e campeao: %s %d." % (cl["nome"], nome, int(G["temporada"])))
+    if cl["id"] != G.get("clube"):
+        return
+    p = passagem_atual(G)
+    if p is not None:
+        p["titulos"].append({"nome": nome, "temporada": int(G["temporada"])})
+    mexer_rep_tecnico(G, PESO_TITULO.get(nome, PESO_TITULO_OUTROS))
+
+
+def marco(G: Mundo, texto: str) -> None:
+    p = passagem_atual(G)
+    if p is not None:
+        p["marcos"].append({"temporada": int(G["temporada"]), "texto": texto})
+
+
+def _fechar_passagem(G: Mundo, saida: str) -> None:
+    p = passagem_atual(G)
+    if p is None:
+        return
+    # na pre-temporada o ano novo ainda nao teve jogo: a passagem acabou no anterior
+    ate = int(G["temporada"]) - (1 if G.get("fase") == "entretemporada" else 0)
+    p["ate"] = max(int(p["de"]), ate)
+    p["saida"] = saida
+
+
+def assumir_clube(G: Mundo, cid: int, saida: str) -> None:
+    """Troca de clube no meio da carreira: fecha a passagem atual com o motivo
+    da saida e abre a nova. Serve a demissao, ao pedido de demissao e a
+    proposta aceita - e o unico lugar que muda G["clube"] depois do inicio."""
+    antigo = G["clubes"][G["clube"]]
+    _fechar_passagem(G, saida)
+    G["clube"] = cid
+    herdar_preferencias(G, antigo)
+    definir_objetivo(G)
+    G["propostas_emprego"] = []
+    carreira(G).append(_passagem(G, cid))
+    noticia(G, "%s deixa o %s (%s) e assume o %s." %
+            (G.get("tecnico") or "O tecnico", antigo["nome"], saida, G["clubes"][cid]["nome"]))
+
+
+def encerrar_passagem(G: Mundo, saida: str) -> None:
+    """Fim de carreira: a ultima passagem fecha sem clube novo."""
+    _fechar_passagem(G, saida)
+
+
+def clubes_interessados(G: Mundo, n: int, teto: int) -> List[Clube]:
+    """Clubes que aceitariam este treinador: reputacao ate o teto. Sorteio
+    entre os mais fortes que cabem, para nao ser sempre a mesma lista."""
+    cands = [cl for cl in G["clubes"].values()
+             if cl["divisao"] != "EX" and cl["id"] != G.get("clube") and cl["reputacao"] <= teto]
+    cands.sort(key=lambda cl: -cl["reputacao"])
+    escolha = rng.sample(cands[:max(12, n)], min(n, len(cands)))
+    escolha.sort(key=lambda cl: -cl["reputacao"])
+    return escolha
+
+
+def propostas_emprego(G: Mundo) -> List[Dict[str, Any]]:
+    """As propostas ainda de pe (as vencidas saem aqui)."""
+    vivas = [o for o in G.get("propostas_emprego", [])
+             if o["temporada"] == G["temporada"] and o["expira"] >= G["semana"]
+             and o["id"] in G["clubes"] and o["id"] != G.get("clube")]
+    G["propostas_emprego"] = vivas
+    return vivas
+
+
+def sondar_treinador(G: Mundo) -> Optional[Dict[str, Any]]:
+    """Uma vez por mes, no Brasileirao: quem esta indo bem atrai proposta.
+
+    A chance sobe com o time em cima da meta e com a reputacao do treinador.
+    Quem liga e clube pelo menos do tamanho do atual (menos uma folga) que cabe
+    na reputacao dele - ninguem da Serie A liga para um desconhecido.
+    """
+    if G.get("fase") != "liga" or G["semana"] > SEMANAS_LIGA - 4:
+        return None
+    vivas = propostas_emprego(G)
+    if len(vivas) >= MAX_PROPOSTAS:
+        return None
+    c = G["clubes"][G["clube"]]
+    ordem = classificacao(G, G["ligas"][c["divisao"]])
+    pos = ordem.index(c["id"]) + 1 if c["id"] in ordem else 99
+    alvo = G.get("objetivo_alvo", 16)
+    # time afundando abaixo da meta nao atrai ninguem, por mais nome que o tecnico tenha
+    if pos > alvo + 6:
+        return None
+    rep = rep_tecnico(G)
+    chance = 0.05 + (0.20 if pos <= alvo else 0.0) + max(0, rep - 40) / 250.0
+    if rng.random() >= chance:
+        return None
+    ja = {o["id"] for o in vivas}
+    # dirigir um clube prova o nivel: quem esta bem num grande atrai grande
+    teto = max(rep + 8, c["reputacao"] + 6)
+    cands = [cl for cl in clubes_interessados(G, 6, teto)
+             if cl["id"] not in ja and cl["reputacao"] >= c["reputacao"] - 3]
+    if not cands:
+        return None
+    cl = cands[0] if rng.random() < 0.5 else rng.choice(cands)
+    oferta = {"id": cl["id"], "clube": cl["nome"], "divisao": cl["divisao"],
+              "reputacao": cl["reputacao"], "temporada": int(G["temporada"]),
+              "expira": int(G["semana"]) + PROPOSTA_VALIDADE}
+    G.setdefault("propostas_emprego", []).append(oferta)
+    noticia(G, "O %s quer contratar %s. A proposta vale ate a semana %d." %
+            (cl["nome"], G.get("tecnico") or "voce", oferta["expira"]))
+    return oferta
+
+
+def aceitar_proposta_emprego(G: Mundo, cid: int) -> Tuple[bool, str]:
+    if cid not in [o["id"] for o in propostas_emprego(G)]:
+        return False, "Essa proposta nao existe mais."
+    antigo = G["clubes"][G["clube"]]["nome"]
+    assumir_clube(G, cid, "aceitou proposta do %s" % G["clubes"][cid]["nome"])
+    return True, "Voce deixou o %s e assumiu o %s. Objetivo: %s." % (
+        antigo, G["clubes"][cid]["nome"], G["objetivo"])
+
+
+def recusar_proposta_emprego(G: Mundo, cid: int) -> Tuple[bool, str]:
+    antes = len(G.get("propostas_emprego", []))
+    G["propostas_emprego"] = [o for o in G.get("propostas_emprego", []) if o["id"] != cid]
+    if len(G["propostas_emprego"]) == antes:
+        return False, "Essa proposta nao existe mais."
+    return True, "Proposta do %s recusada." % G["clubes"][cid]["nome"]
+
+
+def ofertas_ao_demissionario(G: Mundo, n: int = 4) -> List[Clube]:
+    """Quem pede demissao desce um degrau: cabe no teto a reputacao dele ou a
+    do clube que deixou, menos um pouco."""
+    atual = G["clubes"][G["clube"]]["reputacao"]
+    return clubes_interessados(G, n, max(rep_tecnico(G) + 8, atual - 4))
 
 
 
@@ -6306,6 +6663,10 @@ def registrar_negocio(G: Mundo, j: Jogador, origem_id: Optional[int],
     meu = G.get("clube")
     if meu is None or origem_id == destino_id:
         return
+    if valor >= NEGOCIO_MANCHETE:
+        de = " do %s" % G["clubes"][origem_id]["nome"] if origem_id else ""
+        manchete(G, "mercado", "%s contrata %s%s por %s." % (
+            G["clubes"][destino_id]["nome"], j["nome"], de, din(valor)))
     st = stats_ano(G)
     if origem_id == meu:
         st["vendas"].append([j["nome"], G["clubes"][destino_id]["nome"], int(valor)])
@@ -6322,6 +6683,7 @@ def registrar_placar(G: Mundo, r: Dict[str, Any]) -> None:
     em_casa = r["casa"] == meu
     gm, gs = (r["gc"], r["gf"]) if em_casa else (r["gf"], r["gc"])
     adv = r["fora"] if em_casa else r["casa"]
+    contar_jogo_na_carreira(G, gm, gs)
     hist = G.setdefault("placar_hist", [])
     hist.append([int(G.get("temporada", 0)), int(G.get("semana", 0)), r["comp"],
                  int(adv), int(gm), int(gs), 1 if em_casa else 0])
@@ -6439,7 +6801,7 @@ def encerrar_temporada(G: Mundo, resumo: Dict[str, Any]) -> Tuple[bool, Dict[str
         cid = classificacao(G, G["ligas"][d])[0]
         cl = G["clubes"][cid]
         chave = "Brasileirao Serie " + d
-        cl["titulos"][chave] = cl["titulos"].get(chave, 0) + 1
+        dar_titulo(G, cl, chave)
     G["historico"].append("%d %s Serie %s: campeao %s %s %s terminou em %do" %
                           (G["temporada"], tr("pt"), div_antes, G["clubes"][campeao]["nome"],
                            tr("pt"), c["nome"], pos_final))
@@ -6457,6 +6819,16 @@ def encerrar_temporada(G: Mundo, resumo: Dict[str, Any]) -> Tuple[bool, Dict[str
         if cid == G["clube"]:
             subiu = "ABCD".index(para) < "ABCD".index(de)
             resumo["movimento"] = ["acesso" if subiu else "rebaixamento", de, para]
+
+    # a sala de trofeus guarda a temporada; a reputacao do treinador anda
+    marco(G, "%do lugar na Serie %s, meta %s" % (
+        pos_final, div_antes, "cumprida" if resumo["objetivo_ok"] else "nao cumprida"))
+    mexer_rep_tecnico(G, 6 if resumo["objetivo_ok"] else -5)
+    if resumo["movimento"]:
+        tipo, de, para = resumo["movimento"]
+        marco(G, ("Acesso da Serie %s para a %s" if tipo == "acesso"
+                  else "Rebaixamento da Serie %s para a %s") % (de, para))
+        mexer_rep_tecnico(G, 5 if tipo == "acesso" else -6)
 
     resumo["voltando"] = [G["jogadores"][p]["nome"] for p in c.get("emprestados", [])
                           if p in G["jogadores"]]
@@ -6595,7 +6967,6 @@ def fim_temporada(G):
 
 
 def trocar_de_clube(G):
-    antigo = G["clubes"][G["clube"]]
     titulo("sem clube")
     cands = [cl for cl in G["clubes"].values()
              if cl["divisao"] in "BCD" and cl["id"] != G["clube"]]
@@ -6610,13 +6981,12 @@ def trocar_de_clube(G):
     if k is None and G["auto"]:
         k = 1
     if not k:
+        encerrar_passagem(G, "encerrou a carreira")
         titulo("carreira encerrada")
         for h in G["historico"]:
             print("  " + h)
         return False
-    G["clube"] = ofertas[k - 1]["id"]
-    herdar_preferencias(G, antigo)
-    definir_objetivo(G)
+    assumir_clube(G, ofertas[k - 1]["id"], "demitido")
     print(cor("Novo clube: %s. Objetivo: %s." % (ofertas[k - 1]["nome"], G["objetivo"]), "ok"))
     return True
 

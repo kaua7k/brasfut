@@ -4,6 +4,7 @@
 // campo) e o maior bloco da tela, e o resto e contexto da aposta e memoria.
 // E a mesma hierarquia da janela tkinter, redesenhada.
 
+import { useState } from 'react'
 import { Campo } from '../componentes/Campo'
 import { Estrela, EscudoRival, iconeDeEstado } from '../icones'
 import type {
@@ -11,9 +12,11 @@ import type {
   DadosPainel,
   Destaque,
   Escalacao,
+  Manchete,
   Noticia,
   Objetivo,
   Prontidao,
+  PropostaEmprego,
   Proximo,
   Resultados,
   Tabela,
@@ -26,9 +29,10 @@ interface Props {
   aoIr: (destino: string) => void
   /** abre a fila de mesas de renovacao para esses jogadores */
   aoRenovar: (ids: number[]) => void
+  aoResponderProposta: (id: number, aceitar: boolean) => void
 }
 
-export function Painel({ dados, aoDefinirAuto, mudandoAuto, aoIr, aoRenovar }: Props) {
+export function Painel({ dados, aoDefinirAuto, mudandoAuto, aoIr, aoRenovar, aoResponderProposta }: Props) {
   // o botao da faixa leva a outra tela; se ela ainda nao migrou, ele avisa
   const prontas = new Set(dados.cabecalho.menu.filter((m) => m.pronta).map((m) => m.id))
   return (
@@ -36,6 +40,9 @@ export function Painel({ dados, aoDefinirAuto, mudandoAuto, aoIr, aoRenovar }: P
       <div className="coluna">
         <FaixaProntidao prontidao={dados.prontidao} prontas={prontas} aoIr={aoIr} />
         {dados.contratos && <FaixaContratos aviso={dados.contratos} aoRenovar={aoRenovar} />}
+        {dados.propostas_emprego.map((o) => (
+          <FaixaProposta key={o.id} proposta={o} aoResponder={aoResponderProposta} />
+        ))}
         <FaixaResultados resultados={dados.resultados} />
         <CardProximo proximo={dados.proximo} meuClube={dados.cabecalho.clube} />
         <CardEscalacao
@@ -50,6 +57,7 @@ export function Painel({ dados, aoDefinirAuto, mudandoAuto, aoIr, aoRenovar }: P
         <CardTabela tabela={dados.tabela} />
         <CardDestaques destaques={dados.destaques} />
         <CardNoticias noticias={dados.noticias} />
+        <CardMundo mundo={dados.mundo} aoIr={aoIr} />
       </div>
     </div>
   )
@@ -114,6 +122,55 @@ function FaixaContratos({
       <button type="button" className="bt-fantasma" onClick={() => aoRenovar(aviso.ids)}>
         Renovar {aviso.ids.length > 1 ? `os ${aviso.ids.length}` : ''}
       </button>
+    </section>
+  )
+}
+
+// ------------------------------------------------------ proposta de emprego
+function FaixaProposta({
+  proposta,
+  aoResponder,
+}: {
+  proposta: PropostaEmprego
+  aoResponder: (id: number, aceitar: boolean) => void
+}) {
+  // aceitar troca de clube na hora: pede um segundo clique, como no Mercado
+  const [certeza, setCerteza] = useState(false)
+  return (
+    <section className="painel faixa atencao">
+      <div className="faixa-icone">{iconeDeEstado('atencao')}</div>
+      <div style={{ minWidth: 0 }}>
+        <div className="faixa-titulo">
+          O {proposta.clube} (Serie {proposta.divisao}, REP {proposta.reputacao}) quer voce como tecnico
+        </div>
+        <div className="faixa-detalhe">
+          {certeza
+            ? 'Aceitar deixa o clube atual agora, no meio da temporada. Confirma?'
+            : proposta.semanas > 0
+              ? `A proposta vale ate a semana ${proposta.expira} (${proposta.semanas} semana(s)).`
+              : 'A proposta vence nesta semana: responda antes de avancar.'}
+        </div>
+      </div>
+      <div className="espaco" />
+      {certeza ? (
+        <>
+          <button type="button" className="bt-fantasma" onClick={() => setCerteza(false)}>
+            Cancelar
+          </button>
+          <button type="button" className="bt-acao" onClick={() => aoResponder(proposta.id, true)}>
+            Confirmar
+          </button>
+        </>
+      ) : (
+        <>
+          <button type="button" className="bt-fantasma" onClick={() => aoResponder(proposta.id, false)}>
+            Recusar
+          </button>
+          <button type="button" className="bt-fantasma" onClick={() => setCerteza(true)}>
+            Aceitar
+          </button>
+        </>
+      )}
     </section>
   )
 }
@@ -440,5 +497,36 @@ function CardNoticias({ noticias }: { noticias: Noticia[] }) {
         )}
       </div>
     </section>
+  )
+}
+
+// ------------------------------------------------------------- pelo mundo
+function CardMundo({ mundo, aoIr }: { mundo: Manchete[]; aoIr: (destino: string) => void }) {
+  return (
+    <section className="painel" style={{ padding: '16px 0' }}>
+      <div className="painel-cab" style={{ padding: '0 18px 10px' }}>
+        <span className="painel-titulo">Pelo mundo</span>
+        <div className="espaco" />
+        <button type="button" className="bt-link" onClick={() => aoIr('noticias')}>
+          ver tudo
+        </button>
+      </div>
+      <FeedMundo mundo={mundo} vazio="O futebol ainda nao comecou. Avance a semana." />
+    </section>
+  )
+}
+
+export function FeedMundo({ mundo, vazio }: { mundo: Manchete[]; vazio: string }) {
+  if (mundo.length === 0) return <div className="vazio">{vazio}</div>
+  return (
+    <ul className="feed-mundo">
+      {mundo.map((m, i) => (
+        <li key={i} className={`manchete ${m.tipo}`}>
+          <span className="manchete-rotulo">{m.rotulo}</span>
+          <span className="manchete-texto">{m.texto}</span>
+          <span className="quando">{m.quando}</span>
+        </li>
+      ))}
+    </ul>
   )
 }
