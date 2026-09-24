@@ -3083,6 +3083,7 @@ def _semana_estadual(G: Mundo) -> List[Dict[str, Any]]:
     economia_semanal(G)
     recuperacao(G)
     mercado_ia(G)
+    contratar_livres_ia(G)
     G["semana_est"] = int(G.get("semana_est", 1)) + 1
     for recado in executar_agendadas(G):
         noticia(G, recado)
@@ -3507,6 +3508,7 @@ def avancar_semana(G):
     economia_semanal(G)
     recuperacao(G)
     mercado_ia(G)
+    contratar_livres_ia(G)
     saneamento_ia(G)
     if G["semana"] % SEMANAS_POR_MES == 0:
         sondar_treinador(G)
@@ -4693,11 +4695,12 @@ SEMANAS_POR_MES = 4
 # Ritmo de evolucao. PISO_TREINO e quanto um jogador evolui SEM jogar: garoto
 # de base treina e cresce quase como quem joga; jogador feito precisa de jogo.
 EVOLUCAO_BASE = 0.80
+PISO_BASE = 0.72
 PISO_TREINO = ((21, 0.60), (25, 0.40), (99, 0.30))
 
 # faixa de potencial por sorteio de talento: (peso, minimo, maximo)
 FAIXAS_TALENTO: List[Tuple[float, int, int]] = [
-    (0.004, 89, POT_MAX),   # joia rara
+    (0.0025, 88, 96),       # joia rara
     (0.055, 78, 88),        # promessa forte
     (0.220, 67, 77),        # bom aproveitamento
     (0.719, 50, 66),        # elenco comum
@@ -4713,7 +4716,9 @@ def sortear_potencial(ovr: int, idade: int, qualidade: float) -> int:
     peso_extra = clamp(qualidade, 0.0, 1.0)
     # academia boa nao garante joia, muda a loteria: no nivel 1 a chance e
     # residual, no nivel 10 fica em torno de uma cria excepcional a cada 8.
-    escala = (14.0, 4.0, 0.6, -0.50)
+    # (era 14/4 com deslocamento de 8: academia 10 dava joia 97-99 a cada 17
+    # garotos e, com 260 clubes com base, o mundo enchia de 99)
+    escala = (5.0, 2.5, 0.6, -0.50)
     pesos = []
     for i, (peso, _lo, _hi) in enumerate(FAIXAS_TALENTO):
         pesos.append(max(0.0005, peso * (1.0 + peso_extra * escala[i])))
@@ -4721,8 +4726,9 @@ def sortear_potencial(ovr: int, idade: int, qualidade: float) -> int:
     # alem de mudar a loteria, a qualidade do clube desloca a faixa inteira:
     # a cria comum de um grande nasce com teto maior que a cria comum de um
     # pequeno. E isso que define o nivel de equilibrio de cada divisao.
-    desloca = int(round(peso_extra * 8))
-    teto = rng.randint(min(faixa[1] + desloca, POT_MAX), min(faixa[2] + desloca, POT_MAX))
+    # o deslocamento sobe so o piso da faixa: nunca passa do teto dela
+    desloca = int(round(peso_extra * 5))
+    teto = rng.randint(min(faixa[1] + desloca, faixa[2]), faixa[2])
     # quem ja e velho nao tem para onde crescer
     if idade >= 28:
         teto = min(teto, ovr + rng.randint(0, 2))
@@ -4792,8 +4798,9 @@ def taxa_evolucao(G: Mundo, j: Jogador) -> float:
 
     piso = next(v for lim, v in PISO_TREINO if idade <= lim)
     if da_base(j):
-        # garoto de base nao tem jogo: o treino e a unica fonte dele
-        minutagem, piso = 0.0, 1.0
+        # garoto de base nao tem jogo: o treino e a unica fonte dele (era 1.0,
+        # o ritmo de quem joga tudo; com foco na base passava de 20 por ano)
+        minutagem, piso = 0.0, PISO_BASE
     ganho = EVOLUCAO_BASE * fator_idade * (piso + (1.0 - piso) * minutagem)
     ganho *= 0.40 + 0.60 * perto_do_teto
     ganho *= estrutura * talento * fisico
@@ -5216,6 +5223,8 @@ def desempenho_temporada(G: Mundo, j: Jogador) -> float:
 # prova que o jogador da conta da Serie D; para o teto passar disso ele precisa
 # render num palco maior. Sem esse limite o mundo inteiro caminhava para 99.
 TETO_CREDIVEL = {"A": 97, "B": 88, "C": 80, "D": 74, "EX": 94}
+# nenhuma revisao ou estouro leva o teto alem disto: 92+ so nasce, nao se fabrica
+TETO_REVISAO = 91
 TETO_CREDIVEL.update({k: v["teto"] for k, v in PERFIL_LIGA_EXT.items()})
 
 
@@ -5230,10 +5239,13 @@ def teto_maximo(G: Mundo, j: Jogador) -> int:
     """
     c = G["clubes"].get(j["clube"]) if j["clube"] else None
     if not c:
-        return int(min(POT_MAX, max(TETO_CREDIVEL["D"], j["ovr"] + 2)))
+        return int(min(TETO_REVISAO, max(TETO_CREDIVEL["D"], j["ovr"])))
     limite = max(TETO_CREDIVEL.get(c["divisao"], 74),
                  int(clamp(58 + c["reputacao"] * 0.42, 58, 97)))
-    return int(min(POT_MAX, max(limite, j["ovr"] + 2)))
+    # quem ja passou do limite fica onde esta (o campo nao mente), mas nao
+    # ganha folga: o "+2" antigo era uma catraca - bateu no teto, o teto subia,
+    # e o mundo caminhava para 99 mes a mes
+    return int(min(TETO_REVISAO, max(limite, j["ovr"])))
 
 
 def chance_subida(pot: int) -> float:
@@ -5248,11 +5260,11 @@ def chance_subida(pot: int) -> float:
         return 0.80
     if pot < 85:
         return 0.52
-    if pot < 90:
-        return 0.30
-    if pot < 94:
-        return 0.15
-    return 0.06
+    if pot < 88:
+        return 0.22
+    if pot < 91:
+        return 0.08
+    return 0.03
 
 
 def estourar_teto(G: Mundo, j: Jogador) -> int:
@@ -5285,6 +5297,8 @@ def estourar_teto(G: Mundo, j: Jogador) -> int:
 
 def revisar_potencial(G: Mundo, j: Jogador) -> int:
     """Corrige o teto com base na temporada inteira. Devolve a variacao."""
+    if da_base(j):
+        return 0                # sem jogo nao ha prova: a base nao se revisa
     nota = desempenho_temporada(G, j)
     gap = j["pot"] - j["ovr"]
     idade = j["idade"]
@@ -5411,6 +5425,46 @@ def fim_de_contrato(G):
             j["listado"] = 0
             j["emp_listado"] = 0
             G["livres"].append(j["id"])
+
+
+LIVRES_POR_SEMANA = 10
+
+
+def contratar_livres_ia(G):
+    """Semanal: os melhores agentes livres vao para clubes onde seriam titulares
+    e que pagam o salario. Antes a IA pegava livre ao acaso, so com elenco
+    abaixo de 24, e a limpeza de fim de ano guardava justamente os melhores:
+    a fila de craques sem clube so crescia."""
+    livres = sorted((G["jogadores"][p] for p in G["livres"] if p in G["jogadores"]),
+                    key=lambda j: -j["ovr"])
+    clubes = [c for c in G["clubes"].values()
+              if c["divisao"] != "EX" and c["id"] != G.get("clube") and len(c["elenco"]) < 30]
+    feitos = 0
+    for j in livres[:40]:
+        if feitos >= LIVRES_POR_SEMANA:
+            break
+        cands = []
+        for c in clubes:
+            titulares = sorted((G["jogadores"][p]["ovr"] for p in c["elenco"]
+                                if G["jogadores"][p]["pos"] == j["pos"]), reverse=True)
+            vagas = max(1, ELENCO_PADRAO[j["pos"]] // 2)
+            pior_titular = titulares[vagas - 1] if len(titulares) >= vagas else 0
+            if j["ovr"] <= pior_titular:
+                continue
+            if verba_contratacao(G, c, j["salario"]) <= 0:
+                continue
+            cands.append(c)
+        if not cands:
+            continue
+        cands.sort(key=lambda c: -c["reputacao"])
+        c = cands[0] if rng.random() < 0.6 else rng.choice(cands[:5])
+        transferir(G, j["id"], c["id"], 0)
+        j["contrato"] = rng.randint(1, 3)
+        clubes = [x for x in clubes if len(x["elenco"]) < 30]
+        feitos += 1
+        if j["ovr"] >= 78:
+            manchete(G, "mercado", "%s, sem clube, assina com o %s." % (j["nome"], c["nome"]))
+    return feitos
 
 
 def contratar_livre_ia(G, c, pos, nivel_alvo):
@@ -7516,6 +7570,47 @@ def iniciar_temporada(G):
 # SAVE / LOAD
 # ----------------------------------------------------------------------------
 
+# Fracao de profissionais com ovr >= t num mundo novo (medida em 2026-09).
+# E a curva saudavel: a correcao de save inflado casa percentil com percentil.
+CURVA_SAUDAVEL = {93: 0.00005, 92: 0.0001, 91: 0.00021, 90: 0.0003, 89: 0.00063, 88: 0.00115,
+                  87: 0.00273, 86: 0.00524, 85: 0.00839, 84: 0.01227, 83: 0.01803, 82: 0.02506,
+                  81: 0.03334, 80: 0.04445, 79: 0.05924, 78: 0.07591, 77: 0.09646, 76: 0.12288,
+                  75: 0.14846, 74: 0.18096, 73: 0.21556, 72: 0.25645, 71: 0.29367, 70: 0.34148,
+                  69: 0.37849, 68: 0.42787, 67: 0.47033, 66: 0.51961, 65: 0.55546, 64: 0.60128,
+                  63: 0.63672, 62: 0.6796, 61: 0.71346, 60: 0.74596, 59: 0.77155, 58: 0.80478,
+                  57: 0.82544, 56: 0.84431, 55: 0.86297, 54: 0.88237, 53: 0.89799, 52: 0.9135,
+                  51: 0.92514, 50: 0.93678}
+
+
+def corrigir_inflacao(G):
+    """Uma vez por save: o motor antigo inflava o mundo inteiro (em 2035 havia
+    5.670 profissionais com 70+ contra 3.257 num mundo novo, e dezenas de 99).
+    Cada profissional recebe a nota do mesmo percentil na curva saudavel - so
+    para baixo - e o teto desce junto, mantendo a folga que ele tinha."""
+    if G.get("correcao_notas", 0) >= 2:
+        return 0
+    pros = sorted((j for j in G["jogadores"].values() if not da_base(j)), key=lambda j: -j["ovr"])
+    n = max(1, len(pros))
+    faixas = sorted(CURVA_SAUDAVEL.items(), key=lambda kv: -kv[0])
+    mexidos = 0
+    for r, j in enumerate(pros):
+        frac = (r + 1) / n
+        alvo = next((t for t, f in faixas if frac <= f), None)
+        if alvo is None or alvo >= j["ovr"]:
+            continue
+        folga = max(0, j["pot"] - j["ovr"])
+        j["ovr"] = alvo
+        j["pot"] = int(min(TETO_REVISAO + 3, alvo + folga))
+        j["salario"] = salario_devido(j)
+        j["valor"] = valor_de(j["ovr"], j["idade"], j["pot"])
+        mexidos += 1
+    for j in G["jogadores"].values():
+        if da_base(j) and j["pot"] > 88:
+            j["pot"] = int(round(88 + (j["pot"] - 88) * 0.45))
+    G["correcao_notas"] = 2
+    return mexidos
+
+
 def migrar(G):
     ja = {c["nome"] for c in G["clubes"].values() if c["divisao"] == "EX"}
     faltam = [d for d in CLUBES_LIB + CLUBES_SUL if d[0] not in ja]
@@ -7534,6 +7629,10 @@ def migrar(G):
                     c["divisao"] = codigo
                     c["dinheiro"] = int(c["reputacao"] ** 2 * 3800 * perfil_liga(codigo)["caixa"])
                     c["europeu"] = codigo in ORDEM_LIGAS_EXT
+    if G.get("clube") is not None and G.get("temporada", 2026) > 2027:
+        corrigir_inflacao(G)
+    else:
+        G.setdefault("correcao_notas", 2)
     if falta_mundo(G):
         G["seq_c"] = max([G.get("seq_c", 0)] + list(G["clubes"]))
         G["seq"] = max([G.get("seq", 0)] + list(G["jogadores"]))
