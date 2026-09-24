@@ -16,8 +16,8 @@ if not exist "web\dist\index.html" goto sembuild
 
 echo.
 echo  BRASFUT abrindo no navegador.
-echo  So um BRASFUT por vez: se a janela antiga (iniciar.bat) estiver
-echo  aberta, este aqui recusa abrir para nao sobrescrever o save.
+echo  Se o jogo ja estiver aberto, este atalho so abre o navegador nele.
+echo  Fechar a aba NAO fecha o jogo: feche esta janela preta.
 echo.
 echo  Feche esta janela preta para encerrar o jogo.
 echo.

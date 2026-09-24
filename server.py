@@ -113,8 +113,26 @@ class Manipulador(BaseHTTPRequestHandler):
         self._responde(404, rotas.json_bytes({"erro": "rota inexistente"}))
 
 
+def _ja_no_ar(url):
+    """Tem um servidor do BRASFUT respondendo nesta porta?"""
+    import json
+    import urllib.request
+    try:
+        with urllib.request.urlopen(url + "api/estado", timeout=2) as r:
+            return "jogo" in json.load(r)
+    except Exception:
+        return False
+
+
 def main():
     if not eng.travar_save():
+        # o jogo ja esta rodando no navegador (fechar a aba nao fecha o servidor):
+        # abre a mesma pagina em vez de recusar
+        url = "http://127.0.0.1:%d/" % PORTA
+        if _ja_no_ar(url):
+            print("O BRASFUT ja esta aberto: abrindo o navegador nele (%s)." % url)
+            webbrowser.open(url)
+            return
         # sai com erro: o iniciar-web.bat pausa e a mensagem fica na tela
         print(eng.AVISO_TRAVA)
         sys.exit(1)
