@@ -14,7 +14,7 @@ adversario; y=0 e a lateral de cima.
 LINHAS = {
     "GOL": (7, (50, 50)),
     "ZAG": (20, (30, 70)),
-    "LAT": (25, (16, 84)),
+    "LAT": (28, (14, 86)),   # um passo a frente do zagueiro: nomes nao se atropelam
     "VOL": (41, (26, 74)),
     "MEI": (58, (22, 78)),
     "ATA": (79, (18, 82)),

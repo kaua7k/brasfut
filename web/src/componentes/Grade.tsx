@@ -57,6 +57,9 @@ interface Props<T> {
    *  conjunto inteiro que deve ficar marcado (vazio = desmarcar). */
   aoMarcarTodos?: (ids: number[]) => void
   aoAbrir?: (item: T) => void
+  /** Clicar em qualquer ponto da linha marca (a Escalacao usa: o nome e o
+   *  alvo natural). A caixa continua sendo o caminho do teclado. */
+  marcarAoClicar?: boolean
   vazio?: string
   /** Guarda a ordem escolhida entre visitas (por navegador). */
   memoria?: string
@@ -155,6 +158,7 @@ export function Grade<T>({
   aoMarcar,
   aoMarcarTodos,
   aoAbrir,
+  marcarAoClicar = false,
   vazio,
   memoria,
   ordenavel = true,
@@ -268,6 +272,7 @@ export function Grade<T>({
             style={{ gridTemplateColumns: grid }}
             title={aoAbrir ? `duplo-clique abre a ficha de ${nome}` : undefined}
             onDoubleClick={aoAbrir ? () => aoAbrir(item) : undefined}
+            onClick={selecionavel && marcarAoClicar ? () => aoMarcar?.(id) : undefined}
           >
             {selecionavel && (
               <button
@@ -275,7 +280,11 @@ export function Grade<T>({
                 className={`marca-caixa${marcada ? ' marcada' : ''}`}
                 aria-pressed={marcada}
                 aria-label={`Marcar ${nome}`}
-                onClick={() => aoMarcar?.(id)}
+                onClick={(e) => {
+                  // com marcarAoClicar a linha tambem marca: sem isto, marcaria duas vezes
+                  e.stopPropagation()
+                  aoMarcar?.(id)
+                }}
               >
                 {marcada && <IconeCerto tamanho={12} />}
               </button>

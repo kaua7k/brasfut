@@ -1742,6 +1742,7 @@ def definir_escalacao_automatica(G: Mundo, ligada: bool, c: Optional[Clube] = No
     c["auto_esc"] = bool(ligada)
     c["esc_stamp"] = ""
     if ligada:
+        c.pop("vagas_manuais", None)
         c["escalacao"] = montar_escalacao(G, c)
     elif not c.get("escalacao"):
         c["escalacao"] = montar_escalacao(G, c)
@@ -1810,7 +1811,16 @@ def escalacao_valida(G: Mundo, c: Clube, comp: str = "liga") -> Tuple[List[int],
     return esc, form
 
 
-def atribuir_vagas(G: Mundo, esc: List[int], form: Dict[str, int]) -> List[Tuple[int, str]]:
+def vagas_manuais(c: Optional[Clube]) -> Dict[int, str]:
+    """Vagas que o tecnico fixou trocando dois titulares de lugar (api/rotas.py
+    grava em c["vagas_manuais"] como [[pid, vaga], ...]). Vazio = tudo otimo."""
+    if not c:
+        return {}
+    return {int(p): v for p, v in (c.get("vagas_manuais") or [])}
+
+
+def atribuir_vagas(G: Mundo, esc: List[int], form: Dict[str, int],
+                   fixas: Optional[Dict[int, str]] = None) -> List[Tuple[int, str]]:
     """Diz em que vaga do esquema cada titular esta jogando.
 
     Fonte unica: forcas() calcula a penalidade a partir daqui e a interface
@@ -1825,14 +1835,26 @@ def atribuir_vagas(G: Mundo, esc: List[int], form: Dict[str, int]) -> List[Tuple
         return []
     vagas = _vagas_do_esquema(form)
     peso = _peso_vagas(form)
-    valores = [[rendimento(G["jogadores"][pid],
-                           AFINIDADE[G["jogadores"][pid]["pos"]][vaga]) * peso[vaga]
-                for pid in esc]
-               for vaga in vagas]
     saida: List[Tuple[int, str]] = []
-    for i, k in enumerate(_resolver_vagas(valores, len(esc))):
-        if 0 <= k < len(esc):
-            saida.append((esc[k], vagas[i]))
+    # primeiro quem o tecnico fixou, se a vaga ainda existe no esquema; o resto
+    # passa pela atribuicao otima de sempre
+    livres = list(vagas)
+    soltos = []
+    for pid in esc:
+        vaga = (fixas or {}).get(pid)
+        if vaga in livres:
+            livres.remove(vaga)
+            saida.append((pid, vaga))
+        else:
+            soltos.append(pid)
+    if soltos:
+        valores = [[rendimento(G["jogadores"][pid],
+                               AFINIDADE[G["jogadores"][pid]["pos"]][vaga]) * peso[vaga]
+                    for pid in soltos]
+                   for vaga in livres]
+        for i, k in enumerate(_resolver_vagas(valores, len(soltos))):
+            if 0 <= k < len(soltos):
+                saida.append((soltos[k], livres[i]))
     ordem_esc = {p: i for i, p in enumerate(esc)}
     saida.sort(key=lambda t: ordem_esc[t[0]])
     return saida
@@ -1851,7 +1873,7 @@ def forcas_de(G: Mundo, c: Clube, esc: List[int]) -> Tuple[float, float]:
     ataque = defesa = 0.0
     peso_at = peso_de = 0.0
     tem_goleiro = False
-    for pid, vaga in atribuir_vagas(G, esc, form):
+    for pid, vaga in atribuir_vagas(G, esc, form, vagas_manuais(c)):
         j = G["jogadores"][pid]
         natural = j["pos"]
         if vaga == "GOL":
@@ -1902,7 +1924,7 @@ def diagnostico_escalacao(G: Mundo, c: Optional[Clube] = None,
     auto = escalacao_automatica(G, c)
 
     esc, form = escalacao_valida(G, c, comp)
-    vagas = atribuir_vagas(G, esc, form)
+    vagas = atribuir_vagas(G, esc, form, vagas_manuais(c))
     improvisados = [(pid, vaga) for pid, vaga in vagas if vaga != jogs[pid]["pos"]]
     afin_min = min([AFINIDADE[jogs[pid]["pos"]][vaga] for pid, vaga in improvisados],
                    default=1.0)
@@ -2228,7 +2250,7 @@ def forca_meio(G: Mundo, c: Clube, esc: List[int]) -> float:
     """Quanto este XI pesa na disputa do meio-campo."""
     form = formacao_de(c)
     total = peso = 0.0
-    for pid, vaga in atribuir_vagas(G, esc, form):
+    for pid, vaga in atribuir_vagas(G, esc, form, vagas_manuais(c)):
         j = G["jogadores"].get(pid)
         if not j:
             continue
@@ -2330,14 +2352,16 @@ def simular(G, casa_id, fora_id, comp="liga", neutro=False):
     casa, fora = G["clubes"][casa_id], G["clubes"][fora_id]
     cumprir_suspensao(G, casa, comp)
     cumprir_suspensao(G, fora, comp)
-    esc_c = list(montar_escalacao(G, casa, comp))
-    esc_f = list(montar_escalacao(G, fora, comp))
+    # o XI escalado: o do tecnico (manual ou automatico) e o da maquina. Antes
+    # era sempre montar_escalacao, e o time manual nunca entrava em campo
+    esc_c = list(escalacao_valida(G, casa, comp)[0])
+    esc_f = list(escalacao_valida(G, fora, comp)[0])
     banco_c = banco_disponivel(G, casa, esc_c, comp)
     banco_f = banco_disponivel(G, fora, esc_f, comp)
     form_c = formacao_de(casa)
     form_f = formacao_de(fora)
-    vagas_c = dict(atribuir_vagas(G, esc_c, form_c))
-    vagas_f = dict(atribuir_vagas(G, esc_f, form_f))
+    vagas_c = dict(atribuir_vagas(G, esc_c, form_c, vagas_manuais(casa)))
+    vagas_f = dict(atribuir_vagas(G, esc_f, form_f, vagas_manuais(fora)))
     jogaram_c, jogaram_f = dict(vagas_c), dict(vagas_f)
     ef_c, ef_f = _efeitos(plano_de(casa)), _efeitos(plano_de(fora))
 
@@ -6400,7 +6424,7 @@ def tela_escalacao(G):
                                  if auto else
                                  cor("MANUAL - o time so muda quando voce mexe", "av"))])
         linhas = []
-        for i, (pid, vaga) in enumerate(atribuir_vagas(G, esc, form), 1):
+        for i, (pid, vaga) in enumerate(atribuir_vagas(G, esc, form, vagas_manuais(c)), 1):
             j = G["jogadores"][pid]
             if vaga == j["pos"]:
                 marca = j["pos"]

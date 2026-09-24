@@ -147,6 +147,8 @@ export const api = {
   montarMelhor: () => pedir<RespostaAcao<TelaEscalacao>>('/api/escalacao/montar', {}),
   trocarTitular: (titular: number, reserva: number) =>
     pedir<RespostaAcao<TelaEscalacao>>('/api/escalacao/trocar', { titular, reserva }),
+  inverterTitulares: (a: number, b: number) =>
+    pedir<RespostaAcao<TelaEscalacao>>('/api/escalacao/inverter', { a, b }),
   mudarPlano: (eixo: string, valor: string) =>
     pedir<RespostaAcao<TelaEscalacao>>('/api/escalacao/plano', { eixo, valor }),
   planoPadrao: () => pedir<RespostaAcao<TelaEscalacao>>('/api/escalacao/plano', { padrao: true }),

@@ -611,6 +611,8 @@ export interface TelaEscalacao {
   personalizada: { rotulo: string; contagem: Contagem } | null
   limites: Record<string, { min: number; max: number }>
   pode_desfazer: boolean
+  /** O motor aceita vaga fixada? Sem isso, so titulares da mesma vaga trocam de lugar. */
+  troca_entre_vagas: boolean
   nova_vaga: number[]
   tatica: string
   taticas: string[]

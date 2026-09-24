@@ -911,6 +911,18 @@ def _linha_banco(G, j):
     }
 
 
+# Trocar dois titulares de vagas diferentes precisa do motor: quem decide a
+# vaga de cada um e eng.atribuir_vagas, uma atribuicao otima que ignora a
+# ordem do XI. Quando o motor ganhar eng.vagas_manuais(c) (e passar o mapa para
+# atribuir_vagas), a troca liga sozinha, sem mexer na API nem na tela.
+MOTIVO_SEM_VAGA_FIXA = ("Titulares de vagas diferentes ainda nao trocam de lugar: o motor escolhe "
+                        "a vaga de cada um sozinho. Na mesma vaga, eles trocam de lado.")
+
+
+def motor_fixa_vagas():
+    return callable(getattr(eng, "vagas_manuais", None))
+
+
 GRUPOS_FORMACAO = [("4", "Linha de 4"), ("3", "Linha de 3"), ("5", "Linha de 5")]
 
 
@@ -1013,12 +1025,11 @@ def escalacao():
     return {
         "cabecalho": cabecalho(G),
         "titulo": "Escalacao",
-        "subtitulo": "Marque um titular e um reserva para trocar. O plano de jogo fica abaixo.",
+        "subtitulo": "Clique em dois jogadores para trocar: titular e reserva, ou dois titulares.",
+        # formacao e mentalidade ja aparecem nos proprios controles
         "metricas": [
             {"valor": "%.1f" % d["ataque"], "nome": "ataque"},
             {"valor": "%.1f" % d["defesa"], "nome": "defesa"},
-            {"valor": eng.rotulo_formacao(c), "nome": "formacao"},
-            {"valor": c["tatica"], "nome": "mentalidade"},
         ],
         "prontidao": {"estado": d["estado"], "titulo": d["titulo"], "detalhe": d["detalhe"],
                       "estrutural": _saida_estrutural(G, c, d)},
@@ -1032,6 +1043,7 @@ def escalacao():
                           if eng.contagem_valida(c.get("formacao_custom") or {})[0] else None),
         "limites": {p: {"min": lo, "max": hi} for p, (lo, hi) in eng.LIMITES_FORMACAO.items()},
         "pode_desfazer": SESSAO.desfazer_esquema is not None,
+        "troca_entre_vagas": motor_fixa_vagas(),
         "tatica": c["tatica"],
         "taticas": list(eng.TATICAS),
         "plano": {

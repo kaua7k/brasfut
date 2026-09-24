@@ -123,9 +123,19 @@ Copas, Mercado, Finanças, Estádio, Infraestrutura e Notícias. A janela tkinte
 continua funcionando e continua sendo o único lugar de alguns diálogos (ver
 Pontas soltas).
 
-**Escalação.** A troca é em dois cliques explícitos (um titular, um reserva) e
-só então o botão *Trocar*; o titular também se marca clicando no disco do
-campo. Trocar alguém desliga a alavanca automática, e o recado diz isso. O XI
+**Escalação.** A troca é em dois cliques explícitos e só então o botão
+*Trocar*: titular + reserva (um sai, o outro entra) ou dois titulares
+(`POST /api/escalacao/inverter`, trocam de lugar). Marca-se pelo disco do
+campo ou pela linha da lista (titulares em roxo, `--titular`). Na mesma vaga
+a troca é de lado no campo (a ordem do XI decide quem fica em cima); em vagas
+diferentes depende do motor aceitar vaga fixada — enquanto
+`eng.vagas_manuais` não existir, a API recusa com o motivo e a tela avisa
+antes (`troca_entre_vagas`). A rota já grava `c["vagas_manuais"]` (lista de
+`[pid, vaga]` do XI inteiro) para quando o motor ler. Trocar alguém desliga a
+alavanca automática, e o recado diz isso. O disco mostra o overall. Leiaute:
+campo + lista primeiro, uma barra só com alavanca, formação, *Editar
+formação*, *Tática* (mentalidade e plano de jogo, recolhidos) e *Montar
+melhor time*. O XI
 sai do mesmo `diagnostico_escalacao` do Painel — as duas telas mostram sempre
 o mesmo time. O botão da faixa do Painel e o aviso de *time quebrado* ao
 avançar levam direto à Escalação.
@@ -465,6 +475,8 @@ velha para apagar na mão. `--sim` não trava, porque não grava no save.
   jogos contados na passagem, feed do mundo e `/api/config`.
 - **`test_europa.py`** ligas europeias no mundo novo, rodadas andando,
   telas `ext:` e save antigo ganhando a Europa sem jogador duplicado.
+- **`test_escalacao.py`** trocas: titular por reserva, dois titulares da
+  mesma vaga trocando de lado e a recusa (ou troca) entre vagas diferentes.
 - **`test_continentais.py`** grupos da Libertadores e da Sul-Americana até o
   playoff e as oitavas, e save antigo ganhando os clubes que faltam.
 

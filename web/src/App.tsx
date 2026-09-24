@@ -419,6 +419,8 @@ export function App() {
           })
         case 'trocar':
           return api.trocarTitular(acao.titular, acao.reserva)
+        case 'inverter':
+          return api.inverterTitulares(acao.a, acao.b)
         case 'plano':
           return api.mudarPlano(acao.eixo, acao.valor)
         case 'plano-padrao':

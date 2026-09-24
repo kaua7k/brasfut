@@ -220,6 +220,9 @@ def escalacao_auto(corpo):
         mudou = SESSAO.definir_auto(corpo["ligada"])
         if mudou:
             SESSAO.esquecer_desfazer()
+            if corpo["ligada"]:
+                G = SESSAO.exigir()
+                _esquecer_vagas_manuais(G["clubes"][G["clube"]])
             eng.salvar_auto(SESSAO.exigir(), forcar=True)
         # a alavanca mora no Painel e na Escalacao: devolve a tela de quem pediu
         if corpo.get("tela") == "escalacao":
@@ -547,9 +550,16 @@ def ver_escalacao(_corpo):
         return {"tela": dto.escalacao()}
 
 
+def _esquecer_vagas_manuais(c):
+    """As vagas que o usuario fixou trocando dois titulares de lugar valem para
+    aquele XI naquela formacao. Remontar o time ou mudar a formacao apaga."""
+    c.pop("vagas_manuais", None)
+
+
 def _remontar(G, c):
     """O melhor XI para o esquema atual. Mesmo caminho do botao da janela."""
     c["escalacao"] = eng.auto_escalar(G, c)
+    _esquecer_vagas_manuais(c)
     c["esc_stamp"] = ""
     SESSAO.invalidar()
     eng.salvar_auto(G, forcar=True)
@@ -607,8 +617,10 @@ def mudar_esquema(corpo):
         SESSAO.desfazer_esquema = {
             "formacao": c["formacao"], "formacao_custom": c.get("formacao_custom"),
             "escalacao": list(SESSAO.diagnostico()["escalacao"]),
+            "vagas_manuais": c.get("vagas_manuais"),
         }
         c["formacao"] = formacao
+        _esquecer_vagas_manuais(c)
         if custom is not None:
             c["formacao_custom"] = custom   # um slot so: o Aplicar sobrescreve
         c["esc_stamp"] = ""
@@ -650,6 +662,10 @@ def desfazer_esquema(_corpo):
         else:
             c["formacao_custom"] = foto["formacao_custom"]
         c["escalacao"] = foto["escalacao"]
+        if foto.get("vagas_manuais"):
+            c["vagas_manuais"] = foto["vagas_manuais"]
+        else:
+            _esquecer_vagas_manuais(c)
         c["esc_stamp"] = ""
         SESSAO.invalidar()
         SESSAO.esquecer_desfazer()
@@ -694,10 +710,69 @@ def trocar_titular(corpo):
         nova = esc[:]
         nova[nova.index(sai)] = entra
         c["escalacao"] = nova
+        # quem entra herda a vaga fixada de quem saiu
+        if c.get("vagas_manuais"):
+            c["vagas_manuais"] = [[entra if int(p) == sai else p, v] for p, v in c["vagas_manuais"]]
         c["esc_stamp"] = ""
         SESSAO.invalidar()
         eng.salvar_auto(G, forcar=True)
         recado = "Sai %s, entra %s." % (G["jogadores"][sai]["nome"], G["jogadores"][entra]["nome"])
+        if desligou:
+            recado += " Voce mexeu no time: a escalacao automatica foi desligada."
+        return {"recado": recado, "tela": dto.escalacao()}
+
+
+@rota("POST", "/api/escalacao/inverter")
+def inverter_titulares(corpo):
+    """Dois titulares trocam de lugar.
+
+    Na mesma vaga (os dois zagueiros, os dois laterais) a troca e de lado no
+    campo: a ordem do XI decide quem fica em cima, e so ela muda. Em vagas
+    diferentes quem decide a vaga de cada titular e o motor
+    (eng.atribuir_vagas, atribuicao otima): enquanto ele nao aceitar vagas
+    fixadas pelo usuario (dto.motor_fixa_vagas), a troca e recusada com o
+    motivo, em vez de gravar algo que o jogo desfaria calado.
+    """
+    try:
+        a, b = int(corpo.get("a")), int(corpo.get("b"))
+    except (TypeError, ValueError):
+        raise ErroDeUso("marque dois titulares")
+    if a == b:
+        raise ErroDeUso("marque dois titulares diferentes")
+    with SESSAO.cadeado:
+        G = SESSAO.exigir()
+        c = G["clubes"][G["clube"]]
+        jogs = G["jogadores"]
+        esc, _ = eng.escalacao_valida(G, c)
+        if a not in esc or b not in esc:
+            raise ErroDeUso("os dois precisam estar entre os titulares")
+        vagas = _vagas_por_id(G)
+        va, vb = vagas.get(a), vagas.get(b)
+        mesma = va == vb
+        if not mesma and not dto.motor_fixa_vagas():
+            raise ErroDeUso(dto.MOTIVO_SEM_VAGA_FIXA)
+        SESSAO.esquecer_desfazer()
+        desligou = eng.escalacao_automatica(G, c)
+        if desligou:
+            eng.definir_escalacao_automatica(G, False)
+        nova = esc[:]
+        i, j = nova.index(a), nova.index(b)
+        nova[i], nova[j] = b, a
+        c["escalacao"] = nova
+        if not mesma:
+            # fixa o XI inteiro como esta na tela, com os dois trocados: senao
+            # a atribuicao otima reorganizaria os outros nove por conta propria
+            fixas = dict(vagas)
+            fixas[a], fixas[b] = vb, va
+            c["vagas_manuais"] = [[p, v] for p, v in fixas.items()]
+        c["esc_stamp"] = ""
+        SESSAO.invalidar()
+        SESSAO.nova_vaga = [a, b]
+        eng.salvar_auto(G, forcar=True)
+        if mesma:
+            recado = "%s e %s trocaram de lado (%s)." % (jogs[a]["nome"], jogs[b]["nome"], va)
+        else:
+            recado = "%s vai para %s e %s para %s." % (jogs[a]["nome"], vb, jogs[b]["nome"], va)
         if desligou:
             recado += " Voce mexeu no time: a escalacao automatica foi desligada."
         return {"recado": recado, "tela": dto.escalacao()}
