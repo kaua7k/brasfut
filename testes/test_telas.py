@@ -33,10 +33,13 @@ class TestTelas(unittest.TestCase):
     def test_avancar_semana_grava_na_copia(self):
         if apoio.SESSAO.pendencia:
             self.skipTest("o save real tem uma decisao pendente (%s)" % apoio.SESSAO.pendencia["titulo"])
-        semana = apoio.SESSAO.G["semana"]
+        G = apoio.SESSAO.G
+        antes = (G["semana"], G["fase"], G.get("semana_est"), G["temporada"])
         r = apoio.avancar()
         self.assertIn("cabecalho", r)
-        self.assertNotEqual(apoio.SESSAO.G["semana"], semana)
+        # na pre-temporada avancar muda a fase (abre o estadual), nao a semana
+        depois = (G["semana"], G["fase"], G.get("semana_est"), G["temporada"])
+        self.assertNotEqual(depois, antes)
         # a copia foi gravada e continua abrindo
         apoio.chamar("POST", "/api/abrir")
         apoio.chamar("GET", "/api/painel")

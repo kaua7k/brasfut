@@ -6,7 +6,6 @@ nunca pode ser tocado por teste. A API e chamada pelo mesmo `despachar` que o
 server.py usa, sem HTTP no meio - o que se testa e a rota, nao a stdlib.
 """
 
-import hashlib
 import os
 import shutil
 import sys
@@ -26,11 +25,28 @@ from api import rotas  # noqa: E402
 from api.sessao import SESSAO  # noqa: E402
 
 
+# Protecao do save real: qualquer tentativa de gravar nele, vinda de teste,
+# falha na hora. (Comparar o hash do arquivo dava alarme falso com o jogo
+# aberto, que grava a cada clique enquanto os testes rodam.)
+_salvar_original = eng.salvar
+TENTATIVAS_NO_REAL = []
+
+
+def _salvar_protegido(G, caminho=None):
+    alvo = os.path.abspath(caminho or eng.SAVE)
+    if os.path.normcase(alvo) == os.path.normcase(os.path.abspath(SAVE_REAL)):
+        TENTATIVAS_NO_REAL.append(alvo)
+        raise AssertionError("teste tentou gravar no save real: %s" % alvo)
+    return _salvar_original(G, caminho)
+
+
+eng.salvar = _salvar_protegido
+
+
 def hash_do_save_real():
-    if not os.path.exists(SAVE_REAL):
-        return None
-    with open(SAVE_REAL, "rb") as f:
-        return hashlib.sha256(f.read()).hexdigest()
+    """Quantas vezes algum teste tentou gravar no save real (tem que ser zero).
+    O nome ficou pelos testes antigos, que comparam o valor antes e depois."""
+    return len(TENTATIVAS_NO_REAL)
 
 
 def tem_save_real():

@@ -3084,6 +3084,7 @@ def _semana_estadual(G: Mundo) -> List[Dict[str, Any]]:
     recuperacao(G)
     mercado_ia(G)
     contratar_livres_ia(G)
+    rodar_peneira(G)
     G["semana_est"] = int(G.get("semana_est", 1)) + 1
     for recado in executar_agendadas(G):
         noticia(G, recado)
@@ -3509,6 +3510,7 @@ def avancar_semana(G):
     recuperacao(G)
     mercado_ia(G)
     contratar_livres_ia(G)
+    rodar_peneira(G)
     saneamento_ia(G)
     if G["semana"] % SEMANAS_POR_MES == 0:
         sondar_treinador(G)
@@ -3567,6 +3569,7 @@ def transferir(G, pid, destino_id, valor):
     destino["dinheiro"] -= valor
     destino["elenco"].append(pid)
     j["clube"] = destino_id
+    j["obs"] = 0
     j["pago"] = int(valor)
     j["desde"] = G["temporada"] * 100 + G["semana"]
     j["listado"] = 0
@@ -4837,6 +4840,8 @@ def progresso_mensal(G: Mundo) -> List[Tuple[int, int]]:
         # previsao no mes ja cresce dentro do teto novo, sem esperar o ano
         estourou = estourar_teto(G, j)
         mudou = aplicar_evolucao(G, j)
+        if j["clube"] is not None:
+            j["obs"] = int(j.get("obs", 0)) + 1
         if (mudou or estourou) and (j["clube"] == meu or j.get("dono") == meu):
             noticias.append((j["id"], mudou))
         j["j_mes"] = 0
@@ -4857,6 +4862,9 @@ def scout(G: Mundo, j: Jogador, clube_id: Optional[int] = None) -> str:
     margem = 14.0 - olho * 0.9
     if proprio:
         margem *= 0.55
+        # cada mes de observacao aperta a leitura (EA FC, Football Manager):
+        # o garoto de "72-88" vira "79-84" depois de um ano em casa
+        margem /= 1.0 + 0.12 * int(j.get("obs", 0))
     if j["idade"] >= 26:
         margem *= 0.45                      # jogador feito nao tem misterio
     margem = max(2.0, margem)
@@ -5125,6 +5133,9 @@ def promover_da_base(G: Mundo, pid: int, anos: int = 3) -> Tuple[bool, str]:
     j["salario"] = salario_devido(j)
     j["desde"] = G["temporada"] * 100 + G["semana"]
     j["moral"] = clamp(j["moral"] + 14, 5, 100)
+    c.setdefault("revelados", []).append({"id": pid, "nome": j["nome"], "pos": j["pos"],
+                                         "temporada": int(G["temporada"]), "ovr": int(j["ovr"])})
+    del c["revelados"][:-30]
     if c["id"] == G.get("clube"):
         noticia(G, "%s (%d anos, %s) subiu da base ao profissional."
                 % (j["nome"], j["idade"], j["pos"]))
@@ -5142,6 +5153,137 @@ def dispensar_da_base(G: Mundo, pid: int) -> Tuple[bool, str]:
     nome = j["nome"]
     del G["jogadores"][pid]
     return True, "%s foi liberado da base." % nome
+
+
+# ----------------------------------------------------------------------------
+# PENEIRA
+#
+# Brasfoot tem peneira, Hattrick chama o olheiro por regiao, EA FC manda
+# olheiro para um pais: aqui o tecnico escolhe onde procurar e, se quiser, que
+# posicao. A cada 4 semanas chegam candidatos; cada um espera 4 semanas por um
+# sim (entra na base, se houver vaga) ou um nao. A peneira custa por semana
+# enquanto estiver ligada. So o clube do jogador usa: a IA segue com a safra.
+# ----------------------------------------------------------------------------
+
+# talento: multiplica a qualidade do sorteio de potencial; vies: posicoes que a
+# regiao revela mais; custo: por semana
+REGIOES_PENEIRA = {
+    "sp": {"nome": "Sao Paulo", "talento": 1.00, "vies": ["MEI", "ATA"], "custo": 90_000},
+    "rj": {"nome": "Rio de Janeiro", "talento": 0.95, "vies": ["ATA", "LAT"], "custo": 80_000},
+    "sul": {"nome": "Sul", "talento": 0.92, "vies": ["ZAG", "GOL", "VOL"], "custo": 70_000},
+    "ne": {"nome": "Nordeste", "talento": 0.88, "vies": ["ATA", "MEI"], "custo": 50_000},
+    "nco": {"nome": "Norte e Centro-Oeste", "talento": 0.80, "vies": ["LAT", "VOL"], "custo": 35_000},
+    "sula": {"nome": "America do Sul", "talento": 1.05, "vies": ["VOL", "ZAG", "ATA"], "custo": 140_000},
+}
+PENEIRA_A_CADA = 4          # semanas entre levas de candidatos
+CANDIDATO_VALE = 4          # semanas que um candidato espera resposta
+
+
+def peneira(c: Clube) -> Optional[Dict[str, Any]]:
+    return c.get("peneira") or None
+
+
+def ligar_peneira(G: Mundo, c: Clube, regiao: str, foco: Optional[str] = None) -> Tuple[bool, str]:
+    if regiao not in REGIOES_PENEIRA:
+        return False, "Regiao de peneira desconhecida."
+    if foco and foco not in POS:
+        return False, "Posicao desconhecida."
+    r = REGIOES_PENEIRA[regiao]
+    c["peneira"] = {"regiao": regiao, "foco": foco or None, "semanas": 0}
+    return True, "Peneira ligada no %s%s: %s por semana, candidatos a cada %d semanas." % (
+        r["nome"], " (%s)" % foco if foco else "", din(r["custo"]), PENEIRA_A_CADA)
+
+
+def desligar_peneira(G: Mundo, c: Clube) -> Tuple[bool, str]:
+    if not c.get("peneira"):
+        return False, "Nao ha peneira ligada."
+    c["peneira"] = None
+    return True, "Peneira desligada."
+
+
+def candidatos_base(G: Mundo, c: Clube) -> List[Dict[str, Any]]:
+    """Os candidatos ainda de pe (os vencidos saem aqui)."""
+    vivos = [k for k in c.get("base_candidatos", [])
+             if k["temporada"] == G["temporada"] and k["expira"] >= G["semana"]]
+    c["base_candidatos"] = vivos
+    return vivos
+
+
+def _novo_candidato(G: Mundo, c: Clube, regiao: str, foco: Optional[str]) -> Dict[str, Any]:
+    r = REGIOES_PENEIRA[regiao]
+    if foco:
+        pos = foco
+    elif rng.random() < 0.55:
+        pos = rng.choice(r["vies"])
+    else:
+        pos = rng.choice(POS)
+    idade = rng.randint(IDADE_BASE_MIN, 17)
+    nivel = 26 + c["base"] * 2.0 + c["reputacao"] * 0.16
+    ovr = int(clamp(nivel + rng.uniform(-4, 4) - (18 - idade) * 2, 25, 70))
+    qualidade = clamp((c["base"] / 10.0 * 0.6 + c["reputacao"] / 100.0 * 0.4) * r["talento"], 0.0, 1.0)
+    G["seq_cand"] = int(G.get("seq_cand", 0)) + 1
+    return {"cid": G["seq_cand"], "nome": gerar_nome({j["nome"] for j in G["jogadores"].values()}), "pos": pos, "idade": idade,
+            "ovr": ovr, "pot": sortear_potencial(ovr, idade, qualidade),
+            "regiao": r["nome"], "temporada": int(G["temporada"]),
+            "expira": int(G["semana"]) + CANDIDATO_VALE}
+
+
+def rodar_peneira(G: Mundo) -> List[Dict[str, Any]]:
+    """Semanal: cobra a peneira do meu clube e, a cada 4 semanas, traz candidatos."""
+    c = G["clubes"].get(G.get("clube"))
+    pen = peneira(c) if c else None
+    if not pen:
+        return []
+    r = REGIOES_PENEIRA[pen["regiao"]]
+    c["dinheiro"] -= r["custo"]
+    pen["semanas"] = int(pen.get("semanas", 0)) + 1
+    if pen["semanas"] % PENEIRA_A_CADA:
+        return []
+    novos = [_novo_candidato(G, c, pen["regiao"], pen.get("foco"))
+             for _ in range(1 + (1 if rng.random() < 0.45 + 0.03 * c["base"] else 0))]
+    c.setdefault("base_candidatos", []).extend(novos)
+    noticia(G, "Peneira no %s: %d garoto(s) para avaliar na tela da Base." % (r["nome"], len(novos)))
+    return novos
+
+
+def aceitar_candidato(G: Mundo, c: Clube, cid: int) -> Tuple[bool, str]:
+    k = next((k for k in candidatos_base(G, c) if k["cid"] == cid), None)
+    if not k:
+        return False, "Esse candidato nao esta mais esperando."
+    if len(c.get("base_elenco", [])) >= vagas_base(c):
+        return False, "A base esta cheia (%d vagas): libere alguem ou amplie a academia." % vagas_base(c)
+    usados = {j["nome"] for j in G["jogadores"].values()}
+    j = novo_jogador(G, k["pos"], k["ovr"], usados, idade=k["idade"])
+    j["nome"] = k["nome"] if k["nome"] not in usados else j["nome"]
+    j["ovr"], j["pot"] = k["ovr"], max(k["ovr"], k["pot"])
+    j["categoria"] = "base"
+    j["clube"] = c["id"]
+    j["contrato"] = 3
+    j["salario"] = salario_devido(j)
+    j["valor"] = valor_de(j["ovr"], j["idade"], j["pot"])
+    j["ovr_ini"] = j["ovr"]
+    c.setdefault("base_elenco", []).append(j["id"])
+    c["base_candidatos"] = [x for x in c["base_candidatos"] if x["cid"] != cid]
+    return True, "%s (%d anos, %s) entrou na base." % (j["nome"], j["idade"], j["pos"])
+
+
+def recusar_candidato(G: Mundo, c: Clube, cid: int) -> Tuple[bool, str]:
+    antes = len(c.get("base_candidatos", []))
+    c["base_candidatos"] = [x for x in c.get("base_candidatos", []) if x["cid"] != cid]
+    if len(c["base_candidatos"]) == antes:
+        return False, "Esse candidato nao esta mais esperando."
+    return True, "Candidato dispensado."
+
+
+def faixa_candidato(G: Mundo, c: Clube, k: Dict[str, Any]) -> str:
+    """Leitura do candidato: larga, porque ele so foi visto na peneira."""
+    olho = (c["ct"] + c["base"]) / 2.0
+    margem = max(4.0, 14.0 - olho * 0.9)
+    desvio = _ruido("cand-%d" % k["cid"], -1.0, 1.0) * margem
+    visto = clamp(k["pot"] + desvio, k["ovr"], POT_MAX)
+    lo = int(clamp(visto - margem * 0.6, k["ovr"], POT_MAX))
+    hi = int(clamp(visto + margem * 0.6, lo + 1, POT_MAX))
+    return "%d-%d" % (lo, hi)
 
 
 def promover_base_ia(G: Mundo, c: Clube) -> None:
