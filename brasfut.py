@@ -2668,6 +2668,74 @@ REGIAO_UF = {
 NOME_REGIONAL = {"Verde": "Copa Verde", "Nordeste": "Copa do Nordeste",
                  "Regional": "Copa Regional"}
 
+# Classicos do futebol brasileiro, pelo "nome" do clube no jogo (os reais, sem
+# acento). A relacao e simetrica: basta listar de um lado, CLASSICOS completa.
+CLASSICOS_POR_NOME = {
+    # Rio
+    "Flamengo": ["Fluminense", "Vasco da Gama", "Botafogo"],
+    "Fluminense": ["Vasco da Gama", "Botafogo"],
+    "Vasco da Gama": ["Botafogo"],
+    # Sao Paulo: o quadrangular dos grandes, mais os de Campinas
+    "Corinthians": ["Palmeiras", "Sao Paulo", "Santos"],
+    "Palmeiras": ["Sao Paulo", "Santos"],
+    "Sao Paulo": ["Santos"],
+    "Ponte Preta": ["Guarani"],
+    # Minas, Rio Grande do Sul, Parana, Santa Catarina
+    "Atletico-MG": ["Cruzeiro", "America-MG"],
+    "Cruzeiro": ["America-MG"],
+    "Gremio": ["Internacional"],
+    "Juventude": ["Caxias"],
+    "Athletico-PR": ["Coritiba"],
+    "Avai": ["Figueirense"],
+    # Nordeste
+    "Bahia": ["Vitoria"],
+    "Sport": ["Nautico", "Santa Cruz"],
+    "Nautico": ["Santa Cruz"],
+    "Fortaleza": ["Ceara"],
+    "CRB": ["CSA"],
+    "ABC": ["America-RN"],
+    "Treze": ["Campinense", "Botafogo-PB"],
+    "Campinense": ["Botafogo-PB"],
+    # Norte e Centro-Oeste
+    "Paysandu": ["Remo"],
+    "Goias": ["Vila Nova", "Atletico-GO"],
+    "Vila Nova": ["Atletico-GO"],
+}
+CLASSICOS = {frozenset((a, b)) for a, rivais in CLASSICOS_POR_NOME.items() for b in rivais}
+
+# o apelido, quando o classico tem um
+NOME_CLASSICO = {
+    frozenset(("Flamengo", "Fluminense")): "Fla-Flu",
+    frozenset(("Flamengo", "Vasco da Gama")): "Classico dos Milhoes",
+    frozenset(("Botafogo", "Fluminense")): "Classico Vovo",
+    frozenset(("Corinthians", "Palmeiras")): "Derby Paulista",
+    frozenset(("Palmeiras", "Sao Paulo")): "Choque-Rei",
+    frozenset(("Corinthians", "Sao Paulo")): "Majestoso",
+    frozenset(("Santos", "Sao Paulo")): "San-Sao",
+    frozenset(("Corinthians", "Santos")): "Classico Alvinegro",
+    frozenset(("Palmeiras", "Santos")): "Classico da Saudade",
+    frozenset(("Guarani", "Ponte Preta")): "Derby Campineiro",
+    frozenset(("Gremio", "Internacional")): "Gre-Nal",
+    frozenset(("Caxias", "Juventude")): "Ca-Ju",
+    frozenset(("Atletico-MG", "Cruzeiro")): "Classico Mineiro",
+    frozenset(("Athletico-PR", "Coritiba")): "Atletiba",
+    frozenset(("Bahia", "Vitoria")): "Ba-Vi",
+    frozenset(("Nautico", "Sport")): "Classico dos Classicos",
+    frozenset(("Santa Cruz", "Sport")): "Classico das Multidoes",
+    frozenset(("Ceara", "Fortaleza")): "Classico-Rei",
+    frozenset(("Paysandu", "Remo")): "Re-Pa",
+}
+
+
+def eh_classico(G: Mundo, casa_id: int, fora_id: int) -> bool:
+    casa, fora = G["clubes"].get(casa_id), G["clubes"].get(fora_id)
+    return bool(casa and fora and frozenset((casa["nome"], fora["nome"])) in CLASSICOS)
+
+
+def nome_classico(G: Mundo, casa_id: int, fora_id: int) -> str:
+    par = frozenset((G["clubes"][casa_id]["nome"], G["clubes"][fora_id]["nome"]))
+    return NOME_CLASSICO.get(par, "Classico")
+
 # fases do mata-mata: (nome, ida e volta?)
 _QUARTAS = ("Quartas de final", False)
 _SEMI_UNICA = ("Semifinal", False)
@@ -3365,6 +3433,7 @@ def noticia(G, txt):
 
 LIMITE_FEED = 300
 RESULTADOS_POR_SEMANA = 4    # o resto da rodada fica so na tabela
+PESO_CLASSICO = 1000         # acima de qualquer goleada ou zebra no corte da semana
 GOLEADA = 4                  # diferenca de gols que vira manchete
 ZEBRA_REP = 20               # vencedor com tanto menos de reputacao que o perdedor
 GRANDE_REP = 72              # clube cuja eliminacao e noticia
@@ -3402,13 +3471,23 @@ def manchetes_da_semana(G: Mundo, jogos: List[Dict[str, Any]],
             continue
         placar = "%s %d x %d %s" % (casa["nome"], r["gc"], r["gf"], fora["nome"])
         saldo = abs(r["gc"] - r["gf"])
+        peso, marca = 0, None
         if saldo >= GOLEADA:
-            candidatas.append((saldo * 10, "Goleada: %s (%s)." % (placar, _onde(G, r))))
+            peso, marca = saldo * 10, "Goleada"
         elif saldo:
             venc, perd = (casa, fora) if r["gc"] > r["gf"] else (fora, casa)
             dif = perd["reputacao"] - venc["reputacao"]
             if dif >= ZEBRA_REP:
-                candidatas.append((dif, "Zebra: %s (%s)." % (placar, _onde(G, r))))
+                peso, marca = dif, "Zebra"
+        if eh_classico(G, r["casa"], r["fora"]):
+            # classico entra quase sempre no corte, mesmo sem goleada; a
+            # goleada ou zebra, se houver, vai junto no fim do texto
+            texto = "%s: %s (%s)." % (nome_classico(G, r["casa"], r["fora"]), placar, _onde(G, r))
+            if marca:
+                texto += " %s." % marca
+            candidatas.append((PESO_CLASSICO + peso, texto))
+        elif marca:
+            candidatas.append((peso, "%s: %s (%s)." % (marca, placar, _onde(G, r))))
     candidatas.sort(key=lambda x: -x[0])
     for _peso, texto in candidatas[:RESULTADOS_POR_SEMANA]:
         manchete(G, "resultado", texto)
