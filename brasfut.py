@@ -311,6 +311,12 @@ CUSTO_TATICA = {
 }
 
 # zagueiro e volante levam mais cartao que atacante; goleiro quase nunca
+# Lesao em jogo: chance por jogador a cada 90 minutos, antes de medico, regime
+# de treino e fisico. Era 0.026 com lesoes de ate 13 semanas; jogador reclamou
+# de departamento medico cheio, e com Copa e continental na mesma semana o
+# elenco de quem vai bem joga o dobro. Agora 0.015, e a lesao longa ficou rara.
+RISCO_LESAO_JOGO = 0.015
+SEMANAS_LESAO = [1, 1, 1, 1, 2, 2, 3, 4, 6, 9]   # sorteio; +1 semana na hora
 RISCO_CARTAO = {"GOL": 0.25, "ZAG": 1.25, "LAT": 1.10, "VOL": 1.45, "MEI": 0.95, "ATA": 0.80}
 ATT_W = {"GOL": 0.00, "ZAG": 0.06, "LAT": 0.22, "VOL": 0.28, "MEI": 0.85, "ATA": 1.00}
 DEF_W = {"GOL": 1.10, "ZAG": 1.00, "LAT": 0.72, "VOL": 0.68, "MEI": 0.22, "ATA": 0.05}
@@ -1977,11 +1983,11 @@ def simular(G, casa_id, fora_id, comp="liga", neutro=False):
                     eventos.append((rng.randint(ini, fim), lado, "vermelho", pid, None))
                     esc.remove(pid)              # expulso sai de campo de verdade
                     continue
-                risco = 0.026 * (1.0 - 0.05 * dono["medico"]) * (minutos / 90.0)
+                risco = RISCO_LESAO_JOGO * (1.0 - 0.05 * dono["medico"]) * (minutos / 90.0)
                 risco *= risco_lesao_treino(G, dono)
                 risco *= 1.0 + 1.6 * max(0.0, (55 - j["cond"]) / 55.0)
                 if rng.random() < risco:
-                    j["lesao"] = rng.choice([1, 1, 2, 2, 3, 4, 6, 8, 12]) + 1
+                    j["lesao"] = rng.choice(SEMANAS_LESAO) + 1
                     eventos.append((rng.randint(ini, fim), lado, "lesao", pid, None))
                     usou = _trocar(G, dono, esc, banco, vagas, jogaram,
                                    rng.randint(ini, fim), lado, eventos, subs,
