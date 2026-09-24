@@ -957,7 +957,13 @@ def mundo_embutido():
 
 
 def nova_liga_ext(codigo, nome, ids):
-    return {"div": codigo, "nome": nome, "times": list(ids), "rodadas": gerar_rodadas(ids),
+    # liga grande (a MLS tem 29) ou impar nao cabe em ida e volta nas 38 semanas:
+    # joga so o turno
+    if len(ids) > 20 or len(ids) % 2:
+        rodadas = _turno_completo(ids)
+    else:
+        rodadas = gerar_rodadas(ids)
+    return {"div": codigo, "nome": nome, "times": list(ids), "rodadas": rodadas,
             "tabela": nova_tabela(ids), "rodada": 0, "resultados": []}
 
 

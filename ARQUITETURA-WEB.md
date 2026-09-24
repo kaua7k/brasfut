@@ -359,8 +359,12 @@ semana em `G["ligas_ext"]` (sem acesso/rebaixamento; campeão via
 save antigo recebe só as ligas europeias em `migrar`, sem trocar elenco
 sul-americano nem brasileiro. Competições e Classificação listam as ligas
 como `ext:ENG`, `ext:ESP`... A temporada simulada ficou ~40% mais lenta e o
-save de mundo novo tem ~5 MB. MLS e liga saudita não estão no plano grátis
-da football-data.org.
+save de mundo novo tem ~5 MB. MLS e liga saudita vêm da API-Football
+(`API_FOOTBALL_KEY`, `LIGAS_AF` no importador): o plano grátis só abre
+2022–2024, então clubes e classificação são de 2024 e o elenco
+(`/players/squads`) é o atual. São ~51 pedidos (limite de 100 por dia). A MLS
+tem 29 clubes e joga só o turno (`nova_liga_ext`). `notas_manuais.json`
+aceita `{"ovr": 80, "pos": "ATA"}` para corrigir posição genérica.
 
 **Copas europeias e clubes novos.** Entraram Liga Portugal e Eredivisie (7
 ligas), os clubes da Champions fora delas (`c["europeu"]`, sem liga, elenco

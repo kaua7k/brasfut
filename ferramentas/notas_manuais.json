@@ -1,18 +1,121 @@
 {
-  "_leia": "Notas estimadas a mao para craques (a API nao da nota). Edite a vontade e rode o importador de novo. Nome igual ao da API, sem acento.",
-  "Erling Haaland": 91, "Kylian Mbappe": 91, "Harry Kane": 89, "Vinicius Junior": 89,
-  "Jude Bellingham": 88, "Lamine Yamal": 89, "Rodri": 88, "Pedri": 88, "Raphinha": 87,
-  "Bukayo Saka": 87, "Declan Rice": 87, "William Saliba": 87, "Virgil van Dijk": 86,
-  "Thibaut Courtois": 88, "Federico Valverde": 87, "Florian Wirtz": 87, "Jamal Musiala": 87,
-  "Joshua Kimmich": 86, "Lautaro Martinez": 87, "Ousmane Dembele": 89,
-  "Khvicha Kvaratskhelia": 87, "Achraf Hakimi": 87, "Gianluigi Donnarumma": 88,
-  "Phil Foden": 85, "Cole Palmer": 86, "Bruno Fernandes": 85, "Alexander Isak": 86,
-  "Kevin De Bruyne": 84, "Nicolo Barella": 86, "Alessandro Bastoni": 86, "Frenkie de Jong": 85,
-  "Jan Oblak": 86, "Julian Alvarez": 86, "Gabriel Magalhaes": 86, "Trent Alexander-Arnold": 85,
-  "Ruben Dias": 86, "Josko Gvardiol": 85, "Bernardo Silva": 84, "Michael Olise": 87,
-  "Luis Diaz": 85, "Vitinha": 87, "Joao Neves": 85, "Nuno Mendes": 86, "Dean Huijsen": 82,
-  "Arda Guler": 83, "Dani Olmo": 84, "Hugo Ekitike": 84, "Scott McTominay": 84,
-  "Mike Maignan": 86, "Nico Williams": 84, "Alexis Mac Allister": 86, "Dominik Szoboszlai": 85,
-  "Enzo Fernandez": 84, "Moises Caicedo": 86, "Viktor Gyokeres": 85, "Eberechi Eze": 83,
-  "Bryan Mbeumo": 84, "Mikel Oyarzabal": 83
+ "_leia": "Notas estimadas a mao para craques (a API nao da nota). Numero, ou {\"ovr\": 80, \"pos\": \"ATA\"} para corrigir a posicao. Nome igual ao da API, sem acento. Rode o importador depois de editar.",
+ "Erling Haaland": 91,
+ "Kylian Mbappe": 91,
+ "Harry Kane": 89,
+ "Vinicius Junior": 89,
+ "Jude Bellingham": 88,
+ "Lamine Yamal": 89,
+ "Rodri": 88,
+ "Pedri": 88,
+ "Raphinha": 87,
+ "Bukayo Saka": 87,
+ "Declan Rice": 87,
+ "William Saliba": 87,
+ "Virgil van Dijk": 86,
+ "Thibaut Courtois": 88,
+ "Federico Valverde": 87,
+ "Florian Wirtz": 87,
+ "Jamal Musiala": 87,
+ "Joshua Kimmich": 86,
+ "Lautaro Martinez": 87,
+ "Ousmane Dembele": 89,
+ "Khvicha Kvaratskhelia": 87,
+ "Achraf Hakimi": 87,
+ "Gianluigi Donnarumma": 88,
+ "Phil Foden": 85,
+ "Cole Palmer": 86,
+ "Bruno Fernandes": 85,
+ "Alexander Isak": 86,
+ "Kevin De Bruyne": 84,
+ "Nicolo Barella": 86,
+ "Alessandro Bastoni": 86,
+ "Frenkie de Jong": 85,
+ "Jan Oblak": 86,
+ "Julian Alvarez": 86,
+ "Gabriel Magalhaes": 86,
+ "Trent Alexander-Arnold": 85,
+ "Ruben Dias": 86,
+ "Josko Gvardiol": 85,
+ "Bernardo Silva": 84,
+ "Michael Olise": 87,
+ "Luis Diaz": 85,
+ "Vitinha": 87,
+ "Joao Neves": 85,
+ "Nuno Mendes": 86,
+ "Dean Huijsen": 82,
+ "Arda Guler": 83,
+ "Dani Olmo": 84,
+ "Hugo Ekitike": 84,
+ "Scott McTominay": 84,
+ "Mike Maignan": 86,
+ "Nico Williams": 84,
+ "Alexis Mac Allister": 86,
+ "Dominik Szoboszlai": 85,
+ "Enzo Fernandez": 84,
+ "Moises Caicedo": 86,
+ "Viktor Gyokeres": 85,
+ "Eberechi Eze": 83,
+ "Bryan Mbeumo": 84,
+ "Mikel Oyarzabal": 83,
+ "L. Messi": {
+  "ovr": 84,
+  "pos": "ATA"
+ },
+ "L. Suarez": {
+  "ovr": 76,
+  "pos": "ATA"
+ },
+ "R. De Paul": {
+  "ovr": 80,
+  "pos": "MEI"
+ },
+ "Son Heung-Min": {
+  "ovr": 83,
+  "pos": "ATA"
+ },
+ "M. Reus": {
+  "ovr": 74,
+  "pos": "MEI"
+ },
+ "H. Lozano": {
+  "ovr": 76,
+  "pos": "ATA"
+ },
+ "T. Muller": {
+  "ovr": 76,
+  "pos": "MEI"
+ },
+ "Cristiano Ronaldo": {
+  "ovr": 80,
+  "pos": "ATA"
+ },
+ "S. Mane": {
+  "ovr": 80,
+  "pos": "ATA"
+ },
+ "Bento": {
+  "ovr": 78,
+  "pos": "GOL"
+ },
+ "Y. Bounou": {
+  "ovr": 80,
+  "pos": "GOL"
+ },
+ "K. Koulibaly": {
+  "ovr": 80,
+  "pos": "ZAG"
+ },
+ "S. Milinkovic-Savic": {
+  "ovr": 82,
+  "pos": "MEI"
+ },
+ "Ruben Neves": {
+  "ovr": 82,
+  "pos": "VOL"
+ },
+ "I. Toney": {
+  "ovr": 80,
+  "pos": "ATA"
+ }
 }

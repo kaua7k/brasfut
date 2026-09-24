@@ -27,12 +27,15 @@ class TestEuropa(unittest.TestCase):
 
     def test_mundo_novo_tem_as_ligas_e_elencos_reais(self):
         G = self.G
-        self.assertEqual(set(G["ligas_ext"]), {"ENG", "ESP", "GER", "ITA", "FRA", "POR", "NED"})
+        self.assertEqual(set(G["ligas_ext"]), {"ENG", "ESP", "GER", "ITA", "FRA", "POR", "NED", "USA", "SAU"})
         nomes_clubes = {c["nome"] for c in G["clubes"].values()}
         self.assertTrue({"Galatasaray", "Platense"} <= nomes_clubes, "clubes novos faltando")
         nomes = {G["jogadores"][p]["nome"] for c in G["clubes"].values() if c.get("liga_ext")
                  for p in c["elenco"]}
         self.assertIn("Erling Haaland", nomes)
+        self.assertTrue({"L. Messi", "Cristiano Ronaldo"} <= nomes)
+        # MLS tem 29: so o turno, para caber nas 38 semanas
+        self.assertLessEqual(len(G["ligas_ext"]["USA"]["rodadas"]), 38)
         santos = next(c for c in G["clubes"].values() if c["nome"] == "Santos")
         self.assertIn("Neymar", {G["jogadores"][p]["nome"] for p in santos["elenco"]})
         # europeu nao entra nas copas sul-americanas nem no mercado
@@ -72,7 +75,7 @@ class TestSaveAntigoGanhaEuropa(unittest.TestCase):
         hash_antes = apoio.hash_do_save_real()
         apoio.abrir_copia_do_save()
         G = apoio.SESSAO.G
-        self.assertEqual(len(G["ligas_ext"]), 7)
+        self.assertEqual(len(G["ligas_ext"]), 9)
         ids = [p for c in G["clubes"].values() for p in c["elenco"]]
         self.assertEqual(len(ids), len(set(ids)), "jogador em dois elencos")
         self.assertEqual(apoio.hash_do_save_real(), hash_antes)

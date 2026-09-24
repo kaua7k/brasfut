@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Baixa elencos reais da football-data.org e gera dados_mundo.py.
+"""Baixa elencos reais (football-data.org e API-Football) e gera dados_mundo.py.
 
 Nao roda dentro do jogo: e ferramenta de quem mantem o jogo. O jogo so le o
 dados_mundo.py gerado (embutido, como os elencos brasileiros), entao quem joga
@@ -69,6 +69,19 @@ PAIS_API = {"Austria": "AUT", "Azerbaijan": "AZE", "Belgium": "BEL", "Czech Repu
 REP_SUL_PAIS = {"ARG": 68, "URU": 62, "COL": 64, "CHI": 61, "PAR": 61, "EQU": 62,
                 "PER": 59, "BOL": 58, "VEN": 56}
 
+# API-Football (chave API_FOOTBALL_KEY): ligas que a football-data.org nao tem.
+# O plano gratis so abre temporadas de 2022 a 2024, entao a lista de clubes e a
+# classificacao sao de 2024; o elenco (/players/squads) e o de hoje.
+# codigo no jogo, id da liga, nome, pais, reputacao do campeao e do lanterna
+LIGAS_AF = [
+    ("USA", 253, "MLS", "USA", 80, 68),
+    ("SAU", 307, "Saudi Pro League", "SAU", 82, 64),
+]
+TEMPORADA_AF = 2024
+API_AF = "https://v3.football.api-sports.io"
+POS_AF = {"Goalkeeper": "Goalkeeper", "Defender": "Defence", "Midfielder": "Midfield",
+          "Attacker": "Offence"}
+
 # Brasil: so estes clubes sao sincronizados; o resto do embutido nao muda
 BRASIL_SINCRONIZAR = ["Santos"]
 
@@ -81,15 +94,15 @@ POS_EXATA = {
 
 
 # ------------------------------------------------------------------ rede
-def chave():
-    k = os.environ.get("FOOTBALL_DATA_KEY")
+def chave(nome="FOOTBALL_DATA_KEY"):
+    k = os.environ.get(nome)
     env = os.path.join(RAIZ, ".env")
     if not k and os.path.exists(env):
         for linha in open(env, encoding="utf-8"):
-            if linha.startswith("FOOTBALL_DATA_KEY="):
+            if linha.startswith(nome + "="):
                 k = linha.split("=", 1)[1].strip()
     if not k:
-        sys.exit("Falta FOOTBALL_DATA_KEY (ambiente ou .env na pasta do jogo).")
+        sys.exit("Falta %s (ambiente ou .env na pasta do jogo)." % nome)
     return k
 
 
@@ -107,6 +120,27 @@ def pedir(caminho, baixar):
     with urllib.request.urlopen(req, timeout=30) as r:
         dados = json.load(r)
     _ultimo[0] = time.time()
+    os.makedirs(CACHE, exist_ok=True)
+    json.dump(dados, open(arq, "w", encoding="utf-8"))
+    print("  baixado %s" % caminho)
+    return dados
+
+
+def pedir_af(caminho, baixar):
+    """API-Football: mesmo cache e mesmo respiro entre pedidos (100 por dia)."""
+    arq = os.path.join(CACHE, "af_" + caminho.strip("/").replace("/", "_").replace("?", "_")
+                       .replace("&", "_").replace("=", "-") + ".json")
+    if os.path.exists(arq) and not baixar:
+        return json.load(open(arq, encoding="utf-8"))
+    espera = 6.5 - (time.time() - _ultimo[0])
+    if espera > 0:
+        time.sleep(espera)
+    req = urllib.request.Request(API_AF + caminho, headers={"x-apisports-key": chave("API_FOOTBALL_KEY")})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        dados = json.load(r)
+    _ultimo[0] = time.time()
+    if dados.get("errors"):
+        sys.exit("API-Football recusou %s: %s" % (caminho, dados["errors"]))
     os.makedirs(CACHE, exist_ok=True)
     json.dump(dados, open(arq, "w", encoding="utf-8"))
     print("  baixado %s" % caminho)
@@ -154,7 +188,8 @@ AJUSTE_IDADE = {17: -14, 18: -11, 19: -9, 20: -7, 21: -5, 22: -3, 23: -2, 31: -1
 
 def nota(nome, anos, reputacao, manuais):
     if nome in manuais:
-        ovr = int(manuais[nome])
+        m = manuais[nome]
+        ovr = int(m["ovr"] if isinstance(m, dict) else m)
     else:
         nivel = 26 + reputacao * 0.58
         ovr = round(nivel + AJUSTE_IDADE.get(anos, -10 if anos and anos > 36 else 0) + variacao(nome))
@@ -169,7 +204,7 @@ def converter_elenco(squad, reputacao, manuais, notas_antigas=None):
     fora = []
     gen = {"Defence": [], "Midfield": []}
     for p in squad:
-        anos = idade(p.get("dateOfBirth"))
+        anos = p["_idade"] if "_idade" in p else idade(p.get("dateOfBirth"))
         if anos is None or anos < 16 or anos > 42:
             continue                      # cadastro quebrado (a API tem nascido em 2016)
         nome = sem_acento(p["name"])
@@ -206,6 +241,9 @@ def converter_elenco(squad, reputacao, manuais, notas_antigas=None):
             item["pos"] = velho.get("pos", item["pos"])
         else:
             item["ovr"], item["pot"] = nota(item["nome"], item["idade"], reputacao, manuais)
+        m = manuais.get(item["nome"])
+        if isinstance(m, dict) and m.get("pos"):
+            item["pos"] = m["pos"]           # a API so diz "meio-campista"
     return fora
 
 
@@ -243,6 +281,34 @@ def main():
             clubes.append({"nome": nome_clube(t), "pais": pais,
                            "estadio": sem_acento(t.get("venue") or "Estadio %s" % nome_clube(t)),
                            "capacidade": capacidade(rep), "reputacao": rep, "elenco": elenco})
+        mundo["ligas"].append({"codigo": cod, "nome": nome_liga, "clubes": clubes})
+        print("%-18s %d clubes, %d jogadores" % (nome_liga, len(clubes), sum(len(c["elenco"]) for c in clubes)))
+
+    for cod, liga_id, nome_liga, pais, topo, fundo in LIGAS_AF:
+        times = pedir_af("/teams?league=%d&season=%d" % (liga_id, TEMPORADA_AF), baixar)["response"]
+        tab = pedir_af("/standings?league=%d&season=%d" % (liga_id, TEMPORADA_AF), baixar)["response"]
+        linhas = [l for grupo in tab[0]["league"]["standings"] for l in grupo] if tab else []
+        # MLS vem em duas conferencias: junta tudo pelos pontos
+        linhas.sort(key=lambda l: (-l["points"], -l["goalsDiff"]))
+        ordem = []
+        for l in linhas:
+            if l["team"]["id"] not in ordem:
+                ordem.append(l["team"]["id"])
+        n = max(1, len(ordem))
+        clubes = []
+        for t in times:
+            tid = t["team"]["id"]
+            pos = ordem.index(tid) if tid in ordem else n - 1
+            rep = round(topo - (topo - fundo) * min(pos, n - 1) / max(1, n - 1))
+            squad = pedir_af("/players/squads?team=%d" % tid, baixar)["response"]
+            jogadores = [{"name": j["name"], "_idade": j.get("age"),
+                          "position": POS_AF.get(j.get("position"), "Midfield")}
+                         for j in (squad[0]["players"] if squad else []) if j.get("age")]
+            venue = t.get("venue") or {}
+            clubes.append({"nome": sem_acento(t["team"]["name"]), "pais": pais,
+                           "estadio": sem_acento(venue.get("name") or "Estadio"),
+                           "capacidade": int(venue.get("capacity") or capacidade(rep)),
+                           "reputacao": rep, "elenco": converter_elenco(jogadores, rep, manuais)})
         mundo["ligas"].append({"codigo": cod, "nome": nome_liga, "clubes": clubes})
         print("%-18s %d clubes, %d jogadores" % (nome_liga, len(clubes), sum(len(c["elenco"]) for c in clubes)))
 
