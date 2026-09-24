@@ -129,6 +129,10 @@ export const api = {
   chamarDeVolta: acao<TelaElenco>('/api/elenco/chamar'),
   subirDaBase: acao<TelaBase>('/api/base/subir'),
   liberarDaBase: acao<TelaBase>('/api/base/liberar'),
+  peneira: (regiao: string | null, foco: string | null) =>
+    pedir<RespostaAcao<TelaBase>>('/api/base/peneira', regiao ? { regiao, foco } : { desligar: true }),
+  candidato: (cid: number, aceitar: boolean) =>
+    pedir<RespostaAcao<TelaBase>>('/api/base/candidato', { cid, aceitar }),
   investir: (id: string, confirmar = false) =>
     pedir<RespostaAcao<TelaInfra>>('/api/infra/investir', { id, confirmar }),
 

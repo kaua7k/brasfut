@@ -1,8 +1,7 @@
-// A academia.
-//
-// Antes de existir esta tela no jogo, a base era so um numero na
-// Infraestrutura: o garoto nascia na virada do ano e caia direto no
-// profissional sem ninguem ver.
+// A academia, em tres abas: os garotos que ja estao em casa, a peneira que
+// traz candidatos (regiao e posicao escolhidas pelo tecnico) e as revelacoes
+// que a base ja formou. O teto de cada garoto e uma faixa que estreita com os
+// meses de observacao: subir cedo e apostar.
 
 import { useEffect, useState } from 'react'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
@@ -17,7 +16,11 @@ interface Props {
   aoAbrirFicha: (id: number) => void
   aoAgir: (acao: AcaoBase, ids: number[]) => void
   aoAlternarFoco: (ids: number[]) => void
+  aoPeneira: (regiao: string | null, foco: string | null) => void
+  aoCandidato: (cid: number, aceitar: boolean) => void
 }
+
+type Aba = 'garotos' | 'peneira' | 'revelados'
 
 const COLUNAS: Coluna<Garoto>[] = [
   { chave: 'pos', rotulo: 'Pos', largura: '46px', classe: 'centro', render: (j) => j.pos },
@@ -30,7 +33,15 @@ const COLUNAS: Coluna<Garoto>[] = [
   },
   { chave: 'idade', rotulo: 'Idade', largura: '52px', classe: 'num', render: (j) => j.idade },
   { chave: 'ovr', rotulo: 'Ovr', largura: '44px', classe: 'num', render: (j) => j.ovr },
-  { chave: 'teto', rotulo: 'Teto', largura: '80px', classe: 'centro', render: (j) => j.teto },
+  {
+    chave: 'teto',
+    rotulo: 'Teto',
+    largura: '96px',
+    classe: 'centro',
+    render: (j) => (
+      <span title={`${j.obs} mes(es) de observacao: a faixa estreita com o tempo`}>{j.teto}</span>
+    ),
+  },
   {
     chave: 'treino',
     rotulo: 'Treino',
@@ -51,7 +62,41 @@ const COLUNAS: Coluna<Garoto>[] = [
   },
 ]
 
-export function Base({ tela, ocupado, aoAbrirFicha, aoAgir, aoAlternarFoco }: Props) {
+export function Base(props: Props) {
+  const { tela } = props
+  const [aba, setAba] = useState<Aba>('garotos')
+  const novos = tela.candidatos.length
+  const abas: [Aba, string][] = [
+    ['garotos', `Garotos (${tela.garotos.length})`],
+    ['peneira', novos ? `Peneira · ${novos} para avaliar` : 'Peneira'],
+    ['revelados', 'Revelacoes'],
+  ]
+  return (
+    <div className="tela">
+      <CabecalhoTela titulo={tela.titulo} sub={tela.subtitulo} metricas={tela.metricas} />
+      <div className="alavanca" role="tablist" style={{ marginBottom: 12 }}>
+        {abas.map(([id, rotulo]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={aba === id}
+            className={aba === id ? 'ativo' : ''}
+            onClick={() => setAba(id)}
+          >
+            {rotulo}
+          </button>
+        ))}
+      </div>
+      {aba === 'garotos' && <Garotos {...props} />}
+      {aba === 'peneira' && <Peneira {...props} />}
+      {aba === 'revelados' && <Revelados tela={tela} />}
+    </div>
+  )
+}
+
+// ----------------------------------------------------------------- garotos
+function Garotos({ tela, ocupado, aoAbrirFicha, aoAgir, aoAlternarFoco }: Props) {
   const [marcados, setMarcados] = useState<Set<number>>(new Set())
   // a tela voltou do servidor: marcacao antiga pode apontar para quem ja subiu
   useEffect(() => {
@@ -62,70 +107,188 @@ export function Base({ tela, ocupado, aoAbrirFicha, aoAgir, aoAlternarFoco }: Pr
   const lotado = tela.elenco_profissional >= tela.teto_profissional
 
   return (
-    <div className="tela">
-      <CabecalhoTela titulo={tela.titulo} sub={tela.subtitulo} metricas={tela.metricas} />
+    <section className="painel painel-lista">
+      <Grade
+        colunas={COLUNAS}
+        itens={tela.garotos}
+        idDe={(j) => j.id}
+        marcados={marcados}
+        aoMarcar={(id) => setMarcados((s) => alternarMarca(s, id))}
+        aoMarcarTodos={(ids) => setMarcados(new Set(ids))}
+        aoAbrir={(j) => aoAbrirFicha(j.id)}
+        nomeDe={(j) => j.nome}
+        memoria="base"
+        vazio={
+          'Academia vazia. A safra nova chega na virada da temporada, e a peneira traz candidatos ' +
+          'durante o ano. Suba o nivel da base na Infraestrutura para ter mais vagas.'
+        }
+      />
 
-      <section className="painel painel-lista">
-        <Grade
-          colunas={COLUNAS}
-          itens={tela.garotos}
-          idDe={(j) => j.id}
-          marcados={marcados}
-          aoMarcar={(id) => setMarcados((s) => alternarMarca(s, id))}
-          aoMarcarTodos={(ids) => setMarcados(new Set(ids))}
-          aoAbrir={(j) => aoAbrirFicha(j.id)}
-          nomeDe={(j) => j.nome}
-          memoria="base"
-          vazio={
-            'Academia vazia. A safra nova chega na virada da temporada — suba o nivel da ' +
-            'base na Infraestrutura para formar mais gente.'
-          }
-        />
+      <div className="barra-acoes barra-presa">
+        <span className="resumo">
+          elenco profissional: {tela.elenco_profissional}/{tela.teto_profissional}
+          {lotado && ' — sem vaga para subir ninguem agora'}
+        </span>
+        <button type="button" className="bt-fantasma" disabled={nenhum} onClick={() => aoAbrirFicha(ids[0])}>
+          Ver ficha
+        </button>
+        <button
+          type="button"
+          className="bt-fantasma"
+          disabled={nenhum || ocupado}
+          title="Liga ou desliga o treino individual dos marcados"
+          onClick={() => {
+            aoAlternarFoco(ids)
+            setMarcados(new Set())
+          }}
+        >
+          Treino individual
+        </button>
+        <button
+          type="button"
+          className="bt-acao"
+          style={{ height: 36, borderRadius: 'var(--raio-p)', padding: '0 16px' }}
+          disabled={nenhum || ocupado}
+          onClick={() => aoAgir('subir', ids)}
+        >
+          Subir ao profissional
+        </button>
+        <button
+          type="button"
+          className="bt-fantasma bt-perigo"
+          disabled={nenhum || ocupado}
+          onClick={() => aoAgir('liberar', ids)}
+        >
+          Liberar da base
+        </button>
+      </div>
+    </section>
+  )
+}
 
-        <div className="barra-acoes barra-presa">
-          <span className="resumo">
-            elenco profissional: {tela.elenco_profissional}/{tela.teto_profissional}
-            {lotado && ' — sem vaga para subir ninguem agora'}
-          </span>
-          <button
-            type="button"
-            className="bt-fantasma"
-            disabled={nenhum}
-            onClick={() => aoAbrirFicha(ids[0])}
-          >
-            Ver ficha
-          </button>
-          <button
-            type="button"
-            className="bt-fantasma"
-            disabled={nenhum || ocupado}
-            title="Liga ou desliga o treino individual dos marcados"
-            onClick={() => {
-              aoAlternarFoco(ids)
-              setMarcados(new Set())
-            }}
-          >
-            Treino individual
-          </button>
+// ----------------------------------------------------------------- peneira
+function Peneira({ tela, ocupado, aoPeneira, aoCandidato }: Props) {
+  const pen = tela.peneira
+  const [regiao, setRegiao] = useState(pen.atual?.regiao ?? pen.regioes[0]?.id ?? '')
+  const [foco, setFoco] = useState<string>(pen.atual?.foco ?? '')
+  const estado = pen.atual
+    ? `Ligada no ${pen.atual.nome}${pen.atual.foco ? ` (${pen.atual.foco})` : ''}, ${pen.atual.custo} por semana. Proxima leva em ${pen.atual.proxima} semana(s).`
+    : `Desligada. Escolha onde procurar: a cada ${pen.a_cada} semanas chegam candidatos, e cada um espera ${pen.vale} semanas pela sua resposta.`
+  return (
+    <>
+      <section className="painel" style={{ padding: '14px 18px' }}>
+        <div className="painel-titulo" style={{ marginBottom: 6 }}>
+          Peneira
+        </div>
+        <p className="tag-fraco" style={{ margin: '0 0 12px' }}>
+          {estado}
+        </p>
+        <div className="regioes-peneira" role="radiogroup" aria-label="Regiao da peneira">
+          {pen.regioes.map((r) => (
+            <label key={r.id} className={`regiao-peneira${regiao === r.id ? ' ativa' : ''}`}>
+              <input type="radio" name="regiao" checked={regiao === r.id} onChange={() => setRegiao(r.id)} />
+              <strong>{r.nome}</strong>
+              <span className="tag-fraco">
+                talento {r.talento} · revela {r.vies}
+              </span>
+              <span className="tag-fraco">{r.custo} por semana</span>
+            </label>
+          ))}
+        </div>
+        <div className="linha-peneira">
+          <label className="tag-fraco">
+            Posicao{' '}
+            <select className="campo-texto" value={foco} onChange={(e) => setFoco(e.target.value)}>
+              <option value="">qualquer</option>
+              {pen.posicoes.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="espaco" />
+          {pen.atual && (
+            <button type="button" className="bt-fantasma" disabled={ocupado} onClick={() => aoPeneira(null, null)}>
+              Desligar
+            </button>
+          )}
           <button
             type="button"
             className="bt-acao"
-            style={{ height: 36, borderRadius: 'var(--raio-p)', padding: '0 16px' }}
-            disabled={nenhum || ocupado}
-            onClick={() => aoAgir('subir', ids)}
+            style={{ height: 36, borderRadius: 'var(--raio-p)' }}
+            disabled={ocupado || !regiao}
+            onClick={() => aoPeneira(regiao, foco || null)}
           >
-            Subir ao profissional
-          </button>
-          <button
-            type="button"
-            className="bt-fantasma bt-perigo"
-            disabled={nenhum || ocupado}
-            onClick={() => aoAgir('liberar', ids)}
-          >
-            Liberar da base
+            {pen.atual ? 'Mudar peneira' : 'Ligar peneira'}
           </button>
         </div>
       </section>
-    </div>
+
+      <section className="painel" style={{ padding: '14px 18px' }}>
+        <div className="painel-titulo" style={{ marginBottom: 8 }}>
+          Candidatos · {tela.vagas_livres} vaga(s) livre(s) na base
+        </div>
+        {tela.candidatos.length === 0 ? (
+          <div className="vazio" style={{ padding: 0 }}>
+            Nenhum candidato esperando. Com a peneira ligada, eles chegam a cada {pen.a_cada} semanas.
+          </div>
+        ) : (
+          tela.candidatos.map((k) => (
+            <div className="linha-proposta" key={k.cid}>
+              <span>
+                <strong>{k.nome}</strong>{' '}
+                <span className="tag-fraco">
+                  {k.pos} · {k.idade} anos · overall {k.ovr} · teto {k.faixa} · {k.regiao} · decide em {k.semanas}{' '}
+                  semana(s)
+                </span>
+              </span>
+              <span className="modal-acoes">
+                <button type="button" className="bt-fantasma" disabled={ocupado} onClick={() => aoCandidato(k.cid, false)}>
+                  Dispensar
+                </button>
+                <button
+                  type="button"
+                  className="bt-fantasma"
+                  disabled={ocupado || tela.vagas_livres === 0}
+                  title={tela.vagas_livres === 0 ? 'Base cheia: libere alguem antes' : undefined}
+                  onClick={() => aoCandidato(k.cid, true)}
+                >
+                  Trazer para a base
+                </button>
+              </span>
+            </div>
+          ))
+        )}
+      </section>
+    </>
+  )
+}
+
+// ---------------------------------------------------------------- revelados
+function Revelados({ tela }: { tela: TelaBase }) {
+  return (
+    <section className="painel" style={{ padding: '14px 18px' }}>
+      <div className="painel-titulo" style={{ marginBottom: 8 }}>
+        Revelacoes da academia
+      </div>
+      {tela.revelados.length === 0 ? (
+        <div className="vazio" style={{ padding: 0 }}>
+          Ninguem subiu da base ainda. Quem subir ao profissional fica registrado aqui.
+        </div>
+      ) : (
+        tela.revelados.map((r, i) => (
+          <div key={i} className="linha-proposta">
+            <span>
+              <strong className={r.em_casa ? 'tag-titular' : undefined}>{r.nome}</strong>{' '}
+              <span className="tag-fraco">
+                {r.pos} · subiu em {r.temporada} com {r.ovr_subida}
+                {r.ovr_hoje !== null && ` · hoje ${r.ovr_hoje}`} · {r.onde}
+              </span>
+            </span>
+          </div>
+        ))
+      )}
+    </section>
   )
 }

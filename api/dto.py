@@ -527,6 +527,7 @@ def base():
             "id": j["id"], "pos": j["pos"], "nome": j["nome"], "idade": j["idade"],
             "ovr": j["ovr"], "teto": eng.scout(G, j), "em_foco": j["id"] in foco,
             "situacao": sit, "estado": estado, "tag": _tag_ovr(j["ovr"]),
+            "obs": int(j.get("obs", 0)),
         })
 
     return {
@@ -543,7 +544,48 @@ def base():
         "garotos": linhas,
         "elenco_profissional": len(c["elenco"]),
         "teto_profissional": 32,
+        "peneira": _peneira(G, c),
+        "candidatos": [{"cid": k["cid"], "nome": k["nome"], "pos": k["pos"], "idade": k["idade"],
+                        "ovr": k["ovr"], "faixa": eng.faixa_candidato(G, c, k), "regiao": k["regiao"],
+                        "semanas": max(0, k["expira"] - G["semana"])}
+                       for k in eng.candidatos_base(G, c)],
+        "vagas_livres": max(0, eng.vagas_base(c) - len(garotos)),
+        "revelados": _revelados(G, c),
     }
+
+
+def _peneira(G, c):
+    pen = eng.peneira(c)
+    regioes = [{"id": k, "nome": r["nome"], "custo": eng.din(r["custo"]),
+                "vies": ", ".join(r["vies"]),
+                "talento": ("alto" if r["talento"] >= 1.0 else
+                            "bom" if r["talento"] >= 0.9 else "medio")}
+               for k, r in eng.REGIOES_PENEIRA.items()]
+    atual = None
+    if pen:
+        r = eng.REGIOES_PENEIRA[pen["regiao"]]
+        faltam = eng.PENEIRA_A_CADA - pen.get("semanas", 0) % eng.PENEIRA_A_CADA
+        atual = {"regiao": pen["regiao"], "nome": r["nome"], "foco": pen.get("foco"),
+                 "custo": eng.din(r["custo"]), "proxima": faltam}
+    return {"atual": atual, "regioes": regioes, "posicoes": list(eng.POS),
+            "a_cada": eng.PENEIRA_A_CADA, "vale": eng.CANDIDATO_VALE}
+
+
+def _revelados(G, c):
+    """Quem a academia formou: como subiu e como esta hoje."""
+    fora = []
+    for r in reversed(c.get("revelados", [])):
+        j = G["jogadores"].get(r["id"])
+        if j and j.get("clube") in G["clubes"]:
+            onde = G["clubes"][j["clube"]]["nome"]
+        elif j:
+            onde = "sem clube"
+        else:
+            onde = "parou de jogar"
+        fora.append({"nome": r["nome"], "pos": r["pos"], "temporada": r["temporada"],
+                     "ovr_subida": r["ovr"], "ovr_hoje": j["ovr"] if j else None, "onde": onde,
+                     "em_casa": bool(j and j.get("clube") == c["id"])})
+    return fora
 
 
 # --------------------------------------------------------------------- tabela

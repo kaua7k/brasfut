@@ -513,6 +513,40 @@ def liberar_da_base(corpo):
         return {"recado": " ".join(r for r in recados if r), "tela": dto.base()}
 
 
+@rota("POST", "/api/base/peneira")
+def mudar_peneira(corpo):
+    """Liga a peneira numa regiao (e posicao, se quiser) ou desliga."""
+    with SESSAO.cadeado:
+        G = SESSAO.exigir()
+        c = G["clubes"][G["clube"]]
+        if corpo.get("desligar"):
+            ok, recado = eng.desligar_peneira(G, c)
+        else:
+            ok, recado = eng.ligar_peneira(G, c, corpo.get("regiao"), corpo.get("foco") or None)
+        if not ok:
+            raise ErroDeUso(recado)
+        eng.salvar_auto(G, forcar=True)
+        return {"recado": recado, "tela": dto.base()}
+
+
+@rota("POST", "/api/base/candidato")
+def responder_candidato(corpo):
+    """Aceita (entra na base, se houver vaga) ou dispensa um garoto da peneira."""
+    cid = corpo.get("cid")
+    if not isinstance(cid, int):
+        raise ErroDeUso("falta o candidato")
+    with SESSAO.cadeado:
+        G = SESSAO.exigir()
+        c = G["clubes"][G["clube"]]
+        acao = eng.aceitar_candidato if corpo.get("aceitar") else eng.recusar_candidato
+        ok, recado = acao(G, c, cid)
+        if not ok:
+            raise ErroDeUso(recado)
+        eng.salvar_auto(G, forcar=True)
+        SESSAO.invalidar()
+        return {"recado": recado, "tela": dto.base()}
+
+
 # ------------------------------------------------------ acao da infraestrutura
 @rota("POST", "/api/infra/investir")
 def investir(corpo):

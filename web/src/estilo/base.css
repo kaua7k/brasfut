@@ -1503,3 +1503,13 @@ button.jogador:hover .disco, button.jogador:focus-visible .disco { transform: sc
 .letra-res.D { background: #4a1f1f; color: var(--critico); }
 
 .abas-ligas { flex-wrap: wrap; }
+
+/* ------------------------------------------------------------- base: peneira */
+.regioes-peneira { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.regiao-peneira { position: relative; display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--borda); border-radius: var(--raio-p); cursor: pointer; font-size: 13px; }
+.regiao-peneira input { position: absolute; opacity: 0; pointer-events: none; }
+.regiao-peneira.ativa { border-color: var(--acento); background: var(--painel-alto); }
+.regiao-peneira:focus-within { outline: 2px solid var(--acento); outline-offset: 1px; }
+.linha-peneira { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.linha-peneira select { padding: 6px 10px; font-size: 13px; }
+.tag-titular { color: var(--titular); }

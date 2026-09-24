@@ -406,6 +406,36 @@ Jogos de ligas e copas europeias usam `EXP_FORCA_EUROPA` (3.4): com o 2.20
 brasileiro o City fazia 65 pontos e o LASK ganhava a Champions. Temporada
 simulada ~15 s.
 
+**Inflação de notas (corrigida).** O mundo caminhava para 99: em 8
+temporadas simuladas o número de jogadores 90+ ia de 6 para 453. Quatro
+causas: `teto_maximo` devolvia `max(limite, ovr + 2)` (quem batia no teto
+ganhava 2 de folga todo mês — uma catraca com `estourar_teto`), a loteria de
+`sortear_potencial` dava joia 97–99 a cada ~17 garotos de academia boa, a base
+crescia como quem joga tudo (`PISO_BASE`, era 1.0) e o garoto de base ganhava
+revisão de teto sem jogar. Hoje: revisão/estouro só até `TETO_REVISAO` (91),
+joia rara com teto 96, base a 0.72 e sem revisão. Save antigo passa uma vez por
+`corrigir_inflacao` (percentil a percentil contra `CURVA_SAUDAVEL`, só para
+baixo). `test_balanco.py` segura as regras. Livres: `contratar_livres_ia`
+(semanal) leva os melhores para quem os teria de titular e paga o salário — a
+IA antiga pegava livre ao acaso e `limpar_livres` guardava justamente os
+melhores, que ninguém contratava.
+
+**Partida com o XI escalado.** `simular` usava `montar_escalacao` para os dois
+lados: o time manual do técnico nunca entrava em campo. Agora usa
+`escalacao_valida` (a máquina segue no automático), e `atribuir_vagas` aceita
+as vagas fixadas pela troca entre titulares (`vagas_manuais`).
+
+**Base: peneira, faixa que estreita, revelações.** Aba *Peneira* na Base: região
+(`REGIOES_PENEIRA`: talento, posições típicas, custo semanal) e posição
+opcional; a cada `PENEIRA_A_CADA` semanas chegam candidatos que esperam
+`CANDIDATO_VALE` semanas (`POST /api/base/peneira`, `/api/base/candidato`). Só o
+clube do jogador usa. `j["obs"]` conta os meses que o clube observa o jogador
+e aperta a margem de `scout()` (EA FC / Football Manager). `c["revelados"]`
+guarda quem subiu (aba *Revelações*). Pesquisa de referências (FM, EA FC,
+Brasfoot, Hattrick, Top Eleven) e próximos passos possíveis: olheiro de base
+contratável, dia da safra como evento, empréstimo de desenvolvimento, Copinha
+sub-20, assédio a garotos, mentor.
+
 **Casca.** O endereço guarda a tela no hash (`/#elenco`): F5 não volta ao
 Painel, e agora o Voltar/Avançar do navegador também troca de tela.
 Marcações nas grades usam `alternarMarca` com setter funcional (dois cliques
@@ -477,10 +507,13 @@ velha para apagar na mão. `--sim` não trava, porque não grava no save.
   telas `ext:` e save antigo ganhando a Europa sem jogador duplicado.
 - **`test_escalacao.py`** trocas: titular por reserva, dois titulares da
   mesma vaga trocando de lado e a recusa (ou troca) entre vagas diferentes.
+- **`test_balanco.py`** teto sem catraca, joia com teto, base sem revisão,
+  correção de save inflado, IA contratando livre bom.
+- **`test_base.py`** peneira do começo ao fim, faixa que estreita, revelações.
 - **`test_continentais.py`** grupos da Libertadores e da Sul-Americana até o
   playoff e as oitavas, e save antigo ganhando os clubes que faltam.
 
-Todo teste que mexe no save confere no fim que o hash do save real não mudou.
+Nenhum teste grava no save real: `apoio.py` intercepta `eng.salvar` e falha na hora se alguém tentar (a comparação por hash dava alarme falso com o jogo aberto).
 A interface (React) ainda é conferida à mão. Roteiro que funciona: copiar
 `api/`, `brasfut.py`, `server.py`, `web/dist` e uma cópia do save para uma pasta
 temporária, subir com `BRASFUT_PORTA=8791 python server.py --sem-abrir`,

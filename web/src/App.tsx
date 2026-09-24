@@ -441,6 +441,18 @@ export function App() {
     else despachar<TelaTreino>(() => api.limparFoco(), aplicar)
   }
 
+  const peneiraNaBase = (regiao: string | null, foco: string | null) =>
+    despachar<TelaBase>(
+      () => api.peneira(regiao, foco),
+      (dados) => setConteudo({ tipo: 'base', dados }),
+    )
+
+  const candidatoNaBase = (cid: number, aceitar: boolean) =>
+    despachar<TelaBase>(
+      () => api.candidato(cid, aceitar),
+      (dados) => setConteudo({ tipo: 'base', dados }),
+    )
+
   const focoNaBase = (ids: number[]) =>
     despachar<TelaBase>(
       () => api.alternarFocoNaBase(ids),
@@ -646,6 +658,8 @@ export function App() {
             aoAbrirFicha={abrirFicha}
             aoAgir={agirBase}
             aoAlternarFoco={focoNaBase}
+            aoPeneira={peneiraNaBase}
+            aoCandidato={candidatoNaBase}
           />
         )}
         {conteudo.tipo === 'tabela' && (

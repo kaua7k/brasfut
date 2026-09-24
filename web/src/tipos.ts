@@ -416,6 +416,8 @@ export interface Garoto {
   situacao: string
   estado: string
   tag: string
+  /** meses que o clube ja observa o garoto: a faixa do teto estreita com isso */
+  obs: number
 }
 
 export interface TelaBase {
@@ -426,6 +428,33 @@ export interface TelaBase {
   garotos: Garoto[]
   elenco_profissional: number
   teto_profissional: number
+  peneira: {
+    atual: { regiao: string; nome: string; foco: string | null; custo: string; proxima: number } | null
+    regioes: { id: string; nome: string; custo: string; vies: string; talento: string }[]
+    posicoes: string[]
+    a_cada: number
+    vale: number
+  }
+  candidatos: {
+    cid: number
+    nome: string
+    pos: string
+    idade: number
+    ovr: number
+    faixa: string
+    regiao: string
+    semanas: number
+  }[]
+  vagas_livres: number
+  revelados: {
+    nome: string
+    pos: string
+    temporada: number
+    ovr_subida: number
+    ovr_hoje: number | null
+    onde: string
+    em_casa: boolean
+  }[]
 }
 
 export interface LinhaClassificacao {
