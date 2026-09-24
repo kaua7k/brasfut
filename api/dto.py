@@ -393,7 +393,8 @@ def _propostas_emprego(G):
 
 
 ROTULO_FEED = {"resultado": "Resultado", "tabela": "Tabela", "copa": "Copa",
-               "titulo": "Titulo", "mercado": "Mercado", "lesao": "Lesao"}
+               "titulo": "Titulo", "mercado": "Mercado", "lesao": "Lesao",
+               "abertura": "Brasileirao"}
 
 
 def _mundo(G, quantas):

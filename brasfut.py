@@ -3152,6 +3152,45 @@ def iniciar_estaduais(G: Mundo) -> List[str]:
     return recados
 
 
+def _na_fase(fase: str) -> str:
+    """"na semifinal", "nas quartas de final", "na Taca Guanabara"."""
+    plural = fase.lower().split()[0] in ("quartas", "oitavas", "semifinais")
+    return ("nas %s" if plural else "na %s") % fase
+
+
+def manchete_abertura_brasileirao(G: Mundo) -> Optional[str]:
+    """Evento unico da virada estadual -> liga: como o MEU clube saiu do
+    estadual, contado como pano de fundo da estreia no Brasileirao. So o meu
+    clube, para nao encher o feed; clube sem estadual (de fora) nao gera nada."""
+    est = meu_estadual(G)
+    cid = G.get("clube")
+    if not est or cid is None:
+        return None
+    c = G["clubes"][cid]
+    liga = nome_da_liga(G, c["divisao"])
+    campanha = campanha_estadual(G, est, cid)
+    if campanha == "campeao":
+        texto = "Depois do titulo do %s, %s estreia na %s com favoritismo." % (est["nome"], c["nome"], liga)
+    elif campanha == "vice-campeao":
+        texto = "Vice do %s, %s chega a %s querendo dar o troco." % (est["nome"], c["nome"], liga)
+    elif campanha.startswith("eliminado na "):
+        texto = "Eliminado %s do %s, %s busca a volta por cima na %s." % (
+            _na_fase(campanha[len("eliminado na "):]), est["nome"], c["nome"], liga)
+    elif campanha.endswith("fora do mata-mata"):
+        fase = est.get("nome1") or "Primeira fase"
+        # "Taca Guanabara" e nome proprio; "Primeira fase" e "Fase de grupos" nao
+        if fase.split()[0] in ("Primeira", "Fase"):
+            fase = fase[0].lower() + fase[1:]
+        texto = "Eliminado ainda %s do %s, %s tenta reacao na %s." % (
+            _na_fase(fase), est["nome"], c["nome"], liga)
+    else:
+        # estadual so de pontos corridos (save antigo): conta a colocacao
+        texto = "%s termina o %s em %s e vira a chave para a %s." % (
+            c["nome"], est["nome"], campanha, liga)
+    manchete(G, "abertura", texto)
+    return texto
+
+
 def encerrar_estaduais(G: Mundo) -> List[str]:
     """Coroa os campeoes, paga o premio e entrega o ano ao Brasileirao."""
     recados = []
@@ -3178,6 +3217,7 @@ def encerrar_estaduais(G: Mundo) -> List[str]:
     G["fase"] = "liga"
     G["semana"] = 1
     G["semana_est"] = 0
+    manchete_abertura_brasileirao(G)
     for cl in G["clubes"].values():
         cl["esc_stamp"] = ""
     c = G["clubes"][G["clube"]]
