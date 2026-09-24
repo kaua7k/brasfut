@@ -2618,7 +2618,33 @@ def posicao_na_liga(G, cid):
 # ----------------------------------------------------------------------------
 
 MIN_ESTADUAL = 4          # abaixo disso o estado nao sustenta campeonato proprio
-PREMIO_ESTADUAL = 900_000
+
+# Premio do campeao por porte do torneio, pela mesma chave de FORMATOS_ESTADUAL.
+# Paulistao muito acima, RJ/MG/RS num segundo patamar e os regionais (Copa do
+# Nordeste, Copa Verde) no piso. Somado a reputacao do campeao, como antes.
+PREMIO_ESTADUAL = {
+    "uf-SP": 2_600_000,
+    "uf-RJ": 1_500_000,
+    "uf-MG": 1_500_000,
+    "uf-RS": 1_500_000,
+    "reg-Nordeste": 450_000,
+    "reg-Verde": 450_000,
+}
+# chave fora do dicionario: o estadual generico de _formato_estadual, pelo
+# tamanho (n >= 6, n == 5, menor), e qualquer outro regional no piso
+PREMIO_ESTADUAL_GENERICO = ((6, 1_000_000), (5, 800_000), (0, 600_000))
+PREMIO_REGIONAL = 450_000
+
+
+def premio_estadual(est: Dict[str, Any]) -> int:
+    """Base do premio do campeao deste estadual (sem a parte da reputacao)."""
+    chave = est.get("chave", "")
+    if chave in PREMIO_ESTADUAL:
+        return PREMIO_ESTADUAL[chave]
+    if chave.startswith("reg-"):
+        return PREMIO_REGIONAL
+    n = len(est.get("times", []))
+    return next(v for minimo, v in PREMIO_ESTADUAL_GENERICO if n >= minimo)
 
 UF_NOME = {
     "AC": "Acreano", "AL": "Alagoano", "AM": "Amazonense", "AP": "Amapaense",
@@ -3071,7 +3097,7 @@ def encerrar_estaduais(G: Mundo) -> List[str]:
         est["premiado"] = True
         cl = G["clubes"][campeao]
         dar_titulo(G, cl, est["nome"])
-        premio = int(PREMIO_ESTADUAL + cl["reputacao"] * 22_000)
+        premio = int(premio_estadual(est) + cl["reputacao"] * 22_000)
         cl["dinheiro"] += premio
         if campeao == G.get("clube"):
             st = stats_ano(G)
