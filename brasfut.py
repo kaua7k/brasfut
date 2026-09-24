@@ -329,6 +329,39 @@ ELENCO_PADRAO = {"GOL": 3, "ZAG": 5, "LAT": 4, "VOL": 4, "MEI": 5, "ATA": 5}
 TV = {"A": (420_000, 15_000), "B": (250_000, 6_000),
       "C": (120_000, 2_500), "D": (60_000, 1_500), "EX": (0, 0)}
 
+DIVISOES_BR = ("A", "B", "C", "D")
+
+# As ligas de fora sao divisoes como as series: clube com divisao "ENG" joga,
+# compra, vende e pode ser treinado. Cada liga tem o seu dinheiro: TV semanal
+# (base, por ponto de reputacao; calibrada para saldo semanal pouco acima de
+# zero, como nas series), premiacao do campeao, multiplicador do caixa
+# inicial, peso no valor de mercado e teto de evolucao dos jogadores.
+PERFIL_LIGA_EXT = {
+    "ENG": {"tv": (1_750_000, 52_000), "premio": 260_000_000, "caixa": 3.0, "peso": 1.10, "teto": 97},
+    "ESP": {"tv": (1_250_000, 47_000), "premio": 180_000_000, "caixa": 2.4, "peso": 1.06, "teto": 97},
+    "GER": {"tv": (1_250_000, 47_000), "premio": 170_000_000, "caixa": 2.2, "peso": 1.05, "teto": 96},
+    "ITA": {"tv": (1_230_000, 47_000), "premio": 160_000_000, "caixa": 2.0, "peso": 1.04, "teto": 96},
+    "FRA": {"tv": (1_000_000, 39_000), "premio": 130_000_000, "caixa": 1.8, "peso": 1.02, "teto": 95},
+    "POR": {"tv": (690_000, 35_000), "premio": 50_000_000, "caixa": 1.2, "peso": 0.96, "teto": 92},
+    "NED": {"tv": (600_000, 30_000), "premio": 50_000_000, "caixa": 1.2, "peso": 0.95, "teto": 92},
+    "USA": {"tv": (830_000, 28_000), "premio": 40_000_000, "caixa": 1.4, "peso": 0.90, "teto": 88},
+    "SAU": {"tv": (700_000, 28_000), "premio": 60_000_000, "caixa": 2.5, "peso": 0.88, "teto": 88},
+}
+PERFIL_PADRAO = {"tv": (600_000, 20_000), "premio": 30_000_000, "caixa": 1.0, "peso": 0.9, "teto": 88}
+
+
+def perfil_liga(div):
+    return PERFIL_LIGA_EXT.get(div, PERFIL_PADRAO)
+
+
+def brasileiro(c):
+    """Clube das series brasileiras (joga estadual e Copa do Brasil)."""
+    return c["divisao"] in DIVISOES_BR
+
+
+def de_liga_ext(c):
+    return c["divisao"] not in DIVISOES_BR and c["divisao"] != "EX"
+
 # premiacao por posicao final (1o lugar), decai conforme a colocacao
 PREMIO = {"A": 32_000_000, "B": 6_000_000, "C": 1_800_000, "D": 600_000}
 
@@ -363,7 +396,7 @@ FASE_LIGA = "Fase de liga"
 ORDEM_LIGAS_EXT = ["ENG", "ESP", "GER", "ITA", "FRA", "POR", "NED"]
 VAGAS_CHAMPIONS = {"ENG": 4, "ESP": 4, "GER": 4, "ITA": 4, "FRA": 3, "POR": 2, "NED": 2}
 # o que cada vitoria na fase de grupos paga a um clube brasileiro
-PREMIO_VITORIA_GRUPO = {"lib": 1_800_000, "sul": 900_000}
+PREMIO_VITORIA_GRUPO = {"lib": 1_800_000, "sul": 900_000, "ucl": 12_000_000, "uel": 4_000_000}
 JANELAS = list(range(1, 5)) + list(range(19, 23))   # semanas com mercado aberto
 
 # ----------------------------------------------------------------------------
@@ -702,7 +735,7 @@ def novo_clube(G, dados, divisao, usados):
     nome, uf, estadio, cap, rep = dados
     G["seq_c"] += 1
     cid = G["seq_c"]
-    mult = {"A": 1.0, "B": 0.40, "C": 0.16, "D": 0.07, "EX": 1.0}[divisao]
+    mult = {"A": 1.0, "B": 0.40, "C": 0.16, "D": 0.07, "EX": 1.0}.get(divisao) or perfil_liga(divisao)["caixa"]
     c = {
         "id": cid, "nome": nome, "uf": uf, "estadio": estadio, "capacidade": cap,
         "reputacao": rep, "divisao": divisao,
@@ -956,6 +989,18 @@ def mundo_embutido():
     return _MUNDO[0]
 
 
+def ligas_ext(G):
+    """As ligas de fora: tudo em G["ligas"] que nao e serie brasileira."""
+    return {k: v for k, v in G["ligas"].items() if k not in DIVISOES_BR}
+
+
+def nome_da_liga(G, div):
+    if div in DIVISOES_BR:
+        return "Serie %s" % div
+    liga = G.get("ligas", {}).get(div)
+    return liga.get("nome", div) if liga else div
+
+
 def nova_liga_ext(codigo, nome, ids):
     # liga grande (a MLS tem 29) ou impar nao cabe em ida e volta nas 38 semanas:
     # joga so o turno
@@ -974,14 +1019,14 @@ def aplicar_mundo(G, usados, sul=False):
     m = mundo_embutido()
     if not m:
         return
-    ligas = G.setdefault("ligas_ext", {})
+    ligas = G["ligas"]
     for liga in m.get("ligas", []):
         if liga["codigo"] in ligas:
             continue
         ids = []
         for d in liga["clubes"]:
             c = novo_clube(G, (d["nome"], d["pais"], d["estadio"], d["capacidade"], d["reputacao"]),
-                           "EX", usados)
+                           liga["codigo"], usados)
             c["liga_ext"] = liga["codigo"]
             trocar_elenco(G, c, d["elenco"], usados)
             ids.append(c["id"])
@@ -997,7 +1042,7 @@ def aplicar_mundo(G, usados, sul=False):
             if d["elenco"]:
                 trocar_elenco(G, c, d["elenco"], usados)
     for c in G["clubes"].values():
-        if c.get("liga_ext"):
+        if c.get("liga_ext") in ORDEM_LIGAS_EXT:
             c["europeu"] = True
     if not sul:
         return
@@ -1013,7 +1058,7 @@ def falta_mundo(G):
     m = mundo_embutido()
     if not m:
         return False
-    if set(l["codigo"] for l in m.get("ligas", [])) - set(G.get("ligas_ext", {})):
+    if set(l["codigo"] for l in m.get("ligas", [])) - set(G["ligas"]):
         return True
     nomes = {c["nome"] for c in G["clubes"].values()}
     return any(d["nome"] not in nomes for b in ("outros_europeus", "sul_novos") for d in m.get(b) or [])
@@ -1024,7 +1069,7 @@ def jogar_rodada_ext(G, liga):
         return []
     res, placares = [], []
     for casa, fora in liga["rodadas"][liga["rodada"]]:
-        r = simular(G, casa, fora, "ext")
+        r = simular(G, casa, fora, "liga")
         registrar(liga, casa, fora, r["gc"], r["gf"])
         placares.append([casa, fora, r["gc"], r["gf"]])
         res.append(r)
@@ -1037,13 +1082,13 @@ def jogar_rodada_ext(G, liga):
 def fechar_ligas_ext(G):
     """Virada: campeao de quem jogou tudo, e as ligas recomecam com os mesmos clubes."""
     anterior = G.setdefault("class_ext_anterior", {})
-    for codigo, liga in list(G.get("ligas_ext", {}).items()):
+    for codigo, liga in list(ligas_ext(G).items()):
         if liga["rodada"] >= len(liga["rodadas"]) and liga["times"]:
             ordem = classificacao(G, liga)
             dar_titulo(G, G["clubes"][ordem[0]], liga["nome"])
             anterior[codigo] = ordem
         vivos = [i for i in liga["times"] if i in G["clubes"]]
-        G["ligas_ext"][codigo] = nova_liga_ext(codigo, liga["nome"], vivos)
+        G["ligas"][codigo] = nova_liga_ext(codigo, liga["nome"], vivos)
 
 
 # ----------------------------------------------------------------------------
@@ -1102,7 +1147,7 @@ def montar_copas(G, primeira=False):
 # ----------------------------------------------------------------------------
 
 def _ordem_liga_ext(G, codigo):
-    liga = G["ligas_ext"][codigo]
+    liga = G["ligas"][codigo]
     ordem = [i for i in G.get("class_ext_anterior", {}).get(codigo, []) if i in liga["times"]]
     resto = sorted((i for i in liga["times"] if i not in ordem), key=lambda i: -G["clubes"][i]["reputacao"])
     return ordem + resto
@@ -1110,7 +1155,7 @@ def _ordem_liga_ext(G, codigo):
 
 def _intercalado(G, excluir):
     """Clubes das ligas por posicao: 1os de todas, depois 2os... na ordem de forca."""
-    ordens = [_ordem_liga_ext(G, k) for k in ORDEM_LIGAS_EXT if k in G.get("ligas_ext", {})]
+    ordens = [_ordem_liga_ext(G, k) for k in ORDEM_LIGAS_EXT if k in G["ligas"]]
     fora = []
     for pos in range(max((len(o) for o in ordens), default=0)):
         for o in ordens:
@@ -1120,7 +1165,7 @@ def _intercalado(G, excluir):
 
 
 def montar_copas_europeias(G, primeira, campeao_ucl):
-    if not G.get("ligas_ext"):
+    if not any(k in G["ligas"] for k in ORDEM_LIGAS_EXT):
         return
     outros = sorted((c["id"] for c in G["clubes"].values()
                      if c.get("europeu") and not c.get("liga_ext")),
@@ -1133,7 +1178,7 @@ def montar_copas_europeias(G, primeira, campeao_ucl):
     else:
         ucl = []
         for k in ORDEM_LIGAS_EXT:
-            if k in G["ligas_ext"]:
+            if k in G["ligas"]:
                 ucl += _ordem_liga_ext(G, k)[:VAGAS_CHAMPIONS.get(k, 1)]
         if campeao_ucl in G["clubes"] and campeao_ucl not in ucl:
             ucl.append(campeao_ucl)
@@ -1174,7 +1219,7 @@ def nova_copa_continental(G, nome, times, semanas, fases):
 
 
 def pais(c):
-    return "BRA" if c["divisao"] != "EX" else c["uf"]
+    return "BRA" if brasileiro(c) else c["uf"]
 
 
 def sortear_grupos_continentais(G, times):
@@ -2317,7 +2362,8 @@ def simular(G, casa_id, fora_id, comp="liga", neutro=False):
 
     # tres periodos: e o que da sentido ao banco. O time que termina o jogo nao
     # e o mesmo que comecou, nem em pernas nem em nomes.
-    expoente = EXP_FORCA_EUROPA if comp in COMPS_EUROPA else EXP_FORCA
+    europeu = comp in COMPS_EUROPA or (comp == "liga" and G["clubes"][casa_id]["divisao"] not in DIVISOES_BR)
+    expoente = EXP_FORCA_EUROPA if europeu else EXP_FORCA
     for ini, fim, minutos in ((1, 45, 45), (46, 70, 25), (71, 92, 20)):
         at_c, de_c = forcas_de(G, casa, esc_c)
         at_f, de_f = forcas_de(G, fora, esc_f)
@@ -2625,7 +2671,7 @@ def _grupos_estaduais(G: Mundo) -> List[Tuple[str, str, List[int]]]:
     """
     por_uf: Dict[str, List[int]] = {}
     for c in G["clubes"].values():
-        if c["divisao"] == "EX":
+        if not brasileiro(c):
             continue
         por_uf.setdefault(c["uf"], []).append(c["id"])
     grupos, sobras = [], {}
@@ -3082,7 +3128,7 @@ def jogos_da_semana(G, cid):
 
 
 def receita_semanal(G, c):
-    base, por_rep = TV[c["divisao"]]
+    base, por_rep = TV.get(c["divisao"]) or perfil_liga(c["divisao"])["tv"]
     return int(base + por_rep * c["reputacao"])
 
 
@@ -3282,7 +3328,7 @@ def _onde(G: Mundo, r: Dict[str, Any]) -> str:
     if comp:
         return comp
     div = G["clubes"][r["casa"]]["divisao"]
-    return "Serie %s" % div if div in "ABCD" else "rodada"
+    return nome_da_liga(G, div)
 
 
 def manchetes_da_semana(G: Mundo, jogos: List[Dict[str, Any]],
@@ -3319,7 +3365,7 @@ def manchetes_da_semana(G: Mundo, jogos: List[Dict[str, Any]],
 
 def _ligas_de_manchete(G):
     fora = [(d, G["ligas"][d], "Serie %s" % d, 3) for d in "AB"]
-    fora += [(k, l, l["nome"], 10) for k, l in G.get("ligas_ext", {}).items()]
+    fora += [(k, l, l["nome"], 10) for k, l in ligas_ext(G).items()]
     return fora
 
 
@@ -3410,7 +3456,8 @@ def jogar_fase_copa(G, chave):
         cp["campeao"] = prox[0]
         c = G["clubes"][prox[0]]
         dar_titulo(G, c, cp["nome"])
-        premio = {"copa": 78_000_000, "lib": 130_000_000, "sul": 30_000_000}.get(chave, 0)
+        premio = {"copa": 78_000_000, "lib": 130_000_000, "sul": 30_000_000,
+                  "ucl": 350_000_000, "uel": 90_000_000}.get(chave, 0)
         if c["divisao"] != "EX":
             c["dinheiro"] += premio
             c["reputacao"] = clamp(c["reputacao"] + 2, 10, 99)
@@ -3426,7 +3473,7 @@ def avancar_semana(G):
     meus, todos = [], []
     antes = lideres(G)
     if sem <= SEMANAS_LIGA:
-        for div in "ABCD":
+        for div in list(G["ligas"]):
             for r in jogar_rodada_liga(G, div):
                 todos.append(r)
                 if G["clube"] in (r["casa"], r["fora"]):
@@ -3446,9 +3493,6 @@ def avancar_semana(G):
                 if G["clube"] in (r["casa"], r["fora"]):
                     meus.append(r)
     fechar_grupos(G)
-    if sem <= SEMANAS_LIGA:
-        for liga in G.get("ligas_ext", {}).values():
-            jogar_rodada_ext(G, liga)
     manchetes_da_semana(G, todos, antes)
     G["ultimos_meus"] = [dict(r) for r in meus]
     for r in meus:
@@ -5138,6 +5182,7 @@ A_ESPERADO = {"GOL": 0.00, "ZAG": 0.025, "LAT": 0.110, "VOL": 0.070, "MEI": 0.23
 # presenca, atacante por numero.
 PESO_PRODUCAO = {"GOL": 0.10, "ZAG": 0.22, "LAT": 0.35, "VOL": 0.42, "MEI": 0.60, "ATA": 0.72}
 PESO_DIVISAO = {"A": 1.00, "B": 0.84, "C": 0.68, "D": 0.54, "EX": 0.92}
+PESO_DIVISAO.update({k: v["peso"] for k, v in PERFIL_LIGA_EXT.items()})
 
 
 def desempenho_temporada(G: Mundo, j: Jogador) -> float:
@@ -5164,6 +5209,7 @@ def desempenho_temporada(G: Mundo, j: Jogador) -> float:
 # prova que o jogador da conta da Serie D; para o teto passar disso ele precisa
 # render num palco maior. Sem esse limite o mundo inteiro caminhava para 99.
 TETO_CREDIVEL = {"A": 97, "B": 88, "C": 80, "D": 74, "EX": 94}
+TETO_CREDIVEL.update({k: v["teto"] for k, v in PERFIL_LIGA_EXT.items()})
 
 
 def teto_maximo(G: Mundo, j: Jogador) -> int:
@@ -5440,10 +5486,11 @@ def investimentos_ia(G):
 
 
 def premiacao(G):
-    for div in "ABCD":
-        liga = G["ligas"][div]
+    for div, liga in G["ligas"].items():
+        if liga["rodada"] < len(liga["rodadas"]) and div not in DIVISOES_BR:
+            continue                     # liga de fora que nao terminou nao paga
         ordem = classificacao(G, liga)
-        total = PREMIO[div]
+        total = PREMIO.get(div) or perfil_liga(div)["premio"]
         for i, cid in enumerate(ordem):
             c = G["clubes"][cid]
             fatia = total * (0.55 ** (i * 0.30))
@@ -5491,14 +5538,18 @@ def definir_objetivo(G):
     liga = G["ligas"][div]
     ordem = sorted(liga["times"], key=lambda i: -G["clubes"][i]["reputacao"])
     rank = ordem.index(c["id"]) + 1
+    n = len(ordem)
+    meio = max(6, round(n * 0.6))
     if rank <= 3:
         alvo, txt = 2, "brigar pelo titulo (terminar entre os 2 primeiros)"
     elif rank <= 6:
         alvo, txt = 6, "terminar entre os 6 primeiros"
-    elif rank <= 12:
-        alvo, txt = 12, "terminar entre os 12 primeiros"
-    else:
+    elif rank <= meio:
+        alvo, txt = meio, "terminar entre os %d primeiros" % meio
+    elif div in DIVISOES_BR:
         alvo, txt = 16, "evitar o rebaixamento (nao terminar nos 4 ultimos)"
+    else:
+        alvo, txt = n - 4, "fugir das ultimas posicoes (nao terminar nos 4 ultimos)"
     if div == "D":
         txt += " e brigar pelo acesso"
     G["objetivo"] = txt
@@ -5514,7 +5565,7 @@ def avaliar_diretoria(G, posicao_final):
         return True, "A diretoria cobrou resultados, mas o seu cargo e intocavel (modo sem demissao)."
     margem = posicao_final - alvo
     risco = (0.25 + margem * 0.14) * dificuldade(G)["diretoria"]
-    if posicao_final > 16:
+    if G["clubes"][G["clube"]]["divisao"] in DIVISOES_BR and posicao_final > 16:
         risco += 0.30 * dificuldade(G)["diretoria"]
     if rng.random() < risco:
         return False, "A diretoria decidiu encerrar seu ciclo no %s." % G["clubes"][G["clube"]]["nome"]
@@ -5576,7 +5627,7 @@ def comecar_no_clube(G: Mundo, c: Clube) -> List[str]:
     if mult != 1.0:
         c["dinheiro"] = int(c["dinheiro"] * mult)
     if op["investidor"]:
-        aporte = APORTE_INVESTIDOR.get(c["divisao"], APORTE_INVESTIDOR["D"])
+        aporte = APORTE_INVESTIDOR.get(c["divisao"]) or int(APORTE_INVESTIDOR["A"] * perfil_liga(c["divisao"])["caixa"])
         c["dinheiro"] += aporte
         c["reputacao"] = clamp(c["reputacao"] + 2, 10, 99)
         recados.append("Investidor compra o %s e injeta %s no caixa." % (c["nome"], din(aporte)))
@@ -7186,7 +7237,7 @@ def apurar_temporada(G: Mundo) -> Dict[str, Any]:
 
     titulos_meus = []
     if pos == 1:
-        titulos_meus.append("Brasileirao Serie %s" % div)
+        titulos_meus.append("Brasileirao Serie %s" % div if div in DIVISOES_BR else nome_da_liga(G, div))
     copas = []
     for cp in G["copas"].values():
         if cp["campeao"]:
@@ -7251,8 +7302,8 @@ def encerrar_temporada(G: Mundo, resumo: Dict[str, Any]) -> Tuple[bool, Dict[str
         chave = "Brasileirao Serie " + d
         dar_titulo(G, cl, chave)
     fechar_ligas_ext(G)
-    G["historico"].append("%d %s Serie %s: campeao %s %s %s terminou em %do" %
-                          (G["temporada"], tr("pt"), div_antes, G["clubes"][campeao]["nome"],
+    G["historico"].append("%d %s %s: campeao %s %s %s terminou em %do" %
+                          (G["temporada"], tr("pt"), nome_da_liga(G, div_antes), G["clubes"][campeao]["nome"],
                            tr("pt"), c["nome"], pos_final))
 
     caixa_antes = c["dinheiro"]
@@ -7270,8 +7321,8 @@ def encerrar_temporada(G: Mundo, resumo: Dict[str, Any]) -> Tuple[bool, Dict[str
             resumo["movimento"] = ["acesso" if subiu else "rebaixamento", de, para]
 
     # a sala de trofeus guarda a temporada; a reputacao do treinador anda
-    marco(G, "%do lugar na Serie %s, meta %s" % (
-        pos_final, div_antes, "cumprida" if resumo["objetivo_ok"] else "nao cumprida"))
+    marco(G, "%do lugar na %s, meta %s" % (
+        pos_final, nome_da_liga(G, div_antes), "cumprida" if resumo["objetivo_ok"] else "nao cumprida"))
     mexer_rep_tecnico(G, 6 if resumo["objetivo_ok"] else -5)
     if resumo["movimento"]:
         tipo, de, para = resumo["movimento"]
@@ -7317,7 +7368,8 @@ def encerrar_temporada(G: Mundo, resumo: Dict[str, Any]) -> Tuple[bool, Dict[str
     G["temporada"] += 1
     G["semana"] = 0
     G["fase"] = "entretemporada"
-    G["ligas"] = {d: nova_liga(G, d) for d in "ABCD"}
+    for d in DIVISOES_BR:
+        G["ligas"][d] = nova_liga(G, d)
     montar_copas(G)
     montar_estaduais(G)
     for cl in G["clubes"].values():
@@ -7466,6 +7518,15 @@ def migrar(G):
         G["seq"] = max([G.get("seq", 0)] + list(G["jogadores"]))
         for dados in faltam:
             novo_clube(G, dados, "EX", usados)
+    if G.get("ligas_ext"):
+        for codigo, liga in G.pop("ligas_ext").items():
+            G["ligas"][codigo] = liga
+            for cid in liga["times"]:
+                c = G["clubes"].get(cid)
+                if c and c["divisao"] == "EX":
+                    c["divisao"] = codigo
+                    c["dinheiro"] = int(c["reputacao"] ** 2 * 3800 * perfil_liga(codigo)["caixa"])
+                    c["europeu"] = codigo in ORDEM_LIGAS_EXT
     if falta_mundo(G):
         G["seq_c"] = max([G.get("seq_c", 0)] + list(G["clubes"]))
         G["seq"] = max([G.get("seq", 0)] + list(G["jogadores"]))

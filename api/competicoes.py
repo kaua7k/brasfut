@@ -44,10 +44,11 @@ def _lista(G):
                       "meu": c["divisao"] == d,
                       "estado": "rodada %d de %d" % (liga["rodada"], len(liga["rodadas"])),
                       "vivo": c["divisao"] == d})
-    for k, liga in G.get("ligas_ext", {}).items():
-        itens.append({"id": "ext:" + k, "nome": liga["nome"], "tipo": "pontos", "meu": False,
+    for k, liga in eng.ligas_ext(G).items():
+        itens.append({"id": "liga:" + k, "nome": liga["nome"], "tipo": "pontos",
+                      "meu": c["divisao"] == k,
                       "estado": "rodada %d de %d" % (liga["rodada"], len(liga["rodadas"])),
-                      "vivo": False})
+                      "vivo": c["divisao"] == k})
     for chave, est in sorted(eng.estaduais(G).items(),
                              key=lambda kv: (meu not in kv[1]["times"], kv[1]["nome"])):
         campanha = eng.campanha_estadual(G, est, meu)
@@ -170,9 +171,14 @@ def _copa(G, chave, alvo):
         situacao = {"estado": "ok", "texto": "Campeao! O titulo e seu."}
     elif eng.em_grupos(cp) and meu_grupo:
         pos = eng.classificacao(G, meu_grupo).index(meu) + 1
-        passam = "os 2 primeiros vao as oitavas; o 3o cai para a Sul-Americana" if chave == "lib" \
-            else "o 1o vai as oitavas e o 2o joga o playoff"
-        situacao = {"estado": "ok" if pos <= (2 if chave == "lib" else 1) else "neutro",
+        if cp.get("formato") == "suico":
+            passam = "do 1o ao 8o direto nas oitavas; do 9o ao 24o no playoff"
+        elif chave == "lib":
+            passam = "os 2 primeiros vao as oitavas; o 3o cai para a Sul-Americana"
+        else:
+            passam = "o 1o vai as oitavas e o 2o joga o playoff"
+        corte = 8 if cp.get("formato") == "suico" else (2 if chave == "lib" else 1)
+        situacao = {"estado": "ok" if pos <= corte else "neutro",
                     "texto": "%s: %do lugar depois de %d rodada(s). %s." % (
                         meu_grupo["nome"], pos, meu_grupo["rodada"], passam[0].upper() + passam[1:])}
     elif meu in cp.get("espera", []):
@@ -304,14 +310,14 @@ def tela(alvo=None):
         detalhe = _copa(G, alvo[5:], alvo)
     elif alvo.startswith("est:") and alvo[4:] in eng.estaduais(G):
         detalhe = _estadual(G, eng.estaduais(G)[alvo[4:]], alvo)
-    elif alvo.startswith("ext:") and alvo[4:] in G.get("ligas_ext", {}):
-        liga = G["ligas_ext"][alvo[4:]]
-        detalhe = _pontos(G, liga, alvo, liga["nome"])
+    elif alvo.startswith("ext:") and alvo[4:] in G["ligas"]:
+        alvo = "liga:" + alvo[4:]
+        detalhe = _pontos(G, G["ligas"][alvo[5:]], alvo, eng.nome_da_liga(G, alvo[5:]))
     else:
         d = alvo[5:] if alvo.startswith("liga:") and alvo[5:] in G["ligas"] else \
             G["clubes"][G["clube"]]["divisao"]
         alvo = "liga:" + d
-        detalhe = _pontos(G, G["ligas"][d], alvo, "Serie " + d)
+        detalhe = _pontos(G, G["ligas"][d], alvo, eng.nome_da_liga(G, d))
     return {"cabecalho": dto.cabecalho(G), "titulo": "Competicoes",
             "subtitulo": "Temporada %d · tudo o que o seu clube disputa, e o resto do pais"
                          % G["temporada"],

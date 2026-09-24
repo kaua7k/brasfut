@@ -27,7 +27,8 @@ class TestEuropa(unittest.TestCase):
 
     def test_mundo_novo_tem_as_ligas_e_elencos_reais(self):
         G = self.G
-        self.assertEqual(set(G["ligas_ext"]), {"ENG", "ESP", "GER", "ITA", "FRA", "POR", "NED", "USA", "SAU"})
+        self.assertEqual(set(eng.ligas_ext(G)), {"ENG", "ESP", "GER", "ITA", "FRA", "POR", "NED", "USA", "SAU"})
+        self.assertNotIn("ligas_ext", G)
         nomes_clubes = {c["nome"] for c in G["clubes"].values()}
         self.assertTrue({"Galatasaray", "Platense"} <= nomes_clubes, "clubes novos faltando")
         nomes = {G["jogadores"][p]["nome"] for c in G["clubes"].values() if c.get("liga_ext")
@@ -35,7 +36,7 @@ class TestEuropa(unittest.TestCase):
         self.assertIn("Erling Haaland", nomes)
         self.assertTrue({"L. Messi", "Cristiano Ronaldo"} <= nomes)
         # MLS tem 29: so o turno, para caber nas 38 semanas
-        self.assertLessEqual(len(G["ligas_ext"]["USA"]["rodadas"]), 38)
+        self.assertLessEqual(len(eng.ligas_ext(G)["USA"]["rodadas"]), 38)
         santos = next(c for c in G["clubes"].values() if c["nome"] == "Santos")
         self.assertIn("Neymar", {G["jogadores"][p]["nome"] for p in santos["elenco"]})
         # europeu nao entra nas copas sul-americanas nem no mercado
@@ -60,12 +61,12 @@ class TestEuropa(unittest.TestCase):
     def test_rodadas_andam_e_a_tela_mostra(self):
         for _ in range(3):
             apoio.avancar({"leve": True})
-        liga = self.G["ligas_ext"]["ENG"]
+        liga = eng.ligas_ext(self.G)["ENG"]
         self.assertGreater(liga["rodada"], 0)
         tela = apoio.chamar("POST", "/api/competicoes", {"alvo": "ext:ENG"})["tela"]
         self.assertEqual(tela["detalhe"]["titulo"], "Premier League")
         self.assertEqual(len(tela["detalhe"]["linhas"]), 20)
-        self.assertIn("ext:ENG", [i["id"] for i in tela["lista"]])
+        self.assertIn("liga:ENG", [i["id"] for i in tela["lista"]])
         self.assertEqual(apoio.chamar("POST", "/api/tabela", {"alvo": "ext:ESP"})["tela"]["alvo"], "ext:ESP")
 
 
@@ -75,7 +76,10 @@ class TestSaveAntigoGanhaEuropa(unittest.TestCase):
         hash_antes = apoio.hash_do_save_real()
         apoio.abrir_copia_do_save()
         G = apoio.SESSAO.G
-        self.assertEqual(len(G["ligas_ext"]), 9)
+        self.assertEqual(len(eng.ligas_ext(G)), 9)
+        self.assertNotIn("ligas_ext", G)
+        arsenal = next(c for c in G["clubes"].values() if c["nome"] == "Arsenal")
+        self.assertEqual(arsenal["divisao"], "ENG")
         ids = [p for c in G["clubes"].values() for p in c["elenco"]]
         self.assertEqual(len(ids), len(set(ids)), "jogador em dois elencos")
         self.assertEqual(apoio.hash_do_save_real(), hash_antes)

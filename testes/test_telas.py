@@ -31,6 +31,8 @@ class TestTelas(unittest.TestCase):
         apoio.chamar("GET", "/api/nao-existe", status=404)
 
     def test_avancar_semana_grava_na_copia(self):
+        if apoio.SESSAO.pendencia:
+            self.skipTest("o save real tem uma decisao pendente (%s)" % apoio.SESSAO.pendencia["titulo"])
         semana = apoio.SESSAO.G["semana"]
         r = apoio.avancar()
         self.assertIn("cabecalho", r)

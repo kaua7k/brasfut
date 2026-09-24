@@ -351,11 +351,24 @@ nota estimada em `ferramentas/notas_manuais.json`. Quem já estava no jogo
 mantém a nota. Cache das respostas em `ferramentas/cache/` (fora do git);
 `--baixar` busca de novo.
 
-No motor (bloco O RESTO DO MUNDO): clubes europeus são `"EX"` com
-`c["liga_ext"]` — ficam fora da economia, do mercado e das copas
-sul-americanas, como os estrangeiros de sempre — e jogam uma rodada por
-semana em `G["ligas_ext"]` (sem acesso/rebaixamento; campeão via
-`dar_titulo` na virada). Mundo novo recebe tudo (`aplicar_mundo(sul=True)`);
+No motor (bloco O RESTO DO MUNDO): **as ligas de fora são jogáveis**. O
+clube tem `divisao` igual ao código da liga (`ENG`, `ESP`, `GER`, `ITA`,
+`FRA`, `POR`, `NED`, `USA`, `SAU`) e a liga mora em `G["ligas"]` ao lado das
+séries — `ligas_ext(G)` devolve só as de fora, e `nome_da_liga(G, div)` o
+nome para qualquer texto (nunca escreva "Serie %s" direto). Com isso o clube
+entra na economia, no mercado (compra e vende com o Brasil), na base e nas
+propostas de emprego, e o técnico pode escolhê-lo na carreira nova. Cada liga
+tem `PERFIL_LIGA_EXT`: TV (calibrada para saldo semanal pouco acima de zero,
+como nas séries), premiação, caixa inicial, peso no valor e teto de evolução
+— injetados em `TV`/`PREMIO`/`PESO_DIVISAO`/`TETO_CREDIVEL` por
+`perfil_liga`. Só é brasileiro quem `brasileiro(c)`: estadual e Copa do
+Brasil ficam para as séries. Jogos das ligas de fora usam comp `"liga"` (a
+suspensão bate com o diagnóstico) e o expoente europeu vem da divisão do
+mandante. Sem acesso/rebaixamento lá fora: objetivo vira "fugir das últimas
+posições" e a tabela não pinta zona de queda. Na virada só as séries são
+remontadas; as de fora passam por `fechar_ligas_ext` (campeão e
+`class_ext_anterior`). Save antigo com `G["ligas_ext"]` tem as ligas movidas
+para `G["ligas"]` e os clubes viram divisão em `migrar`. Mundo novo recebe tudo (`aplicar_mundo(sul=True)`);
 save antigo recebe só as ligas europeias em `migrar`, sem trocar elenco
 sul-americano nem brasileiro. Competições e Classificação listam as ligas
 como `ext:ENG`, `ext:ESP`... A temporada simulada ficou ~40% mais lenta e o

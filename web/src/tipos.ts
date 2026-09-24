@@ -292,6 +292,8 @@ export interface ClubeOpcao {
   id: number
   nome: string
   divisao: string
+  /** "Serie A", "Premier League"... */
+  liga?: string
   reputacao: number
 }
 

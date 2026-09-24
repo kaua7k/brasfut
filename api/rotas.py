@@ -89,10 +89,11 @@ def novo(corpo):
     investidor), que valem pelo save inteiro."""
     with SESSAO.cadeado:
         G = SESSAO.mundo_novo(corpo.get("nome"), corpo.get("opcoes"))
+        ordem = list(eng.DIVISOES_BR) + list(eng.ligas_ext(G))
         clubes = [{"id": cid, "nome": c["nome"], "divisao": c["divisao"],
-                   "reputacao": c["reputacao"]}
-                  for cid, c in G["clubes"].items() if c["divisao"] in "ABCD"]
-        clubes.sort(key=lambda x: (x["divisao"], -x["reputacao"]))
+                   "liga": eng.nome_da_liga(G, c["divisao"]), "reputacao": c["reputacao"]}
+                  for cid, c in G["clubes"].items() if c["divisao"] in G["ligas"]]
+        clubes.sort(key=lambda x: (ordem.index(x["divisao"]), -x["reputacao"]))
         return {"jogo": "escolher_clube", "clubes": clubes}
 
 

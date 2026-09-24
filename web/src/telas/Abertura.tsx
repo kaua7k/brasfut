@@ -316,21 +316,26 @@ function Sobre({ versao, aoVoltar }: { versao: string; aoVoltar: () => void }) {
 function EscolherClube({ clubes, erro, ocupado, aoEscolher }: Props) {
   const [serie, setSerie] = useState('A')
   const daSerie = clubes.filter((c) => c.divisao === serie)
+  // as abas saem do que o servidor mandou: series brasileiras e ligas de fora
+  const ligas: { id: string; nome: string }[] = []
+  for (const c of clubes) {
+    if (!ligas.some((l) => l.id === c.divisao)) ligas.push({ id: c.divisao, nome: c.liga ?? `Serie ${c.divisao}` })
+  }
   return (
     <div className="centro-tela">
-      <div className="modal" style={{ maxWidth: 680 }}>
+      <div className="modal" style={{ maxWidth: 820 }}>
         <h2>Escolha o clube que voce vai treinar</h2>
         <p>O mundo foi criado. A carreira so e salva depois desta escolha.</p>
-        <div className="alavanca" style={{ marginBottom: 14 }}>
-          {['A', 'B', 'C', 'D'].map((s) => (
+        <div className="alavanca abas-ligas" style={{ marginBottom: 14 }}>
+          {ligas.map((l) => (
             <button
-              key={s}
+              key={l.id}
               type="button"
-              className={serie === s ? 'ativo' : ''}
-              aria-pressed={serie === s}
-              onClick={() => setSerie(s)}
+              className={serie === l.id ? 'ativo' : ''}
+              aria-pressed={serie === l.id}
+              onClick={() => setSerie(l.id)}
             >
-              Serie {s}
+              {l.nome}
             </button>
           ))}
         </div>

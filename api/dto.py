@@ -72,7 +72,7 @@ def cabecalho(G):
     return {
         "clube": c["nome"],
         "divisao": c["divisao"],
-        "subtitulo": "Serie %s . %s" % (c["divisao"], quando),
+        "subtitulo": "%s . %s" % (eng.nome_da_liga(G, c["divisao"]), quando),
         "fase": fase,
         "acao": acao,
         "chips": [
@@ -92,7 +92,7 @@ def _prontidao(G, d):
     if eng.temporada_encerrada(G):
         r = eng.apurar_temporada(G)
         return {"estado": "ok" if r["objetivo_ok"] else "atencao",
-                "titulo": "TEMPORADA %d ENCERRADA - %do lugar na Serie %s"
+                "titulo": "TEMPORADA %d ENCERRADA - %do lugar na %s"
                           % (r["temporada"], r["posicao"], r["divisao"]),
                 "detalhe": "Meta era top %d: %s. A virada do ano (acesso, contratos, "
                            "diretoria) acontece em Comecar o ano %d."
@@ -142,7 +142,7 @@ def _proximo(G, d):
                 legenda = "%s . %s" % (_corta(est["nome"], 22) if est else "Estadual",
                                        eng.etapa_estadual(est).lower() if est else "")
             else:
-                legenda = "Serie %s . rodada %d" % (c["divisao"],
+                legenda = "%s . rodada %d" % (eng.nome_da_liga(G, c["divisao"]),
                                                     G["ligas"][c["divisao"]]["rodada"] + 1)
             base.update(tipo="jogo", adversario=cadv["nome"], legenda=legenda,
                         em_casa=(casa == G["clube"]),
@@ -226,7 +226,7 @@ def _objetivo(G):
 
     if not comecou:
         estado, fala = "neutro", "aguardando a bola rolar"
-    elif pos > 16:
+    elif c["divisao"] in eng.DIVISOES_BR and pos > 16:
         estado, fala = "critico", "rebaixamento demite na hora"
     elif pos <= alvo:
         estado, fala = "ok", "tranquila"
@@ -248,7 +248,7 @@ def _tabela(G, quantas=6):
     c = G["clubes"][G["clube"]]
     est = eng.meu_estadual(G) if G["fase"] == "estadual" else None
     liga = est or G["ligas"][c["divisao"]]
-    titulo = est["nome"] if est else "Tabela . Serie %s" % c["divisao"]
+    titulo = est["nome"] if est else "Tabela . %s" % eng.nome_da_liga(G, c["divisao"])
     g = eng.grupo_do_clube(est, c["id"]) if est else None
     if g is not None:
         # no estadual com grupos, a briga e dentro do meu grupo
@@ -271,7 +271,8 @@ def _tabela(G, quantas=6):
             # no estadual, a zona e a do mata-mata; nao ha rebaixamento
             zona = "alta" if i < eng.vagas_por_grupo(est) else ""
         else:
-            zona = "alta" if i < 4 else ("baixa" if i >= len(ordem) - 4 else "")
+            rebaixa = c["divisao"] in eng.DIVISOES_BR
+            zona = "alta" if i < 4 else ("baixa" if rebaixa and i >= len(ordem) - 4 else "")
         linhas.append({"pos": i + 1, "clube": _corta(G["clubes"][cid]["nome"], 18),
                        "j": t["j"], "sg": t["gp"] - t["gc"], "v": t.get("v", 0),
                        "pts": t["p"], "eu": cid == c["id"], "zona": zona})
@@ -549,7 +550,7 @@ def base():
 def _torneios(G):
     """Os quatro pontos fixos e os estaduais do ano, no mesmo seletor."""
     out = [{"id": "liga:" + d, "nome": "Serie " + d} for d in "ABCD"]
-    out += [{"id": "ext:" + k, "nome": l["nome"]} for k, l in G.get("ligas_ext", {}).items()]
+    out += [{"id": "liga:" + k, "nome": l["nome"]} for k, l in eng.ligas_ext(G).items()]
     for chave, est in sorted(eng.estaduais(G).items(),
                              key=lambda kv: (-len(kv[1]["times"]), kv[1]["nome"])):
         out.append({"id": "est:" + str(chave), "nome": est["nome"]})
@@ -559,8 +560,8 @@ def _torneios(G):
 def _liga_por_id(G, alvo):
     if alvo and alvo.startswith("est:"):
         return eng.estaduais(G).get(alvo[4:])
-    if alvo and alvo.startswith("ext:") and alvo[4:] in G.get("ligas_ext", {}):
-        return G["ligas_ext"][alvo[4:]]
+    if alvo and alvo.startswith("ext:") and alvo[4:] in G["ligas"]:
+        return G["ligas"][alvo[4:]]
     div = (alvo or "")[5:] if alvo and alvo.startswith("liga:") else None
     if div not in G["ligas"]:
         div = G["clubes"][G["clube"]]["divisao"]
@@ -615,7 +616,9 @@ def tabela(alvo=None):
                     # verde: vai ao mata-mata (ou, em save antigo, e o lider)
                     zona = "alta" if i <= vagas else ""
                 else:
-                    zona = "alta" if i <= 4 else ("baixa" if i > len(ordem) - 4 else "")
+                    # liga de fora nao tem rebaixamento no jogo: so o verde de cima
+                    rebaixa = liga.get("div") in eng.DIVISOES_BR
+                    zona = "alta" if i <= 4 else ("baixa" if rebaixa and i > len(ordem) - 4 else "")
                 do_grupo.append({"pos": i, "clube": G["clubes"][cid]["nome"], "p": t["p"],
                                  "j": t["j"], "v": t["v"], "e": t["e"], "d": t["d"],
                                  "gp": t["gp"], "gc": t["gc"], "sg": t["gp"] - t["gc"],

@@ -1417,3 +1417,5 @@ button:disabled { cursor: not-allowed; }
 .letra-res.V { background: var(--ok-fundo); color: var(--ok); }
 .letra-res.E { background: #3a3522; color: var(--atencao); }
 .letra-res.D { background: #4a1f1f; color: var(--critico); }
+
+.abas-ligas { flex-wrap: wrap; }

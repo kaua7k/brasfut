@@ -32,7 +32,7 @@ class TestCarreiraNova(unittest.TestCase):
 
     def test_nome_e_opcoes_vao_para_o_save(self):
         clubes = criar("  Treinador   Novo ", dificuldade="dificil", sem_demissao=True)
-        self.assertEqual({c["divisao"] for c in clubes}, set("ABCD"))
+        self.assertTrue(set("ABCD") <= {c["divisao"] for c in clubes})
         apoio.chamar("POST", "/api/clube", {"id": primeiro_da_serie(clubes, "C")})
         G = apoio.SESSAO.G
         self.assertEqual(G["tecnico"], "Treinador Novo")
