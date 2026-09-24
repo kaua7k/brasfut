@@ -2413,10 +2413,10 @@ class Brasfut(tk.Tk):
                 rotulo(card, "Campeao: %s" % G["clubes"][cp["campeao"]]["nome"],
                        cor=TEMA["top"], bg=TEMA["painel"]).pack(anchor="w")
                 continue
-            n = len(cp["vivos"])
-            vivo = G["clube"] in cp["vivos"]
-            prox = cp["semanas"][cp["fase"]] if cp["fase"] < len(cp["semanas"]) else None
-            txt = "%s, %d clubes na disputa" % (eng.nome_fase(n), n)
+            n = len(cp["vivos"]) + len(cp.get("espera", []))
+            vivo = eng.vivo_na_copa(cp, G["clube"])
+            prox = eng.proxima_semana_copa(cp)
+            txt = "%s, %d clubes na disputa" % (eng.fase_da_copa(cp), n)
             if prox:
                 txt += "  |  proxima fase na semana %d" % prox
             rotulo(card, txt, cor=TEMA["fraco"], bg=TEMA["painel"]).pack(anchor="w")

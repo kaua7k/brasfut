@@ -29,15 +29,15 @@ def _lista(G):
     c = G["clubes"][meu]
     itens = []
     for chave, cp in G["copas"].items():
-        participa = meu in cp["vivos"] or any(
+        participa = eng.vivo_na_copa(cp, meu) or eng.grupo_de(cp, meu) is not None or any(
             meu in (j["a"], j["b"]) for h in cp.get("historico", []) for j in h["jogos"])
         if cp["campeao"]:
             estado = "campeao: %s" % _nome(G, cp["campeao"])
         else:
-            estado = eng.nome_fase(len(cp["vivos"]))
+            estado = eng.fase_da_copa(cp).lower()
         itens.append({"id": "copa:" + chave, "nome": cp["nome"], "tipo": "mata-mata",
                       "meu": participa, "estado": estado,
-                      "vivo": meu in cp["vivos"] and not cp["campeao"]})
+                      "vivo": eng.vivo_na_copa(cp, meu)})
     for d in "ABCD":
         liga = G["ligas"][d]
         itens.append({"id": "liga:" + d, "nome": "Serie " + d, "tipo": "pontos",
@@ -136,31 +136,50 @@ def _copa(G, chave, alvo):
                       "jogos": [_jogo_copa(G, j, meu) for j in h["jogos"]]})
     jogadas_sem_registro = cp["fase"] - len(fases)
     sorteio = eng.sorteio_da_copa(G, chave)
-    if not cp["campeao"] and cp["fase"] < len(cp["semanas"]):
-        fases.append({"nome": eng.nome_fase(len(cp["vivos"])), "semana": cp["semanas"][cp["fase"]],
+    nomes = cp.get("fases") or []
+    grupos = _grupos_copa(G, cp)
+    if eng.em_grupos(cp):
+        # o mata-mata ainda nao tem confronto: so as fases, na ordem
+        for k, sem in enumerate(cp["semanas"]):
+            fases.append({"nome": nomes[k] if k < len(nomes) else "Fase %d" % (k + 1),
+                          "semana": sem, "estado": "futura", "jogos": [],
+                          "nota": "depois dos grupos" if k == 0 else None})
+    elif not cp["campeao"] and cp["fase"] < len(cp["semanas"]):
+        fases.append({"nome": eng.fase_da_copa(cp), "semana": cp["semanas"][cp["fase"]],
                       "estado": "sorteada",
                       "jogos": [{"a": _nome(G, a), "b": _nome(G, b), "ida": None, "volta": None,
                                  "agregado": None, "penaltis": None, "vencedor": None,
                                  "venceu_a": None, "meu": meu in (a, b), "passei": None}
                                 for a, b in sorteio]})
-        n = len(cp["vivos"]) // 2
-        for sem in cp["semanas"][cp["fase"] + 1:]:
+        n = (len(cp["vivos"]) // 2) + len(cp.get("espera", []))
+        for k, sem in enumerate(cp["semanas"][cp["fase"] + 1:], cp["fase"] + 1):
             if n < 2:
                 break
-            fases.append({"nome": eng.nome_fase(n), "semana": sem, "estado": "futura", "jogos": []})
+            fases.append({"nome": nomes[k] if k < len(nomes) else eng.nome_fase(n),
+                          "semana": sem, "estado": "futura", "jogos": []})
             n //= 2
 
     # onde o meu clube esta nesta copa, numa frase
     situacao = None
+    meu_grupo = eng.grupo_de(cp, meu)
     if cp["campeao"] == meu:
         situacao = {"estado": "ok", "texto": "Campeao! O titulo e seu."}
+    elif eng.em_grupos(cp) and meu_grupo:
+        pos = eng.classificacao(G, meu_grupo).index(meu) + 1
+        passam = "os 2 primeiros vao as oitavas; o 3o cai para a Sul-Americana" if chave == "lib" \
+            else "o 1o vai as oitavas e o 2o joga o playoff"
+        situacao = {"estado": "ok" if pos <= (2 if chave == "lib" else 1) else "neutro",
+                    "texto": "%s: %do lugar depois de %d rodada(s). %s." % (
+                        meu_grupo["nome"], pos, meu_grupo["rodada"], passam[0].upper() + passam[1:])}
+    elif meu in cp.get("espera", []):
+        situacao = {"estado": "ok", "texto": "Primeiro do grupo: espera nas oitavas o vencedor do playoff."}
     elif meu in cp["vivos"] and not cp["campeao"]:
         par = next((p for p in sorteio if meu in p), None)
         if par:
             adv = par[1] if par[0] == meu else par[0]
             final = len(cp["vivos"]) == 2
             situacao = {"estado": "ok", "texto": "Vivo. %s contra %s na semana %d%s." % (
-                eng.nome_fase(len(cp["vivos"])), _nome(G, adv), cp["semanas"][cp["fase"]],
+                eng.fase_da_copa(cp), _nome(G, adv), cp["semanas"][cp["fase"]],
                 " (jogo unico, campo neutro)" if final else
                 (", ida em casa" if par[0] == meu else ", ida fora"))}
     else:
@@ -169,15 +188,49 @@ def _copa(G, chave, alvo):
                 if j["meu"] and j["vencedor"] and not j["passei"]:
                     situacao = {"estado": "critico",
                                 "texto": "Eliminado na %s por %s." % (f["nome"].lower(), j["vencedor"])}
+        if situacao is None and meu_grupo:
+            situacao = {"estado": "critico", "texto": "Eliminado na fase de grupos (%s)." % meu_grupo["nome"]}
         if situacao is None and not any(j["meu"] for f in fases for j in f["jogos"]):
             situacao = {"estado": "neutro", "texto": "Seu clube nao disputa esta copa neste ano."}
     return {
         "tipo": "mata-mata", "titulo": cp["nome"], "id": alvo,
         "campeao": _nome(G, cp["campeao"]) if cp["campeao"] else None,
-        "situacao": situacao, "fases": fases,
+        "situacao": situacao, "fases": fases, "grupos": grupos,
+        "em_grupos": eng.em_grupos(cp),
         "aviso": ("%d fase(s) foram jogadas antes de o jogo guardar o chaveamento."
                   % jogadas_sem_registro) if jogadas_sem_registro > 0 else None,
     }
+
+
+def _grupos_copa(G, cp):
+    """Tabela e jogos de cada grupo da copa continental; o meu grupo primeiro."""
+    if not cp.get("grupos"):
+        return None
+    meu = G["clube"]
+    vagas = 2 if cp["nome"] == "Libertadores" else 1
+    fora = []
+    for g in cp["grupos"]:
+        linhas = []
+        for i, cid in enumerate(eng.classificacao(G, g), 1):
+            t = g["tabela"][str(cid)]
+            linhas.append({"pos": i, "clube": _nome(G, cid), "p": t["p"], "j": t["j"], "v": t["v"],
+                           "e": t["e"], "d": t["d"], "gp": t["gp"], "gc": t["gc"],
+                           "sg": t["gp"] - t["gc"], "eu": cid == meu, "grupo": g["nome"],
+                           "zona": "alta" if i <= vagas else ("media" if i == vagas + 1 else "")})
+        jogos = []
+        for k, rodada in enumerate(g["rodadas"]):
+            placares = {(a, b): (x, y) for a, b, x, y in (g["resultados"][k] if k < len(g["resultados"]) else [])}
+            for a, b in rodada:
+                pl = placares.get((a, b))
+                jogos.append({"rodada": k + 1, "semana": cp["semanas_grupos"][k],
+                              "casa": _nome(G, a), "fora": _nome(G, b),
+                              "gc": pl[0] if pl else None, "gf": pl[1] if pl else None,
+                              "meu": meu in (a, b),
+                              "resultado": _resultado(pl[0], pl[1], a == meu) if pl and meu in (a, b) else None})
+        fora.append({"nome": g["nome"], "linhas": linhas, "jogos": jogos,
+                     "meu": meu in g["times"]})
+    fora.sort(key=lambda x: not x["meu"])
+    return fora
 
 
 # ================================================================ estadual

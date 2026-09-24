@@ -276,6 +276,71 @@ desliga a grade inteira (tabela de campeonato), `memoria` guarda a escolha no
 navegador e `aoMarcarTodos` põe a caixa de marcar todos no cabeçalho. Vale
 para Mercado, Elenco, Base e Treino.
 
+## Versão 2.5: carreira e mundo
+
+**Menu principal** (`telas/Abertura.tsx`): Iniciar, Configurações e Sobre.
+Iniciar leva a *Continuar* (o menu já diz treinador, clube e temporada do
+save, lidos por `GET /api/estado` sem adotar o mundo) ou a *Carreira nova*,
+que pede o nome do treinador e as opções da carreira antes de criar o mundo.
+A escolha de clube mostra as quatro séries.
+
+**Opções da carreira** ficam no save, em `G["opcoes"]` (`opcoes_carreira`,
+`definir_opcoes_carreira` no motor): `dificuldade` (`DIFICULDADES`: risco de
+demissão e caixa do primeiro clube), `sem_demissao` (`avaliar_diretoria`
+nunca demite) e `investidor` (`APORTE_INVESTIDOR` por série, aplicado em
+`comecar_no_clube`). Save antigo joga com `OPCOES_PADRAO`, que é o jogo de
+sempre. **Configurações** globais (escala da interface, reduzir animações e os
+padrões da carreira nova) moram fora do save, em `brasfut_config.json`
+(`api/config.py`, `GET/POST /api/config`); só chaves conhecidas são gravadas.
+
+**Carreira do treinador** (bloco CARREIRA DO TREINADOR em brasfut.py):
+- `G["tecnico_rep"]` (1–99) anda com meta cumprida (+6) ou não (−5),
+  acesso/rebaixamento e títulos (`PESO_TITULO`). Save antigo começa em
+  35 + 3 por temporada de histórico, até 70.
+- `G["carreira"]`: uma passagem por clube com jogos, V/E/D, gols, títulos e
+  marcos. **Toda troca de clube passa por `assumir_clube`**, que fecha a
+  passagem com o motivo da saída; título de qualquer clube passa por
+  `dar_titulo`, e jogo do meu clube por `contar_jogo_na_carreira` (dentro de
+  `registrar_placar`). Não troque `G["clube"]` na mão.
+- **Propostas de emprego**: `sondar_treinador` roda uma vez por mês no
+  Brasileirão. Chance maior com o time em cima da meta e reputação alta;
+  time afundando (6+ posições abaixo da meta) não atrai ninguém. Quem liga
+  cabe em `max(rep + 8, rep do clube atual + 6)`. Valem 4 semanas, até 3 de
+  uma vez; `POST /api/carreira/proposta` aceita ou recusa.
+- **Pedir demissão** (`POST /api/carreira/demitir`) vira a mesma pendência
+  da demissão, com `saida: "pediu demissao"` e ofertas de
+  `ofertas_ao_demissionario`. A demissão pela diretoria segue a regra antiga.
+- Tela **Carreira** (`telas/Carreira.tsx`, `GET /api/carreira`): reputação,
+  sala de troféus somada, cada passagem e o botão de pedir demissão (com
+  segundo clique).
+
+**Pelo mundo** (`G["feed"]`, bloco PELO MUNDO): `manchete()` registra goleada
+(4+ gols), zebra (20+ de reputação), troca de líder das Séries A e B, grande
+brasileiro eliminado, título de qualquer clube, contratação de R$ 8 mi ou
+mais e lesão de 4+ semanas de craque (78+). No máximo 4 manchetes de
+resultado por semana (as maiores). Nenhuma manchete inventa fato: tudo sai de
+algo que o motor decidiu. Aparece no Painel (*Pelo mundo*) e na aba de
+Notícias.
+
+**Lesões**: `RISCO_LESAO_JOGO` 0.026 → 0.015 e `SEMANAS_LESAO` com lesão
+longa rara. Média de lesionados por clube da Série A caiu de 0,81 para 0,29.
+
+**Libertadores e Sul-Americana com fase de grupos** (bloco FASE DE GRUPOS):
+32 clubes em cada (8 brasileiros + 24 estrangeiros; mundo sem estrangeiros
+bastantes completa a Sul-Americana com brasileiros), 8 grupos de 4 sorteados
+por potes de reputação evitando compatriotas, 6 rodadas em `SEMANAS_GRUPOS`.
+Cada grupo é uma mini-liga (`registrar`/`classificacao` das séries). Durante
+os grupos os 32 estão em `cp["vivos"]` e `sorteio_da_copa` devolve vazio;
+`fechar_grupos` (fim da semana 16) transforma o resultado no mata-mata de
+sempre: Libertadores com 1º e 2º nas oitavas e o 3º no playoff da
+Sul-Americana; Sul-Americana com 2º x 3º da Libertadores no playoff e o 1º
+esperando em `cp["espera"]` até entrar nas oitavas. Quem pergunta pelo estado
+da copa usa `fase_da_copa`, `vivo_na_copa`, `proxima_semana_copa` e
+`jogo_de_grupo` — `nome_fase(len(vivos))` erra durante os grupos e o
+playoff. Vitória de brasileiro nos grupos paga `PREMIO_VITORIA_GRUPO`. Save
+antigo termina a temporada corrente no formato velho, ganha os 16 clubes
+estrangeiros novos em `migrar` e pega os grupos na virada.
+
 **Casca.** O endereço guarda a tela no hash (`/#elenco`): F5 não volta ao
 Painel, e agora o Voltar/Avançar do navegador também troca de tela.
 Marcações nas grades usam `alternarMarca` com setter funcional (dois cliques
@@ -340,10 +405,19 @@ velha para apagar na mão. `--sim` não trava, porque não grava no save.
   pendência*).
 - **`test_trava.py`** dois processos no mesmo save: o segundo é recusado e,
   quando o primeiro sai, o lock é liberado.
+- **`test_carreira.py`** nome e opções da carreira nova, aporte do
+  investidor, sem demissão, pedir demissão até o clube novo, proposta aceita,
+  jogos contados na passagem, feed do mundo e `/api/config`.
+- **`test_continentais.py`** grupos da Libertadores e da Sul-Americana até o
+  playoff e as oitavas, e save antigo ganhando os clubes que faltam.
 
 Todo teste que mexe no save confere no fim que o hash do save real não mudou.
-A interface (React) ainda é conferida à mão; o roteiro com Edge headless via
-DevTools, usado em levas anteriores, não ficou guardado.
+A interface (React) ainda é conferida à mão. Roteiro que funciona: copiar
+`api/`, `brasfut.py`, `server.py`, `web/dist` e uma cópia do save para uma pasta
+temporária, subir com `BRASFUT_PORTA=8791 python server.py --sem-abrir`,
+preparar o estado por `curl` na API e fotografar com
+`msedge --headless=new --user-data-dir=<pasta nova> --screenshot=... URL/#tela`
+(o arquivo aparece alguns segundos depois de o processo sair).
 
 ## Pontas soltas conhecidas
 

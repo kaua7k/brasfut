@@ -438,7 +438,7 @@ export interface LinhaClassificacao {
   gc: number
   sg: number
   eu: boolean
-  zona: 'alta' | 'baixa' | ''
+  zona: 'alta' | 'baixa' | 'media' | ''
   /** so no estadual com grupos: "Grupo A"... (a posicao conta dentro dele) */
   grupo?: string | null
 }
@@ -990,6 +990,25 @@ export interface DetalheCopa {
   situacao: { estado: Estado; texto: string } | null
   fases: FaseCopa[]
   aviso: string | null
+  /** Libertadores e Sul-Americana: a fase de grupos, o meu grupo primeiro */
+  grupos?: GrupoCopa[] | null
+  em_grupos?: boolean
+}
+
+export interface GrupoCopa {
+  nome: string
+  meu: boolean
+  linhas: LinhaClassificacao[]
+  jogos: {
+    rodada: number
+    semana: number
+    casa: string
+    fora: string
+    gc: number | null
+    gf: number | null
+    meu: boolean
+    resultado: 'V' | 'E' | 'D' | null
+  }[]
 }
 
 export interface TelaCompeticoes {

@@ -340,8 +340,17 @@ COMPETICOES = ("liga", "copa", "lib", "sul", "estadual")
 EXP_FORCA = 2.20
 SEMANAS_LIGA = 38
 SEMANAS_COPA = [4, 9, 14, 19, 25, 31]        # Copa do Brasil: 6 fases (64 times)
-SEMANAS_CONT = [6, 12, 18, 24, 30]           # Libertadores: 5 fases (32 times)
-SEMANAS_SULA = [6, 12, 18, 24]               # Sul-Americana: 4 fases (16 times)
+# Libertadores e Sul-Americana: fase de grupos (8 grupos de 4, ida e volta) e
+# depois mata-mata. Na Sul-Americana o 2o do grupo joga um playoff contra o 3o
+# da Libertadores; o 1o espera nas oitavas. Final em jogo unico, como antes.
+SEMANAS_GRUPOS = [3, 6, 8, 11, 13, 16]       # as 6 rodadas dos grupos
+SEMANAS_CONT = [22, 27, 32, 36]              # Libertadores: oitavas ... final
+SEMANAS_SULA = [21, 23, 28, 33, 35]          # Sul-Americana: playoff, oitavas ... final
+FASES_LIB = ["Oitavas de final", "Quartas de final", "Semifinal", "FINAL"]
+FASES_SULA = ["Playoffs das oitavas"] + FASES_LIB
+FASE_GRUPOS = "Fase de grupos"
+# o que cada vitoria na fase de grupos paga a um clube brasileiro
+PREMIO_VITORIA_GRUPO = {"lib": 1_800_000, "sul": 900_000}
 JANELAS = list(range(1, 5)) + list(range(19, 23))   # semanas com mercado aberto
 
 # ----------------------------------------------------------------------------
@@ -476,6 +485,23 @@ CLUBES_SUL = [
     ("Always Ready", "BOL", "Municipal de El Alto", 25000, 61),
     ("Sporting Cristal", "PER", "Alberto Gallardo", 18000, 67),
     ("The Strongest", "BOL", "Hernando Siles", 41143, 63),
+    # a Sul-Americana tem 32 clubes na fase de grupos: 24 de fora e 8 daqui
+    ("Argentinos Juniors", "ARG", "Diego Armando Maradona", 26000, 68),
+    ("Belgrano", "ARG", "Gigante de Alberdi", 38000, 66),
+    ("Newell's Old Boys", "ARG", "Marcelo Bielsa", 42000, 67),
+    ("Rosario Central", "ARG", "Gigante de Arroyito", 41654, 68),
+    ("Defensor Sporting", "URU", "Luis Franzini", 18000, 60),
+    ("Liverpool Montevideo", "URU", "Belvedere", 10000, 58),
+    ("Coquimbo Unido", "CHI", "Francisco Sanchez Rumoroso", 18750, 58),
+    ("Audax Italiano", "CHI", "Bicentenario La Florida", 12000, 57),
+    ("America de Cali", "COL", "Pascual Guerrero", 38000, 65),
+    ("Once Caldas", "COL", "Palogrande", 28000, 63),
+    ("Club Guarani", "PAR", "Rogelio Livieres", 6000, 58),
+    ("Nacional Asuncion", "PAR", "Arsenio Erico", 4000, 57),
+    ("Aucas", "EQU", "Gonzalo Pozo Ripalda", 18800, 59),
+    ("El Nacional", "EQU", "Olimpico Atahualpa", 35000, 58),
+    ("Melgar", "PER", "Monumental UNSA", 60000, 61),
+    ("Cienciano", "PER", "Inca Garcilaso", 45000, 60),
 ]
 
 # ----------------------------------------------------------------------------
@@ -905,21 +931,204 @@ def montar_copas(G, primeira=False):
         faltam = [i for i in A if i not in ordem]
         ordem = ordem + faltam
 
-    ex = [c["id"] for c in G["clubes"].values() if c["divisao"] == "EX"]
-    ex_lib = sorted(ex, key=lambda i: -G["clubes"][i]["reputacao"])[:24]
-    ex_sul = [i for i in ex if i not in ex_lib][:8]
+    ex = sorted((c["id"] for c in G["clubes"].values() if c["divisao"] == "EX"),
+                key=lambda i: -G["clubes"][i]["reputacao"])
+    ex_lib, ex_sul = ex[:24], ex[24:48]
+    br_lib, br_sul = ordem[:8], ordem[8:16]
+    # mundo sem estrangeiros bastantes: a Sul-Americana completa com brasileiros,
+    # seguindo a Serie A e depois a Serie B por reputacao
+    if len(ex_sul) < 24:
+        usados = set(br_lib + br_sul)
+        extras = [i for i in ordem[16:] + sorted(B, key=lambda i: -G["clubes"][i]["reputacao"])
+                  if i not in usados]
+        br_sul = br_sul + extras[:24 - len(ex_sul)]
 
     G["copas"] = {
         "copa": {"nome": "Copa do Brasil", "vivos": copa[:], "fase": 0,
                  "semanas": SEMANAS_COPA, "campeao": None, "historico": []},
-        "lib": {"nome": "Libertadores", "vivos": ordem[:8] + ex_lib, "fase": 0,
-                "semanas": SEMANAS_CONT, "campeao": None, "historico": []},
-        "sul": {"nome": "Sul-Americana", "vivos": ordem[8:16] + ex_sul, "fase": 0,
-                "semanas": SEMANAS_SULA, "campeao": None, "historico": []},
+        "lib": nova_copa_continental(G, "Libertadores", br_lib + ex_lib, SEMANAS_CONT, FASES_LIB),
+        "sul": nova_copa_continental(G, "Sul-Americana", br_sul + ex_sul, SEMANAS_SULA, FASES_SULA),
     }
-    for k in G["copas"]:
-        rng.shuffle(G["copas"][k]["vivos"])
-        G["copas"][k]["sorteio"] = sortear_confrontos(G, G["copas"][k]["vivos"])
+    rng.shuffle(G["copas"]["copa"]["vivos"])
+    G["copas"]["copa"]["sorteio"] = sortear_confrontos(G, G["copas"]["copa"]["vivos"])
+
+
+# ----------------------------------------------------------------------------
+# FASE DE GRUPOS DAS COPAS CONTINENTAIS
+#
+# Cada grupo e uma mini-liga (times, tabela, rodadas, rodada) e por isso usa
+# registrar e classificacao das series. Durante os grupos todos os 32 estao em
+# cp["vivos"]; quando os grupos acabam, vivos vira quem segue no mata-mata e o
+# resto da copa (fase, semanas, sorteio, historico) funciona como sempre.
+# Na Sul-Americana, os primeiros de grupo esperam o playoff em cp["espera"].
+# ----------------------------------------------------------------------------
+
+def nova_copa_continental(G, nome, times, semanas, fases):
+    return {"nome": nome, "vivos": list(times), "fase": 0, "semanas": list(semanas),
+            "fases": list(fases), "campeao": None, "historico": [], "sorteio": [],
+            "espera": [], "grupos": sortear_grupos_continentais(G, times),
+            "semanas_grupos": list(SEMANAS_GRUPOS), "rodada_grupo": 0}
+
+
+def pais(c):
+    return "BRA" if c["divisao"] != "EX" else c["uf"]
+
+
+def sortear_grupos_continentais(G, times):
+    """Quatro potes por reputacao, um clube de cada pote por grupo. Clubes do
+    mesmo pais se evitam quando da: sorteia de novo e fica com o que tiver
+    menos encontros de compatriotas."""
+    ordem = sorted(times, key=lambda i: -G["clubes"][i]["reputacao"])
+    n = max(1, len(ordem) // 4)
+    potes = [ordem[k * n:(k + 1) * n] for k in range(4)]
+    melhor, pior = None, None
+    for _ in range(200):
+        grupos = [[] for _ in range(n)]
+        for pote in potes:
+            embaralhado = pote[:]
+            rng.shuffle(embaralhado)
+            for g, cid in zip(grupos, embaralhado):
+                g.append(cid)
+        choques = sum(len(g) - len({pais(G["clubes"][i]) for i in g}) for g in grupos)
+        if pior is None or choques < pior:
+            melhor, pior = grupos, choques
+        if choques == 0:
+            break
+    fora = []
+    for k, ids in enumerate(melhor):
+        a, b, c, d = ids
+        rodadas = [[[a, b], [c, d]], [[d, a], [b, c]], [[a, c], [d, b]],
+                   [[b, a], [d, c]], [[a, d], [c, b]], [[c, a], [b, d]]]
+        fora.append({"nome": "Grupo " + "ABCDEFGH"[k % 8], "times": list(ids),
+                     "tabela": nova_tabela(ids), "rodadas": rodadas, "rodada": 0,
+                     "resultados": []})
+    return fora
+
+
+def em_grupos(cp):
+    return bool(cp.get("grupos")) and cp.get("rodada_grupo", 0) < len(cp.get("semanas_grupos", []))
+
+
+def vivo_na_copa(cp, cid):
+    """Segue na copa: jogando agora ou esperando o playoff acabar."""
+    return not cp.get("campeao") and (cid in cp["vivos"] or cid in cp.get("espera", []))
+
+
+def fase_da_copa(cp):
+    if cp.get("campeao"):
+        return "Encerrada"
+    if em_grupos(cp):
+        return FASE_GRUPOS
+    fases = cp.get("fases")
+    if fases and cp["fase"] < len(fases):
+        return fases[cp["fase"]]
+    return nome_fase(len(cp["vivos"]))
+
+
+def proxima_semana_copa(cp):
+    if cp.get("campeao"):
+        return None
+    if em_grupos(cp):
+        return cp["semanas_grupos"][cp["rodada_grupo"]]
+    return cp["semanas"][cp["fase"]] if cp["fase"] < len(cp["semanas"]) else None
+
+
+def grupo_de(cp, cid):
+    for g in cp.get("grupos") or []:
+        if cid in g["times"]:
+            return g
+    return None
+
+
+def jogo_de_grupo(cp, cid):
+    """(casa, fora) do clube na proxima rodada de grupos, ou None."""
+    if not em_grupos(cp):
+        return None
+    g = grupo_de(cp, cid)
+    if not g or g["rodada"] >= len(g["rodadas"]):
+        return None
+    return next(((a, b) for a, b in g["rodadas"][g["rodada"]] if cid in (a, b)), None)
+
+
+def jogar_rodada_grupos(G, chave):
+    cp = G["copas"][chave]
+    res = []
+    for g in cp["grupos"]:
+        if g["rodada"] >= len(g["rodadas"]):
+            continue
+        placares = []
+        for casa, fora in g["rodadas"][g["rodada"]]:
+            r = simular(G, casa, fora, chave)
+            registrar(g, casa, fora, r["gc"], r["gf"])
+            placares.append([casa, fora, r["gc"], r["gf"]])
+            res.append(r)
+            if r["gc"] != r["gf"]:
+                venc = G["clubes"][casa if r["gc"] > r["gf"] else fora]
+                if venc["divisao"] != "EX":
+                    venc["dinheiro"] += PREMIO_VITORIA_GRUPO.get(chave, 0)
+        g["resultados"].append(placares)
+        g["rodada"] += 1
+    cp["rodada_grupo"] += 1
+    return res
+
+
+def cruzar(G, cabecas, outros):
+    """Confrontos cabeca de chave x outro. O cabeca (melhor campanha) decide em
+    casa: na lista de pares ele vai em segundo, porque o primeiro manda a ida."""
+    c, o = list(cabecas), list(outros)
+    rng.shuffle(c)
+    rng.shuffle(o)
+    return [[b, a] for a, b in zip(c, o)]
+
+
+def fechar_grupos(G):
+    """Grupos que acabaram viram mata-mata. A Libertadores fecha antes, porque
+    os terceiros dela vao para o playoff da Sul-Americana."""
+    meu = G.get("clube")
+    for chave in ("lib", "sul"):
+        cp = G["copas"].get(chave)
+        if not cp or not cp.get("grupos") or cp.get("grupos_fechados") or em_grupos(cp):
+            continue
+        lib = G["copas"].get("lib")
+        if chave == "sul" and lib and lib.get("grupos") and not lib.get("grupos_fechados"):
+            continue
+        ordens = [classificacao(G, g) for g in cp["grupos"]]
+        primeiros = [o[0] for o in ordens]
+        segundos = [o[1] for o in ordens]
+        terceiros = [o[2] for o in ordens]
+        cp["grupos_fechados"] = True
+        if chave == "lib":
+            cp["vivos"] = primeiros + segundos
+            cp["sorteio"] = cruzar(G, primeiros, segundos)
+            sul = G["copas"].get("sul")
+            if sul and sul.get("grupos"):
+                sul["terceiros_lib"] = terceiros
+                if meu in terceiros:
+                    noticia(G, "Terceiro no grupo da Libertadores: o time cai para o playoff "
+                               "da Sul-Americana.")
+        else:
+            vindos = cp.pop("terceiros_lib", None)
+            if vindos:
+                cp["vivos"] = segundos + vindos
+                # o terceiro da Libertadores decide em casa
+                cp["sorteio"] = cruzar(G, vindos, segundos)
+                cp["espera"] = primeiros
+            else:
+                # sem Libertadores de grupos para cruzar: oitavas direto
+                cp["fases"] = cp["fases"][1:]
+                cp["semanas"] = cp["semanas"][1:]
+                cp["vivos"] = primeiros + segundos
+                cp["sorteio"] = cruzar(G, primeiros, segundos)
+        if meu in [i for o in ordens for i in o]:
+            if meu in cp["vivos"] or meu in cp.get("espera", []):
+                noticia(G, "%s: classificado para o mata-mata." % cp["nome"])
+            elif not (chave == "lib" and meu in terceiros):
+                noticia(G, "%s: eliminado na fase de grupos." % cp["nome"])
+        for o in ordens:
+            for cid in o[2 if chave == "lib" else 1:]:
+                cl = G["clubes"][cid]
+                if cl["reputacao"] >= GRANDE_REP and cl["divisao"] != "EX":
+                    manchete(G, "copa", "%s cai na fase de grupos da %s." % (cl["nome"], cp["nome"]))
 
 
 def sortear_confrontos(G, vivos):
@@ -945,7 +1154,7 @@ def sorteio_da_copa(G, chave):
     """Os confrontos ja sorteados da fase que vem. Save antigo, que nao tinha
     sorteio guardado, ganha um na primeira vez que alguem pergunta."""
     cp = G["copas"][chave]
-    if cp.get("campeao") or len(cp["vivos"]) < 2:
+    if cp.get("campeao") or len(cp["vivos"]) < 2 or em_grupos(cp):
         return []
     pares = cp.get("sorteio") or []
     nos_pares = sorted(x for par in pares for x in par)
@@ -2648,6 +2857,11 @@ def jogos_da_semana(G, cid):
     for k, cp in G["copas"].items():
         if cp["campeao"] or cid not in cp["vivos"]:
             continue
+        if em_grupos(cp):
+            jogo = jogo_de_grupo(cp, cid)
+            if jogo and cp["semanas_grupos"][cp["rodada_grupo"]] == sem:
+                out.append((k, jogo[0], jogo[1]))
+            continue
         if cp["fase"] < len(cp["semanas"]) and cp["semanas"][cp["fase"]] == sem:
             out.append((k, None, None))
     return out
@@ -2924,7 +3138,7 @@ def jogar_fase_copa(G, chave):
     final = len(vivos) == 2
     res, prox = [], []
     # o que a fase deixou: vai para o historico, que a tela de competicoes le
-    registro = {"fase": nome_fase(len(vivos)), "semana": int(G["semana"]),
+    registro = {"fase": fase_da_copa(cp), "semana": int(G["semana"]),
                 "temporada": int(G["temporada"]), "jogos": []}
     for a, b in pares:
         if final:
@@ -2967,7 +3181,13 @@ def jogar_fase_copa(G, chave):
     cp.setdefault("historico", []).append(registro)
     cp["vivos"] = prox
     cp["fase"] += 1
-    cp["sorteio"] = sortear_confrontos(G, prox) if len(prox) >= 2 else []
+    if cp.get("espera"):
+        # playoff jogado: os primeiros de grupo entram nas oitavas como cabecas
+        cp["sorteio"] = cruzar(G, cp["espera"], prox)
+        cp["vivos"] = prox + cp["espera"]
+        cp["espera"] = []
+    else:
+        cp["sorteio"] = sortear_confrontos(G, prox) if len(prox) >= 2 else []
     if len(prox) == 1:
         cp["campeao"] = prox[0]
         c = G["clubes"][prox[0]]
@@ -2996,11 +3216,18 @@ def avancar_semana(G):
     for chave, cp in G["copas"].items():
         if cp["campeao"]:
             continue
-        if cp["fase"] < len(cp["semanas"]) and cp["semanas"][cp["fase"]] == sem:
-            for r in jogar_fase_copa(G, chave):
+        if em_grupos(cp):
+            jogar = jogar_rodada_grupos if cp["semanas_grupos"][cp["rodada_grupo"]] == sem else None
+        elif cp["fase"] < len(cp["semanas"]) and cp["semanas"][cp["fase"]] == sem:
+            jogar = jogar_fase_copa
+        else:
+            jogar = None
+        if jogar:
+            for r in jogar(G, chave):
                 todos.append(r)
                 if G["clube"] in (r["casa"], r["fora"]):
                     meus.append(r)
+    fechar_grupos(G)
     manchetes_da_semana(G, todos, antes)
     G["ultimos_meus"] = [dict(r) for r in meus]
     for r in meus:
@@ -5825,10 +6052,10 @@ def tela_copas(G):
         if cp["campeao"]:
             print("%-16s campeao: %s" % (cp["nome"], cor(G["clubes"][cp["campeao"]]["nome"], "des")))
             continue
-        n = len(cp["vivos"])
-        vivo = cor(" [seu clube segue vivo]", "ok") if G["clube"] in cp["vivos"] else ""
-        prox = cp["semanas"][cp["fase"]] if cp["fase"] < len(cp["semanas"]) else None
-        print("%-16s %s, %d clubes%s%s" % (cp["nome"], nome_fase(n), n, vivo,
+        n = len(cp["vivos"]) + len(cp.get("espera", []))
+        vivo = cor(" [seu clube segue vivo]", "ok") if vivo_na_copa(cp, G["clube"]) else ""
+        prox = proxima_semana_copa(cp)
+        print("%-16s %s, %d clubes%s%s" % (cp["nome"], fase_da_copa(cp), n, vivo,
                                            cor("  proxima fase na semana %d" % prox, "fraco") if prox else ""))
 
 
@@ -6463,7 +6690,7 @@ def proximo_jogo(G):
             partes.append("%s (%s)" % (G["clubes"][adv]["nome"], ond))
         else:
             cp = G["copas"][comp]
-            partes.append("%s %s %s" % (cp["nome"], tr("pt"), nome_fase(len(cp["vivos"]))))
+            partes.append("%s %s %s" % (cp["nome"], tr("pt"), fase_da_copa(cp)))
     return (" %s " % tr("pt")).join(partes)
 
 
@@ -7009,6 +7236,14 @@ def iniciar_temporada(G):
 # ----------------------------------------------------------------------------
 
 def migrar(G):
+    ja = {c["nome"] for c in G["clubes"].values() if c["divisao"] == "EX"}
+    faltam = [d for d in CLUBES_LIB + CLUBES_SUL if d[0] not in ja]
+    if faltam:
+        usados = {j["nome"] for j in G["jogadores"].values()}
+        G["seq_c"] = max([G.get("seq_c", 0)] + list(G["clubes"]))
+        G["seq"] = max([G.get("seq", 0)] + list(G["jogadores"]))
+        for dados in faltam:
+            novo_clube(G, dados, "EX", usados)
     for j in G["jogadores"].values():
         j.setdefault("dono", None)
         j.setdefault("emp_pct", 100)

@@ -1406,3 +1406,14 @@ button:disabled { cursor: not-allowed; }
 .manchete.titulo .manchete-rotulo { color: var(--acento); }
 .manchete.lesao .manchete-rotulo { color: var(--critico); }
 .manchete.mercado .manchete-rotulo { color: var(--ok); }
+
+/* ------------------------------------------------- grupos das continentais */
+.grade-linha.media .marcador-zona { background: var(--atencao); }
+.grade-grupos { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr)); gap: 10px 14px; }
+.grupo-copa { min-width: 0; }
+.jogos-grupo { list-style: none; margin: 6px 0 4px; padding: 0 16px; font-size: 13px; }
+.jogos-grupo li { display: grid; grid-template-columns: 96px 1fr auto; gap: 8px; align-items: center; padding: 4px 0; border-top: 1px solid var(--divisor); }
+.letra-res { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 6px; }
+.letra-res.V { background: var(--ok-fundo); color: var(--ok); }
+.letra-res.E { background: #3a3522; color: var(--atencao); }
+.letra-res.D { background: #4a1f1f; color: var(--critico); }

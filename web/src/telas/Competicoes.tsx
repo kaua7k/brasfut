@@ -16,6 +16,7 @@ import type {
   DetalheCopa,
   DetalhePontos,
   FaseCopa,
+  GrupoCopa,
   JogoCopa,
   LinhaClassificacao,
   TelaCompeticoes,
@@ -247,15 +248,69 @@ function Situacao({ s, campeao }: { s: NonNullable<DetalheCopa['situacao']>; cam
 }
 
 function Copa({ d }: { d: DetalheCopa }) {
+  const grupos = d.grupos && <Grupos grupos={d.grupos} />
   return (
     <>
       {d.situacao && <Situacao s={d.situacao} campeao={d.campeao} />}
       {d.aviso && <div className="vazio">{d.aviso}</div>}
+      {/* nos grupos, eles vem primeiro; depois, o mata-mata e o que interessa */}
+      {d.em_grupos && grupos}
       {/* a fase mais recente primeiro: e ela que interessa agora */}
       {[...d.fases].reverse().map((f) => (
         <Fase f={f} key={`${d.id}-${f.nome}`} />
       ))}
+      {!d.em_grupos && grupos}
     </>
+  )
+}
+
+function Grupos({ grupos }: { grupos: GrupoCopa[] }) {
+  // o meu grupo aberto com os jogos; os outros so a tabela, e da para ver todos
+  const [todos, setTodos] = useState(false)
+  const meu = grupos.find((g) => g.meu)
+  const visiveis = todos || !meu ? grupos : [meu]
+  return (
+    <section className="painel copa-grupos">
+      <div className="painel-cab" style={{ padding: '12px 16px 6px' }}>
+        <span className="painel-titulo">Fase de grupos</span>
+        {meu && (
+          <button type="button" className="bt-fantasma bt-mini" aria-expanded={todos} onClick={() => setTodos(!todos)}>
+            {todos ? 'So o meu grupo' : `Ver os ${grupos.length} grupos`}
+          </button>
+        )}
+      </div>
+      <div className="grade-grupos">
+        {visiveis.map((g) => (
+          <div key={g.nome} className="grupo-copa">
+            <div className="painel-titulo" style={{ padding: '4px 16px' }}>{g.nome}</div>
+            <Grade
+              colunas={COLUNAS}
+              itens={g.linhas}
+              idDe={(l) => l.pos}
+              classeDe={(l) => `${l.zona}${l.eu ? ' eu' : ''}`}
+              ordenavel={false}
+            />
+            {g.meu && (
+              <ul className="jogos-grupo">
+                {g.jogos.filter((j) => j.meu).map((j, i) => (
+                  <li key={i} className={j.resultado ? `res-${j.resultado}` : ''}>
+                    <span className="tag-fraco">R{j.rodada} · sem {j.semana}</span>
+                    <span>
+                      {j.casa} <strong>{placar(j.gc, j.gf)}</strong> {j.fora}
+                    </span>
+                    {j.resultado && <span className={`letra-res ${j.resultado}`}>{j.resultado}</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="tag-fraco" style={{ padding: '6px 16px 12px' }}>
+        Verde: segue para o mata-mata. Amarelo: Libertadores, cai para o playoff da Sul-Americana;
+        Sul-Americana, joga o playoff.
+      </div>
+    </section>
   )
 }
 

@@ -153,8 +153,21 @@ def _proximo(G, d):
 
     # copa: o sorteio sai assim que a fase anterior acaba, entao o adversario
     # ja e conhecido - antes ele so existia no instante do jogo
-    chave = jogos[0][0]
+    chave, casa, fora = jogos[0]
     copa = G["copas"].get(chave)
+    if copa and casa is not None:
+        # fase de grupos: adversario e mando ja sao da tabela do grupo
+        adv = fora if casa == G["clube"] else casa
+        cadv = G["clubes"][adv]
+        at, de, _ = eng.forcas(G, cadv)
+        g = eng.grupo_de(copa, G["clube"])
+        base.update(tipo="copa", adversario=cadv["nome"],
+                    legenda="%s . %s, rodada %d" % (copa["nome"], g["nome"] if g else eng.FASE_GRUPOS,
+                                                    copa["rodada_grupo"] + 1),
+                    em_casa=casa == G["clube"], forte=cadv["reputacao"] > c["reputacao"])
+        base["ataque"]["dele"] = round(at, 1)
+        base["defesa"]["dele"] = round(de, 1)
+        return base
     if copa:
         par = next((p for p in eng.sorteio_da_copa(G, chave) if G["clube"] in p), None)
         if par:
@@ -163,7 +176,7 @@ def _proximo(G, d):
             at, de, _ = eng.forcas(G, cadv)
             final = len(copa["vivos"]) == 2
             base.update(tipo="copa", adversario=cadv["nome"],
-                        legenda="%s . %s" % (copa["nome"], eng.nome_fase(len(copa["vivos"]))),
+                        legenda="%s . %s" % (copa["nome"], eng.fase_da_copa(copa)),
                         em_casa=None if final else (par[0] == G["clube"]),
                         forte=cadv["reputacao"] > c["reputacao"])
             base["ataque"]["dele"] = round(at, 1)
@@ -632,12 +645,12 @@ def copas():
                           "fase": None, "clubes": 0, "proxima": None,
                           "vivo": cp["campeao"] == G["clube"]})
             continue
-        n = len(cp["vivos"])
+        n = len(cp["vivos"]) + len(cp.get("espera", []))
         itens.append({
             "id": chave, "nome": cp["nome"], "encerrada": False, "campeao": None,
-            "fase": eng.nome_fase(n), "clubes": n,
-            "proxima": cp["semanas"][cp["fase"]] if cp["fase"] < len(cp["semanas"]) else None,
-            "vivo": G["clube"] in cp["vivos"],
+            "fase": eng.fase_da_copa(cp), "clubes": n,
+            "proxima": eng.proxima_semana_copa(cp),
+            "vivo": eng.vivo_na_copa(cp, G["clube"]),
         })
     return {"cabecalho": cabecalho(G), "titulo": "Copas", "copas": itens}
 
