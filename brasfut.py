@@ -3282,7 +3282,14 @@ def recuperacao(G):
         j["forma"] = clamp(j["forma"] + rng.randint(-2, 2), 5, 100)
 
 
-def salvar_auto(G):
+# o terminal e a janela gravam ao fim de cada semana; a web grava uma vez so,
+# na rota de avancar, e desliga isto (api/sessao.py)
+SALVAR_NA_SEMANA = True
+
+
+def salvar_auto(G, forcar=False):
+    if not SALVAR_NA_SEMANA and not forcar:
+        return False
     try:
         salvar(G)
         return True
@@ -7619,8 +7626,15 @@ def salvar(G, caminho=None):
     d = dict(G)
     d["clubes"] = {str(k): v for k, v in G["clubes"].items()}
     d["jogadores"] = {str(k): v for k, v in G["jogadores"].items()}
-    with open(caminho, "w", encoding="utf-8") as f:
-        json.dump(d, f)
+    # json.dumps usa o codificador em C e escreve de uma vez; json.dump(d, f)
+    # caia no codificador em Python e fazia milhoes de escritas pequenas - com
+    # o save de 8 MB, cada clique que grava custava 600 ms. Grava num .tmp e
+    # troca: fechar o jogo no meio nunca deixa um save pela metade.
+    texto = json.dumps(d, separators=(",", ":"))
+    tmp = caminho + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.write(texto)
+    os.replace(tmp, caminho)
     return caminho
 
 

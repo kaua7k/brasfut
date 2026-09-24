@@ -164,7 +164,7 @@ def avancar(corpo):
         antes = avanco.foto(G)
         virada = eng.temporada_encerrada(G)
         fora = SESSAO.avancar()
-        eng.salvar_auto(G)
+        eng.salvar_auto(G, forcar=True)
         # a virada acabou de acontecer: o resumo vem junto, para a tela abrir
         # antes de qualquer outra coisa (inclusive da escolha de clube novo)
         if virada and G.get("ultimo_resumo"):
@@ -220,7 +220,7 @@ def escalacao_auto(corpo):
         mudou = SESSAO.definir_auto(corpo["ligada"])
         if mudou:
             SESSAO.esquecer_desfazer()
-            eng.salvar_auto(SESSAO.exigir())
+            eng.salvar_auto(SESSAO.exigir(), forcar=True)
         # a alavanca mora no Painel e na Escalacao: devolve a tela de quem pediu
         if corpo.get("tela") == "escalacao":
             return {"mudou": mudou, "tela": dto.escalacao()}
@@ -380,7 +380,7 @@ def tirar_vitrine(corpo):
             raise ErroDeUso("%s esta emprestado aqui: o passe nao e seu."
                             % ", ".join(j["nome"] for j in alheios))
         recados = [eng.tirar_da_vitrine(G, j["id"])[1] for j in proprios]
-        eng.salvar_auto(G)
+        eng.salvar_auto(G, forcar=True)
         return {"recado": " ".join(r for r in recados if r), "tela": dto.elenco()}
 
 
@@ -403,7 +403,7 @@ def rescindir(corpo):
                              eng.din(multa), eng.din(folha))),
                 "perigo": True}}
         recados = [eng.rescindir_contrato(G, j["id"])[1] for j in proprios]
-        eng.salvar_auto(G)
+        eng.salvar_auto(G, forcar=True)
         SESSAO.invalidar()
         return {"recado": " ".join(r for r in recados if r), "tela": dto.elenco()}
 
@@ -433,7 +433,7 @@ def exercer_opcao(corpo):
                           % (detalhe, eng.din(total),
                              eng.din(G["clubes"][G["clube"]]["dinheiro"])))}}
         recados = [eng.exercer_opcao(G, j["id"], G["clube"]) for j, _ in com]
-        eng.salvar_auto(G)
+        eng.salvar_auto(G, forcar=True)
         SESSAO.invalidar()
         return {"recado": " ".join(str(r) for r in recados if r), "tela": dto.elenco()}
 
@@ -457,7 +457,7 @@ def chamar_de_volta(corpo):
                           % (", ".join(j["nome"] for j in js), eng.din(folha)))}}
         for j in js:
             eng.devolver_emprestimo(G, j["id"])
-        eng.salvar_auto(G)
+        eng.salvar_auto(G, forcar=True)
         SESSAO.invalidar()
         return {"recado": "%d jogador(es) de volta ao elenco." % len(js),
                 "tela": dto.elenco()}
@@ -486,7 +486,7 @@ def subir_da_base(corpo):
             recados.append(recado)
             if not feito:
                 break  # elenco cheio: parar e contar, em vez de tentar o resto
-        eng.salvar_auto(G)
+        eng.salvar_auto(G, forcar=True)
         SESSAO.invalidar()
         return {"recado": " ".join(r for r in recados if r), "tela": dto.base()}
 
@@ -506,7 +506,7 @@ def liberar_da_base(corpo):
                           % ", ".join(j["nome"] for j in js)),
                 "perigo": True}}
         recados = [eng.dispensar_da_base(G, j["id"])[1] for j in js]
-        eng.salvar_auto(G)
+        eng.salvar_auto(G, forcar=True)
         return {"recado": " ".join(r for r in recados if r), "tela": dto.base()}
 
 
@@ -535,7 +535,7 @@ def investir(corpo):
                              eng.din(c["dinheiro"] - custo)))}}
         c["dinheiro"] -= custo
         c[chave] += 1
-        eng.salvar_auto(G)
+        eng.salvar_auto(G, forcar=True)
         return {"recado": "%s agora esta no nivel %d." % (chave.upper(), c[chave]),
                 "tela": dto.infra()}
 
@@ -552,7 +552,7 @@ def _remontar(G, c):
     c["escalacao"] = eng.auto_escalar(G, c)
     c["esc_stamp"] = ""
     SESSAO.invalidar()
-    eng.salvar_auto(G)
+    eng.salvar_auto(G, forcar=True)
 
 
 def _vagas_por_id(G):
@@ -578,7 +578,7 @@ def mudar_esquema(corpo):
             c["tatica"] = corpo["tatica"]
             c["esc_stamp"] = ""
             SESSAO.invalidar()
-            eng.salvar_auto(G)
+            eng.salvar_auto(G, forcar=True)
             return {"recado": "Mentalidade: %s. Escalacao mantida." % c["tatica"],
                     "tela": dto.escalacao()}
 
@@ -620,7 +620,7 @@ def mudar_esquema(corpo):
         SESSAO.invalidar()
         depois = _vagas_por_id(G)
         SESSAO.nova_vaga = [p for p, v in depois.items() if p in antes and antes[p] != v]
-        eng.salvar_auto(G)
+        eng.salvar_auto(G, forcar=True)
 
         rotulo = eng.rotulo_formacao(c)
         if auto:
@@ -653,7 +653,7 @@ def desfazer_esquema(_corpo):
         c["esc_stamp"] = ""
         SESSAO.invalidar()
         SESSAO.esquecer_desfazer()
-        eng.salvar_auto(G)
+        eng.salvar_auto(G, forcar=True)
         return {"recado": "Voltou para %s." % eng.rotulo_formacao(c), "tela": dto.escalacao()}
 
 
@@ -696,7 +696,7 @@ def trocar_titular(corpo):
         c["escalacao"] = nova
         c["esc_stamp"] = ""
         SESSAO.invalidar()
-        eng.salvar_auto(G)
+        eng.salvar_auto(G, forcar=True)
         recado = "Sai %s, entra %s." % (G["jogadores"][sai]["nome"], G["jogadores"][entra]["nome"])
         if desligou:
             recado += " Voce mexeu no time: a escalacao automatica foi desligada."
@@ -717,7 +717,7 @@ def mudar_plano(corpo):
         if not feito:
             raise ErroDeUso(recado)
         SESSAO.invalidar()
-        eng.salvar_auto(G)
+        eng.salvar_auto(G, forcar=True)
         return {"recado": recado, "tela": dto.escalacao()}
 
 
@@ -735,7 +735,7 @@ def escolher_regime(corpo):
         feito, recado = eng.definir_regime(G, G["clubes"][G["clube"]], corpo.get("nome"))
         if not feito:
             raise ErroDeUso(recado)
-        eng.salvar_auto(G)
+        eng.salvar_auto(G, forcar=True)
         return {"recado": recado, "tela": dto.treino()}
 
 
@@ -760,7 +760,7 @@ def alternar_foco(corpo):
             recados.append(recado)
         if recusa and not recados:
             raise ErroDeUso(recusa)
-        eng.salvar_auto(G)
+        eng.salvar_auto(G, forcar=True)
         tela = dto.base() if corpo.get("tela") == "base" else dto.treino()
         return {"recado": " ".join(recados + ([recusa] if recusa else [])), "tela": tela}
 
@@ -770,7 +770,7 @@ def limpar_foco(_corpo):
     with SESSAO.cadeado:
         G = SESSAO.exigir()
         G["clubes"][G["clube"]]["treino_foco"] = []
-        eng.salvar_auto(G)
+        eng.salvar_auto(G, forcar=True)
         return {"recado": "Treino individual esvaziado.", "tela": dto.treino()}
 
 
@@ -795,7 +795,7 @@ def mudar_preco(corpo):
         G = SESSAO.exigir()
         c = G["clubes"][G["clube"]]
         c["preco"] = int(eng.clamp(preco, dto.PRECO_MIN, dto.PRECO_MAX))
-        eng.salvar_auto(G)
+        eng.salvar_auto(G, forcar=True)
         return {"recado": "Ingresso a R$ %d. Caro afasta publico, barato enche o estadio."
                           % c["preco"], "tela": dto.estadio()}
 
@@ -827,7 +827,7 @@ def contratar_obra(corpo):
         texto = ("Obra contratada: +%s lugares por %s, pronta em %d semanas."
                  % (dto.milhar(lugares), eng.din(custo), semanas))
         SESSAO.anotar(texto)
-        eng.salvar_auto(G)
+        eng.salvar_auto(G, forcar=True)
         return {"recado": texto, "tela": dto.estadio()}
 
 
@@ -891,7 +891,7 @@ def propor(corpo):
         if fechou:
             SESSAO.invalidar()
             SESSAO.anotar(texto)
-        eng.salvar_auto(G)
+        eng.salvar_auto(G, forcar=True)
         return {"fechou": fechou, "recado": texto, "mesa": leitura}
 
 
@@ -926,7 +926,7 @@ def por_a_venda(corpo):
             if preco < 1000:
                 raise ErroDeUso("o preco minimo de vitrine e R$ 1 mil")
             recados.append(eng.por_a_venda(G, pid, preco)[1])
-        eng.salvar_auto(G)
+        eng.salvar_auto(G, forcar=True)
         return {"recado": " ".join(recados), "tela": _tela_de_volta(corpo)}
 
 
@@ -936,7 +936,7 @@ def tirar_vitrine_mercado(corpo):
         G = SESSAO.exigir()
         meus = set(G["clubes"][G["clube"]]["elenco"])
         recados = [eng.tirar_da_vitrine(G, pid)[1] for pid in _ids(corpo) if pid in meus]
-        eng.salvar_auto(G)
+        eng.salvar_auto(G, forcar=True)
         return {"recado": " ".join(recados), "tela": _tela_de_volta(corpo)}
 
 
@@ -972,7 +972,7 @@ def ceder(corpo):
         recados = [eng.ceder_por_emprestimo(G, j["id"], cl["id"], pct)[1]
                    for j, cl, pct in escolhas]
         SESSAO.invalidar()
-        eng.salvar_auto(G)
+        eng.salvar_auto(G, forcar=True)
         return {"recado": " ".join(recados), "tela": _tela_de_volta(corpo)}
 
 
@@ -1005,7 +1005,7 @@ def aceitar_propostas(corpo):
                 "perigo": True}}
         recados = [eng.aceitar_oferta(G, j["id"], cl["id"], v)[1] for j, cl, v in marcadas]
         SESSAO.invalidar()
-        eng.salvar_auto(G)
+        eng.salvar_auto(G, forcar=True)
         return {"recado": " ".join(recados), "tela": mercado.tela("vitrine")}
 
 
@@ -1014,7 +1014,7 @@ def recusar_propostas(corpo):
     with SESSAO.cadeado:
         G = SESSAO.exigir()
         recados = [eng.recusar_oferta(G, j["id"])[1] for j, _cl, _v in _ofertas_marcadas(G, corpo)]
-        eng.salvar_auto(G)
+        eng.salvar_auto(G, forcar=True)
         return {"recado": " ".join(recados), "tela": mercado.tela("vitrine")}
 
 
@@ -1034,7 +1034,7 @@ def contraproposta(corpo):
         desfecho, recado = eng.contraproposta(G, pid, cid, valor)
         if desfecho == "vendido":
             SESSAO.invalidar()
-        eng.salvar_auto(G)
+        eng.salvar_auto(G, forcar=True)
         return {"recado": recado, "desfecho": desfecho, "tela": mercado.tela("vitrine")}
 
 
@@ -1059,7 +1059,7 @@ def cancelar_agendadas(corpo):
                                            "estaca zero." % nomes, "perigo": True}}
         # do maior para o menor: tirar um da lista nao desloca os que faltam
         recados = [eng.cancelar_agendada(G, i)[1] for i in indices]
-        eng.salvar_auto(G)
+        eng.salvar_auto(G, forcar=True)
         return {"recado": " ".join(recados), "tela": _tela_de_volta(corpo)}
 
 

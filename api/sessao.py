@@ -20,6 +20,8 @@ import brasfut as eng
 # na web a semana 38 encerra a temporada e para: a virada so acontece quando o
 # usuario clica em "Comecar o ano", depois de ver como o ano terminou
 eng.VIRADA_MANUAL = True
+# a rota de avancar grava depois da semana: o motor nao precisa gravar tambem
+eng.SALVAR_NA_SEMANA = False
 
 
 def capturar(func, *a, **kw):
