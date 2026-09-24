@@ -250,16 +250,24 @@ def ver_base(_corpo):
         return {"tela": dto.base()}
 
 
+def _alvo(corpo):
+    """Qual tabela/competicao: texto como "liga:A" ou "ext:ENG", ou nenhum."""
+    alvo = (corpo or {}).get("alvo")
+    if alvo is not None and not isinstance(alvo, str):
+        raise ErroDeUso("alvo invalido")
+    return alvo
+
+
 @rota("GET", "/api/tabela")
 def ver_tabela(corpo):
     with SESSAO.cadeado:
-        return {"tela": dto.tabela((corpo or {}).get("alvo"))}
+        return {"tela": dto.tabela(_alvo(corpo))}
 
 
 @rota("POST", "/api/tabela")
 def ver_tabela_alvo(corpo):
     with SESSAO.cadeado:
-        return {"tela": dto.tabela(corpo.get("alvo"))}
+        return {"tela": dto.tabela(_alvo(corpo))}
 
 
 @rota("GET", "/api/copas")
@@ -277,7 +285,7 @@ def ver_competicoes(_corpo):
 @rota("POST", "/api/competicoes")
 def ver_competicao(corpo):
     with SESSAO.cadeado:
-        return {"tela": competicoes.tela(corpo.get("alvo"))}
+        return {"tela": competicoes.tela(_alvo(corpo))}
 
 
 @rota("GET", "/api/financas")
@@ -341,11 +349,13 @@ def ver_noticias(_corpo):
 
 @rota("POST", "/api/ficha")
 def ver_ficha(corpo):
-    if "id" not in corpo:
+    try:
+        pid = int(corpo["id"])
+    except (KeyError, TypeError, ValueError):
         raise ErroDeUso("falta o id do jogador")
     with SESSAO.cadeado:
         try:
-            return {"ficha": dto.ficha(corpo["id"])}
+            return {"ficha": dto.ficha(pid)}
         except KeyError as e:
             raise ErroDeUso(str(e))
 
@@ -361,17 +371,35 @@ def _ids(corpo, campo="ids"):
         raise ErroDeUso("id de jogador invalido")
 
 
-def _meus(G, ids):
-    """Só o que é meu de verdade. Quem está emprestado aqui tem passe alheio,
-    e o motor recusaria a operação de qualquer jeito - melhor dizer antes."""
-    jogs = []
-    alheios = []
+def _exigir_posse(G, ids, pertence, recado):
+    """Guard de posse: ou todos os marcados sao do meu clube do jeito que a
+    acao pede, ou nada acontece. Antes a API confiava no id que chegava e dava
+    para rescindir jogador de rival descontando a multa do caixa dele."""
+    js = []
     for pid in ids:
         j = G["jogadores"].get(pid)
         if j is None:
             raise ErroDeUso("jogador %d nao existe" % pid)
-        (alheios if j.get("dono") else jogs).append(j)
+        js.append(j)
+    fora = [j["nome"] for j in js if not pertence(j)]
+    if fora:
+        raise ErroDeUso(recado % ", ".join(fora))
+    return js
+
+
+def _meus(G, ids):
+    """Só o que é meu de verdade. Quem está emprestado aqui tem passe alheio,
+    e o motor recusaria a operação de qualquer jeito - melhor dizer antes."""
+    js = _exigir_posse(G, ids, lambda j: j["clube"] == G["clube"],
+                       "%s nao e do seu elenco.")
+    jogs = [j for j in js if not j.get("dono")]
+    alheios = [j for j in js if j.get("dono")]
     return jogs, alheios
+
+
+def _da_minha_base(G, ids):
+    base = set(G["clubes"][G["clube"]].get("base_elenco", []))
+    return _exigir_posse(G, ids, lambda j: j["id"] in base, "%s nao esta na sua base.")
 
 
 @rota("POST", "/api/elenco/tirar-vitrine")
@@ -447,10 +475,8 @@ def chamar_de_volta(corpo):
         G = SESSAO.exigir()
         if not eng.mercado_aberto(G):
             raise ErroDeUso("Emprestimo so se interrompe com a janela aberta.")
-        ids = _ids(corpo)
-        js = [G["jogadores"][p] for p in ids if p in G["jogadores"]]
-        if not js:
-            raise ErroDeUso("selecione quem voce quer de volta")
+        js = _exigir_posse(G, _ids(corpo), lambda j: j.get("dono") == G["clube"],
+                           "%s nao esta emprestado pelo seu clube.")
         if not corpo.get("confirmar"):
             folha = sum(j["salario"] * (j["emp_pct"] / 100.0) for j in js)
             return {"confirmar": {
@@ -471,10 +497,7 @@ def chamar_de_volta(corpo):
 def subir_da_base(corpo):
     with SESSAO.cadeado:
         G = SESSAO.exigir()
-        ids = _ids(corpo)
-        js = [G["jogadores"][p] for p in ids if p in G["jogadores"]]
-        if not js:
-            raise ErroDeUso("selecione um ou mais garotos da base")
+        js = _da_minha_base(G, _ids(corpo))
         if not corpo.get("confirmar"):
             nomes = "\n".join("  %s, %s, %d anos, overall %d (teto %s)"
                               % (j["nome"], j["pos"], j["idade"], j["ovr"], eng.scout(G, j))
@@ -498,10 +521,7 @@ def subir_da_base(corpo):
 def liberar_da_base(corpo):
     with SESSAO.cadeado:
         G = SESSAO.exigir()
-        ids = _ids(corpo)
-        js = [G["jogadores"][p] for p in ids if p in G["jogadores"]]
-        if not js:
-            raise ErroDeUso("selecione um ou mais garotos da base")
+        js = _da_minha_base(G, _ids(corpo))
         if not corpo.get("confirmar"):
             return {"confirmar": {
                 "titulo": "Liberar da base",
@@ -628,7 +648,7 @@ def mudar_esquema(corpo):
 
         custom = None
         if "contagem" in corpo:
-            cont = corpo["contagem"] or {}
+            cont = _contagem(corpo)
             ok, motivo = eng.contagem_valida(cont)
             if not ok:
                 raise ErroDeUso(motivo)
@@ -676,10 +696,17 @@ def mudar_esquema(corpo):
         return {"recado": recado, "desfazer": True, "tela": dto.escalacao()}
 
 
+def _contagem(corpo):
+    cont = corpo.get("contagem") or {}
+    if not isinstance(cont, dict):
+        raise ErroDeUso("contagem invalida")
+    return cont
+
+
 @rota("POST", "/api/escalacao/previa")
 def previa_esquema(corpo):
     with SESSAO.cadeado:
-        return {"previa": dto.previa_esquema(corpo.get("contagem") or {})}
+        return {"previa": dto.previa_esquema(_contagem(corpo))}
 
 
 @rota("POST", "/api/escalacao/desfazer")
@@ -859,9 +886,11 @@ def alternar_foco(corpo):
     with SESSAO.cadeado:
         G = SESSAO.exigir()
         c = G["clubes"][G["clube"]]
+        ids = [j["id"] for j in _exigir_posse(G, _ids(corpo), lambda j: j["clube"] == c["id"],
+                                              "%s nao e do seu clube.")]
         recados = []
         recusa = None
-        for pid in _ids(corpo):
+        for pid in ids:
             feito, recado = eng.alternar_foco(G, c, pid)
             if not feito:
                 recusa = recado
@@ -1179,6 +1208,8 @@ def despachar(metodo, caminho, corpo):
     func = ROTAS.get((metodo, caminho))
     if func is None:
         return 404, {"erro": "rota inexistente", "caminho": caminho}
+    if corpo is not None and not isinstance(corpo, dict):
+        return 400, {"erro": "o corpo do pedido precisa ser um objeto JSON"}
     try:
         return 200, func(corpo or {})
     except SemJogo as e:

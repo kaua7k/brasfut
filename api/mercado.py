@@ -275,6 +275,9 @@ def mesa(tipo, pid, proposta=None):
                                else "compra", eng.recado_janela(G).lower()))
     folha = eng.folha_semanal(G, c)
     fin = financeiro(G, c)
+    # agente livre assina na hora, com a janela aberta ou fechada; depois de
+    # assinar ele ja e do clube e a mesa ainda precisa dizer "ja esta no elenco"
+    na_hora = eng.mercado_aberto(G) or (tipo == "compra" and j["clube"] in (None, c["id"]))
     base = {
         "verba": fin["verba"], "verba_num": fin["verba_num"], "reserva": fin["reserva"],
         "reserva_meses": fin["meses"],
@@ -282,7 +285,9 @@ def mesa(tipo, pid, proposta=None):
         "descricao": "%s, %d anos, overall %d, teto %s" % (
             eng.NOME_POS[j["pos"]], j["idade"], j["ovr"], eng.scout(G, j)),
         "clube": G["clubes"][j["clube"]]["nome"] if j["clube"] is not None else "sem clube",
-        "janela": eng.recado_janela(G), "aberto": eng.mercado_aberto(G),
+        "janela": (eng.recado_janela(G) if eng.mercado_aberto(G) or not na_hora
+                   else "Agente livre: assina na hora, com a janela aberta ou fechada."),
+        "aberto": na_hora,
         "caixa": eng.din(c["dinheiro"]), "caixa_num": int(c["dinheiro"]),
         "salario_atual": eng.din(j["salario"]), "salario_atual_num": int(j["salario"]),
         "anos": anos, "rodada": m["rodada"], "tentativas": TENTATIVAS,
@@ -432,6 +437,10 @@ def propor(tipo, pid, p):
         return False, None
 
     if tipo == "emprestimo":
+        if j["clube"] is None:
+            raise ValueError("%s esta sem clube: contrate como agente livre." % j["nome"])
+        if j["clube"] == c["id"]:
+            raise ValueError("%s ja e do seu clube." % j["nome"])
         taxa = eng.taxa_emprestimo(G, j, c)
         fatia = j["salario"] * int(eng.clamp(_inteiro(p.get("pct")), 0, 100)) // 100
         if taxa > eng.verba_contratacao(G, c, fatia):

@@ -444,6 +444,37 @@ ação em lote apontar para quem já saiu. `[hidden]` ganhou `display:none
 !important` e `.tela > *` não encolhe — era isso que cortava a lista do Elenco
 sem dar scroll.
 
+## Rodada de melhorias (Onda 1)
+
+Decisões em `docs/three-amigos/2026-09-24-rodada-de-melhorias.md`.
+
+**Regras que o jogo desobedecia.**
+- **Agente livre assina na hora**, com a janela aberta ou fechada, para quem
+  fechar primeiro — técnico ou IA (`assina_na_hora`). Antes o acerto do técnico
+  ficava agendado e a IA levava o jogador na semana seguinte. Quem tem acerto
+  agendado (`presos_em_acerto`) não é contratado por ninguém; acerto com livre
+  de save antigo se cumpre na próxima semana (`executar_agendadas`).
+- **Guard de posse na API** (`_exigir_posse` em `api/rotas.py`): rescindir,
+  tirar da vitrine, subir e liberar da base, chamar de volta e treino
+  individual só aceitam jogador do meu clube; um id alheio devolve 400 com o
+  nome e nada muda. Dava para rescindir jogador de rival descontando a multa
+  do caixa dele.
+- **Troca de clube limpa o clube antigo** (`largar_clube`, chamada por
+  `assumir_clube`): vagas fixadas, treino individual, peneira e candidatos.
+- **Prazo em semanas absolutas** (`G["semana_abs"]`, `semana_absoluta`):
+  `G["semana"]` fica em 0 o estadual inteiro, e a proposta de 6 semanas feita
+  na virada durava ~20. Proposta de emprego e candidato da peneira guardam
+  `vence`; `migrar_prazos` converte save antigo.
+- **Barra de forças** compara o duelo que a partida joga: meu ataque x defesa
+  dele e minha defesa x ataque dele, os dois com o XI da competição do jogo.
+- **Textos**: nome da liga em vez de "Serie ENG" (`liga_do_resumo`); a Série D
+  não rebaixa (`tem_rebaixamento`, e a diretoria deixou de somar risco de
+  queda na D); `scout` devolve "~75" (a tela já escreve "teto"); "nas
+  quartas"; empréstimo de livre diz o motivo; corpo que não é objeto JSON,
+  `alvo`, `contagem` e id de ficha malformados viram 400.
+
+`testes/test_regras.py` tem um teste por critério de aceite.
+
 ## Receita para migrar a próxima tela
 
 Exemplo com `tela_elenco` (brasfut_app.py:1744):
@@ -510,6 +541,8 @@ velha para apagar na mão. `--sim` não trava, porque não grava no save.
 - **`test_balanco.py`** teto sem catraca, joia com teto, base sem revisão,
   correção de save inflado, IA contratando livre bom.
 - **`test_base.py`** peneira do começo ao fim, faixa que estreita, revelações.
+- **`test_regras.py`** livre com a janela fechada, posse na API, troca de
+  clube, prazo absoluto, barra de forças e os textos corrigidos.
 - **`test_continentais.py`** grupos da Libertadores e da Sul-Americana até o
   playoff e as oitavas, e save antigo ganhando os clubes que faltam.
 

@@ -331,6 +331,12 @@ TV = {"A": (420_000, 15_000), "B": (250_000, 6_000),
 
 DIVISOES_BR = ("A", "B", "C", "D")
 
+
+def tem_rebaixamento(div: str) -> bool:
+    """Quem cai: as quatro ultimas das Series A, B e C. A D e o fundo do
+    sistema e as ligas de fora nao tem acesso nem queda."""
+    return div in ("A", "B", "C")
+
 # As ligas de fora sao divisoes como as series: clube com divisao "ENG" joga,
 # compra, vende e pode ser treinado. Cada liga tem o seu dinheiro: TV semanal
 # (base, por ponto de reputacao; calibrada para saldo semanal pouco acima de
@@ -3105,7 +3111,7 @@ def campanha_estadual(G: Mundo, est: Dict[str, Any], cid: int) -> str:
             if j["venc"] != cid:
                 if k == len(est["mata"]) - 1:
                     return "vice-campeao"
-                return "eliminado na %s" % f["nome"].lower()
+                return "eliminado " + _na_fase(f["nome"].lower())
     g = grupo_do_clube(est, cid)
     liga = subtabela(est, est["grupos"][g]) if g is not None else est
     pos = classificacao(G, liga).index(cid) + 1
@@ -3173,9 +3179,9 @@ def manchete_abertura_brasileirao(G: Mundo) -> Optional[str]:
         texto = "Depois do titulo do %s, %s estreia na %s com favoritismo." % (est["nome"], c["nome"], liga)
     elif campanha == "vice-campeao":
         texto = "Vice do %s, %s chega a %s querendo dar o troco." % (est["nome"], c["nome"], liga)
-    elif campanha.startswith("eliminado na "):
+    elif campanha.startswith("eliminado "):
         texto = "Eliminado %s do %s, %s busca a volta por cima na %s." % (
-            _na_fase(campanha[len("eliminado na "):]), est["nome"], c["nome"], liga)
+            campanha[len("eliminado "):], est["nome"], c["nome"], liga)
     elif campanha.endswith("fora do mata-mata"):
         fase = est.get("nome1") or "Primeira fase"
         # "Taca Guanabara" e nome proprio; "Primeira fase" e "Fase de grupos" nao
@@ -3222,8 +3228,9 @@ def encerrar_estaduais(G: Mundo) -> List[str]:
         cl["esc_stamp"] = ""
     c = G["clubes"][G["clube"]]
     c["escalacao"] = auto_escalar(G, c)
-    recados.append("Brasileirao Serie %s comecando. Objetivo: %s."
-                   % (c["divisao"], G["objetivo"]))
+    recados.append("%s comecando. Objetivo: %s."
+                   % (("Brasileirao " if brasileiro(c) else "") + nome_da_liga(G, c["divisao"]),
+                      G["objetivo"]))
     salvar_auto(G)
     return recados
 
@@ -3643,8 +3650,18 @@ def jogar_fase_copa(G, chave):
     return res
 
 
+def semana_absoluta(G: Mundo) -> int:
+    """Semanas jogadas desde o comeco do save, estadual incluido.
+
+    G["semana"] fica em 0 durante todo o estadual e volta a 1 no Brasileirao:
+    prazo contado nela durava o estadual inteiro de graca (a proposta de 6
+    semanas feita na virada valia ~20). Prazo se conta aqui."""
+    return int(G.get("semana_abs", 0))
+
+
 def avancar_semana(G):
     G["log_semana"] = []
+    G["semana_abs"] = semana_absoluta(G) + 1
     if G.get("fase") == "estadual":
         return _semana_estadual(G)
     sem = G["semana"]
@@ -3808,6 +3825,7 @@ def mercado_ia(G):
     clubes = [c for c in G["clubes"].values()
               if c["divisao"] != "EX" and c["id"] != G["clube"]]
     rng.shuffle(clubes)
+    presos = presos_em_acerto(G)
     for c in clubes[:14]:
         if rng.random() > 0.35:
             continue
@@ -3831,7 +3849,7 @@ def mercado_ia(G):
         caixa = min(c["dinheiro"] * 0.55, verba_contratacao(G, c))
         alvos = [j for j in G["jogadores"].values()
                  if j["listado"] and j["clube"] not in (None, c["id"], G["clube"])
-                 and j["listado"] <= caixa and j["ovr"] > media_elenco(G, c) - 2
+                 and j["id"] not in presos and j["listado"] <= caixa and j["ovr"] > media_elenco(G, c) - 2
                  and j["listado"] <= verba_contratacao(G, c, j["salario"])]
         if alvos and len(c["elenco"]) < 28 and rng.random() < 0.85:
             alvo = rng.choice(alvos)
@@ -3839,8 +3857,9 @@ def mercado_ia(G):
             if conta_posicao(G, vendedor, alvo["pos"]) > ELENCO_PADRAO[alvo["pos"]] - 1:
                 transferir(G, alvo["id"], c["id"], alvo["listado"])
         # contrata livre
-        if len(c["elenco"]) < 24 and G["livres"] and rng.random() < 0.4:
-            pid = rng.choice(G["livres"])
+        soltos = [p for p in G["livres"] if p not in presos]
+        if len(c["elenco"]) < 24 and soltos and rng.random() < 0.4:
+            pid = rng.choice(soltos)
             transferir(G, pid, c["id"], 0)
             G["jogadores"][pid]["contrato"] = rng.randint(1, 3)
 
@@ -4159,10 +4178,12 @@ def fechar_compra(G: Mundo, prop: Proposta) -> str:
 
     Com a janela fechada o acordo vale, mas fica agendado: o jogador troca de
     clube na abertura. Negociar pode sempre; entrar e sair, so na janela.
+    Agente livre e a excecao: ja saiu do clube, entao assina na hora com quem
+    fechar primeiro, janela aberta ou fechada (vale para a IA tambem).
     """
-    if not mercado_aberto(G):
-        return agendar(G, prop, "Contratacao acertada")
     j = G["jogadores"][prop.jogador]
+    if not assina_na_hora(G, j):
+        return agendar(G, prop, "Contratacao acertada")
     comprador = G["clubes"][prop.comprador]
     nome_antigo = G["clubes"][j["clube"]]["nome"] if j["clube"] else "sem clube"
     transferir(G, prop.jogador, prop.comprador, prop.valor)
@@ -4486,6 +4507,18 @@ def proxima_janela(G: Mundo) -> int:
     return max(1, SEMANAS_LIGA + 1 - G["semana"])
 
 
+def assina_na_hora(G: Mundo, j: Jogador) -> bool:
+    """A contratacao se cumpre agora? Com a janela aberta, sempre; fechada, so
+    agente livre - ele nao tem clube de onde sair."""
+    return mercado_aberto(G) or j["clube"] is None
+
+
+def presos_em_acerto(G: Mundo) -> set:
+    """Quem ja tem acerto fechado com algum clube. Ninguem mais assina com eles,
+    nem a IA pegando agente livre."""
+    return {a["jogador"] for a in agendadas(G)}
+
+
 def recado_janela(G: Mundo) -> str:
     faltam = proxima_janela(G)
     if not faltam:
@@ -4551,12 +4584,21 @@ def _validar_agendada(G: Mundo, a: Dict[str, Any]) -> Optional[str]:
 
 
 def executar_agendadas(G: Mundo) -> List[str]:
-    """Cumpre, na abertura da janela, tudo o que foi acertado antes."""
-    if not mercado_aberto(G) or not agendadas(G):
+    """Cumpre, na abertura da janela, tudo o que foi acertado antes. Com a
+    janela fechada so cumpre acerto com agente livre (save de antes da regra
+    que faz livre assinar na hora)."""
+    if not agendadas(G):
+        return []
+    aberto = mercado_aberto(G)
+    pendentes, fica = [], []
+    for a in agendadas(G):
+        livre = a.get("de") is None and a["tipo"] != TIPO_EMPRESTIMO
+        (pendentes if aberto or livre else fica).append(a)
+    if not pendentes:
         return []
     recados = []
-    pendentes = agendadas(G)
-    G["agendadas"] = []
+    G["agendadas"] = fica
+    prefixo = "Janela aberta: " if aberto else ""
     for a in pendentes:
         queda = _validar_agendada(G, a)
         j = G["jogadores"].get(a["jogador"])
@@ -4570,11 +4612,11 @@ def executar_agendadas(G: Mundo) -> List[str]:
             prop = Proposta(jogador=a["jogador"], comprador=a["para"],
                             pct_salario=a["pct_salario"], opcao_compra=a["opcao_compra"],
                             tipo=TIPO_EMPRESTIMO)
-            recados.append("Janela aberta: " + fechar_emprestimo(G, prop))
+            recados.append(prefixo + fechar_emprestimo(G, prop))
         else:
             prop = Proposta(jogador=a["jogador"], comprador=a["para"], valor=a["valor"],
                             salario=a["salario"] or j["salario"], anos=a["anos"] or 3)
-            recados.append("Janela aberta: " + fechar_compra(G, prop))
+            recados.append(prefixo + fechar_compra(G, prop))
     return recados
 
 
@@ -5043,7 +5085,8 @@ def scout(G: Mundo, j: Jogador, clube_id: Optional[int] = None) -> str:
     lo = int(clamp(visto - margem * 0.6, j["ovr"], POT_MAX))
     hi = int(clamp(visto + margem * 0.6, lo + 1, POT_MAX))
     if hi - lo <= 3:
-        return "teto ~%d" % int((lo + hi) / 2)
+        # so o numero: quem mostra ja escreve "teto" antes (dava "teto teto ~75")
+        return "~%d" % int((lo + hi) / 2)
     return "%d-%d" % (lo, hi)
 
 
@@ -5372,8 +5415,8 @@ def desligar_peneira(G: Mundo, c: Clube) -> Tuple[bool, str]:
 
 def candidatos_base(G: Mundo, c: Clube) -> List[Dict[str, Any]]:
     """Os candidatos ainda de pe (os vencidos saem aqui)."""
-    vivos = [k for k in c.get("base_candidatos", [])
-             if k["temporada"] == G["temporada"] and k["expira"] >= G["semana"]]
+    agora = semana_absoluta(G)
+    vivos = [k for k in c.get("base_candidatos", []) if k.get("vence", 0) > agora]
     c["base_candidatos"] = vivos
     return vivos
 
@@ -5394,7 +5437,7 @@ def _novo_candidato(G: Mundo, c: Clube, regiao: str, foco: Optional[str]) -> Dic
     return {"cid": G["seq_cand"], "nome": gerar_nome({j["nome"] for j in G["jogadores"].values()}), "pos": pos, "idade": idade,
             "ovr": ovr, "pot": sortear_potencial(ovr, idade, qualidade),
             "regiao": r["nome"], "temporada": int(G["temporada"]),
-            "expira": int(G["semana"]) + CANDIDATO_VALE}
+            "vence": semana_absoluta(G) + CANDIDATO_VALE}
 
 
 def rodar_peneira(G: Mundo) -> List[Dict[str, Any]]:
@@ -5746,7 +5789,9 @@ def contratar_livres_ia(G):
     e que pagam o salario. Antes a IA pegava livre ao acaso, so com elenco
     abaixo de 24, e a limpeza de fim de ano guardava justamente os melhores:
     a fila de craques sem clube so crescia."""
-    livres = sorted((G["jogadores"][p] for p in G["livres"] if p in G["jogadores"]),
+    presos = presos_em_acerto(G)
+    livres = sorted((G["jogadores"][p] for p in G["livres"]
+                     if p in G["jogadores"] and p not in presos),
                     key=lambda j: -j["ovr"])
     clubes = [c for c in G["clubes"].values()
               if c["divisao"] != "EX" and c["id"] != G.get("clube") and len(c["elenco"]) < 30]
@@ -5780,7 +5825,9 @@ def contratar_livres_ia(G):
 
 def contratar_livre_ia(G, c, pos, nivel_alvo):
     """Clube da IA busca um agente livre da posicao; devolve True se contratou."""
-    cands = [G["jogadores"][p] for p in G["livres"] if G["jogadores"][p]["pos"] == pos]
+    presos = presos_em_acerto(G)
+    cands = [G["jogadores"][p] for p in G["livres"]
+             if G["jogadores"][p]["pos"] == pos and p not in presos]
     if not cands:
         return False
     cands.sort(key=lambda j: -j["ovr"])
@@ -5937,7 +5984,7 @@ def avaliar_diretoria(G, posicao_final):
         return True, "A diretoria cobrou resultados, mas o seu cargo e intocavel (modo sem demissao)."
     margem = posicao_final - alvo
     risco = (0.25 + margem * 0.14) * dificuldade(G)["diretoria"]
-    if G["clubes"][G["clube"]]["divisao"] in DIVISOES_BR and posicao_final > 16:
+    if tem_rebaixamento(G["clubes"][G["clube"]]["divisao"]) and posicao_final > 16:
         risco += 0.30 * dificuldade(G)["diretoria"]
     if rng.random() < risco:
         return False, "A diretoria decidiu encerrar seu ciclo no %s." % G["clubes"][G["clube"]]["nome"]
@@ -6112,6 +6159,7 @@ def assumir_clube(G: Mundo, cid: int, saida: str) -> None:
     proposta aceita - e o unico lugar que muda G["clube"] depois do inicio."""
     antigo = G["clubes"][G["clube"]]
     _fechar_passagem(G, saida)
+    largar_clube(antigo)
     G["clube"] = cid
     herdar_preferencias(G, antigo)
     definir_objetivo(G)
@@ -6119,6 +6167,18 @@ def assumir_clube(G: Mundo, cid: int, saida: str) -> None:
     carreira(G).append(_passagem(G, cid))
     noticia(G, "%s deixa o %s (%s) e assume o %s." %
             (G.get("tecnico") or "O tecnico", antigo["nome"], saida, G["clubes"][cid]["nome"]))
+
+
+def largar_clube(c: Clube) -> None:
+    """O que era decisao do tecnico sai junto com ele. Sem isto a maquina
+    herdava as vagas fixadas na Escalacao (atribuir_vagas le de qualquer
+    clube), o CT seguia cobrando o treino individual e a peneira paga seguia
+    ligada num clube que nao e mais dele."""
+    c.pop("vagas_manuais", None)
+    c["treino_foco"] = []
+    c["peneira"] = None
+    c["base_candidatos"] = []
+    c["esc_stamp"] = ""
 
 
 def encerrar_passagem(G: Mundo, saida: str) -> None:
@@ -6139,8 +6199,9 @@ def clubes_interessados(G: Mundo, n: int, teto: int) -> List[Clube]:
 
 def propostas_emprego(G: Mundo) -> List[Dict[str, Any]]:
     """As propostas ainda de pe (as vencidas saem aqui)."""
+    agora = semana_absoluta(G)
     vivas = [o for o in G.get("propostas_emprego", [])
-             if o["temporada"] == G["temporada"] and o["expira"] >= G["semana"]
+             if o.get("vence", 0) > agora
              and o["id"] in G["clubes"] and o["id"] != G.get("clube")]
     G["propostas_emprego"] = vivas
     return vivas
@@ -6185,10 +6246,10 @@ def sondar_treinador(G: Mundo, ano_bom: Optional[bool] = None) -> Optional[Dict[
     cl = cands[0] if rng.random() < 0.5 else rng.choice(cands)
     oferta = {"id": cl["id"], "clube": cl["nome"], "divisao": cl["divisao"],
               "reputacao": cl["reputacao"], "temporada": int(G["temporada"]),
-              "expira": int(G["semana"]) + PROPOSTA_VALIDADE}
+              "vence": semana_absoluta(G) + PROPOSTA_VALIDADE}
     G.setdefault("propostas_emprego", []).append(oferta)
-    noticia(G, "O %s quer contratar %s. A proposta vale ate a semana %d." %
-            (cl["nome"], G.get("tecnico") or "voce", oferta["expira"]))
+    noticia(G, "O %s quer contratar %s. A proposta vale por %d semanas." %
+            (cl["nome"], G.get("tecnico") or "voce", PROPOSTA_VALIDADE))
     return oferta
 
 
@@ -7637,7 +7698,7 @@ def apurar_temporada(G: Mundo) -> Dict[str, Any]:
     comprado = sum(v[2] for v in st.get("compras", []))
     return {
         "temporada": int(G["temporada"]), "clube": c["nome"], "divisao": div,
-        "posicao": pos, "total": len(ordem), "objetivo": G.get("objetivo", ""),
+        "liga": nome_da_liga(G, div), "posicao": pos, "total": len(ordem), "objetivo": G.get("objetivo", ""),
         "alvo": alvo, "objetivo_ok": bool(pos and pos <= alvo),
         "campeao": G["clubes"][ordem[0]]["nome"] if ordem else "",
         "copas": copas, "titulos": titulos_meus,
@@ -7769,18 +7830,27 @@ def encerrar_temporada(G: Mundo, resumo: Dict[str, Any]) -> Tuple[bool, Dict[str
     return bool(ok), resumo
 
 
+def liga_do_resumo(r: Dict[str, Any]) -> str:
+    """Nome da liga do resumo. Resumo gravado antes do campo "liga" so tem a
+    divisao, e "Serie ENG" nao existe."""
+    if r.get("liga"):
+        return r["liga"]
+    div = r.get("divisao", "")
+    return "Serie %s" % div if div in DIVISOES_BR else div
+
+
 def texto_resumo(G: Mundo, r: Dict[str, Any]) -> List[str]:
     """O resumo em linhas de texto. Serve ao terminal e ao log da janela."""
     cam = r["campanha"]
     fin = r["financas"]
     saldo = fin["caixa_fim"] - fin["caixa_ini"]
     linhas = [
-        "TEMPORADA %d - %s, Serie %s" % (r["temporada"], r["clube"], r["divisao"]),
+        "TEMPORADA %d - %s, %s" % (r["temporada"], r["clube"], liga_do_resumo(r)),
         "Posicao final: %do de %d   (meta era top %d: %s)"
         % (r["posicao"], r["total"], r["alvo"], "cumprida" if r["objetivo_ok"] else "nao cumprida"),
         "Campanha: %d jogos, %dV %dE %dD, %d gols pro e %d contra, %d pontos"
         % (cam["j"], cam["v"], cam["e"], cam["d"], cam["gp"], cam["gc"], cam["p"]),
-        "Campeao da Serie %s: %s" % (r["divisao"], r["campeao"]),
+        "Campeao da %s: %s" % (liga_do_resumo(r), r["campeao"]),
     ]
     for nome, dono in r["copas"]:
         linhas.append("%s: %s" % (nome, dono))
@@ -7933,6 +8003,31 @@ def corrigir_inflacao(G):
     return mexidos
 
 
+def migrar_prazos(G):
+    """Save de antes do contador absoluto: o contador nasce de temporada e
+    semana (so precisa crescer daqui para a frente), e proposta e candidato
+    ganham o prazo absoluto com o que ainda lhes restava na conta antiga."""
+    if "semana_abs" not in G:
+        G["semana_abs"] = (max(0, int(G.get("temporada", 2026)) - 2026) * 60
+                           + int(G.get("semana_est", 0)) + int(G.get("semana", 0)))
+    agora = semana_absoluta(G)
+
+    def converter(item, teto):
+        if "vence" in item:
+            return
+        resta = 0
+        if item.get("temporada") == G.get("temporada"):
+            resta = int(item.get("expira", 0)) - int(G.get("semana", 0)) + 1
+        item["vence"] = agora + int(clamp(resta, 0, teto))
+        item.pop("expira", None)
+
+    for o in G.get("propostas_emprego") or []:
+        converter(o, PROPOSTA_VALIDADE)
+    for c in G.get("clubes", {}).values():
+        for k in c.get("base_candidatos") or []:
+            converter(k, CANDIDATO_VALE)
+
+
 def migrar(G):
     ja = {c["nome"] for c in G["clubes"].values() if c["divisao"] == "EX"}
     faltam = [d for d in CLUBES_LIB + CLUBES_SUL if d[0] not in ja]
@@ -8010,6 +8105,7 @@ def migrar(G):
     G.setdefault("ultimos_meus", [])
     G.setdefault("agendadas", [])
     G.setdefault("semana_est", 0)
+    migrar_prazos(G)
     if not isinstance(G.get("emp_ofertas"), dict):
         G["emp_ofertas"] = {"stamp": "", "itens": []}
     if not isinstance(G.get("estaduais"), dict):

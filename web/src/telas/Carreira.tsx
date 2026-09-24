@@ -105,7 +105,7 @@ function Passagem({ p }: { p: PassagemCarreira }) {
       <div className="passagem-cab">
         <strong>{p.clube}</strong>
         <span className="tag-fraco">
-          Serie {p.divisao} · {p.periodo}
+          {p.liga} · {p.periodo}
           {p.saida && ` · saiu: ${p.saida}`}
         </span>
       </div>
@@ -143,7 +143,8 @@ function LinhaProposta({
       <span>
         <strong>{proposta.clube}</strong>{' '}
         <span className="tag-fraco">
-          Serie {proposta.divisao}, REP {proposta.reputacao} · vale ate a semana {proposta.expira}
+          {proposta.liga}, REP {proposta.reputacao} ·{' '}
+          {proposta.semanas > 1 ? `vale por mais ${proposta.semanas} semanas` : 'vence ao avancar esta semana'}
         </span>
       </span>
       <span className="modal-acoes">

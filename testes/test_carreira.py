@@ -101,7 +101,7 @@ class TestMobilidade(unittest.TestCase):
         self.G["propostas_emprego"] = [{
             "id": cand["id"], "clube": cand["nome"], "divisao": "A",
             "reputacao": cand["reputacao"], "temporada": self.G["temporada"],
-            "expira": self.G["semana"] + 2}]
+            "vence": eng.semana_absoluta(self.G) + 2}]
         painel = apoio.chamar("GET", "/api/painel")["painel"]
         self.assertEqual([o["id"] for o in painel["propostas_emprego"]], [cand["id"]])
         apoio.chamar("POST", "/api/carreira/proposta", {"id": cand["id"], "aceitar": True})
@@ -125,7 +125,8 @@ class TestMobilidade(unittest.TestCase):
         self.assertTrue(eng.propostas_emprego(G), "a virada boa nao gerou proposta")
         self.assertIn("quer contratar voce", avanco.motivo_de_parar(G, antes, None, False, None))
         self.assertEqual(avanco.motivo_de_parar(G, antes, {"emprego": False}, False, None), "")
-        self.assertEqual(eng.propostas_emprego(G)[0]["expira"] - G["semana"], eng.PROPOSTA_VALIDADE)
+        self.assertEqual(eng.propostas_emprego(G)[0]["vence"] - eng.semana_absoluta(G),
+                         eng.PROPOSTA_VALIDADE)
 
     def test_semanas_contam_jogos_e_enchem_o_feed(self):
         for _ in range(12):

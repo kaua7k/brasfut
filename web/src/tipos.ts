@@ -47,7 +47,9 @@ export interface Proximo {
   em_casa: boolean | null
   forte?: boolean
   extras: number
+  /** meu ataque x defesa do adversario (dele = defesa dele) */
   ataque: Forca
+  /** minha defesa x ataque do adversario (dele = ataque dele) */
   defesa: Forca
 }
 
@@ -160,8 +162,8 @@ export interface PropostaEmprego {
   id: number
   clube: string
   divisao: string
+  liga: string
   reputacao: number
-  expira: number
   semanas: number
 }
 
@@ -175,6 +177,7 @@ export interface Manchete {
 export interface PassagemCarreira {
   clube: string
   divisao: string
+  liga: string
   periodo: string
   atual: boolean
   saida: string | null

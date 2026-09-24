@@ -106,8 +106,8 @@ export function chaveDeOrdem(no: ReactNode): number | string | null {
     const mult = { mi: 1e6, mil: 1e3, bi: 1e9 }[(dinheiro[4] ?? '').toLowerCase()] ?? 1
     if (!Number.isNaN(n)) return sinal * n * mult
   }
-  // numero no comeco da celula ("65%", "3 ano(s)", "+4", "70-80"): vale ele
-  const numero = /^([+-]?\d+(?:[.,]\d+)?)\s*(mil|mi)?\b/i.exec(txt)
+  // numero no comeco da celula ("65%", "3 ano(s)", "+4", "70-80", "~75"): vale ele
+  const numero = /^~?([+-]?\d+(?:[.,]\d+)?)\s*(mil|mi)?\b/i.exec(txt)
   if (numero) {
     const n = Number.parseFloat(numero[1].replace(',', '.'))
     const mult = { mi: 1e6, mil: 1e3 }[(numero[2] ?? '').toLowerCase()] ?? 1

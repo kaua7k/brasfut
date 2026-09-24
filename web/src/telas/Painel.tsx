@@ -141,14 +141,14 @@ function FaixaProposta({
       <div className="faixa-icone">{iconeDeEstado('atencao')}</div>
       <div style={{ minWidth: 0 }}>
         <div className="faixa-titulo">
-          O {proposta.clube} (Serie {proposta.divisao}, REP {proposta.reputacao}) quer voce como tecnico
+          O {proposta.clube} ({proposta.liga}, REP {proposta.reputacao}) quer voce como tecnico
         </div>
         <div className="faixa-detalhe">
           {certeza
             ? 'Aceitar deixa o clube atual agora, no meio da temporada. Confirma?'
-            : proposta.semanas > 0
-              ? `A proposta vale ate a semana ${proposta.expira} (${proposta.semanas} semana(s)).`
-              : 'A proposta vence nesta semana: responda antes de avancar.'}
+            : proposta.semanas > 1
+              ? `A proposta vale por mais ${proposta.semanas} semanas.`
+              : 'A proposta vence ao avancar esta semana: responda antes.'}
         </div>
       </div>
       <div className="espaco" />
@@ -270,8 +270,17 @@ function CardProximo({ proximo, meuClube }: { proximo: Proximo; meuClube: string
       )}
 
       <div className="forcas">
-        <Forca nome="Ataque" meu={proximo.ataque.meu} dele={proximo.ataque.dele} />
-        <Forca nome="Defesa" meu={proximo.defesa.meu} dele={proximo.defesa.dele} />
+        {/* a partida cruza ataque com defesa: e esse duelo que a barra mostra */}
+        <Forca
+          nome={proximo.ataque.dele === null ? 'Ataque' : 'Seu ataque x defesa dele'}
+          meu={proximo.ataque.meu}
+          dele={proximo.ataque.dele}
+        />
+        <Forca
+          nome={proximo.defesa.dele === null ? 'Defesa' : 'Sua defesa x ataque dele'}
+          meu={proximo.defesa.meu}
+          dele={proximo.defesa.dele}
+        />
       </div>
     </section>
   )
