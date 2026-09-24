@@ -49,7 +49,25 @@ LIGAS = [
     ("GER", "BL1", "Bundesliga", "GER", 95, 76),
     ("ITA", "SA", "Serie A Italiana", "ITA", 94, 75),
     ("FRA", "FL1", "Ligue 1", "FRA", 93, 72),
+    ("POR", "PPL", "Liga Portugal", "POR", 88, 66),
+    ("NED", "DED", "Eredivisie", "NED", 87, 64),
 ]
+
+# Clube da Champions fora das ligas acima: reputacao pelo pais
+REP_OUTRO_EUROPEU = 76
+REP_EUROPEU_PAIS = {"TUR": 80, "BEL": 78, "UKR": 77, "GRE": 77, "SCO": 77, "CZE": 76,
+                    "NOR": 75, "AUT": 75, "DEN": 75, "SUI": 75, "CRO": 75, "SRB": 74,
+                    "SVK": 72, "CYP": 71, "AZE": 70, "KAZ": 69}
+PAIS_API = {"Austria": "AUT", "Azerbaijan": "AZE", "Belgium": "BEL", "Czech Republic": "CZE",
+            "Greece": "GRE", "Norway": "NOR", "Slovakia": "SVK", "Turkey": "TUR",
+            "Ukraine": "UKR", "Scotland": "SCO", "Denmark": "DEN", "Switzerland": "SUI",
+            "Croatia": "CRO", "Serbia": "SRB", "Cyprus": "CYP", "Kazakhstan": "KAZ",
+            "Argentina": "ARG", "Uruguay": "URU", "Colombia": "COL", "Chile": "CHI",
+            "Paraguay": "PAR", "Ecuador": "EQU", "Peru": "PER", "Bolivia": "BOL",
+            "Venezuela": "VEN"}
+# sul-americano da Libertadores que o jogo nao tinha: reputacao pelo pais
+REP_SUL_PAIS = {"ARG": 68, "URU": 62, "COL": 64, "CHI": 61, "PAR": 61, "EQU": 62,
+                "PER": 59, "BOL": 58, "VEN": 56}
 
 # Brasil: so estes clubes sao sincronizados; o resto do embutido nao muda
 BRASIL_SINCRONIZAR = ["Santos"]
@@ -205,7 +223,9 @@ def main():
     baixar = "--baixar" in sys.argv
     manuais = json.load(open(NOTAS, encoding="utf-8")) if os.path.exists(NOTAS) else {}
     manuais = {k: v for k, v in manuais.items() if not k.startswith("_")}
-    mundo = {"gerado": HOJE.isoformat(), "ligas": [], "sul": {}, "brasil": {}}
+    mundo = {"gerado": HOJE.isoformat(), "ligas": [], "sul": {}, "brasil": {},
+             "outros_europeus": [], "sul_novos": [], "champions": []}
+    ids_ligas = {}
 
     for cod, api, nome_liga, pais, topo, fundo in LIGAS:
         times = pedir("/competitions/%s/teams" % api, baixar)["teams"]
@@ -219,6 +239,7 @@ def main():
             if t["id"] not in ordem:
                 rep = fundo - 1
             elenco = converter_elenco(t.get("squad") or [], rep, manuais)
+            ids_ligas[t["id"]] = nome_clube(t)
             clubes.append({"nome": nome_clube(t), "pais": pais,
                            "estadio": sem_acento(t.get("venue") or "Estadio %s" % nome_clube(t)),
                            "capacidade": capacidade(rep), "reputacao": rep, "elenco": elenco})
@@ -243,11 +264,36 @@ def main():
             perto = difflib.get_close_matches(candidatos[-1] or candidatos[0], list(ex), n=1, cutoff=0.8)
             achado = ex[perto[0]] if perto else None
         if not achado:
-            if not any(c in brasileiros for c in candidatos):
-                print("  sem par no jogo: %s" % t["name"])
+            if any(c in brasileiros for c in candidatos) or t["area"]["name"] == "Brazil":
+                continue
+            # clube da Libertadores de verdade que o jogo nao tinha: entra novo
+            pais = PAIS_API.get(t["area"]["name"], "SUL")
+            rep_sul = REP_SUL_PAIS.get(pais, 58)
+            mundo["sul_novos"].append({
+                "nome": sem_acento(t.get("shortName") or t["name"]), "pais": pais,
+                "estadio": sem_acento(t.get("venue") or "Estadio"), "capacidade": capacidade(rep_sul),
+                "reputacao": rep_sul, "elenco": converter_elenco(t.get("squad") or [], rep_sul, manuais)})
             continue
         mundo["sul"][achado[0]] = converter_elenco(t.get("squad") or [], achado[4], manuais)
-    print("America do Sul: %d clubes do jogo com elenco real" % len(mundo["sul"]))
+    print("America do Sul: %d clubes do jogo com elenco real, %d clubes novos"
+          % (len(mundo["sul"]), len(mundo["sul_novos"])))
+
+    # Champions: os 36 do ano; quem nao esta nas ligas acima entra como europeu sem liga
+    for t in pedir("/competitions/CL/teams", baixar)["teams"]:
+        if t["id"] in ids_ligas:
+            mundo["champions"].append(ids_ligas[t["id"]])
+            continue
+        completo = pedir("/teams/%d" % t["id"], baixar)
+        nome = sem_acento(completo.get("shortName") or completo["name"])
+        pais = PAIS_API.get(t["area"]["name"], "EUR")
+        rep_eu = REP_EUROPEU_PAIS.get(pais, REP_OUTRO_EUROPEU)
+        mundo["outros_europeus"].append({
+            "nome": nome, "pais": pais,
+            "estadio": sem_acento(completo.get("venue") or "Estadio %s" % nome),
+            "capacidade": capacidade(rep_eu), "reputacao": rep_eu,
+            "elenco": converter_elenco(completo.get("squad") or [], rep_eu, manuais)})
+        mundo["champions"].append(nome)
+    print("Champions: %d clubes (%d fora das ligas)" % (len(mundo["champions"]), len(mundo["outros_europeus"])))
 
     # Brasil: so os clubes pedidos, mantendo a nota de quem ja estava
     embutido = json.loads(zlib.decompress(base64.b64decode(eng.ELENCOS_EMBUTIDOS)).decode("utf-8"))

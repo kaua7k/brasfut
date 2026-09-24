@@ -248,7 +248,9 @@ function Situacao({ s, campeao }: { s: NonNullable<DetalheCopa['situacao']>; cam
 }
 
 function Copa({ d }: { d: DetalheCopa }) {
-  const grupos = d.grupos && <Grupos grupos={d.grupos} />
+  const grupos = d.grupos && (
+    <Grupos grupos={d.grupos} titulo={d.titulo_grupos ?? 'Fase de grupos'} nota={d.nota_grupos ?? null} />
+  )
   return (
     <>
       {d.situacao && <Situacao s={d.situacao} campeao={d.campeao} />}
@@ -264,7 +266,7 @@ function Copa({ d }: { d: DetalheCopa }) {
   )
 }
 
-function Grupos({ grupos }: { grupos: GrupoCopa[] }) {
+function Grupos({ grupos, titulo, nota }: { grupos: GrupoCopa[]; titulo: string; nota: string | null }) {
   // o meu grupo aberto com os jogos; os outros so a tabela, e da para ver todos
   const [todos, setTodos] = useState(false)
   const meu = grupos.find((g) => g.meu)
@@ -272,7 +274,7 @@ function Grupos({ grupos }: { grupos: GrupoCopa[] }) {
   return (
     <section className="painel copa-grupos">
       <div className="painel-cab" style={{ padding: '12px 16px 6px' }}>
-        <span className="painel-titulo">Fase de grupos</span>
+        <span className="painel-titulo">{titulo}</span>
         {meu && (
           <button type="button" className="bt-fantasma bt-mini" aria-expanded={todos} onClick={() => setTodos(!todos)}>
             {todos ? 'So o meu grupo' : `Ver os ${grupos.length} grupos`}
@@ -282,7 +284,9 @@ function Grupos({ grupos }: { grupos: GrupoCopa[] }) {
       <div className="grade-grupos">
         {visiveis.map((g) => (
           <div key={g.nome} className="grupo-copa">
-            <div className="painel-titulo" style={{ padding: '4px 16px' }}>{g.nome}</div>
+            {grupos.length > 1 && (
+              <div className="painel-titulo" style={{ padding: '4px 16px' }}>{g.nome}</div>
+            )}
             <Grade
               colunas={COLUNAS}
               itens={g.linhas}
@@ -306,10 +310,11 @@ function Grupos({ grupos }: { grupos: GrupoCopa[] }) {
           </div>
         ))}
       </div>
-      <div className="tag-fraco" style={{ padding: '6px 16px 12px' }}>
-        Verde: segue para o mata-mata. Amarelo: Libertadores, cai para o playoff da Sul-Americana;
-        Sul-Americana, joga o playoff.
-      </div>
+      {nota && (
+        <div className="tag-fraco" style={{ padding: '6px 16px 12px' }}>
+          {nota}
+        </div>
+      )}
     </section>
   )
 }

@@ -993,6 +993,8 @@ export interface DetalheCopa {
   /** Libertadores e Sul-Americana: a fase de grupos, o meu grupo primeiro */
   grupos?: GrupoCopa[] | null
   em_grupos?: boolean
+  titulo_grupos?: string
+  nota_grupos?: string | null
 }
 
 export interface GrupoCopa {

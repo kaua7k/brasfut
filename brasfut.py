@@ -338,6 +338,11 @@ COMPETICOES = ("liga", "copa", "lib", "sul", "estadual", "ext")
 # elencos (que variam so ~4% entre si na mesma serie) ficavam indistinguiveis e
 # o campeonato virava sorteio; 2.20 separa o suficiente sem inflar goleada.
 EXP_FORCA = 2.20
+# Na Europa a distancia entre grande e pequeno e maior que aqui: com 2.20 o
+# City fazia 65 pontos e o LASK ganhava a Champions. So vale para ligas e copas
+# europeias; o equilibrio brasileiro fica como estava.
+EXP_FORCA_EUROPA = 3.4
+COMPS_EUROPA = ("ext", "ucl", "uel")
 SEMANAS_LIGA = 38
 SEMANAS_COPA = [4, 9, 14, 19, 25, 31]        # Copa do Brasil: 6 fases (64 times)
 # Libertadores e Sul-Americana: fase de grupos (8 grupos de 4, ida e volta) e
@@ -349,6 +354,14 @@ SEMANAS_SULA = [21, 23, 28, 33, 35]          # Sul-Americana: playoff, oitavas .
 FASES_LIB = ["Oitavas de final", "Quartas de final", "Semifinal", "FINAL"]
 FASES_SULA = ["Playoffs das oitavas"] + FASES_LIB
 FASE_GRUPOS = "Fase de grupos"
+# Champions e Europa League: fase de liga de 36 (8 jogos cada), 1o a 8o direto
+# nas oitavas, 9o a 24o no playoff; oitavas, quartas e semi em ida e volta
+SEMANAS_FASE_LIGA = [5, 7, 10, 12, 15, 17, 20, 23]
+SEMANAS_EURO = [26, 29, 32, 35, 37]
+FASE_LIGA = "Fase de liga"
+# ordem de forca das ligas: desempata vaga e completa as copas
+ORDEM_LIGAS_EXT = ["ENG", "ESP", "GER", "ITA", "FRA", "POR", "NED"]
+VAGAS_CHAMPIONS = {"ENG": 4, "ESP": 4, "GER": 4, "ITA": 4, "FRA": 3, "POR": 2, "NED": 2}
 # o que cada vitoria na fase de grupos paga a um clube brasileiro
 PREMIO_VITORIA_GRUPO = {"lib": 1_800_000, "sul": 900_000}
 JANELAS = list(range(1, 5)) + list(range(19, 23))   # semanas com mercado aberto
@@ -967,13 +980,37 @@ def aplicar_mundo(G, usados, sul=False):
             trocar_elenco(G, c, d["elenco"], usados)
             ids.append(c["id"])
         ligas[liga["codigo"]] = nova_liga_ext(liga["codigo"], liga["nome"], ids)
+    ja = {c["nome"] for c in G["clubes"].values() if c["divisao"] == "EX"}
+    for bloco, europeu in (("outros_europeus", True), ("sul_novos", False)):
+        for d in m.get(bloco) or []:
+            if d["nome"] in ja:
+                continue
+            c = novo_clube(G, (d["nome"], d["pais"], d["estadio"], d["capacidade"], d["reputacao"]),
+                           "EX", usados)
+            c["europeu"] = europeu
+            if d["elenco"]:
+                trocar_elenco(G, c, d["elenco"], usados)
+    for c in G["clubes"].values():
+        if c.get("liga_ext"):
+            c["europeu"] = True
     if not sul:
         return
-    por_nome = {c["nome"]: c for c in G["clubes"].values() if not c.get("liga_ext")}
+    por_nome = {c["nome"]: c for c in G["clubes"].values() if not c.get("europeu")}
     for bloco in ("sul", "brasil"):
         for nome, lista in (m.get(bloco) or {}).items():
             if nome in por_nome and lista:
                 trocar_elenco(G, por_nome[nome], lista, usados)
+
+
+def falta_mundo(G):
+    """O save ainda nao tem tudo o que o dados_mundo.py traz?"""
+    m = mundo_embutido()
+    if not m:
+        return False
+    if set(l["codigo"] for l in m.get("ligas", [])) - set(G.get("ligas_ext", {})):
+        return True
+    nomes = {c["nome"] for c in G["clubes"].values()}
+    return any(d["nome"] not in nomes for b in ("outros_europeus", "sul_novos") for d in m.get(b) or [])
 
 
 def jogar_rodada_ext(G, liga):
@@ -993,9 +1030,12 @@ def jogar_rodada_ext(G, liga):
 
 def fechar_ligas_ext(G):
     """Virada: campeao de quem jogou tudo, e as ligas recomecam com os mesmos clubes."""
+    anterior = G.setdefault("class_ext_anterior", {})
     for codigo, liga in list(G.get("ligas_ext", {}).items()):
         if liga["rodada"] >= len(liga["rodadas"]) and liga["times"]:
-            dar_titulo(G, G["clubes"][classificacao(G, liga)[0]], liga["nome"])
+            ordem = classificacao(G, liga)
+            dar_titulo(G, G["clubes"][ordem[0]], liga["nome"])
+            anterior[codigo] = ordem
         vivos = [i for i in liga["times"] if i in G["clubes"]]
         G["ligas_ext"][codigo] = nova_liga_ext(codigo, liga["nome"], vivos)
 
@@ -1020,8 +1060,9 @@ def montar_copas(G, primeira=False):
         faltam = [i for i in A if i not in ordem]
         ordem = ordem + faltam
 
+    campeao_ucl = (G.get("copas") or {}).get("ucl", {}).get("campeao")
     ex = sorted((c["id"] for c in G["clubes"].values()
-                 if c["divisao"] == "EX" and not c.get("liga_ext")),
+                 if c["divisao"] == "EX" and not c.get("liga_ext") and not c.get("europeu")),
                 key=lambda i: -G["clubes"][i]["reputacao"])
     ex_lib, ex_sul = ex[:24], ex[24:48]
     br_lib, br_sul = ordem[:8], ordem[8:16]
@@ -1041,6 +1082,72 @@ def montar_copas(G, primeira=False):
     }
     rng.shuffle(G["copas"]["copa"]["vivos"])
     G["copas"]["copa"]["sorteio"] = sortear_confrontos(G, G["copas"]["copa"]["vivos"])
+    montar_copas_europeias(G, primeira, campeao_ucl)
+
+
+# ----------------------------------------------------------------------------
+# COPAS EUROPEIAS
+#
+# Champions e Europa League no formato de 2024: fase de liga com os 36 numa
+# tabela so, 8 jogos cada. Ela e um "grupo" unico em cp["grupos"], entao usa a
+# mesma maquina da fase de grupos; o mata-mata e o da Sul-Americana (playoff do
+# 9o ao 24o, com os 8 primeiros esperando em cp["espera"]). O sorteio da fase
+# de liga e simplificado: 8 rodadas do rodizio, sem potes.
+# ----------------------------------------------------------------------------
+
+def _ordem_liga_ext(G, codigo):
+    liga = G["ligas_ext"][codigo]
+    ordem = [i for i in G.get("class_ext_anterior", {}).get(codigo, []) if i in liga["times"]]
+    resto = sorted((i for i in liga["times"] if i not in ordem), key=lambda i: -G["clubes"][i]["reputacao"])
+    return ordem + resto
+
+
+def _intercalado(G, excluir):
+    """Clubes das ligas por posicao: 1os de todas, depois 2os... na ordem de forca."""
+    ordens = [_ordem_liga_ext(G, k) for k in ORDEM_LIGAS_EXT if k in G.get("ligas_ext", {})]
+    fora = []
+    for pos in range(max((len(o) for o in ordens), default=0)):
+        for o in ordens:
+            if pos < len(o) and o[pos] not in excluir and o[pos] not in fora:
+                fora.append(o[pos])
+    return fora
+
+
+def montar_copas_europeias(G, primeira, campeao_ucl):
+    if not G.get("ligas_ext"):
+        return
+    outros = sorted((c["id"] for c in G["clubes"].values()
+                     if c.get("europeu") and not c.get("liga_ext")),
+                    key=lambda i: -G["clubes"][i]["reputacao"])
+    m = mundo_embutido() or {}
+    por_nome = {c["nome"]: c["id"] for c in G["clubes"].values() if c.get("europeu")}
+    reais = [por_nome[n] for n in m.get("champions", []) if n in por_nome]
+    if primeira and len(reais) >= 32:
+        ucl = reais[:36]
+    else:
+        ucl = []
+        for k in ORDEM_LIGAS_EXT:
+            if k in G["ligas_ext"]:
+                ucl += _ordem_liga_ext(G, k)[:VAGAS_CHAMPIONS.get(k, 1)]
+        if campeao_ucl in G["clubes"] and campeao_ucl not in ucl:
+            ucl.append(campeao_ucl)
+        ucl += [i for i in outros if i not in ucl][:36 - len(ucl)]
+    ucl += _intercalado(G, set(ucl))[:36 - len(ucl)]
+    uel = _intercalado(G, set(ucl))[:36]
+    G["copas"]["ucl"] = nova_copa_suica(G, "Champions League", ucl)
+    if len(uel) >= 24:
+        G["copas"]["uel"] = nova_copa_suica(G, "Europa League", uel)
+
+
+def nova_copa_suica(G, nome, times):
+    ids = list(times)
+    rodadas = gerar_rodadas(ids)[:len(SEMANAS_FASE_LIGA)]
+    liga = {"nome": FASE_LIGA, "times": ids, "tabela": nova_tabela(ids), "rodadas": rodadas,
+            "rodada": 0, "resultados": []}
+    return {"nome": nome, "vivos": ids, "fase": 0, "semanas": list(SEMANAS_EURO),
+            "fases": list(FASES_SULA), "campeao": None, "historico": [], "sorteio": [],
+            "espera": [], "grupos": [liga], "semanas_grupos": list(SEMANAS_FASE_LIGA),
+            "rodada_grupo": 0, "formato": "suico"}
 
 
 # ----------------------------------------------------------------------------
@@ -1108,7 +1215,7 @@ def fase_da_copa(cp):
     if cp.get("campeao"):
         return "Encerrada"
     if em_grupos(cp):
-        return FASE_GRUPOS
+        return FASE_LIGA if cp.get("formato") == "suico" else FASE_GRUPOS
     fases = cp.get("fases")
     if fases and cp["fase"] < len(fases):
         return fases[cp["fase"]]
@@ -1175,6 +1282,16 @@ def fechar_grupos(G):
     """Grupos que acabaram viram mata-mata. A Libertadores fecha antes, porque
     os terceiros dela vao para o playoff da Sul-Americana."""
     meu = G.get("clube")
+    for chave, cp in G["copas"].items():
+        if cp.get("formato") != "suico" or cp.get("grupos_fechados") or em_grupos(cp):
+            continue
+        ordem = classificacao(G, cp["grupos"][0])
+        cp["grupos_fechados"] = True
+        cp["espera"] = ordem[:8]
+        cp["vivos"] = ordem[8:24]
+        cp["sorteio"] = cruzar(G, ordem[8:16], ordem[16:24])
+        manchete(G, "copa", "%s: %s termina a fase de liga em primeiro." %
+                 (cp["nome"], G["clubes"][ordem[0]]["nome"]))
     for chave in ("lib", "sul"):
         cp = G["copas"].get(chave)
         if not cp or not cp.get("grupos") or cp.get("grupos_fechados") or em_grupos(cp):
@@ -2194,11 +2311,12 @@ def simular(G, casa_id, fora_id, comp="liga", neutro=False):
 
     # tres periodos: e o que da sentido ao banco. O time que termina o jogo nao
     # e o mesmo que comecou, nem em pernas nem em nomes.
+    expoente = EXP_FORCA_EUROPA if comp in COMPS_EUROPA else EXP_FORCA
     for ini, fim, minutos in ((1, 45, 45), (46, 70, 25), (71, 92, 20)):
         at_c, de_c = forcas_de(G, casa, esc_c)
         at_f, de_f = forcas_de(G, fora, esc_f)
-        xg_c = 1.22 * ((at_c / max(25.0, de_f)) ** EXP_FORCA) * fator_casa
-        xg_f = 1.10 * ((at_f / max(25.0, de_c)) ** EXP_FORCA)
+        xg_c = 1.22 * ((at_c / max(25.0, de_f)) ** expoente) * fator_casa
+        xg_f = 1.10 * ((at_f / max(25.0, de_c)) ** expoente)
         # concede > 1 quer dizer "este time entrega mais chance": ele MULTIPLICA
         # o xG de quem esta atacando. Dividir fazia linha alta defender melhor.
         xg_c *= ef_c["qualidade"] * ef_c["volume"] * ef_f["concede"]
@@ -3286,7 +3404,7 @@ def jogar_fase_copa(G, chave):
         cp["campeao"] = prox[0]
         c = G["clubes"][prox[0]]
         dar_titulo(G, c, cp["nome"])
-        premio = {"copa": 78_000_000, "lib": 130_000_000, "sul": 30_000_000}[chave]
+        premio = {"copa": 78_000_000, "lib": 130_000_000, "sul": 30_000_000}.get(chave, 0)
         if c["divisao"] != "EX":
             c["dinheiro"] += premio
             c["reputacao"] = clamp(c["reputacao"] + 2, 10, 99)
@@ -7342,7 +7460,7 @@ def migrar(G):
         G["seq"] = max([G.get("seq", 0)] + list(G["jogadores"]))
         for dados in faltam:
             novo_clube(G, dados, "EX", usados)
-    if mundo_embutido() and len(G.get("ligas_ext", {})) < len(mundo_embutido().get("ligas", [])):
+    if falta_mundo(G):
         G["seq_c"] = max([G.get("seq_c", 0)] + list(G["clubes"]))
         G["seq"] = max([G.get("seq", 0)] + list(G["jogadores"]))
         aplicar_mundo(G, {j["nome"] for j in G["jogadores"].values()})

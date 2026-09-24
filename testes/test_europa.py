@@ -27,7 +27,9 @@ class TestEuropa(unittest.TestCase):
 
     def test_mundo_novo_tem_as_ligas_e_elencos_reais(self):
         G = self.G
-        self.assertEqual(set(G["ligas_ext"]), {"ENG", "ESP", "GER", "ITA", "FRA"})
+        self.assertEqual(set(G["ligas_ext"]), {"ENG", "ESP", "GER", "ITA", "FRA", "POR", "NED"})
+        nomes_clubes = {c["nome"] for c in G["clubes"].values()}
+        self.assertTrue({"Galatasaray", "Platense"} <= nomes_clubes, "clubes novos faltando")
         nomes = {G["jogadores"][p]["nome"] for c in G["clubes"].values() if c.get("liga_ext")
                  for p in c["elenco"]}
         self.assertIn("Erling Haaland", nomes)
@@ -36,6 +38,21 @@ class TestEuropa(unittest.TestCase):
         # europeu nao entra nas copas sul-americanas nem no mercado
         for k in ("lib", "sul"):
             self.assertFalse(any(G["clubes"][i].get("liga_ext") for i in G["copas"][k]["vivos"]))
+
+    def test_champions_e_europa_league(self):
+        G = self.G
+        m = eng.mundo_embutido()
+        ucl, uel = G["copas"]["ucl"], G["copas"]["uel"]
+        self.assertEqual(len(ucl["vivos"]), 36)
+        self.assertEqual(len(uel["vivos"]), 36)
+        self.assertTrue(set(ucl["vivos"]).isdisjoint(uel["vivos"]))
+        # primeiro ano: os 36 reais da Champions
+        self.assertEqual(sorted(G["clubes"][i]["nome"] for i in ucl["vivos"]), sorted(m["champions"]))
+        self.assertEqual(eng.fase_da_copa(ucl), eng.FASE_LIGA)
+        d = apoio.chamar("POST", "/api/competicoes", {"alvo": "copa:ucl"})["tela"]["detalhe"]
+        self.assertEqual(d["titulo_grupos"], eng.FASE_LIGA)
+        self.assertEqual(len(d["grupos"][0]["linhas"]), 36)
+        self.assertFalse(any(G["clubes"][i].get("europeu") for i in G["copas"]["lib"]["vivos"]))
 
     def test_rodadas_andam_e_a_tela_mostra(self):
         for _ in range(3):
@@ -55,7 +72,7 @@ class TestSaveAntigoGanhaEuropa(unittest.TestCase):
         hash_antes = apoio.hash_do_save_real()
         apoio.abrir_copia_do_save()
         G = apoio.SESSAO.G
-        self.assertEqual(len(G["ligas_ext"]), 5)
+        self.assertEqual(len(G["ligas_ext"]), 7)
         ids = [p for c in G["clubes"].values() for p in c["elenco"]]
         self.assertEqual(len(ids), len(set(ids)), "jogador em dois elencos")
         self.assertEqual(apoio.hash_do_save_real(), hash_antes)

@@ -362,6 +362,23 @@ como `ext:ENG`, `ext:ESP`... A temporada simulada ficou ~40% mais lenta e o
 save de mundo novo tem ~5 MB. MLS e liga saudita não estão no plano grátis
 da football-data.org.
 
+**Copas europeias e clubes novos.** Entraram Liga Portugal e Eredivisie (7
+ligas), os clubes da Champions fora delas (`c["europeu"]`, sem liga, elenco
+real por `/teams/{id}`) e os 15 sul-americanos da Libertadores real que o jogo
+não tinha (`sul_novos`, reputação por país; entram na disputa das vagas das
+copas sul-americanas pela reputação). Champions e Europa League
+(`montar_copas_europeias`) usam o formato de 2024: fase de liga de 36 em
+`SEMANAS_FASE_LIGA` (um "grupo" único, mesma máquina da fase de grupos, com
+`cp["formato"] = "suico"`; o sorteio é simplificado: 8 rodadas do rodízio,
+sem potes), 1º–8º esperando nas oitavas, 9º–24º no playoff, e o mata-mata da
+Sul-Americana em `SEMANAS_EURO`. Primeiro ano: os 36 reais da Champions.
+Depois: `VAGAS_CHAMPIONS` por liga pela classificação anterior
+(`class_ext_anterior`), o campeão, os europeus sem liga e o resto completado
+por posição intercalada entre as ligas; a Europa League pega os 36 seguintes.
+Jogos de ligas e copas europeias usam `EXP_FORCA_EUROPA` (3.4): com o 2.20
+brasileiro o City fazia 65 pontos e o LASK ganhava a Champions. Temporada
+simulada ~15 s.
+
 **Casca.** O endereço guarda a tela no hash (`/#elenco`): F5 não volta ao
 Painel, e agora o Voltar/Avançar do navegador também troca de tela.
 Marcações nas grades usam `alternarMarca` com setter funcional (dois cliques

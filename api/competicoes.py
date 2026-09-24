@@ -200,6 +200,12 @@ def _copa(G, chave, alvo):
         "tipo": "mata-mata", "titulo": cp["nome"], "id": alvo,
         "campeao": _nome(G, cp["campeao"]) if cp["campeao"] else None,
         "situacao": situacao, "fases": fases, "grupos": grupos,
+        "titulo_grupos": eng.FASE_LIGA if cp.get("formato") == "suico" else eng.FASE_GRUPOS,
+        "nota_grupos": (
+            "Verde: direto nas oitavas. Amarelo: playoff das oitavas. O resto esta fora."
+            if cp.get("formato") == "suico" else
+            "Verde: segue para o mata-mata. Amarelo: Libertadores, cai para o playoff da "
+            "Sul-Americana; Sul-Americana, joga o playoff.") if grupos else None,
         "em_grupos": eng.em_grupos(cp),
         "aviso": ("%d fase(s) foram jogadas antes de o jogo guardar o chaveamento."
                   % jogadas_sem_registro) if jogadas_sem_registro > 0 else None,
@@ -211,7 +217,8 @@ def _grupos_copa(G, cp):
     if not cp.get("grupos"):
         return None
     meu = G["clube"]
-    vagas = 2 if cp["nome"] == "Libertadores" else 1
+    suico = cp.get("formato") == "suico"
+    vagas = 8 if suico else (2 if cp["nome"] == "Libertadores" else 1)
     fora = []
     for g in cp["grupos"]:
         linhas = []
@@ -220,7 +227,8 @@ def _grupos_copa(G, cp):
             linhas.append({"pos": i, "clube": _nome(G, cid), "p": t["p"], "j": t["j"], "v": t["v"],
                            "e": t["e"], "d": t["d"], "gp": t["gp"], "gc": t["gc"],
                            "sg": t["gp"] - t["gc"], "eu": cid == meu, "grupo": g["nome"],
-                           "zona": "alta" if i <= vagas else ("media" if i == vagas + 1 else "")})
+                           "zona": "alta" if i <= vagas else
+                                   ("media" if (i <= 24 if suico else i == vagas + 1) else "")})
         jogos = []
         for k, rodada in enumerate(g["rodadas"]):
             placares = {(a, b): (x, y) for a, b, x, y in (g["resultados"][k] if k < len(g["resultados"]) else [])}
