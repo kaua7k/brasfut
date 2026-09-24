@@ -4529,6 +4529,13 @@ class Propostas(Dialogo):
 
 
 def main():
+    if not eng.travar_save():
+        try:
+            import tkinter.messagebox as mb
+            mb.showerror("BRASFUT", eng.AVISO_TRAVA)
+        except Exception:
+            print(eng.AVISO_TRAVA)
+        return
     try:
         app = Brasfut()
         app.mainloop()

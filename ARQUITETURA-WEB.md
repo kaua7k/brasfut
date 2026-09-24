@@ -45,8 +45,15 @@ Duas regras que sustentam o resto:
 
 Sobe o servidor Python e abre o navegador em `http://127.0.0.1:8770`.
 
-> Não abra o `iniciar.bat` (janela tkinter) ao mesmo tempo. Os dois gravam no
-> mesmo `brasfut_save.json` e um sobrescreve o outro.
+> Um BRASFUT por pasta. Janela, navegador e terminal gravam no mesmo
+> `brasfut_save.json`; o segundo a abrir recusa com um aviso (ver *Trava do
+> save*).
+
+**Testando** (sem Node, sem pip):
+
+    cd testes && python -m unittest -v
+
+Uns 20 s. Ver *Testes* abaixo.
 
 **Desenvolvendo** (duas janelas):
 
@@ -165,8 +172,8 @@ botão *Treino individual* da Base usa a mesma rota.
 **Estádio.** Preço do ingresso e obra de ampliação. A prévia da obra é só
 leitura; quem cobra é o servidor, que refaz a conta e pede confirmação.
 
-**Mercado.** Quatro abas visíveis (Comprar, Empréstimos, Agentes livres, Minha
-vitrine). A vitrine junta quem está à venda, as propostas da semana (aceitar /
+**Mercado.** Quatro abas visíveis (Comprar, Empréstimos, Agentes livres, Vender —
+antes *Minha vitrine*). A aba Vender junta quem está à venda, as propostas da semana (aceitar /
 recusar em lote, com confirmação) e os acertos feitos com a janela fechada
 (cancelar). Diálogos migrados:
 
@@ -231,6 +238,44 @@ reforço duas vezes). E um bug que derrubava a tela inteira: no Chromium novo
 sem chaves entregava essa Promise ao React como função de limpeza. **Regra:
 efeito de uma linha sempre com chaves.**
 
+**Estaduais reais.** Acabou o turno único de 7 rodadas (`RODADAS_ESTADUAL`
+saiu). Cada estadual tem o formato da vida real, em `FORMATOS_ESTADUAL`
+(brasfut.py): primeira fase (`turno`, `returno` ou `cruzado` — grupos em que
+cada clube enfrenta os dos outros grupos) e mata-mata até a final em ida e
+volta. Paulistão com 4 grupos cruzados e quartas dentro do grupo; Carioca com
+Taça Guanabara e semifinal; Copa do Nordeste com 2 grupos cruzados. Mata-mata
+de jogo único é na casa de quem fez melhor campanha; empate vai para os
+pênaltis, sem gol fora. Estado com poucos clubes cai num formato menor
+(`_formato_estadual`). Na tela, a Competições mostra os grupos, a primeira
+fase como pontos corridos e o mata-mata por cima (`_estadual` em
+`api/competicoes.py`), com a frase da campanha (`campanha_estadual`). Quem
+pergunta se o estadual acabou usa `estadual_terminado(est)`, não mais
+`est["campeao"]`.
+
+**Verba para contratar e contraproposta.** O caixa deixou de ser o limite de
+compra. Do caixa sai uma reserva de `RESERVA_MESES` (3) meses de folha e
+custos, sem contar receita (`reserva_custos`); o que sobra é a verba
+(`verba_contratacao`). O salário do reforço entra na reserva antes do passe,
+então a mesa de negociação recusa pela verba *com* o salário proposto. Painel,
+Finanças (bloco `mensal`: receitas, folha, estrutura, saldo e quanto tempo o
+caixa aguenta no vermelho) e Mercado mostram a mesma verba. O Painel ganhou o
+aviso de **contratos acabando** (último ano ou vencido), com os ids indo para
+a fila de renovação. A aba *Minha vitrine* virou **Vender**, e com uma única
+proposta marcada dá para mandar **contraproposta** (`POST
+/api/mercado/propostas/contra`, `eng.contraproposta`): um número limitado por
+oferta por semana (`contrapropostas_restantes`), depois a oferta fica como
+está.
+
+**Ordenar listas.** Clicar no cabeçalho de uma coluna da `<Grade>` ordena:
+número do maior para o menor, texto de A a Z; o segundo clique inverte e o
+terceiro volta à ordem do servidor. A chave sai do texto da célula
+(`chaveDeOrdem`: "R$ 1.20 mi", "450 mil", "65%", "3 ano(s)"; posição na ordem
+do campo, GOL→ATA), então toda coluna já nasce ordenável. Na coluna, `ordem`
+só é preciso quando o texto engana (`null` desliga); `ordenavel={false}`
+desliga a grade inteira (tabela de campeonato), `memoria` guarda a escolha no
+navegador e `aoMarcarTodos` põe a caixa de marcar todos no cabeçalho. Vale
+para Mercado, Elenco, Base e Treino.
+
 **Casca.** O endereço guarda a tela no hash (`/#elenco`): F5 não volta ao
 Painel, e agora o Voltar/Avançar do navegador também troca de tela.
 Marcações nas grades usam `alternarMarca` com setter funcional (dois cliques
@@ -261,27 +306,64 @@ Exemplo com `tela_elenco` (brasfut_app.py:1744):
 6. **`api/dto.py`, lista `MENU`** — troque o `False` do item para `True`.
 7. **`web/src/App.tsx`** — despache a tela nova pelo estado `tela`.
 
+8. **`testes/test_telas.py`** — ponha a rota nova na lista `TELAS`.
+
 As 12 telas estão de pé. Quando os diálogos que faltam (ver abaixo) também
 estiverem, `iniciar.bat` passa a chamar o `server.py` e o `brasfut_app.py` sai
 de cena.
 
+## Trava do save
+
+`eng.travar_save()` (brasfut.py, logo depois de `carregar`) pega um lock do
+sistema operacional em `brasfut_save.json.lock` — `msvcrt.locking` no Windows,
+`flock` no resto — e segura enquanto o processo vive. Os três pontos de
+entrada chamam antes de tudo: `server.py`, `brasfut_app.py` e o `main` do
+terminal. Quem chega em segundo mostra `eng.AVISO_TRAVA` e sai (o servidor com
+código 1, para o `iniciar-web.bat` pausar com a mensagem na tela). Como o lock
+é do SO, processo morto ou fechado à força solta sozinho: não existe trava
+velha para apagar na mão. `--sim` não trava, porque não grava no save.
+
+## Testes
+
+`testes/`, só com `unittest` da stdlib — a mesma promessa de zero dependência.
+
+    cd testes && python -m unittest -v
+
+- **`apoio.py`** aponta `eng.SAVE` para `testes/_tmp/` **antes** de importar
+  `api`, e chama as rotas pelo `rotas.despachar` que o `server.py` usa, sem
+  HTTP. `chamar(metodo, caminho, corpo, status)` já confere o status.
+- **`test_telas.py`** abre todas as telas de leitura contra uma cópia do save
+  real e avança uma semana. Pula se não houver `brasfut_save.json`.
+- **`test_virada.py`** mundo novo, temporada inteira até a semana 38 parar,
+  prévia do resumo, clique da virada e demissão forçada até o clube novo
+  jogar a semana seguinte. É o caminho que já quebrou (ver *Demissão virou
+  pendência*).
+- **`test_trava.py`** dois processos no mesmo save: o segundo é recusado e,
+  quando o primeiro sai, o lock é liberado.
+
+Todo teste que mexe no save confere no fim que o hash do save real não mudou.
+A interface (React) ainda é conferida à mão; o roteiro com Edge headless via
+DevTools, usado em levas anteriores, não ficou guardado.
+
 ## Pontas soltas conhecidas
 
+- **Diálogos que só existem no tkinter**: a partida lance a lance
+  (`Partida`, brasfut_app.py), as boas-vindas (`Boas_vindas`) e a ajuda
+  (`Ajuda` — o botão já está no menu lateral, desativado). O resumo da
+  temporada já migrou (`componentes/Resumo.tsx`).
 - **Acentuação.** O motor escreve sem acento ("escalacao", "Financas") porque
   nasceu para terminal. O navegador não tem essa limitação, mas acentuar só a
   metade que eu escrevo deixaria a tela mestiça. Normalizar isso é uma
   passagem à parte, no motor.
-- **Save compartilhado.** Nada impede hoje abrir a janela e o navegador ao
-  mesmo tempo. Um arquivo de trava resolveria.
-- **Sem testes automatizados.** O projeto não tem nenhum. A API é conferida à
-  mão: leitura contra o save real, e **ação destrutiva sempre contra uma cópia**
-  (aponte `eng.SAVE` para outro arquivo antes de importar a sessão).
-- **Diálogos que só existem no tkinter**: a partida lance a lance
-  (`Partida`), o resumo da temporada (`ResumoTemporada`), boas-vindas e ajuda.
+- **Testes de interface.** A API tem testes; o React não.
 - **Agentes de UX do plugin `bnp-frontend`** (*Design Director* e *SE: UX
   Designer*) não sobem no Claude Code: o `tools` deles usa nomes do VS Code
   Copilot (`web/fetch`, `codebase`...). A consulta de UX desta leva rodou num
   agente geral com a skill `ui-ux-pro-max`.
-- **Testes**: continuam manuais, mas agora com roteiro. Os scripts usados nesta
-  leva (API contra cópia do save + Edge headless via DevTools) não ficaram no
-  repositório; vale trazê-los para uma pasta `testes/`.
+
+## Histórico
+
+O projeto está em git desde 2026-09-24. O primeiro commit guarda a pasta
+`.backup-pre-patch` (versões 2.0–2.4 do motor e o antes de cada leva); ela
+saiu no commit seguinte. Para ver uma versão antiga:
+`git show <primeiro-commit>:.backup-pre-patch/brasfut.py.v2.3`.

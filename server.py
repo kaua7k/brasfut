@@ -114,7 +114,11 @@ class Manipulador(BaseHTTPRequestHandler):
 
 
 def main():
-    servidor = ThreadingHTTPServer(("127.0.0.1", PORTA), Manipulador)
+    if not eng.travar_save():
+        # sai com erro: o iniciar-web.bat pausa e a mensagem fica na tela
+        print(eng.AVISO_TRAVA)
+        sys.exit(1)
+    servidor =ThreadingHTTPServer(("127.0.0.1", PORTA), Manipulador)
     url = "http://127.0.0.1:%d/" % PORTA
     print("BRASFUT %s no ar em %s" % (eng.VERSAO, url))
     print("save: %s" % eng.SAVE)

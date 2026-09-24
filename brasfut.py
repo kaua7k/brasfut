@@ -6735,6 +6735,39 @@ def carregar(caminho=None):
     return migrar(d)
 
 
+# Janela, navegador e terminal gravam no mesmo save; abertos juntos, um
+# sobrescreve o outro. A trava e um lock do sistema operacional num arquivo ao
+# lado do save, segurado enquanto o processo vive: morreu, o SO solta sozinho,
+# sem trava velha para apagar na mao.
+_TRAVA = None
+
+
+def travar_save(caminho=None):
+    """Tenta ser o unico processo mexendo no save. True se conseguiu (ou ja
+    tinha), False se outro BRASFUT esta aberto na mesma pasta."""
+    global _TRAVA
+    if _TRAVA is not None:
+        return True
+    f = open((caminho or SAVE) + ".lock", "a+")
+    try:
+        f.seek(0)
+        if os.name == "nt":
+            import msvcrt
+            msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        f.close()
+        return False
+    _TRAVA = f
+    return True
+
+
+AVISO_TRAVA = ("Ja existe um BRASFUT aberto nesta pasta (janela, navegador ou terminal). "
+               "Feche o outro antes: os dois gravariam no mesmo save e um apagaria o outro.")
+
+
 # ----------------------------------------------------------------------------
 # NOVO JOGO
 # ----------------------------------------------------------------------------
@@ -6927,6 +6960,9 @@ def main():
     if "--sim" in sys.argv:
         i = sys.argv.index("--sim")
         simulacao(int(sys.argv[i + 1]) if len(sys.argv) > i + 1 else 3)
+        return
+    if not travar_save():
+        print(cor(AVISO_TRAVA, "ruim"))
         return
     G = None
     if os.path.exists(SAVE):
