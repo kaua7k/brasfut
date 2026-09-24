@@ -5903,7 +5903,7 @@ def comecar_no_clube(G: Mundo, c: Clube) -> List[str]:
 # ----------------------------------------------------------------------------
 
 REP_TECNICO_INICIAL = 35
-PROPOSTA_VALIDADE = 4        # semanas que uma proposta de emprego fica de pe
+PROPOSTA_VALIDADE = 6        # semanas que uma proposta de emprego fica de pe
 MAX_PROPOSTAS = 3
 # quanto cada titulo pesa na reputacao do treinador
 PESO_TITULO = {"Brasileirao Serie A": 12, "Libertadores": 12, "Copa do Brasil": 8,
@@ -6027,27 +6027,33 @@ def propostas_emprego(G: Mundo) -> List[Dict[str, Any]]:
     return vivas
 
 
-def sondar_treinador(G: Mundo) -> Optional[Dict[str, Any]]:
+def sondar_treinador(G: Mundo, ano_bom: Optional[bool] = None) -> Optional[Dict[str, Any]]:
     """Uma vez por mes, no Brasileirao: quem esta indo bem atrai proposta.
 
     A chance sobe com o time em cima da meta e com a reputacao do treinador.
     Quem liga e clube pelo menos do tamanho do atual (menos uma folga) que cabe
     na reputacao dele - ninguem da Serie A liga para um desconhecido.
+
+    ano_bom (so na virada): a temporada que acabou julga, e nao a tabela atual,
+    que acabou de zerar. E quando o mercado de treinadores mais mexe.
     """
-    if G.get("fase") != "liga" or G["semana"] > SEMANAS_LIGA - 4:
+    if ano_bom is None and (G.get("fase") != "liga" or G["semana"] > SEMANAS_LIGA - 4):
         return None
     vivas = propostas_emprego(G)
     if len(vivas) >= MAX_PROPOSTAS:
         return None
     c = G["clubes"][G["clube"]]
-    ordem = classificacao(G, G["ligas"][c["divisao"]])
-    pos = ordem.index(c["id"]) + 1 if c["id"] in ordem else 99
-    alvo = G.get("objetivo_alvo", 16)
-    # time afundando abaixo da meta nao atrai ninguem, por mais nome que o tecnico tenha
-    if pos > alvo + 6:
-        return None
     rep = rep_tecnico(G)
-    chance = 0.05 + (0.20 if pos <= alvo else 0.0) + max(0, rep - 40) / 250.0
+    if ano_bom is None:
+        ordem = classificacao(G, G["ligas"][c["divisao"]])
+        pos = ordem.index(c["id"]) + 1 if c["id"] in ordem else 99
+        alvo = G.get("objetivo_alvo", 16)
+        # time afundando abaixo da meta nao atrai ninguem, por mais nome que o tecnico tenha
+        if pos > alvo + 6:
+            return None
+        chance = 0.05 + (0.20 if pos <= alvo else 0.0) + max(0, rep - 40) / 250.0
+    else:
+        chance = (0.45 if ano_bom else 0.08) + max(0, rep - 40) / 250.0
     if rng.random() >= chance:
         return None
     ja = {o["id"] for o in vivas}
@@ -7636,6 +7642,11 @@ def encerrar_temporada(G: Mundo, resumo: Dict[str, Any]) -> Tuple[bool, Dict[str
     for recado in executar_agendadas(G):
         noticia(G, recado)
     G["ultimo_resumo"] = resumo
+    # a virada e a hora do mercado de treinadores: quem foi bem recebe sondagem
+    if ok:
+        ano_bom = bool(resumo["objetivo_ok"] or resumo["titulos"])
+        for _ in range(2):
+            sondar_treinador(G, ano_bom=ano_bom)
     return bool(ok), resumo
 
 

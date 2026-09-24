@@ -13,7 +13,8 @@ temporada, carreira encerrada e demissao (a escolha do clube novo trava o jogo).
 
 import brasfut as eng
 
-PARADAS_PADRAO = {"lesao": True, "janela": True, "proposta": False, "quebrado": True}
+PARADAS_PADRAO = {"lesao": True, "janela": True, "proposta": False, "quebrado": True,
+                  "emprego": True}
 
 
 def _semanas_ate_mudar_janela(G):
@@ -75,6 +76,7 @@ def foto(G):
         "lesionados": [p for p in c["elenco"] if G["jogadores"][p]["lesao"] > 0],
         "titulares": list(c.get("escalacao", [])),
         "propostas": len(eng.propostas_recebidas(G)),
+        "empregos": {o["id"] for o in eng.propostas_emprego(G)},
         "fase": G["fase"], "temporada": G["temporada"],
     }
 
@@ -128,6 +130,9 @@ def motivo_de_parar(G, antes, paradas, encerrada, pendencia):
         return "a janela de transferencias abriu"
     if p["proposta"] and len(eng.propostas_recebidas(G)) > antes["propostas"]:
         return "chegou proposta por um jogador seu"
+    novas = [o for o in eng.propostas_emprego(G) if o["id"] not in antes.get("empregos", set())]
+    if p.get("emprego") and novas:
+        return "o %s quer contratar voce" % novas[0]["clube"]
     if p["lesao"]:
         novos = [x for x in c["elenco"] if G["jogadores"][x]["lesao"] > 0
                  and x not in antes["lesionados"] and x in antes["titulares"]]

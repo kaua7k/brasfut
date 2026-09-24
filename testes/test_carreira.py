@@ -111,6 +111,22 @@ class TestMobilidade(unittest.TestCase):
         # proposta que nao existe mais e erro de uso, nao 500
         apoio.chamar("POST", "/api/carreira/proposta", {"id": cand["id"], "aceitar": True}, status=400)
 
+    def test_proposta_de_emprego_para_o_simular(self):
+        """Proposta chegava e vencia no meio do 'Simular...' sem ninguem ver."""
+        from api import avanco
+        G = self.G
+        antes = avanco.foto(G)
+        self.assertEqual(avanco.motivo_de_parar(G, antes, None, False, None), "")
+        G["tecnico_rep"] = 95
+        eng.rng.seed(3)
+        for _ in range(30):
+            if eng.sondar_treinador(G, ano_bom=True):
+                break
+        self.assertTrue(eng.propostas_emprego(G), "a virada boa nao gerou proposta")
+        self.assertIn("quer contratar voce", avanco.motivo_de_parar(G, antes, None, False, None))
+        self.assertEqual(avanco.motivo_de_parar(G, antes, {"emprego": False}, False, None), "")
+        self.assertEqual(eng.propostas_emprego(G)[0]["expira"] - G["semana"], eng.PROPOSTA_VALIDADE)
+
     def test_semanas_contam_jogos_e_enchem_o_feed(self):
         for _ in range(12):
             apoio.avancar({"leve": True})

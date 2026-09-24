@@ -263,7 +263,7 @@ export interface OpcaoAvanco {
   nota: string
 }
 
-export type Paradas = Record<'lesao' | 'janela' | 'proposta' | 'quebrado', boolean>
+export type Paradas = Record<'lesao' | 'janela' | 'proposta' | 'quebrado' | 'emprego', boolean>
 
 export interface LinhaRelato {
   texto: string

@@ -23,6 +23,7 @@ const TEXTO_PARADA: Record<keyof Paradas, string> = {
   janela: 'a janela de transferencias abrir',
   proposta: 'chegar proposta por um jogador seu',
   quebrado: 'o time ficar sem condicao de entrar em campo',
+  emprego: 'outro clube quiser contratar voce',
 }
 
 function lembrar<T>(chave: string, padrao: T): T {
@@ -63,7 +64,8 @@ export function DialogoAvanco({ aoFechar, aoAbrirEscalacao }: Props) {
       .opcoesAvanco()
       .then((r) => {
         setOpcoes(r.opcoes)
-        setParadas(lembrar('brasfut.avanco.paradas', r.paradas))
+        // preferencia antiga salva no navegador nao tem as paradas novas: o servidor completa
+        setParadas({ ...r.paradas, ...lembrar('brasfut.avanco.paradas', r.paradas) })
         // a escolha guardada pode nao existir nesta fase (pre-temporada so tem uma)
         if (!r.opcoes.some((o) => o.id === escolha && o.semanas > 0)) setEscolha(r.opcoes[0]?.id ?? 'semana')
       })
