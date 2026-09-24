@@ -4,6 +4,7 @@
 // Series B, C e D, nunca o que demitiu). Encerrar a carreira pede um segundo
 // clique ali mesmo - e irreversivel, nao pode estar a um clique errado.
 
+import { porque, AGUARDE } from '../motivo'
 import { useState } from 'react'
 import type { Pendencia } from '../tipos'
 
@@ -30,7 +31,8 @@ export function JanelaPendencia({ pendencia, ocupado, aoEscolher, aoEncerrar, ao
             ))}
           </ul>
           <div className="modal-acoes">
-            <button type="button" className="bt-acao bt-media" disabled={ocupado} onClick={aoNovaCarreira}>
+            <button type="button" className="bt-acao bt-media" title={porque([[ocupado, AGUARDE]])}
+            disabled={ocupado} onClick={aoNovaCarreira}>
               Comecar nova carreira
             </button>
           </div>
@@ -55,6 +57,7 @@ export function JanelaPendencia({ pendencia, ocupado, aoEscolher, aoEncerrar, ao
               type="button"
               className="clube-opcao clube-oferta"
               key={c.id}
+              title={porque([[ocupado, AGUARDE]])}
               disabled={ocupado}
               onClick={() => aoEscolher(c.id)}
             >
@@ -77,7 +80,8 @@ export function JanelaPendencia({ pendencia, ocupado, aoEscolher, aoEncerrar, ao
               <button type="button" className="bt-fantasma" onClick={() => setConfirmarFim(false)}>
                 Voltar
               </button>
-              <button type="button" className="bt-fantasma bt-perigo" disabled={ocupado} onClick={aoEncerrar}>
+              <button type="button" className="bt-fantasma bt-perigo" title={porque([[ocupado, AGUARDE]])}
+              disabled={ocupado} onClick={aoEncerrar}>
                 Encerrar carreira
               </button>
             </>

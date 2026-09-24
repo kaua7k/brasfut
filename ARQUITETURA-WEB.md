@@ -493,6 +493,36 @@ intercale referência e versão nova: o tempo entre execuções varia ~20% na
 mesma máquina. Medido nesta leva: motor −25% (39,3 s → 29,6 s nas 60
 semanas), pedido inteiro −19%, saída idêntica.
 
+**Interface: layout, acessibilidade e linguagem.**
+- *Topo*: os chips somem por classe (`chip-elenco` em 1440px, `chip-folha`
+  em 1320px), nunca o Caixa nem a Verba. O `nth-of-type` contava escudo e
+  título e escondia justamente o CAIXA em 1320px. O subtítulo (com a semana)
+  quebra em duas linhas antes de cortar.
+- *Uma rolagem por página*: o Painel tem altura natural (`.corpo` rola, as
+  colunas não); acabou o cartão rolando por dentro e as Notícias vazando por
+  cima do Pelo mundo. `.tela` perdeu o padding de baixo (o sticky conta a
+  partir dele e a barra de ações presa ficava 24px acima do rodapé, com linhas
+  passando por baixo); o respiro veio para o `::after`.
+- *Grade*: largura mínima somada das colunas; abaixo dela a grade rola de lado
+  dentro dela. Linha que abre ficha é focável e abre com Enter, e o texto diz
+  "duplo clique (ou Enter)", que é o gesto de verdade.
+- *Finanças*: `.linha-valor` em grade de duas colunas; a linha do saldo usa
+  `total`, não `destaque` (que é o cartão do Painel e entortava a linha).
+- *Acessibilidade*: zona da tabela com forma e texto (`componentes/Zona.tsx`,
+  `zona_texto` vindo de `dto.rotulo_zona`) e legenda; legenda das cores de
+  nome (`LegendaCores`); menu só de ícones com `aria-label`/`title`; todo
+  botão desabilitado diz o motivo (`porque()` em `web/src/motivo.ts`); borda
+  de controle `--borda-controle` (3,3:1); `prefers-reduced-motion` vale para
+  tudo, não só para o disco da Escalação.
+- *Linguagem*: menu "Classificacao" igual ao título; "Pos" e "Pts", nunca
+  "P"; `eng.din` em pt-BR ("R$ 37,6 mi", "R$ 764 mil", "R$ 3.500" abaixo de
+  cem mil) com espelho em `web/src/formato.ts`; `eng.plural`/`plural()` no
+  lugar de todo "(s)"; o Mercado não repete caixa, verba e folha do topo e o
+  "time pronto" não repete ataque e defesa da barra; `eng.nome_clube` põe a
+  liga ao lado de nome repetido ("Athletic (La Liga)").
+- `testes/test_textos.py` é o lint: zero "(s)" e zero "mi" com ponto nas
+  fontes e nas telas, zero "Serie ENG", menu e título com o mesmo nome.
+
 ## Receita para migrar a próxima tela
 
 Exemplo com `tela_elenco` (brasfut_app.py:1744):
@@ -559,6 +589,7 @@ velha para apagar na mão. `--sim` não trava, porque não grava no save.
 - **`test_balanco.py`** teto sem catraca, joia com teto, base sem revisão,
   correção de save inflado, IA contratando livre bom.
 - **`test_base.py`** peneira do começo ao fim, faixa que estreita, revelações.
+- **`test_textos.py`** lint de textos: plural, dinheiro, nome de liga, menu.
 - **`test_regras.py`** livre com a janela fechada, posse na API, troca de
   clube, prazo absoluto, barra de forças e os textos corrigidos.
 - **`test_continentais.py`** grupos da Libertadores e da Sul-Americana até o

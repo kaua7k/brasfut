@@ -26,7 +26,7 @@ export function Financas({ tela }: { tela: TelaFinancas }) {
 
       <section className="painel" style={{ overflow: 'hidden' }}>
         {tela.linhas.map((l) => (
-          <div className={`linha-valor${l.destaque ? ' destaque' : ''}`} key={l.nome}>
+          <div className={`linha-valor${l.destaque ? ' total' : ''}`} key={l.nome}>
             <span className="rot">{l.nome}</span>
             <span className={`val ${l.estado}`}>{l.valor}</span>
           </div>
@@ -45,7 +45,7 @@ export function Financas({ tela }: { tela: TelaFinancas }) {
       </section>
       <section className="painel" style={{ overflow: 'hidden' }}>
         {tela.mensal.linhas.map((l) => (
-          <div className={`linha-valor${l.destaque ? ' destaque' : ''}`} key={l.nome}>
+          <div className={`linha-valor${l.destaque ? ' total' : ''}`} key={l.nome}>
             <span className="rot">{l.nome}</span>
             <span className={`val ${l.estado}`}>{l.valor}</span>
           </div>

@@ -8,9 +8,11 @@
 // O seletor separa os torneios do meu clube dos outros: sao ate trinta
 // estaduais no ano, e botao para cada um afogaria os quatro que importam.
 
+import { porque, AGUARDE } from '../motivo'
 import { useEffect, useState } from 'react'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
 import { Grade, type Coluna } from '../componentes/Grade'
+import { LegendaZonas, MarcaZona } from '../componentes/Zona'
 import { iconeDeEstado } from '../icones'
 import type {
   DetalheCopa,
@@ -31,18 +33,18 @@ interface Props {
 const COLUNAS: Coluna<LinhaClassificacao>[] = [
   {
     chave: 'pos',
-    rotulo: '#',
-    largura: '44px',
+    rotulo: 'Pos',
+    largura: '52px',
     classe: 'num',
     render: (l) => (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-        <i className="marcador-zona" />
+        <MarcaZona zona={l.zona} texto={l.zona_texto} />
         {l.pos}
       </span>
     ),
   },
   { chave: 'clube', rotulo: 'Clube', largura: 'minmax(110px, 1fr)', classe: 'corta', render: (l) => l.clube },
-  { chave: 'p', rotulo: 'P', largura: '34px', classe: 'num', render: (l) => <strong>{l.p}</strong> },
+  { chave: 'p', rotulo: 'Pts', largura: '38px', classe: 'num', render: (l) => <strong>{l.p}</strong> },
   { chave: 'j', rotulo: 'J', largura: '30px', classe: 'num', render: (l) => l.j },
   { chave: 'v', rotulo: 'V', largura: '30px', classe: 'num', render: (l) => l.v },
   { chave: 'e', rotulo: 'E', largura: '30px', classe: 'num', render: (l) => l.e },
@@ -115,6 +117,7 @@ function Pontos({ d }: { d: DetalhePontos }) {
                   idDe={(l) => l.pos}
                   classeDe={(l) => `${l.zona}${l.eu ? ' eu' : ''}`}
                 />
+                <LegendaZonas linhas={g.linhas} />
               </section>
             ))
           ) : (
@@ -130,6 +133,7 @@ function Pontos({ d }: { d: DetalhePontos }) {
                 classeDe={(l) => `${l.zona}${l.eu ? ' eu' : ''}`}
                 vazio={d.vazio ?? undefined}
               />
+              <LegendaZonas linhas={d.linhas} />
             </section>
           )}
         </div>
@@ -139,6 +143,7 @@ function Pontos({ d }: { d: DetalhePontos }) {
             <button
               type="button"
               className="bt-fantasma bt-mini"
+              title={porque([[rodada <= 0, 'Esta e a primeira rodada']])}
               disabled={rodada <= 0}
               aria-label="Rodada anterior"
               onClick={() => setRodada(rodada - 1)}
@@ -153,6 +158,7 @@ function Pontos({ d }: { d: DetalhePontos }) {
             <button
               type="button"
               className="bt-fantasma bt-mini"
+              title={porque([[rodada >= d.rodadas.length - 1, 'Esta e a ultima rodada']])}
               disabled={rodada >= d.rodadas.length - 1}
               aria-label="Proxima rodada"
               onClick={() => setRodada(rodada + 1)}
@@ -294,6 +300,7 @@ function Grupos({ grupos, titulo, nota }: { grupos: GrupoCopa[]; titulo: string;
               classeDe={(l) => `${l.zona}${l.eu ? ' eu' : ''}`}
               ordenavel={false}
             />
+            <LegendaZonas linhas={g.linhas} />
             {g.meu && (
               <ul className="jogos-grupo">
                 {g.jogos.filter((j) => j.meu).map((j, i) => (
@@ -337,6 +344,7 @@ export function Competicoes({ tela, ocupado, aoTrocar }: Props) {
             role="tab"
             aria-selected={c.id === tela.alvo}
             className={`aba aba-comp${c.id === tela.alvo ? ' ativa' : ''}`}
+            title={porque([[ocupado, AGUARDE]])}
             disabled={ocupado}
             onClick={() => c.id !== tela.alvo && aoTrocar(c.id)}
           >

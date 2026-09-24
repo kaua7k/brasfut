@@ -196,7 +196,8 @@ def _avisos_do_estadual(G):
         avisos.append("Elenco com %d jogadores: pouco para a temporada inteira." % len(c["elenco"]))
     prontos = [j["nome"] for j in eng.elenco_base(G, c) if eng.pronto_para_subir(G, c, j)]
     if prontos:
-        avisos.append("Pronto(s) para subir da base: %s" % ", ".join(prontos))
+        avisos.append("%s para subir da base: %s" % ("Pronto" if len(prontos) == 1 else "Prontos",
+                                                     ", ".join(prontos)))
     if not avisos:
         return None
     return {"titulo": "Comecar o estadual %d" % G["temporada"],
@@ -488,7 +489,7 @@ def chamar_de_volta(corpo):
             eng.devolver_emprestimo(G, j["id"])
         eng.salvar_auto(G, forcar=True)
         SESSAO.invalidar()
-        return {"recado": "%d jogador(es) de volta ao elenco." % len(js),
+        return {"recado": "%s de volta ao elenco." % eng.plural(len(js), "jogador", "jogadores"),
                 "tela": dto.elenco()}
 
 

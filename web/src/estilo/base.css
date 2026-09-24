@@ -25,6 +25,9 @@
   --borda-forte: #26272b;
   --borda-lateral: #1f2023;
   --divisor: #1e1f23;
+  /* borda de controle (caixa de marcar, campo, seletor, botao secundario):
+     3.3:1 sobre o painel e sobre o fundo, o minimo de 3:1 da WCAG 1.4.11 */
+  --borda-controle: #6b6c73;
 
   /* texto */
   --txt: #f2f2f0;
@@ -233,7 +236,7 @@ button:disabled { cursor: not-allowed; }
 
 .bt-fantasma {
   background: var(--linha);
-  border: 1px solid #2a2b2f;
+  border: 1px solid var(--borda-controle);
   color: var(--txt-2);
   border-radius: var(--raio-p);
   padding: 8px 14px;
@@ -245,18 +248,21 @@ button:disabled { cursor: not-allowed; }
 .bt-fantasma:hover { border-color: var(--acento); color: #fff; }
 
 /* -------------------------------------------------------------------- painel */
+/* o Painel rola como pagina: altura natural em cada cartao e uma rolagem so.
+   Com a altura presa na janela, cada cartao encolhia e rolava por dentro, e as
+   Noticias do clube vazavam por cima do Pelo mundo */
 .corpo {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow: auto;
   padding: 18px 26px 22px;
   display: grid;
   grid-template-columns: 1.55fr 1fr;
-  grid-template-rows: minmax(0, 1fr);
+  align-items: start;
   gap: 18px;
 }
 
-.coluna { display: flex; flex-direction: column; gap: 14px; min-height: 0; min-width: 0; overflow: hidden; }
+.coluna { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 
 .painel {
   background: var(--painel);
@@ -472,7 +478,7 @@ button.jogador:hover .disco, button.jogador:focus-visible .disco { transform: sc
 }
 
 /* --------------------------------------------------------------- lista do XI */
-.xi-lista { display: flex; flex-direction: column; flex: none; max-height: 108px; overflow: auto; }
+.xi-lista { display: flex; flex-direction: column; flex: none; }
 
 .xi-linha {
   display: grid;
@@ -592,7 +598,7 @@ button.jogador:hover .disco, button.jogador:focus-visible .disco { transform: sc
 .destaque .linha2 { font-size: 10px; color: var(--fraco); margin-top: 2px; }
 
 /* ------------------------------------------------------------------ noticias */
-.noticias { overflow: auto; flex: 1; min-height: 90px; }
+.noticias { min-height: 90px; }
 .noticia { display: flex; gap: 12px; padding: 11px 18px; border-bottom: 1px solid var(--divisor); }
 .noticia:last-child { border-bottom: none; }
 .noticia .bolinha { width: 8px; height: 8px; border-radius: 50%; background: var(--acento); margin-top: 6px; flex: none; }
@@ -663,11 +669,7 @@ button.jogador:hover .disco, button.jogador:focus-visible .disco { transform: sc
 .carregando { color: var(--fraco); font-size: 13px; }
 
 /* ---------------------------------------------------------------- responsivo */
-@media (max-height: 780px), (max-width: 1180px) {
-  .corpo { grid-template-rows: auto; overflow: auto; }
-  .coluna { overflow: visible; }
-  .campo-area { min-height: 260px; }
-}
+.corpo .campo-area { min-height: 300px; }
 
 @media (max-width: 1180px) {
   .corpo { grid-template-columns: 1fr; }
@@ -698,11 +700,14 @@ button.jogador:hover .disco, button.jogador:focus-visible .disco { transform: sc
    largura de coluna e nada se alinhava com nada.
    ========================================================================== */
 
+/* sem padding embaixo: o sticky conta a partir do padding, e a barra de acoes
+   presa ficava 24px acima do rodape, com linhas da lista passando por baixo
+   dela. O respiro do fim da pagina vem do ::after */
 .tela {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 18px 26px 24px;
+  padding: 18px 26px 0;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -712,6 +717,7 @@ button.jogador:hover .disco, button.jogador:focus-visible .disco { transform: sc
    um flex em coluna encolhe ate caber na janela e corta a lista - o Elenco
    perdia os ultimos jogadores e a barra de acoes inteira, sem scroll nenhum */
 .tela > * { flex-shrink: 0; }
+.tela::after { content: ""; flex: none; height: 24px; }
 
 .cabecalho-tela h2 { font-size: 22px; font-weight: 700; }
 .cabecalho-tela .sub { font-size: 12.5px; color: var(--fraco); margin-top: 3px; }
@@ -792,7 +798,7 @@ button.jogador:hover .disco, button.jogador:focus-visible .disco { transform: sc
   width: 20px;
   height: 20px;
   border-radius: 5px;
-  border: 1.5px solid var(--borda-forte);
+  border: 1.5px solid var(--borda-controle);
   background: var(--fundo);
   display: flex;
   align-items: center;
@@ -857,12 +863,16 @@ button.jogador:hover .disco, button.jogador:focus-visible .disco { transform: sc
 .cartao .titulo { font-size: 14px; font-weight: 700; font-family: var(--titulo); }
 .cartao .desc { font-size: 12px; color: var(--fraco); margin-top: 2px; }
 
-.linha-valor { display: flex; align-items: center; gap: 16px; padding: 10px 18px; }
-.linha-valor .rot { color: var(--fraco); font-size: 12.5px; min-width: 190px; }
+/* rotulo numa coluna so, valor alinhado na mesma linha vertical */
+.linha-valor { display: grid; grid-template-columns: minmax(200px, 300px) 1fr; align-items: center; gap: 16px; padding: 10px 18px; }
+.linha-valor .rot { color: var(--fraco); font-size: 12.5px; }
 .linha-valor .val { font-family: var(--titulo); font-weight: 700; font-size: 15px; }
 .linha-valor .val.ok { color: var(--ok); }
 .linha-valor .val.critico { color: var(--critico); }
-.linha-valor.destaque { background: var(--painel-alto); }
+/* "total", nao "destaque": .destaque e o cartao do Painel (centralizado, com
+   padding), e a linha do saldo herdava isso e saia torta */
+.linha-valor.total { background: var(--painel-alto); }
+.linha-valor.total .rot { color: var(--txt-2); font-weight: 700; }
 
 /* barra de nivel da infraestrutura */
 .nivel { display: flex; gap: 3px; margin: 8px 0 10px; }
@@ -915,7 +925,7 @@ button.jogador:hover .disco, button.jogador:focus-visible .disco { transform: sc
 /* --------------------------------------------------------------- seletores */
 .seletor {
   background: var(--chip);
-  border: 1px solid var(--borda-forte);
+  border: 1px solid var(--borda-controle);
   color: var(--txt);
   border-radius: var(--raio-p);
   padding: 9px 12px;
@@ -1078,7 +1088,7 @@ button.jogador:hover .disco, button.jogador:focus-visible .disco { transform: sc
 /* a barra da troca nao sai da vista enquanto se rola o banco */
 .barra-fixa {
   position: sticky;
-  bottom: -24px;
+  bottom: 0;
   z-index: 2;
   box-shadow: 0 -8px 24px rgba(5, 6, 7, 0.55);
 }
@@ -1419,9 +1429,13 @@ button.jogador:hover .disco, button.jogador:focus-visible .disco { transform: sc
 .topo .chip { min-width: 0; flex: none; }
 .topo .chip .valor { white-space: nowrap; }
 .topo .bt-acao, .topo .bt-simular { white-space: nowrap; flex: none; }
-/* a verba entrou como segundo chip: em tela estreita somem elenco e depois folha */
-@media (max-width: 1320px) { .topo .chip:nth-of-type(4) { display: none; } }
-@media (max-width: 1180px) { .topo .chip:nth-of-type(3) { display: none; } }
+/* em tela estreita somem elenco e depois folha - caixa e verba nunca. Por
+   classe, nao por posicao: o nth-of-type contava tambem o escudo e o titulo, e
+   o chip que sumia em 1320px era justamente o CAIXA */
+@media (max-width: 1440px) { .topo .chip-elenco { display: none; } }
+@media (max-width: 1320px) { .topo .chip-folha { display: none; } }
+/* o subtitulo leva a semana: quebra em duas linhas antes de cortar */
+.topo-titulo .topo-sub { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 
 
 /* ------------------------------------------------ contraproposta (aba Vender) */
@@ -1444,7 +1458,7 @@ button.jogador:hover .disco, button.jogador:focus-visible .disco { transform: sc
 .form-carreira > p.tag-fraco { margin: 0; }
 .campo-rotulo { font-size: 12px; font-weight: 700; color: var(--txt-2); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: -8px; }
 .campo-texto {
-  background: var(--painel); border: 1px solid var(--borda); border-radius: 10px;
+  background: var(--painel); border: 1px solid var(--borda-controle); border-radius: 10px;
   color: var(--txt); font: inherit; font-size: 15px; padding: 10px 12px;
 }
 .campo-texto:focus-visible { outline: 2px solid var(--acento); outline-offset: 1px; border-color: var(--acento); }
@@ -1513,3 +1527,26 @@ button.jogador:hover .disco, button.jogador:focus-visible .disco { transform: sc
 .linha-peneira { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .linha-peneira select { padding: 6px 10px; font-size: 13px; }
 .tag-titular { color: var(--titular); }
+
+/* ------------------------------------------------ zonas da tabela e cores
+   Forma e texto alem da cor: quem nao separa verde de vermelho le a seta e a
+   legenda. A linha do meu clube nao repinta a zona (antes o dourado escondia). */
+.marca-zona { width: 12px; flex: none; font-style: normal; font-size: 10px; line-height: 1; text-align: center; }
+.marca-zona.alta { color: var(--ok); }
+.marca-zona.baixa { color: var(--critico); }
+.marca-zona.media { color: var(--atencao); }
+.legenda-zonas, .legenda-cores { display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 8px 16px 10px; font-size: 11.5px; color: var(--txt-3); }
+.legenda-zonas span, .legenda-cores span { display: inline-flex; align-items: center; gap: 6px; }
+
+/* grade larga demais para a janela rola de lado dentro dela, sem empurrar a pagina */
+.grade { overflow-x: auto; overflow-y: hidden; }
+
+/* Configuracoes > Reduzir animacoes vale tambem para quem pediu no sistema */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

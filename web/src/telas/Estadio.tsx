@@ -5,8 +5,10 @@
 // limites tambem vem de la - a tela nao sabe sozinha que o ingresso vai de
 // R$ 5 a R$ 300.
 
+import { porque, AGUARDE } from '../motivo'
 import { useEffect, useState } from 'react'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
+import { dinheiro as reais, plural } from '../formato'
 import type { TelaEstadio } from '../tipos'
 
 export type AcaoEstadio = { tipo: 'preco'; preco: number } | { tipo: 'obra'; lugares: number }
@@ -15,13 +17,6 @@ interface Props {
   tela: TelaEstadio
   ocupado: boolean
   aoAgir: (acao: AcaoEstadio) => void
-}
-
-function reais(v: number) {
-  if (v >= 1e6) return `R$ ${(v / 1e6).toFixed(2)} mi`
-  // abaixo de cem mil o arredondamento mentiria: R$ 3.500 viraria "R$ 4 mil"
-  if (v >= 1e5) return `R$ ${Math.round(v / 1000)} mil`
-  return `R$ ${v.toLocaleString('pt-BR')}`
 }
 
 export function Estadio({ tela, ocupado, aoAgir }: Props) {
@@ -78,6 +73,7 @@ export function Estadio({ tela, ocupado, aoAgir }: Props) {
           <button
             type="submit"
             className="bt-fantasma"
+            title={porque([[ocupado, AGUARDE], [!precoValido, 'Preco fora da faixa permitida'], [precoNum === tela.preco, 'Esse ja e o preco atual']])}
             disabled={ocupado || !precoValido || precoNum === tela.preco}
           >
             Aplicar preco
@@ -97,7 +93,7 @@ export function Estadio({ tela, ocupado, aoAgir }: Props) {
         </div>
         {tela.obra ? (
           <div className="aviso-obra">
-            Obra em andamento: +{tela.obra.lugares} lugares, faltam {tela.obra.semanas} semana(s). Uma obra
+            Obra em andamento: +{tela.obra.lugares} lugares, faltam {plural(tela.obra.semanas, 'semana')}. Uma obra
             por vez.
           </div>
         ) : (
@@ -121,6 +117,7 @@ export function Estadio({ tela, ocupado, aoAgir }: Props) {
             <button
               type="submit"
               className="bt-acao bt-media"
+              title={porque([[ocupado, AGUARDE], [!lugaresValido, 'Quantidade de lugares fora da faixa'], [!cabe, 'Caixa insuficiente para a obra']])}
               disabled={ocupado || !lugaresValido || !cabe}
             >
               Contratar obra

@@ -19,6 +19,7 @@
 // Automatico remonta. Toda troca de formacao pode ser desfeita por alguns
 // segundos - o botao aparece no recado, la em cima.
 
+import { porque, AGUARDE } from '../motivo'
 import { useRef, useState } from 'react'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
 import { Campo } from '../componentes/Campo'
@@ -242,6 +243,7 @@ export function Escalacao({ tela, ocupado, mercadoPronto, aoAbrirFicha, aoAgir, 
           <button
             type="button"
             className="bt-fantasma"
+            title={porque([[ocupado, AGUARDE]])}
             disabled={ocupado}
             onClick={() => aoAgir({ tipo: 'esquema', formacao: saida.alternativa!.formacao })}
           >
@@ -276,8 +278,8 @@ export function Escalacao({ tela, ocupado, mercadoPronto, aoAbrirFicha, aoAgir, 
               type="button"
               className={tela.auto ? 'ativo' : ''}
               aria-pressed={tela.auto}
+              title={porque([[ocupado, AGUARDE]], 'A maquina monta o melhor time toda semana')}
               disabled={ocupado}
-              title="A maquina monta o melhor time toda semana"
               onClick={() => aoAgir({ tipo: 'auto', ligada: true })}
             >
               Automatico
@@ -286,8 +288,8 @@ export function Escalacao({ tela, ocupado, mercadoPronto, aoAbrirFicha, aoAgir, 
               type="button"
               className={!tela.auto ? 'ativo' : ''}
               aria-pressed={!tela.auto}
+              title={porque([[ocupado, AGUARDE]], 'O time e seu: so repomos quem nao pode jogar')}
               disabled={ocupado}
-              title="O time e seu: so repomos quem nao pode jogar"
               onClick={() => aoAgir({ tipo: 'auto', ligada: false })}
             >
               Manual
@@ -320,6 +322,7 @@ export function Escalacao({ tela, ocupado, mercadoPronto, aoAbrirFicha, aoAgir, 
             ref={botaoEditar}
             className="bt-fantasma"
             aria-pressed={editando}
+            title={porque([[ocupado && !editando, AGUARDE]])}
             disabled={ocupado && !editando}
             onClick={() => (editando ? sairDoEditor() : setEditando(true))}
           >
@@ -344,8 +347,8 @@ export function Escalacao({ tela, ocupado, mercadoPronto, aoAbrirFicha, aoAgir, 
           <button
             type="button"
             className="bt-fantasma"
+            title={porque([[ocupado, AGUARDE]], 'Monta o melhor XI disponivel para a formacao atual')}
             disabled={ocupado}
-            title="Monta o melhor XI disponivel para a formacao atual"
             onClick={() => aoAgir({ tipo: 'montar' })}
           >
             Montar melhor time
@@ -365,6 +368,7 @@ export function Escalacao({ tela, ocupado, mercadoPronto, aoAbrirFicha, aoAgir, 
             <button
               type="button"
               className="bt-fantasma bt-mini"
+              title={porque([[ocupado, AGUARDE], [tela.plano.padrao, 'O plano ja esta neutro']])}
               disabled={ocupado || tela.plano.padrao}
               onClick={() => aoAgir({ tipo: 'plano-padrao' })}
             >
@@ -507,12 +511,14 @@ export function Escalacao({ tela, ocupado, mercadoPronto, aoAbrirFicha, aoAgir, 
         <button
           type="button"
           className="bt-fantasma"
+          title={porque([[validos.length === 0, 'Nada marcado para limpar']])}
           disabled={validos.length === 0}
           onClick={() => setMarcados([])}
         >
           Limpar
         </button>
-        <button type="button" className="bt-acao bt-media" disabled={!troca.acao || ocupado} onClick={trocar}>
+        <button type="button" className="bt-acao bt-media" title={porque([[!troca.acao, 'Marque dois jogadores para trocar'], [ocupado, AGUARDE]])}
+        disabled={!troca.acao || ocupado} onClick={trocar}>
           Trocar
         </button>
       </div>

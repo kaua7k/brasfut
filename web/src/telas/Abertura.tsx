@@ -5,6 +5,7 @@
 // que valem pelo save inteiro (dificuldade, sem demissao, investidor) antes de
 // criar o mundo. So depois vem a escolha do clube, e so ela grava o save.
 
+import { porque, AGUARDE } from '../motivo'
 import { useEffect, useState } from 'react'
 import { api } from '../api'
 import { Estrela } from '../icones'
@@ -101,7 +102,8 @@ function Iniciar({ situacao, save, ocupado, aoAbrir, aoNova, aoVoltar }: Props &
           Voltar
         </button>
         {temSave && (
-          <button type="button" className="bt-acao" disabled={ocupado} onClick={aoAbrir}>
+          <button type="button" className="bt-acao" title={porque([[ocupado, AGUARDE]])}
+          disabled={ocupado} onClick={aoAbrir}>
             {ocupado ? 'Abrindo…' : 'Continuar carreira'}
           </button>
         )}
@@ -198,7 +200,8 @@ function NovaCarreira({ situacao, config, ocupado, dificuldades, aoCriar, aoVolt
         <button type="button" className="bt-fantasma" onClick={aoVoltar}>
           Voltar
         </button>
-        <button type="submit" className="bt-acao" disabled={ocupado || !nomeLimpo}>
+        <button type="submit" className="bt-acao" title={porque([[ocupado, AGUARDE], [!nomeLimpo, 'Escreva o nome do treinador']])}
+        disabled={ocupado || !nomeLimpo}>
           {ocupado ? 'Criando mundo…' : 'Criar mundo e escolher clube'}
         </button>
       </div>
@@ -345,6 +348,7 @@ function EscolherClube({ clubes, erro, ocupado, aoEscolher }: Props) {
               type="button"
               className="clube-opcao"
               key={c.id}
+              title={porque([[ocupado, AGUARDE]])}
               disabled={ocupado}
               onClick={() => aoEscolher(c.id)}
             >

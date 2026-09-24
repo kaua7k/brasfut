@@ -4,6 +4,7 @@
 // o sinal ja julgado pelo servidor: lesao subindo e vermelho mesmo sendo um
 // numero positivo. A tela nao decide o que e bom.
 
+import { porque, AGUARDE, MARQUE } from '../motivo'
 import { useEffect, useState } from 'react'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
 import { alternarMarca, Grade, type Coluna } from '../componentes/Grade'
@@ -87,6 +88,7 @@ export function Treino({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
             aria-checked={r.ativo}
             key={r.nome}
             className={`regime${r.ativo ? ' ativo' : ''}`}
+            title={porque([[ocupado, AGUARDE]])}
             disabled={ocupado}
             onClick={() => !r.ativo && aoAgir({ tipo: 'regime', nome: r.nome })}
           >
@@ -133,6 +135,7 @@ export function Treino({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
           <button
             type="button"
             className="bt-fantasma"
+            title={porque([[ids.length === 0, MARQUE]])}
             disabled={ids.length === 0}
             onClick={() => aoAbrirFicha(ids[0])}
           >
@@ -141,6 +144,7 @@ export function Treino({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
           <button
             type="button"
             className="bt-fantasma"
+            title={porque([[ocupado, AGUARDE], [tela.em_foco === 0, 'Ninguem em treino individual']])}
             disabled={ocupado || tela.em_foco === 0}
             onClick={() => aoAgir({ tipo: 'limpar' })}
           >
@@ -149,6 +153,7 @@ export function Treino({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
           <button
             type="button"
             className="bt-acao bt-media"
+            title={porque([[ocupado, AGUARDE], [ids.length === 0, MARQUE]])}
             disabled={ocupado || ids.length === 0}
             onClick={() => {
               aoAgir({ tipo: 'foco', ids })

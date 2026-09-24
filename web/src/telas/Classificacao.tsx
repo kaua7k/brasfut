@@ -5,6 +5,7 @@
 
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
 import { Grade, type Coluna } from '../componentes/Grade'
+import { LegendaZonas, MarcaZona } from '../componentes/Zona'
 import type { LinhaClassificacao, TelaTabela } from '../tipos'
 
 interface Props {
@@ -14,7 +15,7 @@ interface Props {
 }
 
 const COLUNAS: Coluna<LinhaClassificacao>[] = [
-  { chave: 'pos', rotulo: '#', largura: '34px', classe: 'num', render: (l) => l.pos },
+  { chave: 'pos', rotulo: 'Pos', largura: '40px', classe: 'num', render: (l) => l.pos },
   {
     chave: 'clube',
     rotulo: 'Clube',
@@ -22,12 +23,12 @@ const COLUNAS: Coluna<LinhaClassificacao>[] = [
     classe: 'corta',
     render: (l) => (
       <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <i className="marcador-zona" />
+        <MarcaZona zona={l.zona} texto={l.zona_texto} />
         {l.clube}
       </span>
     ),
   },
-  { chave: 'p', rotulo: 'P', largura: '42px', classe: 'num', render: (l) => l.p },
+  { chave: 'p', rotulo: 'Pts', largura: '42px', classe: 'num', render: (l) => l.p },
   { chave: 'j', rotulo: 'J', largura: '38px', classe: 'num', render: (l) => l.j },
   { chave: 'v', rotulo: 'V', largura: '38px', classe: 'num', render: (l) => l.v },
   { chave: 'e', rotulo: 'E', largura: '38px', classe: 'num', render: (l) => l.e },
@@ -78,6 +79,7 @@ export function Classificacao({ tela, aoTrocarTorneio, ocupado }: Props) {
                 idDe={(l) => l.pos}
                 classeDe={(l) => `${l.zona}${l.eu ? ' eu' : ''}`}
               />
+              <LegendaZonas linhas={g.linhas} />
             </section>
           ))}
         </div>
@@ -90,6 +92,7 @@ export function Classificacao({ tela, aoTrocarTorneio, ocupado }: Props) {
             classeDe={(l) => `${l.zona}${l.eu ? ' eu' : ''}`}
             vazio={tela.vazio ?? 'Este torneio ainda nao comecou.'}
           />
+          <LegendaZonas linhas={tela.linhas} />
         </section>
       )}
     </div>

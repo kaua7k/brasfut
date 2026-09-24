@@ -8,6 +8,7 @@
 // A ultima escolha e as paradas ficam guardadas no navegador: quem simula mes
 // a mes nao quer remarcar tudo toda vez.
 
+import { porque } from '../motivo'
 import { useEffect, useRef, useState } from 'react'
 import { api, ErroDaApi } from '../api'
 import type { LinhaRelato, OpcaoAvanco, Paradas, Pendencia } from '../tipos'
@@ -196,7 +197,7 @@ export function DialogoAvanco({ aoFechar, aoAbrirEscalacao }: Props) {
           <div className="avanco-progresso">
             <progress max={total || 1} value={feitas} aria-label="Semanas simuladas" />
             <span className="tag-fraco">
-              {rodando ? `${feitas} de ${total}` : `${feitas} semana(s) simulada(s)`}
+              {rodando ? `${feitas} de ${total}` : feitas === 1 ? '1 semana simulada' : `${feitas} semanas simuladas`}
               {motivo && ` · parou: ${motivo}`}
             </span>
           </div>
@@ -227,7 +228,8 @@ export function DialogoAvanco({ aoFechar, aoAbrirEscalacao }: Props) {
         {erro && <div className="mesa-linha linha-critica">{erro}</div>}
 
         <div className="modal-acoes">
-          <button type="button" className="bt-fantasma" disabled={rodando} onClick={fechar}>
+          <button type="button" className="bt-fantasma" title={porque([[rodando, 'Espere a simulacao parar']])}
+          disabled={rodando} onClick={fechar}>
             Fechar
           </button>
           {rodando ? (
@@ -238,6 +240,7 @@ export function DialogoAvanco({ aoFechar, aoAbrirEscalacao }: Props) {
             <button
               type="button"
               className="bt-acao bt-media"
+              title={porque([[!opcao, 'Escolha um ritmo'], [!opcao || opcao.semanas <= 0, 'Nao ha semanas para simular nesse ritmo']])}
               disabled={!opcao || opcao.semanas <= 0}
               onClick={() => rodar(false)}
             >

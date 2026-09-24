@@ -6,8 +6,10 @@
 // Aplicar mexe no jogo. Cancelar descarta, e por isso nao precisa de desfazer
 // aqui dentro.
 
+import { porque, AGUARDE } from '../motivo'
 import { useEffect, useRef, useState } from 'react'
 import { api, ErroDaApi } from '../api'
+import { plural } from '../formato'
 import type { Contagem, PreviaEsquema } from '../tipos'
 import { Campo } from './Campo'
 
@@ -93,8 +95,8 @@ export function EditorFormacao({ inicial, limites, ocupado, aoAplicar, aoSair }:
   }
 
   let ajuda = ''
-  if (falta > 0) ajuda = `Faltam ${falta}`
-  if (falta < 0) ajuda = `Sobram ${-falta}`
+  if (falta > 0) ajuda = falta === 1 ? 'Falta 1 jogador' : `Faltam ${falta} jogadores`
+  if (falta < 0) ajuda = falta === -1 ? 'Sobra 1 jogador' : `Sobram ${-falta} jogadores`
 
   return (
     <div
@@ -111,7 +113,7 @@ export function EditorFormacao({ inicial, limites, ocupado, aoAplicar, aoSair }:
           <Campo jogadores={previa.jogadores} vagasAbertas={previa.vagas_abertas ?? 0} />
         ) : (
           <div className="campo-area editor-vazio">
-            <span>{total === LINHA_TOTAL ? 'calculando…' : `${ajuda} jogador(es) de linha`}</span>
+            <span>{total === LINHA_TOTAL ? 'calculando…' : `${ajuda} de linha`}</span>
           </div>
         )}
       </div>
@@ -133,8 +135,8 @@ export function EditorFormacao({ inicial, limites, ocupado, aoAplicar, aoSair }:
                 <button
                   type="button"
                   ref={i === 0 ? primeiro : undefined}
+                  title={porque([[noMin, 'Ja esta no minimo para esta posicao']], noMin ? `Minimo ${lim.min} ${lim.min === 1 ? l.nome : l.plural.toLowerCase()}` : undefined)}
                   disabled={noMin}
-                  title={noMin ? `Minimo ${lim.min} ${lim.min === 1 ? l.nome : l.plural.toLowerCase()}` : undefined}
                   aria-label={`Remover ${l.nome}, atual ${cont[l.id]}`}
                   onClick={() => mexer(l.id, -1)}
                 >
@@ -143,8 +145,8 @@ export function EditorFormacao({ inicial, limites, ocupado, aoAplicar, aoSair }:
                 <span className="editor-num" aria-hidden="true">{cont[l.id]}</span>
                 <button
                   type="button"
+                  title={porque([[noMax, 'Ja esta no maximo para esta posicao']], noMax ? `Maximo ${lim.max} ${l.plural.toLowerCase()}` : undefined)}
                   disabled={noMax}
-                  title={noMax ? `Maximo ${lim.max} ${l.plural.toLowerCase()}` : undefined}
                   aria-label={`Adicionar ${l.nome}, atual ${cont[l.id]}`}
                   onClick={() => mexer(l.id, +1)}
                 >
@@ -169,7 +171,7 @@ export function EditorFormacao({ inicial, limites, ocupado, aoAplicar, aoSair }:
             <span className={carregando ? 'carregando-num' : undefined}>
               {' '}
               · {previa.rotulo} · Forca prevista: ataque {previa.ataque} / defesa {previa.defesa}
-              {previa.improvisados ? ` · ${previa.improvisados} improvisado(s)` : ' · ninguem improvisado'}
+              {previa.improvisados ? ` · ${plural(previa.improvisados, 'improvisado')}` : ' · ninguem improvisado'}
               {previa.mantem_os_11 ? ' · mesmos 11, so as vagas mudam' : ' · o automatico remonta o time'}
             </span>
           )}
@@ -194,8 +196,8 @@ export function EditorFormacao({ inicial, limites, ocupado, aoAplicar, aoSair }:
             <button
               type="button"
               className="bt-acao bt-media"
+              title={porque([[ocupado, AGUARDE], [falta !== 0, 'A formacao precisa de 10 jogadores de linha'], [!mudou, 'Nada mudou em relacao a formacao atual']], falta !== 0 ? ajuda : !mudou ? 'Nada mudou' : undefined)}
               disabled={ocupado || falta !== 0 || !mudou}
-              title={falta !== 0 ? ajuda : !mudou ? 'Nada mudou' : undefined}
               onClick={() => aoAplicar(cont)}
             >
               Aplicar

@@ -4,6 +4,7 @@
 // disabled>), e nao apenas apagado: o teclado tem que pular por cima dele,
 // senao o Tab leva a um lugar que nao existe.
 
+import { porque, AGUARDE } from '../motivo'
 import { ICONES_MENU, Estrela, IconeAjuda, IconeSalvar } from '../icones'
 import type { ItemMenu } from '../tipos'
 
@@ -38,7 +39,10 @@ export function MenuLateral({ clube, itens, atual, aoTrocar, aoSalvar, salvando 
               className={`navitem${ativo ? ' ativo' : ''}`}
               disabled={!item.pronta}
               aria-current={ativo ? 'page' : undefined}
-              title={item.pronta ? undefined : `${item.nome}: ainda so na janela do jogo`}
+              // em tela estreita o menu vira so icones: o nome continua no
+              // leitor de tela (aria-label) e no mouse (title)
+              aria-label={item.nome}
+              title={item.pronta ? item.nome : `${item.nome}: ainda so na janela do jogo`}
               onClick={() => aoTrocar(item.id)}
             >
               <Icone />
@@ -49,11 +53,18 @@ export function MenuLateral({ clube, itens, atual, aoTrocar, aoSalvar, salvando 
       </div>
 
       <div className="navrodape">
-        <button type="button" className="navitem" onClick={aoSalvar} disabled={salvando}>
+        <button
+          type="button"
+          className="navitem"
+          onClick={aoSalvar}
+          aria-label="Salvar"
+          title={porque([[salvando, AGUARDE]], 'Salvar')}
+          disabled={salvando}
+        >
           <IconeSalvar />
           <span className="rotulo-nav">{salvando ? 'Salvando…' : 'Salvar'}</span>
         </button>
-        <button type="button" className="navitem" disabled title="Ajuda: ainda so na janela do jogo">
+        <button type="button" className="navitem" disabled aria-label="Ajuda" title="Ajuda: ainda so na janela do jogo">
           <IconeAjuda />
           <span className="rotulo-nav">Ajuda</span>
         </button>

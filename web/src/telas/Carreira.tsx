@@ -5,6 +5,7 @@
 // embora. Daqui tambem se pede demissao - uma acao que troca de clube, entao
 // ela pede um segundo clique antes de valer.
 
+import { porque, AGUARDE } from '../motivo'
 import { useState } from 'react'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
 import type { PassagemCarreira, PropostaEmprego, TelaCarreira } from '../tipos'
@@ -153,13 +154,15 @@ function LinhaProposta({
             <button type="button" className="bt-fantasma" onClick={() => setCerteza(false)}>
               Cancelar
             </button>
-            <button type="button" className="bt-acao" disabled={ocupado} onClick={() => aoResponder(proposta.id, true)}>
+            <button type="button" className="bt-acao" title={porque([[ocupado, AGUARDE]])}
+            disabled={ocupado} onClick={() => aoResponder(proposta.id, true)}>
               Confirmar troca
             </button>
           </>
         ) : (
           <>
-            <button type="button" className="bt-fantasma" disabled={ocupado} onClick={() => aoResponder(proposta.id, false)}>
+            <button type="button" className="bt-fantasma" title={porque([[ocupado, AGUARDE]])}
+            disabled={ocupado} onClick={() => aoResponder(proposta.id, false)}>
               Recusar
             </button>
             <button type="button" className="bt-fantasma" onClick={() => setCerteza(true)}>
@@ -200,12 +203,14 @@ function SairDoClube({
           <button type="button" className="bt-fantasma" onClick={() => setCerteza(false)}>
             Ficar
           </button>
-          <button type="button" className="bt-acao" disabled={ocupado || !pode} onClick={aoSair}>
+          <button type="button" className="bt-acao" title={porque([[ocupado, AGUARDE], [!pode, 'Nao da para pedir demissao agora']])}
+          disabled={ocupado || !pode} onClick={aoSair}>
             Confirmar demissao
           </button>
         </>
       ) : (
-        <button type="button" className="bt-fantasma" disabled={!pode} onClick={() => setCerteza(true)}>
+        <button type="button" className="bt-fantasma" title={porque([[!pode, 'Nao da para pedir demissao agora']])}
+        disabled={!pode} onClick={() => setCerteza(true)}>
           Pedir demissao
         </button>
       )}

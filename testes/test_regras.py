@@ -192,7 +192,7 @@ class TestRegras(unittest.TestCase):
                 break
             apoio.avancar({"leve": True})
         self.assertIsNotNone(proximo["ataque"]["dele"], "nenhum jogo com adversario em 8 semanas")
-        adv = [c for c in G["clubes"].values() if c["nome"] == proximo["adversario"]][0]
+        adv = [c for c in G["clubes"].values() if eng.nome_clube(G, c["id"]) == proximo["adversario"]][0]
         comp = [k for k, casa, fora in eng.jogos_da_semana(G, G["clube"])
                 if adv["id"] in (casa, fora) or casa is None][0]
         at, de, _ = eng.forcas(G, adv, comp)

@@ -8,10 +8,13 @@
 //
 // Negociar abre a mesa (componentes/Mesa.tsx); quem fecha negocio e o motor.
 
+import { porque, AGUARDE } from '../motivo'
 import { useEffect, useState } from 'react'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
 import { CampoDinheiro } from '../componentes/CampoDinheiro'
 import { alternarMarca, Grade, type Coluna } from '../componentes/Grade'
+import { dinheiro, plural } from '../formato'
+import { LegendaCores } from '../componentes/LegendaCores'
 import { iconeDeEstado } from '../icones'
 import type {
   AbaMercado,
@@ -246,6 +249,7 @@ function Contraproposta({
         <button
           type="button"
           className="bt-acao bt-media"
+          title={porque([[ocupado, AGUARDE], [!valor, 'Diga quanto voce quer'], [o.contras <= 0, 'Sem contraproposta restante nesta semana']])}
           disabled={ocupado || !valor || o.contras <= 0}
           onClick={() => aoEnviar(valor)}
         >
@@ -257,7 +261,7 @@ function Contraproposta({
         dele. Se couber, a venda fecha na hora pelo seu valor. Se passar um pouco, ele sobe a oferta ate um meio-termo.
         Se voce pedir muito acima, ele retira a proposta.{' '}
         {o.contras > 0
-          ? `Restam ${o.contras} contraproposta(s) nesta oferta nesta semana.`
+          ? `${o.contras === 1 ? 'Resta 1 contraproposta' : `Restam ${o.contras} contrapropostas`} nesta oferta nesta semana.`
           : 'Ele ja deu a ultima palavra nesta semana: aceite ou recuse.'}
       </p>
     </div>
@@ -314,6 +318,7 @@ export function Mercado({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
             role="tab"
             aria-selected={a.id === aba}
             className={`aba${a.id === aba ? ' ativa' : ''}`}
+            title={porque([[ocupado, AGUARDE]])}
             disabled={ocupado}
             onClick={() => a.id !== aba && aoAgir({ tipo: 'buscar', aba: a.id, filtros: filtros() })}
           >
@@ -365,7 +370,8 @@ export function Mercado({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
               />
             </label>
             {aba !== 'livres' && <CampoDinheiro rotulo="Pedido ate" valor={teto} aoMudar={setTeto} />}
-            <button type="submit" className="bt-acao bt-media" disabled={ocupado}>
+            <button type="submit" className="bt-acao bt-media" title={porque([[ocupado, AGUARDE]])}
+            disabled={ocupado}>
               Buscar
             </button>
           </form>
@@ -382,6 +388,7 @@ export function Mercado({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
               aoAbrir={(j) => aoAbrirFicha(j.id)}
               vazio="Ninguem com esse perfil agora. Afrouxe os filtros."
             />
+            <LegendaCores />
             <div className="barra-acoes barra-presa">
               <span className="resumo">
                 {/* com alguem marcado, a barra diz quem e: ela fica presa no rodape
@@ -401,13 +408,15 @@ export function Mercado({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
                   'marque um jogador · * o clube quer vender · ! nao quer vender (pede mais caro) · Emp: tambem sai por emprestimo'
                 )}
               </span>
-              <button type="button" className="bt-fantasma" disabled={!alvo} onClick={() => alvo && aoAbrirFicha(alvo.id)}>
+              <button type="button" className="bt-fantasma" title={porque([[!alvo, 'Marque um jogador na lista']])}
+              disabled={!alvo} onClick={() => alvo && aoAbrirFicha(alvo.id)}>
                 Ver ficha
               </button>
               {aba === 'compra' && (
                 <button
                   type="button"
                   className="bt-fantasma"
+                  title={porque([[!alvo, 'Marque um jogador na lista'], [Boolean(alvo?.acertado), 'Ja acertado com voce: ele chega na abertura da janela'], [ocupado, AGUARDE]])}
                   disabled={!alvo || alvo.acertado || ocupado}
                   onClick={() => alvo && aoAgir({ tipo: 'negociar', mesa: 'emprestimo', id: alvo.id })}
                 >
@@ -417,6 +426,7 @@ export function Mercado({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
               <button
                 type="button"
                 className="bt-acao bt-media"
+                title={porque([[!alvo, 'Marque um jogador na lista'], [Boolean(alvo?.acertado), 'Ja acertado com voce: ele chega na abertura da janela'], [ocupado, AGUARDE]])}
                 disabled={!alvo || alvo.acertado || ocupado}
                 onClick={() =>
                   alvo && aoAgir({ tipo: 'negociar', mesa: aba === 'emprestimo' ? 'emprestimo' : 'compra', id: alvo.id })
@@ -447,12 +457,13 @@ export function Mercado({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
                 <div className="barra-acoes barra-presa">
                   <span className="resumo">
                     {contratos.size
-                      ? `${contratos.size} marcado(s): as mesas abrem uma depois da outra`
+                      ? `${plural(contratos.size, 'marcado')}: as mesas abrem uma depois da outra`
                       : 'sem marcar ninguem, renova todos da lista, um por vez'}
                   </span>
                   <button
                     type="button"
                     className="bt-acao bt-media"
+                    title={porque([[ocupado, AGUARDE]])}
                     disabled={ocupado}
                     onClick={() =>
                       aoAgir({
@@ -485,11 +496,12 @@ export function Mercado({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
             {tela.vitrine.length > 0 && (
               <div className="barra-acoes barra-presa">
                 <span className="resumo">
-                  {vitrine.size ? `${vitrine.size} marcado(s)` : 'sem marcar ninguem, a acao vale para todos da vitrine'}
+                  {vitrine.size ? plural(vitrine.size, 'marcado') : 'sem marcar ninguem, a acao vale para todos da vitrine'}
                 </span>
                 <button
                   type="button"
                   className="bt-fantasma"
+                  title={porque([[ocupado, AGUARDE]])}
                   disabled={ocupado}
                   onClick={() => aoAgir({ tipo: 'reprecificar', ids: vitrine.size ? [...vitrine] : tela.vitrine.map((j) => j.id) })}
                 >
@@ -498,6 +510,7 @@ export function Mercado({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
                 <button
                   type="button"
                   className="bt-fantasma"
+                  title={porque([[ocupado, AGUARDE]])}
                   disabled={ocupado}
                   onClick={() => aoAgir({ tipo: 'tirar', ids: vitrine.size ? [...vitrine] : tela.vitrine.map((j) => j.id) })}
                 >
@@ -534,11 +547,12 @@ export function Mercado({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
                   {!umaOferta && 'marque UMA proposta para fazer contraproposta · '}
                   as mesmas ate a semana virar: nao adianta sair e voltar
                   {itensOfertas.length > 0 &&
-                    ` · ${itensOfertas.length} marcada(s), entram R$ ${(entra / 1e6).toFixed(2)} mi`}
+                    ` · ${plural(itensOfertas.length, 'marcada')}, entram ${dinheiro(entra)}`}
                 </span>
                 <button
                   type="button"
                   className="bt-fantasma"
+                  title={porque([[ocupado, AGUARDE], [!itensOfertas.length, 'Marque pelo menos uma proposta']])}
                   disabled={ocupado || !itensOfertas.length}
                   onClick={() => aoAgir({ tipo: 'recusar', itens: itensOfertas })}
                 >
@@ -547,6 +561,7 @@ export function Mercado({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
                 <button
                   type="button"
                   className="bt-acao bt-media"
+                  title={porque([[ocupado, AGUARDE], [!itensOfertas.length, 'Marque pelo menos uma proposta']])}
                   disabled={ocupado || !itensOfertas.length}
                   onClick={() => aoAgir({ tipo: 'aceitar', itens: itensOfertas })}
                 >
@@ -576,6 +591,7 @@ export function Mercado({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
               <button
                 type="button"
                 className="bt-fantasma bt-perigo"
+                title={porque([[ocupado, AGUARDE], [agendadas.size === 0, 'Marque o acerto que voce quer desfazer']])}
                 disabled={ocupado || agendadas.size === 0}
                 onClick={() => aoAgir({ tipo: 'cancelar', indices: [...agendadas] })}
               >

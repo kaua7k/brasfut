@@ -102,6 +102,8 @@ export interface LinhaTabela {
   pts: number
   eu: boolean
   zona: 'alta' | 'baixa' | ''
+  /** a zona em palavras: "G4", "acesso", "rebaixamento", "vai ao mata-mata" */
+  zona_texto?: string | null
 }
 
 export interface Tabela {
@@ -473,6 +475,7 @@ export interface LinhaClassificacao {
   sg: number
   eu: boolean
   zona: 'alta' | 'baixa' | 'media' | ''
+  zona_texto?: string | null
   /** so no estadual com grupos: "Grupo A"... (a posicao conta dentro dele) */
   grupo?: string | null
 }

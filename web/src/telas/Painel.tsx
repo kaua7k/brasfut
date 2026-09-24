@@ -4,8 +4,11 @@
 // campo) e o maior bloco da tela, e o resto e contexto da aposta e memoria.
 // E a mesma hierarquia da janela tkinter, redesenhada.
 
+import { porque, AGUARDE } from '../motivo'
 import { useState } from 'react'
 import { Campo } from '../componentes/Campo'
+import { plural } from '../formato'
+import { LegendaZonas, MarcaZona } from '../componentes/Zona'
 import { Estrela, EscudoRival, iconeDeEstado } from '../icones'
 import type {
   AvisoContratos,
@@ -202,8 +205,13 @@ function FaixaResultados({ resultados }: { resultados: Resultados }) {
         <div className="espaco" />
 
         <div style={{ textAlign: 'right' }}>
-          <div className="painel-titulo" style={{ marginBottom: 4 }}>Ultimos 5</div>
-          <div className="forma">
+          {/* a contagem e a real (no comeco do ano sao menos de 5) e a seta diz
+              o sentido: o mais antigo a esquerda, o ultimo jogo a direita */}
+          <div className="painel-titulo" style={{ marginBottom: 4 }}>
+            {forma.length === 1 ? 'Ultimo jogo' : `Ultimos ${forma.length || 5}`}
+            {forma.length > 1 && <span className="tag-fraco"> · antigo → recente</span>}
+          </div>
+          <div className="forma" aria-label={forma.map((f) => f.descricao).join(', ')}>
             {forma.length === 0 && <span className="placar-onde">sem historico ainda</span>}
             {forma.map((f, i) => (
               <span className={`forma-badge ${f.letra}`} key={i} title={f.descricao}>
@@ -265,7 +273,7 @@ function CardProximo({ proximo, meuClube }: { proximo: Proximo; meuClube: string
 
       {proximo.extras > 0 && (
         <div style={{ fontSize: 11, color: 'var(--atencao)', marginTop: 10, textAlign: 'center' }}>
-          +{proximo.extras} jogo(s) nesta semana
+          +{plural(proximo.extras, 'jogo')} nesta semana
         </div>
       )}
 
@@ -332,18 +340,18 @@ function CardEscalacao({
           <button
             type="button"
             className={escalacao.auto ? 'ativo' : ''}
+            title={porque([[mudandoAuto, AGUARDE]], 'O time se monta sozinho antes de cada jogo')}
             disabled={mudandoAuto}
             onClick={() => aoDefinirAuto(true)}
-            title="O time se monta sozinho antes de cada jogo"
           >
             Automatico
           </button>
           <button
             type="button"
             className={!escalacao.auto ? 'ativo' : ''}
+            title={porque([[mudandoAuto, AGUARDE]], 'O seu XI e soberano, so repomos quem nao pode jogar')}
             disabled={mudandoAuto}
             onClick={() => aoDefinirAuto(false)}
-            title="O seu XI e soberano, so repomos quem nao pode jogar"
           >
             Manual
           </button>
@@ -385,7 +393,7 @@ function CardEscalacao({
             <div className="xi-linha">
               <span className="xi-vaga critico">---</span>
               <span className="xi-nome" style={{ color: 'var(--critico)' }}>
-                {escalacao.vagas_abertas} vaga(s) sem jogador apto
+                {plural(escalacao.vagas_abertas, 'vaga')} sem jogador apto
               </span>
               <span className="xi-num">--</span>
               <span className="xi-fis">--</span>
@@ -435,7 +443,7 @@ function CardTabela({ tabela }: { tabela: Tabela }) {
       ) : (
         <>
           <div className="tablerow cab">
-            <span>P</span>
+            <span>Pos</span>
             <span>Clube</span>
             <span className="num">J</span>
             <span className="num">SG</span>
@@ -446,7 +454,7 @@ function CardTabela({ tabela }: { tabela: Tabela }) {
             <div className={`tablerow ${l.zona}${l.eu ? ' eu' : ''}`} key={l.pos}>
               <span className="pos">{l.pos}</span>
               <span className="clube">
-                <i className="marcador" />
+                <MarcaZona zona={l.zona} texto={l.zona_texto} />
                 {l.clube}
               </span>
               <span className="num">{l.j}</span>
@@ -455,6 +463,7 @@ function CardTabela({ tabela }: { tabela: Tabela }) {
               <span className="num">{l.pts}</span>
             </div>
           ))}
+          <LegendaZonas linhas={tabela.linhas} />
         </>
       )}
     </section>
@@ -472,7 +481,7 @@ function CardDestaques({ destaques }: { destaques: Destaque[] }) {
             <div className="avatar">{d.iniciais}</div>
             <div className="nome" title={d.nome}>{d.nome}</div>
             <div className="linha2">{d.pos} · overall {d.ovr}</div>
-            <div className="linha2">{d.g} gol(s) · {d.a} assist.</div>
+            <div className="linha2">{plural(d.g, 'gol')} · {d.a} assist.</div>
           </div>
         ))}
       </div>

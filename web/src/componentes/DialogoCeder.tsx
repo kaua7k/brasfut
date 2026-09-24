@@ -5,8 +5,10 @@
 // a escolha - um jogador nao vai para dois clubes. A confirmacao com a conta
 // vem do servidor, como em toda acao que mexe no elenco.
 
+import { porque, AGUARDE } from '../motivo'
 import { useEffect, useState } from 'react'
 import { api, ErroDaApi } from '../api'
+import { dinheiro as reais, plural } from '../formato'
 import type { LinhaCessao } from '../tipos'
 import { Grade, type Coluna } from './Grade'
 
@@ -32,11 +34,6 @@ const COLUNAS: Coluna<LinhaCessao>[] = [
   { chave: 'pct', rotulo: 'Assume', largura: '64px', classe: 'centro', render: (l) => `${l.pct}%` },
   { chave: 'sobra', rotulo: 'Sobra pra voce', largura: '104px', classe: 'num', render: (l) => l.sobra },
 ]
-
-function reais(v: number) {
-  if (v >= 1e6) return `R$ ${(v / 1e6).toFixed(2)} mi`
-  return `R$ ${Math.round(v / 1000)} mil`
-}
 
 export function DialogoCeder({ ids, ocupado, aoConfirmar, aoFechar }: Props) {
   const [linhas, setLinhas] = useState<LinhaCessao[] | null>(null)
@@ -108,7 +105,7 @@ export function DialogoCeder({ ids, ocupado, aoConfirmar, aoFechar }: Props) {
           </section>
         )}
         <div className="mesa-linha tag-fraco" style={{ marginTop: 10 }}>
-          {escolhidas.length} jogador(es) sairiam, aliviando {reais(alivio)} por mes na folha · marcar
+          {plural(escolhidas.length, 'jogador', 'jogadores')} {escolhidas.length === 1 ? 'sairia' : 'sairiam'}, aliviando {reais(alivio)} por mes na folha · marcar
           outra linha do mesmo jogador troca o clube escolhido
         </div>
         {erro && <div className="mesa-linha linha-critica">{erro}</div>}
@@ -119,6 +116,7 @@ export function DialogoCeder({ ids, ocupado, aoConfirmar, aoFechar }: Props) {
           <button
             type="button"
             className="bt-acao bt-media"
+            title={porque([[ocupado, AGUARDE], [escolhidas.length === 0, 'Marque pelo menos uma oferta']])}
             disabled={ocupado || escolhidas.length === 0}
             onClick={() => aoConfirmar(escolhidas.map((l) => ({ id: l.id, clube_id: l.clube_id })))}
           >

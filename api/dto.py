@@ -23,7 +23,7 @@ LIMPA_COR = re.compile(r"\033\[[0-9;]*m")
 MENU = [
     ("painel", "Painel", True), ("elenco", "Elenco", True), ("base", "Base", True),
     ("treino", "Treino", True), ("escalacao", "Escalacao", True),
-    ("tabela", "Tabela", True), ("copas", "Competicoes", True),
+    ("tabela", "Classificacao", True), ("copas", "Competicoes", True),
     ("mercado", "Mercado", True), ("financas", "Financas", True),
     ("estadio", "Estadio", True), ("infra", "Infraestrutura", True),
     ("noticias", "Noticias", True), ("carreira", "Carreira", True),
@@ -155,7 +155,7 @@ def _proximo(G, d):
             else:
                 legenda = "%s . rodada %d" % (eng.nome_da_liga(G, c["divisao"]),
                                                     G["ligas"][c["divisao"]]["rodada"] + 1)
-            base.update(tipo="jogo", adversario=cadv["nome"], legenda=legenda,
+            base.update(tipo="jogo", adversario=eng.nome_clube(G, cadv["id"]), legenda=legenda,
                         em_casa=(casa == G["clube"]),
                         forte=cadv["reputacao"] > c["reputacao"])
             duelo(comp, cadv)
@@ -170,7 +170,7 @@ def _proximo(G, d):
         adv = fora if casa == G["clube"] else casa
         cadv = G["clubes"][adv]
         g = eng.grupo_de(copa, G["clube"])
-        base.update(tipo="copa", adversario=cadv["nome"],
+        base.update(tipo="copa", adversario=eng.nome_clube(G, cadv["id"]),
                     legenda="%s . %s, rodada %d" % (copa["nome"], g["nome"] if g else eng.FASE_GRUPOS,
                                                     copa["rodada_grupo"] + 1),
                     em_casa=casa == G["clube"], forte=cadv["reputacao"] > c["reputacao"])
@@ -182,7 +182,7 @@ def _proximo(G, d):
             adv = par[1] if par[0] == G["clube"] else par[0]
             cadv = G["clubes"][adv]
             final = len(copa["vivos"]) == 2
-            base.update(tipo="copa", adversario=cadv["nome"],
+            base.update(tipo="copa", adversario=eng.nome_clube(G, cadv["id"]),
                         legenda="%s . %s" % (copa["nome"], eng.fase_da_copa(copa)),
                         em_casa=None if final else (par[0] == G["clube"]),
                         forte=cadv["reputacao"] > c["reputacao"])
@@ -250,11 +250,25 @@ def _objetivo(G):
             "marca": round(100.0 * (total - alvo + 1) / total, 1)}
 
 
+def rotulo_zona(zona, div=None, estadual=False):
+    """O que a faixa colorida da tabela quer dizer, em palavras: a cor sozinha
+    nao chega a quem nao distingue verde de vermelho."""
+    if not zona:
+        return None
+    if estadual:
+        return "vai ao mata-mata"
+    if zona == "baixa":
+        return "rebaixamento"
+    if div in eng.DIVISOES_BR and div != "A":
+        return "acesso"
+    return "G4"
+
+
 def _tabela(G, quantas=6):
     c = G["clubes"][G["clube"]]
     est = eng.meu_estadual(G) if G["fase"] == "estadual" else None
     liga = est or G["ligas"][c["divisao"]]
-    titulo = est["nome"] if est else "Tabela . %s" % eng.nome_da_liga(G, c["divisao"])
+    titulo = est["nome"] if est else "Classificacao . %s" % eng.nome_da_liga(G, c["divisao"])
     g = eng.grupo_do_clube(est, c["id"]) if est else None
     if g is not None:
         # no estadual com grupos, a briga e dentro do meu grupo
@@ -281,7 +295,8 @@ def _tabela(G, quantas=6):
             zona = "alta" if i < 4 else ("baixa" if rebaixa and i >= len(ordem) - 4 else "")
         linhas.append({"pos": i + 1, "clube": _corta(G["clubes"][cid]["nome"], 18),
                        "j": t["j"], "sg": t["gp"] - t["gc"], "v": t.get("v", 0),
-                       "pts": t["p"], "eu": cid == c["id"], "zona": zona})
+                       "pts": t["p"], "eu": cid == c["id"], "zona": zona,
+                       "zona_texto": rotulo_zona(zona, c["divisao"], bool(est))})
     return {"titulo": titulo, "vazio": None, "linhas": linhas}
 
 
@@ -357,7 +372,7 @@ def _noticias(G, quantas=6):
                 itens.append({"texto": "Gol de %s%s" % (j["nome"], extra),
                               "estado": "ok", "quando": marca})
             elif j["clube"] == c["id"] and tipo == "lesao":
-                itens.append({"texto": "Lesao: %s, %d semana(s) fora" % (j["nome"], j["lesao"]),
+                itens.append({"texto": "Lesao: %s, %s fora" % (j["nome"], eng.plural(j["lesao"], "semana")),
                               "estado": "critico", "quando": marca})
             elif j["clube"] == c["id"] and tipo == "vermelho":
                 itens.append({"texto": "Cartao vermelho: %s" % j["nome"],
@@ -399,7 +414,7 @@ def _propostas_emprego(G):
             for o in eng.propostas_emprego(G)]
 
 
-ROTULO_FEED = {"resultado": "Resultado", "tabela": "Tabela", "copa": "Copa",
+ROTULO_FEED = {"resultado": "Resultado", "tabela": "Classificacao", "copa": "Copa",
                "titulo": "Titulo", "mercado": "Mercado", "lesao": "Lesao",
                "abertura": "Brasileirao"}
 
@@ -427,9 +442,12 @@ def _contratos_acabando(G):
                            "ovr": j["ovr"], "vencido": j["contrato"] <= 0} for j in js[:5]],
             "extras": max(0, len(js) - 5),
             "estado": "critico" if vencidos else "atencao",
-            "texto": ("%d contrato(s) vencido(s): saem quando o ano comecar." % vencidos if vencidos
-                      else "%d jogador(es) no ultimo ano de contrato: saem de graca no fim da "
-                           "temporada." % len(js))}
+            "texto": (("1 contrato vencido: sai quando o ano comecar." if vencidos == 1 else
+                       "%d contratos vencidos: saem quando o ano comecar." % vencidos) if vencidos
+                      else ("1 jogador no ultimo ano de contrato: sai de graca no fim da temporada."
+                            if len(js) == 1 else
+                            "%d jogadores no ultimo ano de contrato: saem de graca no fim da "
+                            "temporada." % len(js)))}
 
 
 # ============================================================================
@@ -498,7 +516,7 @@ def elenco():
     return {
         "cabecalho": cabecalho(G),
         "titulo": "Elenco",
-        "subtitulo": "Clique na linha para abrir a ficha completa do jogador.",
+        "subtitulo": "Duplo clique (ou Enter) na linha abre a ficha completa do jogador.",
         "mercado_aberto": eng.mercado_aberto(G),
         "metricas": [
             {"valor": len(c["elenco"]), "nome": "jogadores"},
@@ -667,12 +685,13 @@ def tabela(alvo=None):
                     zona = "alta" if i <= vagas else ""
                 else:
                     # liga de fora nao tem rebaixamento no jogo: so o verde de cima
-                    rebaixa = liga.get("div") in eng.DIVISOES_BR
+                    rebaixa = eng.tem_rebaixamento(liga.get("div"))
                     zona = "alta" if i <= 4 else ("baixa" if rebaixa and i > len(ordem) - 4 else "")
                 do_grupo.append({"pos": i, "clube": G["clubes"][cid]["nome"], "p": t["p"],
                                  "j": t["j"], "v": t["v"], "e": t["e"], "d": t["d"],
                                  "gp": t["gp"], "gc": t["gc"], "sg": t["gp"] - t["gc"],
-                                 "eu": cid == meu, "zona": zona, "grupo": nome_grupo})
+                                 "eu": cid == meu, "zona": zona, "grupo": nome_grupo,
+                                 "zona_texto": rotulo_zona(zona, liga.get("div"), e_estadual)})
             linhas.extend(do_grupo)
             if nome_grupo:
                 grupos.append({"nome": nome_grupo, "linhas": do_grupo})
@@ -1294,9 +1313,12 @@ def resumo(r, previa=False):
           + [item("%s: %s" % (nome, dono)) for nome, dono in r["copas"]])
     destaques = []
     if r["artilheiro"]:
-        destaques.append(item("Artilheiro: %s, %d gol(s) em %d jogo(s)" % tuple(r["artilheiro"]), "ok"))
+        nome, g, jj = r["artilheiro"]
+        destaques.append(item("Artilheiro: %s, %s em %s" % (nome, eng.plural(g, "gol"), eng.plural(jj, "jogo")),
+                              "ok"))
     if r["garcom"]:
-        destaques.append(item("Mais assistencias: %s, %d em %d jogo(s)" % tuple(r["garcom"]), "ok"))
+        nome, a, jj = r["garcom"]
+        destaques.append(item("Mais assistencias: %s, %d em %s" % (nome, a, eng.plural(jj, "jogo")), "ok"))
     for nome, pos, j, g, a in r.get("destaques", []):
         destaques.append(item("%s (%s): %d jogos, %d gols, %d assistencias" % (nome, pos, j, g, a)))
     secao("Seus destaques", destaques or [item("Ninguem marcou nesta temporada.")])
@@ -1306,8 +1328,9 @@ def resumo(r, previa=False):
             eng.din(fin["receita"]), eng.din(fin["renda_jogos"]),
             "" if previa else ", %s de premiacao" % eng.din(fin["premios"]))),
         item("Saiu: %s entre folha, estrutura e treino" % eng.din(fin["gasto"])),
-        item("Vendas: %s em %d negocio(s) · Compras: %s em %d negocio(s)" % (
-            eng.din(fin["vendido"]), len(r["vendas"]), eng.din(fin["comprado"]), len(r["compras"]))),
+        item("Vendas: %s em %s · Compras: %s em %s" % (
+            eng.din(fin["vendido"]), eng.plural(len(r["vendas"]), "negocio"),
+            eng.din(fin["comprado"]), eng.plural(len(r["compras"]), "negocio"))),
     ])
     secao("Mercado", [item("vendeu %s ao %s por %s" % (n, cl, eng.din(v)), "ok") for n, cl, v in r["vendas"]]
           + [item("comprou %s do %s por %s" % (n, cl, eng.din(v)), "atencao") for n, cl, v in r["compras"]])

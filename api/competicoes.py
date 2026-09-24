@@ -108,7 +108,7 @@ def _pontos(G, liga, alvo, titulo):
         "legenda": tabela["legenda"], "linhas": tabela["linhas"], "vazio": tabela["vazio"],
         "rodadas": rodadas, "rodada_atual": min(jogadas, len(rodadas) - 1) if rodadas else 0,
         "jogadas": jogadas, "meus_jogos": meus,
-        "aviso": ("As %d primeira(s) rodada(s) foram jogadas antes de o jogo guardar "
+        "aviso": ("As %d primeiras rodadas foram jogadas antes de o jogo guardar "
                   "resultado por rodada: aparecem sem placar." % sem_registro) if sem_registro > 1 else None,
     }
 
@@ -179,8 +179,9 @@ def _copa(G, chave, alvo):
             passam = "o 1o vai as oitavas e o 2o joga o playoff"
         corte = 8 if cp.get("formato") == "suico" else (2 if chave == "lib" else 1)
         situacao = {"estado": "ok" if pos <= corte else "neutro",
-                    "texto": "%s: %do lugar depois de %d rodada(s). %s." % (
-                        meu_grupo["nome"], pos, meu_grupo["rodada"], passam[0].upper() + passam[1:])}
+                    "texto": "%s: %do lugar depois de %s. %s." % (
+                        meu_grupo["nome"], pos, eng.plural(meu_grupo["rodada"], "rodada"),
+                        passam[0].upper() + passam[1:])}
     elif meu in cp.get("espera", []):
         situacao = {"estado": "ok", "texto": "Primeiro do grupo: espera nas oitavas o vencedor do playoff."}
     elif meu in cp["vivos"] and not cp["campeao"]:
@@ -213,8 +214,10 @@ def _copa(G, chave, alvo):
             "Verde: segue para o mata-mata. Amarelo: Libertadores, cai para o playoff da "
             "Sul-Americana; Sul-Americana, joga o playoff.") if grupos else None,
         "em_grupos": eng.em_grupos(cp),
-        "aviso": ("%d fase(s) foram jogadas antes de o jogo guardar o chaveamento."
-                  % jogadas_sem_registro) if jogadas_sem_registro > 0 else None,
+        "aviso": ("%s antes de o jogo guardar o chaveamento."
+                  % ("1 fase foi jogada" if jogadas_sem_registro == 1
+                     else "%d fases foram jogadas" % jogadas_sem_registro))
+                 if jogadas_sem_registro > 0 else None,
     }
 
 
@@ -235,6 +238,7 @@ def _grupos_copa(G, cp):
                            "sg": t["gp"] - t["gc"], "eu": cid == meu, "grupo": g["nome"],
                            "zona": "alta" if i <= vagas else
                                    ("media" if (i <= 24 if suico else i == vagas + 1) else "")})
+            linhas[-1]["zona_texto"] = {"alta": "classifica", "media": "playoff"}.get(linhas[-1]["zona"])
         jogos = []
         for k, rodada in enumerate(g["rodadas"]):
             placares = {(a, b): (x, y) for a, b, x, y in (g["resultados"][k] if k < len(g["resultados"]) else [])}

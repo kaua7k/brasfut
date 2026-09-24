@@ -50,7 +50,7 @@ def acertados(G):
 
 
 def _linha_busca(G, c, j, aba, pendentes=None):
-    clube = G["clubes"][j["clube"]]["nome"] if j["clube"] is not None else "sem clube"
+    clube = eng.nome_clube(G, j["clube"])
     linha = {"id": j["id"], "pos": j["pos"], "nome": j["nome"], "idade": j["idade"],
              "ovr": j["ovr"], "teto": eng.scout(G, j), "clube": clube,
              "salario": eng.din(j["salario"]), "livre": j["clube"] is None,
@@ -100,7 +100,7 @@ def _vitrine(G, c, ofertas):
             "salario": eng.din(j["salario"]), "valor": eng.din(j["valor"]),
             "pede": eng.din(j["listado"]),
             "pct": round(100.0 * j["listado"] / max(1, j["valor"])),
-            "interessado": cl["nome"] if cl else None, "oferta": eng.din(v) if v else None,
+            "interessado": eng.nome_clube(G, cl["id"]) if cl else None, "oferta": eng.din(v) if v else None,
             "tag": dto._tag_ovr(j["ovr"]),
         })
     return linhas
@@ -117,7 +117,7 @@ def _ofertas(G, ofertas):
             "contras": eng.contrapropostas_restantes(G, j["id"], cl["id"]),
             "contrato": j["contrato"],
             "chave": "%d:%d" % (j["id"], cl["id"]), "id": j["id"], "clube_id": cl["id"],
-            "nome": j["nome"], "pos": j["pos"], "ovr": j["ovr"], "clube": cl["nome"],
+            "nome": j["nome"], "pos": j["pos"], "ovr": j["ovr"], "clube": eng.nome_clube(G, cl["id"]),
             "divisao": cl["divisao"], "oferta": eng.din(v), "oferta_num": int(v),
             "pede": eng.din(j["listado"]) if j["listado"] else "nao esta a venda",
             "diferenca": (("+" if dif >= 0 else "") + eng.din(dif)) if dif is not None else "-",
@@ -138,7 +138,7 @@ def _agendadas(G):
         else:
             tipo, valor = ("venda" if saindo else "compra"), eng.din(a["valor"])
         fora.append({"indice": indice, "jogador": j["nome"] if j else "?", "tipo": tipo,
-                     "com": outro["nome"] if outro else "sem clube", "valor": valor,
+                     "com": eng.nome_clube(G, outro["id"]) if outro else "sem clube", "valor": valor,
                      "quando": "T%d S%d" % (a["temporada"], a["semana"])})
     return fora
 
@@ -190,13 +190,11 @@ def tela(aba="compra", filtros=None):
         "titulo": "Mercado",
         "subtitulo": eng.recado_janela(G),
         "aberto": aberto,
+        # cada dado uma vez: caixa, verba e folha moram nos chips do topo (caixa e
+        # verba nunca somem) e a faixa da verba, logo abaixo, explica a conta
         "metricas": [
             {"valor": "ABERTA" if aberto else "FECHADA", "nome": "janela",
              "estado": "ok" if aberto else "atencao"},
-            {"valor": eng.din(c["dinheiro"]), "nome": "caixa"},
-            {"valor": eng.din(eng.verba_contratacao(G, c)), "nome": "verba p/ contratar",
-             "estado": "ok" if eng.verba_contratacao(G, c) > 0 else "critico"},
-            {"valor": eng.din(eng.folha_semanal(G, c)), "nome": "folha por semana"},
             {"valor": "%d/%d" % (len(c["elenco"]), eng.LIMITE_ELENCO), "nome": "elenco"},
             {"valor": len(ofertas), "nome": "propostas", "estado": "atencao" if ofertas else None},
         ],
@@ -284,7 +282,7 @@ def mesa(tipo, pid, proposta=None):
         "tipo": tipo, "id": j["id"], "nome": j["nome"],
         "descricao": "%s, %d anos, overall %d, teto %s" % (
             eng.NOME_POS[j["pos"]], j["idade"], j["ovr"], eng.scout(G, j)),
-        "clube": G["clubes"][j["clube"]]["nome"] if j["clube"] is not None else "sem clube",
+        "clube": eng.nome_clube(G, j["clube"]),
         "janela": (eng.recado_janela(G) if eng.mercado_aberto(G) or not na_hora
                    else "Agente livre: assina na hora, com a janela aberta ou fechada."),
         "aberto": na_hora,
@@ -304,7 +302,7 @@ def mesa(tipo, pid, proposta=None):
         base.update(
             livre=livre, intocavel=intocavel, pedido=eng.din(pedido), pedido_num=int(pedido),
             contexto=("Agente livre: nao ha passe a pagar, so acertar contrato." if livre else
-                      "No clube atual ele e %s. Contrato dele: %d ano(s)." % (_peso(G, j), j["contrato"])),
+                      "No clube atual ele e %s. Contrato dele: %s." % (_peso(G, j), eng.plural(j["contrato"], "ano"))),
             exigencia=eng.din(exig), exigencia_num=int(exig),
             valor=valor, salario=salario,
             leitura_passe=None if livre else _leitura(valor, pedido),
@@ -313,8 +311,8 @@ def mesa(tipo, pid, proposta=None):
             # a verba conta o salario proposto: ele entra na reserva de folha
             verba_com_salario=eng.din(eng.verba_contratacao(G, c, salario)),
             falta_caixa=valor > eng.verba_contratacao(G, c, salario),
-            folha_depois="Folha semanal: %s -> %s com %d ano(s) de contrato"
-                         % (eng.din(folha), eng.din(folha + int(salario / 4.0)), anos),
+            folha_depois="Folha semanal: %s -> %s com %s de contrato"
+                         % (eng.din(folha), eng.din(folha + int(salario / 4.0)), eng.plural(anos, "ano")),
             atalhos_passe=[] if livre else [
                 {"rotulo": "- 10%", "valor": int(pedido * 0.90)},
                 {"rotulo": "- 5%", "valor": int(pedido * 0.95)},
@@ -364,8 +362,8 @@ def mesa(tipo, pid, proposta=None):
         exig = eng.exigencia_renovacao(G, j, anos)
         salario = _inteiro(p.get("salario"), exig) if "salario" in p else exig
         base.update(
-            contexto="Contrato atual: %d ano(s) a %s por mes. Moral %d. Ele e %s."
-                     % (j["contrato"], eng.din(j["salario"]), j["moral"], _peso(G, j)),
+            contexto="Contrato atual: %s a %s por mes. Moral %d. Ele e %s."
+                     % (eng.plural(j["contrato"], "ano"), eng.din(j["salario"]), j["moral"], _peso(G, j)),
             acabando=j["contrato"] <= 1,
             exigencia=eng.din(exig), exigencia_num=int(exig), salario=salario,
             leitura_salario=_leitura(salario, exig),
@@ -518,7 +516,7 @@ def ofertas_cessao(ids):
         for cl, pct in eng.ofertas_emprestimo(G, j):
             fora.append({"chave": "%d:%d" % (j["id"], cl["id"]), "id": j["id"],
                          "clube_id": cl["id"], "nome": j["nome"], "ovr": j["ovr"],
-                         "salario": eng.din(j["salario"]), "clube": cl["nome"],
+                         "salario": eng.din(j["salario"]), "clube": eng.nome_clube(G, cl["id"]),
                          "divisao": cl["divisao"], "reputacao": cl["reputacao"], "pct": pct,
                          "sobra": eng.din(j["salario"] * (100 - pct) // 100),
                          "alivio_num": int(j["salario"] * pct // 100),

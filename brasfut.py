@@ -594,17 +594,25 @@ def clamp(v, lo, hi):
 
 
 def din(v):
-    """Formata dinheiro em reais de forma curta."""
+    """Formata dinheiro em reais de forma curta, em pt-BR: "R$ 37,6 mi",
+    "R$ 764 mil", "-R$ 5,4 bi". Formatador unico: tela, noticia e terminal
+    escrevem dinheiro por aqui (a web tem o espelho em web/src/formato.ts)."""
     v = float(v)
     s = "-" if v < 0 else ""
     v = abs(v)
     if v >= 1_000_000_000:
-        return "%sR$ %.2f bi" % (s, v / 1_000_000_000)
+        return "%sR$ %s bi" % (s, ("%.1f" % (v / 1_000_000_000)).replace(".", ","))
     if v >= 1_000_000:
-        return "%sR$ %.2f mi" % (s, v / 1_000_000)
-    if v >= 1_000:
+        return "%sR$ %s mi" % (s, ("%.1f" % (v / 1_000_000)).replace(".", ","))
+    if v >= 100_000:
         return "%sR$ %.0f mil" % (s, v / 1_000)
-    return "%sR$ %.0f" % (s, v)
+    # abaixo de cem mil o arredondamento mentiria: R$ 3.500 viraria "R$ 4 mil"
+    return "%sR$ %s" % (s, "{:,.0f}".format(v).replace(",", "."))
+
+
+def plural(n, singular, plural_=None):
+    """"1 ano", "3 anos", "2 jogadores". Nunca "ano(s)"."""
+    return "%d %s" % (n, singular if n == 1 else (plural_ or singular + "s"))
 
 
 def poisson(lmbda):
@@ -826,14 +834,14 @@ def aplicar_elencos_reais(G, usados):
         importados.add(c["id"])
         trocados += 1
     if trocados:
-        print("Elencos reais de %d clube(s) carregados (%s)." % (trocados, origem))
+        print("Elencos reais de %s carregados (%s)." % (plural(trocados, "clube"), origem))
     if completados:
-        print("%d jogador(es) de reserva foram gerados para fechar buracos de posicao." % completados)
+        print("%s de reserva gerados para fechar buracos de posicao." % plural(completados, "jogador", "jogadores"))
     if trocados >= 5:
         ajustados = recalibrar_gerados(G, importados)
         if ajustados:
-            print("%d clube(s) sem elenco no arquivo foram nivelados pela curva do seu arquivo."
-                  % ajustados)
+            print("%s sem elenco no arquivo nivelados pela curva do seu arquivo."
+                  % plural(ajustados, "clube"))
 
 
 def recalibrar_gerados(G, importados):
@@ -1005,6 +1013,25 @@ def nome_da_liga(G, div):
         return "Serie %s" % div
     liga = G.get("ligas", {}).get(div)
     return liga.get("nome", div) if liga else div
+
+
+_REPETIDOS = {"n": -1, "nomes": set()}
+
+
+def nome_clube(G, cid):
+    """Nome do clube para lista e noticia. Nome repetido no mundo (o Athletic
+    mineiro e o de Bilbao) ganha a liga ao lado: "Athletic (La Liga)"."""
+    c = G["clubes"].get(cid) if cid is not None else None
+    if not c:
+        return "sem clube"
+    if _REPETIDOS["n"] != len(G["clubes"]):
+        vistos, repetidos = set(), set()
+        for x in G["clubes"].values():
+            (repetidos if x["nome"] in vistos else vistos).add(x["nome"])
+        _REPETIDOS.update(n=len(G["clubes"]), nomes=repetidos)
+    if c["nome"] in _REPETIDOS["nomes"]:
+        return "%s (%s)" % (c["nome"], nome_da_liga(G, c["divisao"]) if c["divisao"] != "EX" else "exterior")
+    return c["nome"]
 
 
 def nova_liga_ext(codigo, nome, ids):
@@ -2022,10 +2049,10 @@ def diagnostico_escalacao(G: Mundo, c: Optional[Clube] = None,
         causas.append("%s de %s rende %d%%"
                       % (nome(pid), vaga, int(AFINIDADE[jogs[pid]["pos"]][vaga] * 100)))
     if caidos:
-        causas.append("%d titular(es) fora" % len(caidos))
+        causas.append("%s fora" % plural(len(caidos), "titular", "titulares"))
     leves = [t for t in improvisados if t not in graves]
     if leves:
-        causas.append("%d improvisado(s)" % len(leves))
+        causas.append(plural(len(leves), "improvisado"))
     if desgastados:
         causas.append("%d no limite fisico" % len(desgastados))
 
@@ -2054,7 +2081,7 @@ def diagnostico_escalacao(G: Mundo, c: Optional[Clube] = None,
         tem = naturais_aptos.get(vaga, 0)
         titulo_aviso = ("LIMITE DO ELENCO - %s: %s joga de %s e rende %d%%"
                         % ("voce nao tem %s aptos" % PLURAL_POS[vaga] if tem == 0
-                           else "so %d %s apto(s)" % (tem, NOME_POS[vaga].lower()),
+                           else "so %d %s %s" % (tem, NOME_POS[vaga].lower(), "apto" if tem == 1 else "aptos"),
                            nome(pid), vaga, int(AFINIDADE[jogs[pid]["pos"]][vaga] * 100)))
         detalhe = ("A formacao pede %d %s e o elenco tem %d. %sTroque a formacao ou contrate."
                    % (form.get(vaga, 0), PLURAL_POS[vaga], tem,
@@ -2071,21 +2098,22 @@ def diagnostico_escalacao(G: Mundo, c: Optional[Clube] = None,
         if estrutural_leve:
             vaga = improvisados[0][1]
             tem = naturais_aptos.get(vaga, 0)
-            titulo_aviso = ("LIMITE DO ELENCO - %s: %d improvisado(s) em campo"
+            titulo_aviso = ("LIMITE DO ELENCO - %s: %s em campo"
                             % ("voce nao tem %s aptos" % PLURAL_POS[vaga] if tem == 0
-                               else "so %d %s apto(s)" % (tem, NOME_POS[vaga].lower()),
-                               len(improvisados)))
+                               else "so %d %s %s" % (tem, NOME_POS[vaga].lower(), "apto" if tem == 1 else "aptos"),
+                               plural(len(improvisados), "improvisado")))
             detalhe = ("A formacao pede %d %s e o elenco tem %d. Rendimento medio do improviso: "
                        "%d%%. %sTroque a formacao ou contrate."
                        % (form.get(vaga, 0), PLURAL_POS[vaga], tem, int(medio * 100),
                           "O automatico ja escalou o melhor possivel. " if auto else ""))
         else:
-            titulo_aviso = "ESCALACAO COM RESSALVA - %d improvisado(s) em campo" % len(improvisados)
+            titulo_aviso = "ESCALACAO COM RESSALVA - %s em campo" % plural(len(improvisados), "improvisado")
             detalhe = ("Rendimento medio do improviso: %d%%. Da para jogar, mas voce perde forca."
                        % int(medio * 100))
     elif len(desgastados) >= 3:
         estado = "atencao"
-        titulo_aviso = "ESCALACAO COM RESSALVA - %d titular(es) no limite fisico" % len(desgastados)
+        titulo_aviso = ("ESCALACAO COM RESSALVA - %s no limite fisico"
+                        % plural(len(desgastados), "titular", "titulares"))
         detalhe = "Abaixo de 45 de fisico o jogador rende menos e machuca mais."
     elif aptos < 14:
         estado = "atencao"
@@ -2093,11 +2121,11 @@ def diagnostico_escalacao(G: Mundo, c: Optional[Clube] = None,
         detalhe = "Sem banco de verdade, a proxima lesao vira time incompleto."
     elif len(pendurados) >= 3:
         estado = "atencao"
-        titulo_aviso = "ESCALACAO COM RESSALVA - %d pendurado(s) em campo" % len(pendurados)
+        titulo_aviso = "ESCALACAO COM RESSALVA - %s em campo" % plural(len(pendurados), "pendurado")
         detalhe = "Mais um amarelo e eles ficam de fora da proxima rodada."
     elif caidos:
         estado = "atencao"
-        titulo_aviso = "ESCALACAO REFEITA - %d titular(es) fora" % len(caidos)
+        titulo_aviso = "ESCALACAO REFEITA - %s fora" % plural(len(caidos), "titular", "titulares")
         detalhe = (("A maquina ja repos: %s de fora, alguem assumiu a vaga."
                     if auto else
                     "Repusemos sem te perguntar: %s de fora. Confira quem entrou.")
@@ -2105,8 +2133,9 @@ def diagnostico_escalacao(G: Mundo, c: Optional[Clube] = None,
     else:
         estado = "ok"
         titulo_aviso = "TIME PRONTO PARA A SEMANA"
-        detalhe = ("11 em campo, goleiro no gol, nenhum improvisado. Ataque %.1f, defesa %.1f."
-                   % (ataque, defesa))
+        # ataque e defesa ficam na barra do proximo jogo e no campo da
+        # Escalacao; repetir aqui era o mesmo numero duas vezes na tela
+        detalhe = "11 em campo, goleiro no gol, nenhum improvisado."
 
     return {
         "auto": auto,
@@ -4121,7 +4150,7 @@ def avaliar_jogador(G: Mundo, prop: Proposta) -> Resposta:
     destino = G["clubes"][prop.comprador]
     exig = exigencia_salarial(G, j, destino, prop.anos)
     if prop.salario >= exig:
-        return Resposta(True, "Acertado: %s por mes, %d ano(s)." % (din(prop.salario), prop.anos), exig)
+        return Resposta(True, "Acertado: %s por mes, %s." % (din(prop.salario), plural(prop.anos, "ano")), exig)
     if prop.salario < exig * 0.60:
         return Resposta(False, "Ele nem levou a proposta ao empresario.", exig, True)
     rep_origem = G["clubes"][j["clube"]]["reputacao"] if j["clube"] else 42
@@ -4228,14 +4257,14 @@ def fechar_compra(G: Mundo, prop: Proposta) -> str:
     if not assina_na_hora(G, j):
         return agendar(G, prop, "Contratacao acertada")
     comprador = G["clubes"][prop.comprador]
-    nome_antigo = G["clubes"][j["clube"]]["nome"] if j["clube"] else "sem clube"
+    nome_antigo = nome_clube(G, j["clube"])
     transferir(G, prop.jogador, prop.comprador, prop.valor)
     j["salario"] = prop.salario
     j["contrato"] = int(clamp(prop.anos, 1, 5))
     noticia(G, "%s contratou %s (%s) do %s por %s."
             % (comprador["nome"], j["nome"], j["pos"], nome_antigo, din(prop.valor)))
-    return ("CONTRATADO: %s assina por %d ano(s). Passe %s, salario %s por mes."
-            % (j["nome"], j["contrato"], din(prop.valor), din(prop.salario)))
+    return ("CONTRATADO: %s assina por %s. Passe %s, salario %s por mes."
+            % (j["nome"], plural(j["contrato"], "ano"), din(prop.valor), din(prop.salario)))
 
 
 def fechar_emprestimo(G: Mundo, prop: Proposta) -> str:
@@ -4395,7 +4424,7 @@ def avaliar_renovacao(G: Mundo, prop: Proposta) -> Resposta:
         return Resposta(False, "Ele nao e do seu clube.", 0, True)
     exig = exigencia_renovacao(G, j, prop.anos)
     if prop.salario >= exig:
-        return Resposta(True, "Acertado: %s por mes, %d ano(s)." % (din(prop.salario), prop.anos),
+        return Resposta(True, "Acertado: %s por mes, %s." % (din(prop.salario), plural(prop.anos, "ano")),
                         exig)
     if prop.salario < exig * 0.72:
         return Resposta(False, "O empresario devolveu a proposta sem levar ao jogador.", exig, True)
@@ -4408,9 +4437,9 @@ def fechar_renovacao(G: Mundo, prop: Proposta) -> str:
     j["salario"] = int(prop.salario)
     j["contrato"] = int(clamp(prop.anos, 1, 5))
     j["moral"] = clamp(j["moral"] + 12, 5, 100)
-    noticia(G, "%s renovou com o %s por %d ano(s)."
-            % (j["nome"], G["clubes"][j["clube"]]["nome"], j["contrato"]))
-    return "%s renovou por %d ano(s), %s por mes." % (j["nome"], j["contrato"], din(prop.salario))
+    noticia(G, "%s renovou com o %s por %s."
+            % (j["nome"], G["clubes"][j["clube"]]["nome"], plural(j["contrato"], "ano")))
+    return "%s renovou por %s, %s por mes." % (j["nome"], plural(j["contrato"], "ano"), din(prop.salario))
 
 
 def romper_renovacao(G: Mundo, j: Jogador) -> str:
@@ -4567,7 +4596,7 @@ def recado_janela(G: Mundo) -> str:
     if not faltam:
         return "Janela aberta: o negocio se cumpre na hora."
     return ("Janela fechada: da para acertar agora, mas ele so troca de clube na "
-            "abertura, em %d semana(s)." % faltam)
+            "abertura, em %s." % plural(faltam, "semana"))
 
 
 def agendadas(G: Mundo) -> List[Dict[str, Any]]:
@@ -5235,9 +5264,9 @@ def alternar_foco(G: Mundo, c: Clube, pid: int) -> Tuple[bool, str]:
     if j.get("dono"):
         return False, "%s esta emprestado: o dono manda no desenvolvimento dele." % j["nome"]
     if len(foco) >= vagas_treino(c):
-        return False, ("O CT nivel %d sustenta %d nome(s) em treino individual. "
+        return False, ("O CT nivel %d sustenta %s em treino individual. "
                        "Tire alguem antes, ou melhore o CT."
-                       % (c.get("ct", 3), vagas_treino(c)))
+                       % (c.get("ct", 3), plural(vagas_treino(c), "nome")))
     foco.append(pid)
     c["treino_foco"] = foco
     return True, ("%s entrou no treino individual: evolui 50%% mais rapido, e custa %s por semana."
@@ -5394,8 +5423,8 @@ def promover_da_base(G: Mundo, pid: int, anos: int = 3) -> Tuple[bool, str]:
     if c["id"] == G.get("clube"):
         noticia(G, "%s (%d anos, %s) subiu da base ao profissional."
                 % (j["nome"], j["idade"], j["pos"]))
-    return True, ("%s subiu ao profissional: %d ano(s) de contrato, %s por mes."
-                  % (j["nome"], j["contrato"], din(j["salario"])))
+    return True, ("%s subiu ao profissional: %s de contrato, %s por mes."
+                  % (j["nome"], plural(j["contrato"], "ano"), din(j["salario"])))
 
 
 def dispensar_da_base(G: Mundo, pid: int) -> Tuple[bool, str]:
@@ -5497,7 +5526,7 @@ def rodar_peneira(G: Mundo) -> List[Dict[str, Any]]:
     novos = [_novo_candidato(G, c, pen["regiao"], pen.get("foco"))
              for _ in range(1 + (1 if rng.random() < 0.45 + 0.03 * c["base"] else 0))]
     c.setdefault("base_candidatos", []).extend(novos)
-    noticia(G, "Peneira no %s: %d garoto(s) para avaliar na tela da Base." % (r["nome"], len(novos)))
+    noticia(G, "Peneira no %s: %s para avaliar na tela da Base." % (r["nome"], plural(len(novos), "garoto")))
     return novos
 
 
@@ -5744,11 +5773,11 @@ def leitura_teto(j: Jogador) -> str:
     if rev >= 3:
         return "estourou a previsao: teto revisado %d pontos para cima" % rev
     if rev > 0:
-        return "rendeu acima do previsto: teto subiu %d ponto(s)" % rev
+        return "rendeu acima do previsto: teto subiu %s" % plural(rev, "ponto")
     if rev <= -3:
         return "a previsao nao se cumpriu: teto cortado %d pontos" % -rev
     if rev < 0:
-        return "teto cortado %d ponto(s) pelo que rendeu" % -rev
+        return "teto cortado %s pelo que rendeu" % plural(-rev, "ponto")
     return ""
 
 
@@ -6503,8 +6532,8 @@ def ficha(G, j, mostrar_clube=True):
     l.append("Overall %s   Teto estimado %s   %s" %
              (cor(str(j["ovr"]), cor_ovr(j["ovr"])), cor(scout(G, j), "av"), barra(j["ovr"])))
     l.append("Condicao %3d  Forma %3d  Moral %3d" % (j["cond"], j["forma"], j["moral"]))
-    l.append("Salario %s/mes   Valor de mercado %s   Contrato %d ano(s)" %
-             (din(j["salario"]), din(j["valor"]), j["contrato"]))
+    l.append("Salario %s/mes   Valor de mercado %s   Contrato %s" %
+             (din(j["salario"]), din(j["valor"]), plural(j["contrato"], "ano")))
     if j["listado"]:
         l.append("Pedido do clube: %s" % din(j["listado"]))
     if j.get("emp_listado"):
@@ -6642,9 +6671,10 @@ def ficha_completa(G, j):
     if em_foco(G, j):
         linhas.append("Em treino individual: evolui 50% mais rapido.")
     caixa(linhas + [
-           "Temporada: %d jogo(s), %d gol(s), %d assistencia(s), %d amarelo(s)" %
-           (j["j"], j["g"], j["a"], j["ca"]),
-           "Carreira no jogo: %d jogo(s) e %d gol(s)" % (j["car_j"], j["car_g"]),
+           "Temporada: %s, %s, %s, %s" %
+           (plural(j["j"], "jogo"), plural(j["g"], "gol"), plural(j["a"], "assistencia"),
+            plural(j["ca"], "amarelo")),
+           "Carreira no jogo: %s e %s" % (plural(j["car_j"], "jogo"), plural(j["car_g"], "gol")),
            "Condicao %s %d   Forma %s %d   Moral %s %d" %
            (barra(j["cond"], 8), j["cond"], barra(j["forma"], 8), j["forma"],
             barra(j["moral"], 8), j["moral"])])
@@ -6942,7 +6972,8 @@ def tela_estatisticas(G):
     meus = sorted([G["jogadores"][p] for p in c["elenco"]], key=lambda j: (-j["g"], -j["a"]))[:5]
     print(cor("\nDESTAQUES DO ELENCO", "fraco"))
     for j in meus:
-        print("  %-20s %d jogo(s), %d gol(s), %d assistencia(s)" % (j["nome"], j["j"], j["g"], j["a"]))
+        print("  %-20s %s, %s, %s" % (j["nome"], plural(j["j"], "jogo"), plural(j["g"], "gol"),
+                                     plural(j["a"], "assistencia")))
     if c["titulos"]:
         print(cor("\nTitulos: ", "fraco") + ", ".join("%s x%d" % (k, v) for k, v in c["titulos"].items()))
 
@@ -7074,7 +7105,7 @@ def tela_mercado(G):
                (cor(din(c["dinheiro"]), "ok" if c["dinheiro"] >= 0 else "ruim"),
                 len(c["elenco"]), din(folha_semanal(G, c) * 4)),
                "Janelas: semanas 1 a 4, 19 a 22 e a pre-temporada inteira",
-               "Na vitrine: %d jogador(es) seu(s)" % pendentes])
+               "Na vitrine: %s seus" % plural(pendentes, "jogador", "jogadores")])
         menu([("1", "Procurar jogador para comprar"),
               ("2", "Agentes livres"),
               ("3", "Buscar jogador por emprestimo"),
@@ -7396,7 +7427,7 @@ def renovar(G):
     ficha(G, j)
     anos = ler_int("Anos de contrato (1 a 5): ", G, 1, 5) or 3
     pedido = exigencia_renovacao(G, j, anos)
-    print("Ele pede algo perto de %s por mes por %d ano(s)." % (cor(din(pedido), "neg"), anos))
+    print("Ele pede algo perto de %s por mes por %s." % (cor(din(pedido), "neg"), plural(anos, "ano")))
     for _ in range(3):
         sal = ler_int("Salario oferecido (0 desiste): ", G, 0)
         if not sal:
@@ -7529,7 +7560,7 @@ def relatorio(G, r):
             continue
         j = G["jogadores"][pid]
         if tipo == "lesao":
-            print(cor("   lesao: %s fica fora por %d semana(s)" % (j["nome"], j["lesao"]), "ruim"))
+            print(cor("   lesao: %s fica fora por %s" % (j["nome"], plural(j["lesao"], "semana")), "ruim"))
         elif tipo == "vermelho":
             print(cor("   cartao vermelho: %s" % j["nome"], "ruim"))
         elif tipo == "amarelo":
@@ -7902,15 +7933,17 @@ def texto_resumo(G: Mundo, r: Dict[str, Any]) -> List[str]:
     else:
         linhas.append("Sem titulos nesta temporada.")
     if r["artilheiro"]:
-        linhas.append("Artilheiro do clube: %s, %d gol(s) em %d jogo(s)" % tuple(r["artilheiro"]))
+        nome, g, jj = r["artilheiro"]
+        linhas.append("Artilheiro do clube: %s, %s em %s" % (nome, plural(g, "gol"), plural(jj, "jogo")))
     if r["garcom"]:
-        linhas.append("Mais assistencias: %s, %d em %d jogo(s)" % tuple(r["garcom"]))
+        nome, a, jj = r["garcom"]
+        linhas.append("Mais assistencias: %s, %d em %s" % (nome, a, plural(jj, "jogo")))
     linhas.append("Caixa: %s -> %s   (%s no ano)"
                   % (din(fin["caixa_ini"]), din(fin["caixa_fim"]),
                      ("+" if saldo >= 0 else "") + din(saldo)))
-    linhas.append("Vendas %s em %d negocio(s)   Compras %s em %d negocio(s)   Premiacao %s"
-                  % (din(fin["vendido"]), len(r["vendas"]), din(fin["comprado"]),
-                     len(r["compras"]), din(fin["premios"])))
+    linhas.append("Vendas %s em %s   Compras %s em %s   Premiacao %s"
+                  % (din(fin["vendido"]), plural(len(r["vendas"]), "negocio"), din(fin["comprado"]),
+                     plural(len(r["compras"]), "negocio"), din(fin["premios"])))
     if r["evolucao"]:
         linhas.append("Quem mais cresceu: "
                       + ", ".join("%s +%d (%d)" % tuple(e) for e in r["evolucao"][:4]))

@@ -5,6 +5,7 @@
 // nunca tenta adivinhar sozinha o que mudou. Foi assim que a janela tkinter
 // manteve cinco pontos da interface dando o mesmo veredito.
 
+import { porque, AGUARDE } from './motivo'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, ErroDaApi } from './api'
 import { BarraTopo } from './componentes/BarraTopo'
@@ -803,6 +804,7 @@ export function App() {
               <button
                 type="button"
                 className={`bt-acao${pergunta.confirmar.perigo ? ' bt-perigo' : ''}`}
+                title={porque([[ocupado, AGUARDE]])}
                 disabled={ocupado}
                 onClick={() => pergunta.aoConfirmar()}
               >
