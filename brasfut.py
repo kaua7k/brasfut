@@ -1620,12 +1620,13 @@ def _atribuicao_hungara(custo: List[List[float]]) -> List[int]:
             visto[col] = True
             linha = dono[col]
             base = custo[linha - 1]
+            u_linha = u[linha]      # nao muda dentro do laco; mesma conta, na mesma ordem
             delta = INF
             prox = 0
             for j in range(1, m + 1):
                 if visto[j]:
                     continue
-                atual = base[j - 1] - u[linha] - v[j]
+                atual = base[j - 1] - u_linha - v[j]
                 if atual < menor[j]:
                     menor[j] = atual
                     caminho[j] = col
@@ -1687,8 +1688,13 @@ def montar_escalacao(G: Mundo, c: Clube, comp: str = "liga",
         return []
     vagas = _vagas_do_esquema(form)
     peso = _peso_vagas(form)
-    valores = [[nota_escalacao(G["jogadores"][pid], vaga) * peso[vaga] for pid in aptos]
-               for vaga in vagas]
+    # as vagas repetem (4 ZAG/LAT, 3 MEI...): a linha de notas de cada posicao
+    # e a mesma, entao sai uma vez so. _resolver_vagas copia antes de mexer.
+    linhas: Dict[str, List[float]] = {}
+    for vaga in vagas:
+        if vaga not in linhas:
+            linhas[vaga] = [nota_escalacao(G["jogadores"][pid], vaga) * peso[vaga] for pid in aptos]
+    valores = [linhas[vaga] for vaga in vagas]
     esc = [aptos[k] for k in _resolver_vagas(valores, len(aptos)) if 0 <= k < len(aptos)]
     esc.sort(key=lambda p: POS.index(G["jogadores"][p]["pos"]))
     return esc[:11]
@@ -1825,8 +1831,42 @@ def vagas_manuais(c: Optional[Clube]) -> Dict[int, str]:
     return {int(p): v for p, v in (c.get("vagas_manuais") or [])}
 
 
+# Memo exato do laco de simulacao. atribuir_vagas e funcao pura de (formacao,
+# vagas fixadas e, de cada titular na ordem do XI: posicao, overall, condicao,
+# forma e moral) - rendimento() nao le mais nada. A chave leva tudo isso, entao
+# o memo nunca devolve conta velha: jogador que cansou no intervalo ou mudou de
+# moral e outra chave. Acerta quando o mesmo XI e medido de novo no mesmo
+# estado (posse, forcas do primeiro tempo, diagnostico, painel). Vive fora do
+# save e se esvazia inteiro quando enche; esvaziar nunca muda resultado.
+_MEMO_VAGAS: Dict[Any, List[Tuple[int, str]]] = {}
+MEMO_MAX = 20_000
+
+
+def _chave_xi(G: Mundo, esc: List[int], form: Dict[str, int],
+              fixas: Optional[Dict[int, str]]) -> Any:
+    js = G["jogadores"]
+    jogadores = tuple((pid, js[pid]["pos"], js[pid]["ovr"], js[pid]["cond"],
+                       js[pid]["forma"], js[pid]["moral"]) for pid in esc)
+    return (tuple(sorted(form.items())), tuple(sorted((fixas or {}).items())), jogadores)
+
+
 def atribuir_vagas(G: Mundo, esc: List[int], form: Dict[str, int],
                    fixas: Optional[Dict[int, str]] = None) -> List[Tuple[int, str]]:
+    """Diz em que vaga do esquema cada titular esta jogando (com memo exato;
+    a conta mora em _atribuir_vagas)."""
+    if not esc:
+        return []
+    chave = _chave_xi(G, esc, form, fixas)
+    feito = _MEMO_VAGAS.get(chave)
+    if feito is None:
+        if len(_MEMO_VAGAS) >= MEMO_MAX:
+            _MEMO_VAGAS.clear()
+        feito = _MEMO_VAGAS[chave] = _atribuir_vagas(G, esc, form, fixas)
+    return list(feito)
+
+
+def _atribuir_vagas(G: Mundo, esc: List[int], form: Dict[str, int],
+                    fixas: Optional[Dict[int, str]] = None) -> List[Tuple[int, str]]:
     """Diz em que vaga do esquema cada titular esta jogando.
 
     Fonte unica: forcas() calcula a penalidade a partir daqui e a interface
@@ -1854,10 +1894,13 @@ def atribuir_vagas(G: Mundo, esc: List[int], form: Dict[str, int],
         else:
             soltos.append(pid)
     if soltos:
-        valores = [[rendimento(G["jogadores"][pid],
-                               AFINIDADE[G["jogadores"][pid]["pos"]][vaga]) * peso[vaga]
-                    for pid in soltos]
-                   for vaga in livres]
+        linhas: Dict[str, List[float]] = {}
+        for vaga in livres:
+            if vaga not in linhas:
+                linhas[vaga] = [rendimento(G["jogadores"][pid],
+                                           AFINIDADE[G["jogadores"][pid]["pos"]][vaga]) * peso[vaga]
+                                for pid in soltos]
+        valores = [linhas[vaga] for vaga in livres]
         for i, k in enumerate(_resolver_vagas(valores, len(soltos))):
             if 0 <= k < len(soltos):
                 saida.append((soltos[k], livres[i]))

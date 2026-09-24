@@ -475,6 +475,24 @@ Decisões em `docs/three-amigos/2026-09-24-rodada-de-melhorias.md`.
 
 `testes/test_regras.py` tem um teste por critério de aceite.
 
+**Desempenho sem mudar o jogo.** `atribuir_vagas` ganhou um memo exato
+(`_MEMO_VAGAS`): a chave leva formação, vagas fixadas e, de cada titular na
+ordem do XI, posição, overall, condição, forma e moral — tudo o que
+`rendimento()` lê. Acerta quando o mesmo XI é medido de novo no mesmo estado
+(posse, forças do primeiro tempo, diagnóstico). `montar_escalacao` e
+`atribuir_vagas` calculam a linha de notas uma vez por posição, não uma vez
+por vaga repetida. Um memo de `forcas_de` foi testado e saiu: a fadiga muda a
+condição a cada período e ele quase nunca acertava. Ficou de fora de
+propósito: tirar a semana do `esc_stamp` (muda a regra do rodízio) e gravar o
+save em thread (mais lento e com risco de corromper).
+
+`testes/desempenho.py` é o gate: 3 seeds x 20 semanas pelo mesmo caminho da
+tela, sha256 do mundo inteiro, do log e dos jogos a cada semana (`--gravar`
+na versão de referência, `--comparar` depois). Rode com `PYTHONHASHSEED=0` e
+intercale referência e versão nova: o tempo entre execuções varia ~20% na
+mesma máquina. Medido nesta leva: motor −25% (39,3 s → 29,6 s nas 60
+semanas), pedido inteiro −19%, saída idêntica.
+
 ## Receita para migrar a próxima tela
 
 Exemplo com `tela_elenco` (brasfut_app.py:1744):
