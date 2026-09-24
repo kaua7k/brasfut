@@ -44,6 +44,10 @@ def _lista(G):
                       "meu": c["divisao"] == d,
                       "estado": "rodada %d de %d" % (liga["rodada"], len(liga["rodadas"])),
                       "vivo": c["divisao"] == d})
+    for k, liga in G.get("ligas_ext", {}).items():
+        itens.append({"id": "ext:" + k, "nome": liga["nome"], "tipo": "pontos", "meu": False,
+                      "estado": "rodada %d de %d" % (liga["rodada"], len(liga["rodadas"])),
+                      "vivo": False})
     for chave, est in sorted(eng.estaduais(G).items(),
                              key=lambda kv: (meu not in kv[1]["times"], kv[1]["nome"])):
         campanha = eng.campanha_estadual(G, est, meu)
@@ -292,6 +296,9 @@ def tela(alvo=None):
         detalhe = _copa(G, alvo[5:], alvo)
     elif alvo.startswith("est:") and alvo[4:] in eng.estaduais(G):
         detalhe = _estadual(G, eng.estaduais(G)[alvo[4:]], alvo)
+    elif alvo.startswith("ext:") and alvo[4:] in G.get("ligas_ext", {}):
+        liga = G["ligas_ext"][alvo[4:]]
+        detalhe = _pontos(G, liga, alvo, liga["nome"])
     else:
         d = alvo[5:] if alvo.startswith("liga:") and alvo[5:] in G["ligas"] else \
             G["clubes"][G["clube"]]["divisao"]

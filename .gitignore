@@ -7,3 +7,5 @@ brasfut_save.json.*
 *.lock
 testes/_tmp/
 brasfut_config.json
+.env
+ferramentas/cache/

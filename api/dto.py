@@ -549,6 +549,7 @@ def base():
 def _torneios(G):
     """Os quatro pontos fixos e os estaduais do ano, no mesmo seletor."""
     out = [{"id": "liga:" + d, "nome": "Serie " + d} for d in "ABCD"]
+    out += [{"id": "ext:" + k, "nome": l["nome"]} for k, l in G.get("ligas_ext", {}).items()]
     for chave, est in sorted(eng.estaduais(G).items(),
                              key=lambda kv: (-len(kv[1]["times"]), kv[1]["nome"])):
         out.append({"id": "est:" + str(chave), "nome": est["nome"]})
@@ -558,6 +559,8 @@ def _torneios(G):
 def _liga_por_id(G, alvo):
     if alvo and alvo.startswith("est:"):
         return eng.estaduais(G).get(alvo[4:])
+    if alvo and alvo.startswith("ext:") and alvo[4:] in G.get("ligas_ext", {}):
+        return G["ligas_ext"][alvo[4:]]
     div = (alvo or "")[5:] if alvo and alvo.startswith("liga:") else None
     if div not in G["ligas"]:
         div = G["clubes"][G["clube"]]["divisao"]

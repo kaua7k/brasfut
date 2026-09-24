@@ -332,7 +332,7 @@ TV = {"A": (420_000, 15_000), "B": (250_000, 6_000),
 # premiacao por posicao final (1o lugar), decai conforme a colocacao
 PREMIO = {"A": 32_000_000, "B": 6_000_000, "C": 1_800_000, "D": 600_000}
 
-COMPETICOES = ("liga", "copa", "lib", "sul", "estadual")
+COMPETICOES = ("liga", "copa", "lib", "sul", "estadual", "ext")
 
 # Quanto a diferenca de forca entre dois times se traduz em xG. Com 1.55 os
 # elencos (que variam so ~4% entre si na mesma serie) ficavam indistinguiveis e
@@ -714,6 +714,30 @@ def novo_clube(G, dados, divisao, usados):
     return c
 
 
+def trocar_elenco(G, c, lista, usados):
+    """Poe no clube os jogadores da lista ({nome, pos, idade, ovr, pot}) no lugar
+    dos gerados. Devolve quantos reservas precisou gerar para fechar posicao."""
+    for pid in list(c["elenco"]):
+        G["jogadores"].pop(pid, None)
+    c["elenco"] = []
+    nivel = 26 + c["reputacao"] * 0.58
+    for item in lista:
+        pos = str(item.get("pos", "MEI")).upper()
+        if pos not in POS:
+            pos = "MEI"
+        j = novo_jogador(G, pos, nivel, usados, idade=item.get("idade"))
+        if item.get("nome"):
+            j["nome"] = str(item["nome"])
+        if item.get("ovr"):
+            j["ovr"] = clamp(int(item["ovr"]), 20, 95)
+            j["pot"] = clamp(int(item.get("pot", j["ovr"] + 4)), j["ovr"], 95)
+            j["salario"] = salario_de(j["ovr"])
+            j["valor"] = valor_de(j["ovr"], j["idade"], j["pot"])
+        j["clube"] = c["id"]
+        c["elenco"].append(j["id"])
+    return completar_minimo(G, c, usados, nivel)
+
+
 def aplicar_elencos_reais(G, usados):
     """Se existir elencos.json na pasta, usa aqueles jogadores no lugar dos gerados.
 
@@ -746,25 +770,7 @@ def aplicar_elencos_reais(G, usados):
         c = por_nome.get(str(nome_clube).lower())
         if not c or not isinstance(lista, list) or not lista:
             continue
-        for pid in list(c["elenco"]):
-            G["jogadores"].pop(pid, None)
-        c["elenco"] = []
-        nivel = 26 + c["reputacao"] * 0.58
-        for item in lista:
-            pos = str(item.get("pos", "MEI")).upper()
-            if pos not in POS:
-                pos = "MEI"
-            j = novo_jogador(G, pos, nivel, usados, idade=item.get("idade"))
-            if item.get("nome"):
-                j["nome"] = str(item["nome"])
-            if item.get("ovr"):
-                j["ovr"] = clamp(int(item["ovr"]), 20, 95)
-                j["pot"] = clamp(int(item.get("pot", j["ovr"] + 4)), j["ovr"], 95)
-                j["salario"] = salario_de(j["ovr"])
-                j["valor"] = valor_de(j["ovr"], j["idade"], j["pot"])
-            j["clube"] = c["id"]
-            c["elenco"].append(j["id"])
-        completados += completar_minimo(G, c, usados, nivel)
+        completados += trocar_elenco(G, c, lista, usados)
         importados.add(c["id"])
         trocados += 1
     if trocados:
@@ -893,6 +899,8 @@ def criar_mundo(nome_tecnico):
         j = novo_jogador(G, pos, rng.uniform(38, 62), usados)
         G["livres"].append(j["id"])
     aplicar_elencos_reais(G, usados)
+    # depois dos elencos brasileiros: a recalibracao deles nao pode mexer na Europa
+    aplicar_mundo(G, usados, sul=True)
     for c in G["clubes"].values():
         if c["divisao"] == "EX":
             continue
@@ -909,6 +917,87 @@ def criar_mundo(nome_tecnico):
                 gerar_cria(G, c, usados, idade=rng.randint(IDADE_BASE_MIN, IDADE_BASE_MAX - 1))
     montar_copas(G, primeira=True)
     return G
+
+
+# ----------------------------------------------------------------------------
+# O RESTO DO MUNDO: LIGAS EUROPEIAS E ELENCOS REAIS DE FORA
+#
+# dados_mundo.py e gerado por ferramentas/importar_elencos.py (football-data.org)
+# e embutido como os elencos brasileiros. Os clubes europeus sao "EX" - fora da
+# economia, do mercado e dos torneios brasileiros, como os sul-americanos - e
+# levam c["liga_ext"]. Cada liga joga uma rodada por semana em G["ligas_ext"],
+# sem acesso nem rebaixamento. Sem o arquivo, o jogo segue sem a Europa.
+# ----------------------------------------------------------------------------
+
+_MUNDO = []
+
+
+def mundo_embutido():
+    if not _MUNDO:
+        try:
+            import dados_mundo
+            texto = "".join(dados_mundo.MUNDO_EMBUTIDO)
+            _MUNDO.append(json.loads(zlib.decompress(base64.b64decode(texto)).decode("utf-8")))
+        except Exception:
+            _MUNDO.append(None)
+    return _MUNDO[0]
+
+
+def nova_liga_ext(codigo, nome, ids):
+    return {"div": codigo, "nome": nome, "times": list(ids), "rodadas": gerar_rodadas(ids),
+            "tabela": nova_tabela(ids), "rodada": 0, "resultados": []}
+
+
+def aplicar_mundo(G, usados, sul=False):
+    """Cria as ligas europeias que faltam. Com sul=True (so em mundo novo), poe
+    tambem os elencos reais dos sul-americanos e dos brasileiros sincronizados:
+    em save ja comecado eles nao mudam, para nao virar o elenco de ninguem."""
+    m = mundo_embutido()
+    if not m:
+        return
+    ligas = G.setdefault("ligas_ext", {})
+    for liga in m.get("ligas", []):
+        if liga["codigo"] in ligas:
+            continue
+        ids = []
+        for d in liga["clubes"]:
+            c = novo_clube(G, (d["nome"], d["pais"], d["estadio"], d["capacidade"], d["reputacao"]),
+                           "EX", usados)
+            c["liga_ext"] = liga["codigo"]
+            trocar_elenco(G, c, d["elenco"], usados)
+            ids.append(c["id"])
+        ligas[liga["codigo"]] = nova_liga_ext(liga["codigo"], liga["nome"], ids)
+    if not sul:
+        return
+    por_nome = {c["nome"]: c for c in G["clubes"].values() if not c.get("liga_ext")}
+    for bloco in ("sul", "brasil"):
+        for nome, lista in (m.get(bloco) or {}).items():
+            if nome in por_nome and lista:
+                trocar_elenco(G, por_nome[nome], lista, usados)
+
+
+def jogar_rodada_ext(G, liga):
+    if liga["rodada"] >= len(liga["rodadas"]):
+        return []
+    res, placares = [], []
+    for casa, fora in liga["rodadas"][liga["rodada"]]:
+        r = simular(G, casa, fora, "ext")
+        registrar(liga, casa, fora, r["gc"], r["gf"])
+        placares.append([casa, fora, r["gc"], r["gf"]])
+        res.append(r)
+    liga["resultados"].append(placares)
+    liga["ultimos"] = placares
+    liga["rodada"] += 1
+    return res
+
+
+def fechar_ligas_ext(G):
+    """Virada: campeao de quem jogou tudo, e as ligas recomecam com os mesmos clubes."""
+    for codigo, liga in list(G.get("ligas_ext", {}).items()):
+        if liga["rodada"] >= len(liga["rodadas"]) and liga["times"]:
+            dar_titulo(G, G["clubes"][classificacao(G, liga)[0]], liga["nome"])
+        vivos = [i for i in liga["times"] if i in G["clubes"]]
+        G["ligas_ext"][codigo] = nova_liga_ext(codigo, liga["nome"], vivos)
 
 
 # ----------------------------------------------------------------------------
@@ -931,7 +1020,8 @@ def montar_copas(G, primeira=False):
         faltam = [i for i in A if i not in ordem]
         ordem = ordem + faltam
 
-    ex = sorted((c["id"] for c in G["clubes"].values() if c["divisao"] == "EX"),
+    ex = sorted((c["id"] for c in G["clubes"].values()
+                 if c["divisao"] == "EX" and not c.get("liga_ext")),
                 key=lambda i: -G["clubes"][i]["reputacao"])
     ex_lib, ex_sul = ex[:24], ex[24:48]
     br_lib, br_sul = ordem[:8], ordem[8:16]
@@ -3093,21 +3183,25 @@ def manchetes_da_semana(G: Mundo, jogos: List[Dict[str, Any]],
     candidatas.sort(key=lambda x: -x[0])
     for _peso, texto in candidatas[:RESULTADOS_POR_SEMANA]:
         manchete(G, "resultado", texto)
-    for div in "AB":
-        liga = G["ligas"][div]
-        if liga["rodada"] < 3:
+    for div, liga, nome, minimo in _ligas_de_manchete(G):
+        if liga["rodada"] < minimo:
             continue
         lider = classificacao(G, liga)[0]
         if lideres_antes.get(div) is not None and lider != lideres_antes[div]:
             t = liga["tabela"].get(str(lider)) or {}
-            manchete(G, "tabela", "%s assume a lideranca da Serie %s, com %d pontos." %
-                     (G["clubes"][lider]["nome"], div, t.get("p", 0)))
+            manchete(G, "tabela", "%s assume a lideranca da %s, com %d pontos." %
+                     (G["clubes"][lider]["nome"], nome, t.get("p", 0)))
+
+
+def _ligas_de_manchete(G):
+    fora = [(d, G["ligas"][d], "Serie %s" % d, 3) for d in "AB"]
+    fora += [(k, l, l["nome"], 10) for k, l in G.get("ligas_ext", {}).items()]
+    return fora
 
 
 def lideres(G: Mundo) -> Dict[str, Optional[int]]:
     fora = {}
-    for div in "AB":
-        liga = G["ligas"][div]
+    for div, liga, _nome, _minimo in _ligas_de_manchete(G):
         fora[div] = classificacao(G, liga)[0] if liga["rodada"] >= 2 else None
     return fora
 
@@ -3228,6 +3322,9 @@ def avancar_semana(G):
                 if G["clube"] in (r["casa"], r["fora"]):
                     meus.append(r)
     fechar_grupos(G)
+    if sem <= SEMANAS_LIGA:
+        for liga in G.get("ligas_ext", {}).values():
+            jogar_rodada_ext(G, liga)
     manchetes_da_semana(G, todos, antes)
     G["ultimos_meus"] = [dict(r) for r in meus]
     for r in meus:
@@ -7029,6 +7126,7 @@ def encerrar_temporada(G: Mundo, resumo: Dict[str, Any]) -> Tuple[bool, Dict[str
         cl = G["clubes"][cid]
         chave = "Brasileirao Serie " + d
         dar_titulo(G, cl, chave)
+    fechar_ligas_ext(G)
     G["historico"].append("%d %s Serie %s: campeao %s %s %s terminou em %do" %
                           (G["temporada"], tr("pt"), div_antes, G["clubes"][campeao]["nome"],
                            tr("pt"), c["nome"], pos_final))
@@ -7244,6 +7342,10 @@ def migrar(G):
         G["seq"] = max([G.get("seq", 0)] + list(G["jogadores"]))
         for dados in faltam:
             novo_clube(G, dados, "EX", usados)
+    if mundo_embutido() and len(G.get("ligas_ext", {})) < len(mundo_embutido().get("ligas", [])):
+        G["seq_c"] = max([G.get("seq_c", 0)] + list(G["clubes"]))
+        G["seq"] = max([G.get("seq", 0)] + list(G["jogadores"]))
+        aplicar_mundo(G, {j["nome"] for j in G["jogadores"].values()})
     for j in G["jogadores"].values():
         j.setdefault("dono", None)
         j.setdefault("emp_pct", 100)

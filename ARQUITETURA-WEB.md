@@ -341,6 +341,27 @@ playoff. Vitória de brasileiro nos grupos paga `PREMIO_VITORIA_GRUPO`. Save
 antigo termina a temporada corrente no formato velho, ganha os 16 clubes
 estrangeiros novos em `migrar` e pega os grupos na virada.
 
+**Europa e elencos reais de fora.** `ferramentas/importar_elencos.py` baixa
+da football-data.org (chave em `FOOTBALL_DATA_KEY`, no `.env`, fora do git)
+as 5 grandes ligas, a Libertadores e o Santos, e gera `dados_mundo.py`
+(embutido em base64, como os elencos brasileiros; quem joga não precisa de
+internet). A API não dá nota: o ovr sai da reputação do clube (classificação
+da temporada anterior), da idade e de uma variação fixa por nome; craques têm
+nota estimada em `ferramentas/notas_manuais.json`. Quem já estava no jogo
+mantém a nota. Cache das respostas em `ferramentas/cache/` (fora do git);
+`--baixar` busca de novo.
+
+No motor (bloco O RESTO DO MUNDO): clubes europeus são `"EX"` com
+`c["liga_ext"]` — ficam fora da economia, do mercado e das copas
+sul-americanas, como os estrangeiros de sempre — e jogam uma rodada por
+semana em `G["ligas_ext"]` (sem acesso/rebaixamento; campeão via
+`dar_titulo` na virada). Mundo novo recebe tudo (`aplicar_mundo(sul=True)`);
+save antigo recebe só as ligas europeias em `migrar`, sem trocar elenco
+sul-americano nem brasileiro. Competições e Classificação listam as ligas
+como `ext:ENG`, `ext:ESP`... A temporada simulada ficou ~40% mais lenta e o
+save de mundo novo tem ~5 MB. MLS e liga saudita não estão no plano grátis
+da football-data.org.
+
 **Casca.** O endereço guarda a tela no hash (`/#elenco`): F5 não volta ao
 Painel, e agora o Voltar/Avançar do navegador também troca de tela.
 Marcações nas grades usam `alternarMarca` com setter funcional (dois cliques
@@ -408,6 +429,8 @@ velha para apagar na mão. `--sim` não trava, porque não grava no save.
 - **`test_carreira.py`** nome e opções da carreira nova, aporte do
   investidor, sem demissão, pedir demissão até o clube novo, proposta aceita,
   jogos contados na passagem, feed do mundo e `/api/config`.
+- **`test_europa.py`** ligas europeias no mundo novo, rodadas andando,
+  telas `ext:` e save antigo ganhando a Europa sem jogador duplicado.
 - **`test_continentais.py`** grupos da Libertadores e da Sul-Americana até o
   playoff e as oitavas, e save antigo ganhando os clubes que faltam.
 
