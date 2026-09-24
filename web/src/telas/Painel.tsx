@@ -1,0 +1,444 @@
+// O Painel responde uma pergunta so: posso avancar a semana agora?
+//
+// Tudo se ordena por isso. O veredito vem primeiro, a prova (o XI que entra em
+// campo) e o maior bloco da tela, e o resto e contexto da aposta e memoria.
+// E a mesma hierarquia da janela tkinter, redesenhada.
+
+import { Campo } from '../componentes/Campo'
+import { Estrela, EscudoRival, iconeDeEstado } from '../icones'
+import type {
+  AvisoContratos,
+  DadosPainel,
+  Destaque,
+  Escalacao,
+  Noticia,
+  Objetivo,
+  Prontidao,
+  Proximo,
+  Resultados,
+  Tabela,
+} from '../tipos'
+
+interface Props {
+  dados: DadosPainel
+  aoDefinirAuto: (ligada: boolean) => void
+  mudandoAuto: boolean
+  aoIr: (destino: string) => void
+  /** abre a fila de mesas de renovacao para esses jogadores */
+  aoRenovar: (ids: number[]) => void
+}
+
+export function Painel({ dados, aoDefinirAuto, mudandoAuto, aoIr, aoRenovar }: Props) {
+  // o botao da faixa leva a outra tela; se ela ainda nao migrou, ele avisa
+  const prontas = new Set(dados.cabecalho.menu.filter((m) => m.pronta).map((m) => m.id))
+  return (
+    <div className="corpo">
+      <div className="coluna">
+        <FaixaProntidao prontidao={dados.prontidao} prontas={prontas} aoIr={aoIr} />
+        {dados.contratos && <FaixaContratos aviso={dados.contratos} aoRenovar={aoRenovar} />}
+        <FaixaResultados resultados={dados.resultados} />
+        <CardProximo proximo={dados.proximo} meuClube={dados.cabecalho.clube} />
+        <CardEscalacao
+          escalacao={dados.escalacao}
+          aoDefinirAuto={aoDefinirAuto}
+          mudandoAuto={mudandoAuto}
+        />
+      </div>
+
+      <div className="coluna">
+        <CardObjetivo objetivo={dados.objetivo} />
+        <CardTabela tabela={dados.tabela} />
+        <CardDestaques destaques={dados.destaques} />
+        <CardNoticias noticias={dados.noticias} />
+      </div>
+    </div>
+  )
+}
+
+// ------------------------------------------------------------------- veredito
+function FaixaProntidao({
+  prontidao,
+  prontas,
+  aoIr,
+}: {
+  prontidao: Prontidao
+  prontas: Set<string>
+  aoIr: (destino: string) => void
+}) {
+  const acao = prontidao.acao
+  // 'resumo' nao e tela do menu: abre a janela do resumo do ano
+  const migrou = acao ? prontas.has(acao.destino) || acao.destino === 'resumo' : false
+  return (
+    <section className={`painel faixa ${prontidao.estado}`}>
+      <div className="faixa-icone">{iconeDeEstado(prontidao.estado)}</div>
+      <div style={{ minWidth: 0 }}>
+        <div className="faixa-titulo">{prontidao.titulo}</div>
+        <div className="faixa-detalhe">{prontidao.detalhe}</div>
+      </div>
+      <div className="espaco" />
+      {acao && (
+        <button
+          type="button"
+          className="bt-fantasma"
+          disabled={!migrou}
+          title={migrou ? undefined : `${acao.label}: essa tela ainda nao migrou`}
+          onClick={() => aoIr(acao.destino)}
+        >
+          {acao.label}
+        </button>
+      )}
+    </section>
+  )
+}
+
+// ------------------------------------------------------ contratos acabando
+function FaixaContratos({
+  aviso,
+  aoRenovar,
+}: {
+  aviso: AvisoContratos
+  aoRenovar: (ids: number[]) => void
+}) {
+  const nomes = aviso.jogadores.map((j) => `${j.nome} (${j.pos}, ${j.ovr})`).join(', ')
+  return (
+    <section className={`painel faixa ${aviso.estado}`}>
+      <div className="faixa-icone">{iconeDeEstado(aviso.estado)}</div>
+      <div style={{ minWidth: 0 }}>
+        <div className="faixa-titulo">{aviso.texto}</div>
+        <div className="faixa-detalhe">
+          {nomes}
+          {aviso.extras > 0 && ` e mais ${aviso.extras}`}
+        </div>
+      </div>
+      <div className="espaco" />
+      <button type="button" className="bt-fantasma" onClick={() => aoRenovar(aviso.ids)}>
+        Renovar {aviso.ids.length > 1 ? `os ${aviso.ids.length}` : ''}
+      </button>
+    </section>
+  )
+}
+
+// ---------------------------------------------------- o placar e a memoria curta
+function FaixaResultados({ resultados }: { resultados: Resultados }) {
+  const { placares, forma, alerta } = resultados
+  if (!placares.length && !forma.length && !alerta) return null
+  return (
+    <section className="painel">
+      <div className="resultados">
+        {placares.length > 0 ? (
+          placares.map((p, i) => (
+            <div className="placar" key={i}>
+              <span className={`placar-numero ${p.estado}`}>
+                {p.eu} x {p.ele}
+              </span>
+              <span>
+                <span className="placar-adv">{p.adversario}</span>
+                <br />
+                <span className="placar-onde">{p.em_casa ? 'em casa' : 'fora'}</span>
+              </span>
+            </div>
+          ))
+        ) : (
+          <span className="painel-titulo">sem jogo na ultima semana</span>
+        )}
+
+        <div className="espaco" />
+
+        <div style={{ textAlign: 'right' }}>
+          <div className="painel-titulo" style={{ marginBottom: 4 }}>Ultimos 5</div>
+          <div className="forma">
+            {forma.length === 0 && <span className="placar-onde">sem historico ainda</span>}
+            {forma.map((f, i) => (
+              <span className={`forma-badge ${f.letra}`} key={i} title={f.descricao}>
+                {f.letra}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* o diagnostico so olha lesao, suspensao e improviso: um time saudavel
+          perdendo todo domingo passaria como TIME PRONTO sem este aviso */}
+      {alerta && (
+        <div className={`alerta-fase ${alerta.estado}`}>
+          {iconeDeEstado(alerta.estado, 16)}
+          {alerta.texto}
+        </div>
+      )}
+    </section>
+  )
+}
+
+// --------------------------------------------------------------- proximo jogo
+function CardProximo({ proximo, meuClube }: { proximo: Proximo; meuClube: string }) {
+  const temAdversario = proximo.tipo === 'jogo'
+  return (
+    <section className="painel" style={{ padding: '16px 22px' }}>
+      <div className="painel-cab" style={{ marginBottom: 14 }}>
+        <span className="painel-titulo">Proximo jogo</span>
+        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--acento)' }}>
+          {proximo.legenda}
+        </span>
+      </div>
+
+      <div className="confronto">
+        <div className="confronto-lado">
+          <div className="escudo gg"><Estrela tamanho={26} /></div>
+          <div className="confronto-nome">{meuClube}</div>
+        </div>
+
+        <div className="confronto-vs">
+          <div className="vs">{temAdversario ? 'VS' : '—'}</div>
+          <div className="onde">
+            {proximo.em_casa === null
+              ? proximo.tipo === 'folga' ? 'semana livre' : 'a definir'
+              : proximo.em_casa ? 'em casa' : 'fora de casa'}
+          </div>
+        </div>
+
+        <div className="confronto-lado">
+          <div className={`escudo gg${temAdversario ? ' rival' : ''}`}>
+            <EscudoRival tamanho={24} />
+          </div>
+          <div className={`confronto-nome${proximo.forte ? ' forte' : ''}`}>
+            {proximo.adversario}
+          </div>
+        </div>
+      </div>
+
+      {proximo.extras > 0 && (
+        <div style={{ fontSize: 11, color: 'var(--atencao)', marginTop: 10, textAlign: 'center' }}>
+          +{proximo.extras} jogo(s) nesta semana
+        </div>
+      )}
+
+      <div className="forcas">
+        <Forca nome="Ataque" meu={proximo.ataque.meu} dele={proximo.ataque.dele} />
+        <Forca nome="Defesa" meu={proximo.defesa.meu} dele={proximo.defesa.dele} />
+      </div>
+    </section>
+  )
+}
+
+function Forca({ nome, meu, dele }: { nome: string; meu: number; dele: number | null }) {
+  // sem adversario definido nao ha comparacao: a barra fica cheia e neutra
+  const fatia = dele === null ? 100 : (100 * meu) / Math.max(meu + dele, 0.1)
+  const razao = dele === null ? 1 : meu / Math.max(dele, 0.1)
+  const cor = dele === null ? '' : razao >= 1.05 ? 'ok' : razao >= 0.92 ? '' : 'critico'
+  // o sinal repete o que a cor diz: quem nao ve cor continua lendo
+  const sinal = dele === null ? '' : meu > dele ? '>' : meu < dele ? '<' : '='
+  return (
+    <div>
+      <div className="forca-topo">
+        <span>{nome}</span>
+        <span>
+          <strong>{meu.toFixed(1)}</strong> {sinal} {dele === null ? '--' : dele.toFixed(1)}
+        </span>
+      </div>
+      <div className="barra">
+        <div className={cor} style={{ width: `${fatia}%` }} />
+      </div>
+    </div>
+  )
+}
+
+// ------------------------------------------------------------------ escalacao
+function CardEscalacao({
+  escalacao,
+  aoDefinirAuto,
+  mudandoAuto,
+}: {
+  escalacao: Escalacao
+  aoDefinirAuto: (ligada: boolean) => void
+  mudandoAuto: boolean
+}) {
+  const ressalvas = escalacao.jogadores.filter((j) => j.estado !== 'ok')
+  return (
+    <section
+      className="painel"
+      style={{ padding: '16px 22px', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+    >
+      <div className="painel-cab" style={{ marginBottom: 12 }}>
+        <span className="painel-titulo">
+          Escalacao · {escalacao.formacao} · {escalacao.tatica}
+        </span>
+        <div className="alavanca">
+          <button
+            type="button"
+            className={escalacao.auto ? 'ativo' : ''}
+            disabled={mudandoAuto}
+            onClick={() => aoDefinirAuto(true)}
+            title="O time se monta sozinho antes de cada jogo"
+          >
+            Automatico
+          </button>
+          <button
+            type="button"
+            className={!escalacao.auto ? 'ativo' : ''}
+            disabled={mudandoAuto}
+            onClick={() => aoDefinirAuto(false)}
+            title="O seu XI e soberano, so repomos quem nao pode jogar"
+          >
+            Manual
+          </button>
+        </div>
+      </div>
+
+      <Campo jogadores={escalacao.jogadores} vagasAbertas={escalacao.vagas_abertas} />
+
+      <div className="legenda-campo">
+        <span><i className="ponto" style={{ color: 'var(--txt)' }} /> em ordem</span>
+        <span style={{ color: 'var(--atencao)' }}><i className="ponto" /> custa rendimento</span>
+        <span style={{ color: 'var(--critico)' }}><i className="ponto" /> cobra caro</span>
+      </div>
+
+      {/* o campo mostra a forma; a lista mostra o preco. So aparece quem tem
+          algo a explicar - quem esta em ordem nao tem, e onze linhas iguais
+          roubavam do campo a altura que ele precisa para ser legivel */}
+      {ressalvas.length === 0 ? (
+        <div className="sem-ressalva">
+          {iconeDeEstado('ok', 14)}
+          Ninguem improvisado, desgastado ou pendurado no XI.
+        </div>
+      ) : (
+        <div className="xi-lista" style={{ marginTop: 10 }}>
+          {ressalvas.map((j) => (
+            <div className="xi-linha" key={j.id}>
+              <span className={`xi-vaga ${j.improvisado ? j.estado : ''}`}>
+                {j.improvisado ? `${j.pos}>${j.vaga}` : j.vaga}
+              </span>
+              <span className="xi-nome" title={j.nome}>{j.nome}</span>
+              <span className="xi-num">{j.ovr}</span>
+              <span className={`xi-fis ${j.cond < 45 ? 'critico' : j.cond < 65 ? 'atencao' : ''}`}>
+                fis {j.cond}
+              </span>
+              <span className={`xi-obs ${j.estado}`}>{j.obs}</span>
+            </div>
+          ))}
+          {escalacao.vagas_abertas > 0 && (
+            <div className="xi-linha">
+              <span className="xi-vaga critico">---</span>
+              <span className="xi-nome" style={{ color: 'var(--critico)' }}>
+                {escalacao.vagas_abertas} vaga(s) sem jogador apto
+              </span>
+              <span className="xi-num">--</span>
+              <span className="xi-fis">--</span>
+              <span className="xi-obs critico">contrate</span>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  )
+}
+
+// ------------------------------------------------------------------- objetivo
+function CardObjetivo({ objetivo }: { objetivo: Objetivo }) {
+  return (
+    <section className="painel" style={{ padding: '14px 18px' }}>
+      <div className="painel-titulo">Objetivo da temporada</div>
+      <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4 }}>{objetivo.texto}</div>
+
+      <div className="objetivo-barra">
+        <div className={`cheio ${objetivo.estado}`} style={{ width: `${objetivo.progresso}%` }} />
+        <div className="marca" style={{ left: `${objetivo.marca}%` }} title={`meta: top ${objetivo.alvo}`} />
+      </div>
+
+      <div className="objetivo-meta">
+        <span className={`objetivo-pos ${objetivo.estado}`}>
+          {objetivo.comecou ? `${objetivo.pos}º de ${objetivo.total}` : 'nao comecou'}
+        </span>
+        <span className="diretoria">
+          meta top {objetivo.alvo}
+          {objetivo.folga !== null &&
+            (objetivo.folga >= 0 ? ` · ${objetivo.folga} de folga` : ` · faltam ${-objetivo.folga}`)}
+        </span>
+      </div>
+      <div className="diretoria">Diretoria: {objetivo.diretoria}</div>
+    </section>
+  )
+}
+
+// --------------------------------------------------------------------- tabela
+function CardTabela({ tabela }: { tabela: Tabela }) {
+  return (
+    <section className="painel" style={{ padding: '16px 0 4px' }}>
+      <div className="painel-titulo" style={{ padding: '0 18px 12px' }}>{tabela.titulo}</div>
+      {tabela.vazio ? (
+        <div className="vazio">{tabela.vazio}</div>
+      ) : (
+        <>
+          <div className="tablerow cab">
+            <span>P</span>
+            <span>Clube</span>
+            <span className="num">J</span>
+            <span className="num">SG</span>
+            <span className="num">V</span>
+            <span className="num">Pts</span>
+          </div>
+          {tabela.linhas.map((l) => (
+            <div className={`tablerow ${l.zona}${l.eu ? ' eu' : ''}`} key={l.pos}>
+              <span className="pos">{l.pos}</span>
+              <span className="clube">
+                <i className="marcador" />
+                {l.clube}
+              </span>
+              <span className="num">{l.j}</span>
+              <span className="num">{l.sg > 0 ? `+${l.sg}` : l.sg}</span>
+              <span className="num">{l.v}</span>
+              <span className="num">{l.pts}</span>
+            </div>
+          ))}
+        </>
+      )}
+    </section>
+  )
+}
+
+// ------------------------------------------------------------------ destaques
+function CardDestaques({ destaques }: { destaques: Destaque[] }) {
+  return (
+    <section className="painel" style={{ padding: '16px 18px' }}>
+      <div className="painel-titulo" style={{ marginBottom: 12 }}>Destaques do elenco</div>
+      <div className="destaques">
+        {destaques.map((d) => (
+          <div className="destaque" key={d.id}>
+            <div className="avatar">{d.iniciais}</div>
+            <div className="nome" title={d.nome}>{d.nome}</div>
+            <div className="linha2">{d.pos} · overall {d.ovr}</div>
+            <div className="linha2">{d.g} gol(s) · {d.a} assist.</div>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+// ------------------------------------------------------------------- noticias
+function CardNoticias({ noticias }: { noticias: Noticia[] }) {
+  return (
+    <section
+      className="painel"
+      style={{ padding: '16px 0', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+    >
+      <div className="painel-cab" style={{ padding: '0 18px 10px' }}>
+        <span className="painel-titulo">Noticias do clube</span>
+      </div>
+      <div className="noticias">
+        {noticias.length === 0 ? (
+          <div className="vazio">Nada por aqui ainda. Avance a semana para comecar a historia.</div>
+        ) : (
+          noticias.map((n, i) => (
+            <div className={`noticia ${n.estado}`} key={i}>
+              <i className="bolinha" />
+              <div>
+                <div className="texto">{n.texto}</div>
+                <div className="quando">{n.quando}</div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </section>
+  )
+}

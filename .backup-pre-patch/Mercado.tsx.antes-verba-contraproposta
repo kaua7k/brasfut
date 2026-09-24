@@ -1,0 +1,399 @@
+// O Mercado: quatro abas visiveis, e nao um filtro escondido.
+//
+// Na janela tkinter o emprestimo era um item de combobox que quase ninguem
+// achava; la ele virou botao, aqui virou aba. Comprar, Emprestimos e Agentes
+// livres sao a mesma busca com colunas diferentes; Minha vitrine junta tudo o
+// que sai do clube: quem esta a venda, as propostas da semana e os acertos
+// feitos com a janela fechada.
+//
+// Negociar abre a mesa (componentes/Mesa.tsx); quem fecha negocio e o motor.
+
+import { useEffect, useState } from 'react'
+import { CabecalhoTela } from '../componentes/CabecalhoTela'
+import { CampoDinheiro } from '../componentes/CampoDinheiro'
+import { alternarMarca, Grade, type Coluna } from '../componentes/Grade'
+import type {
+  AbaMercado,
+  Agendada,
+  FiltrosMercado,
+  LinhaMercado,
+  LinhaVitrine,
+  OfertaRecebida,
+  TelaMercado,
+  TipoMesa,
+} from '../tipos'
+
+export type AcaoMercado =
+  | { tipo: 'buscar'; aba: AbaMercado; filtros?: Partial<FiltrosMercado> }
+  | { tipo: 'negociar'; mesa: TipoMesa; id: number }
+  | { tipo: 'reprecificar'; ids: number[] }
+  | { tipo: 'tirar'; ids: number[] }
+  | { tipo: 'aceitar'; itens: { id: number; clube_id: number }[] }
+  | { tipo: 'recusar'; itens: { id: number; clube_id: number }[] }
+  | { tipo: 'cancelar'; indices: number[] }
+
+interface Props {
+  tela: TelaMercado
+  ocupado: boolean
+  aoAbrirFicha: (id: number) => void
+  aoAgir: (acao: AcaoMercado) => void
+}
+
+const MARCA: Record<string, string> = { a_venda: ' *', intocavel: ' !' }
+
+const BASE: Coluna<LinhaMercado>[] = [
+  { chave: 'pos', rotulo: 'Pos', largura: '46px', classe: 'centro', render: (j) => j.pos },
+  {
+    chave: 'nome',
+    rotulo: 'Jogador',
+    largura: 'minmax(140px, 1.5fr)',
+    classe: 'corta',
+    render: (j) => (
+      <>
+        <span className={`tag-${j.tag}`}>{j.nome}</span>
+        {j.acertado && <span className="selo-nova-vaga">acertado</span>}
+      </>
+    ),
+  },
+  { chave: 'idade', rotulo: 'Idade', largura: '50px', classe: 'num', render: (j) => j.idade },
+  { chave: 'ovr', rotulo: 'Ovr', largura: '42px', classe: 'num', render: (j) => j.ovr },
+  { chave: 'teto', rotulo: 'Teto', largura: '70px', classe: 'centro', render: (j) => j.teto },
+  { chave: 'clube', rotulo: 'Clube', largura: 'minmax(100px, 1fr)', classe: 'corta', render: (j) => j.clube },
+  { chave: 'sal', rotulo: 'Salario', largura: '88px', classe: 'num', render: (j) => j.salario },
+]
+
+const COLUNAS_COMPRA: Coluna<LinhaMercado>[] = [
+  ...BASE,
+  {
+    chave: 'pedido',
+    rotulo: 'Pedido',
+    largura: '104px',
+    classe: 'num',
+    render: (j) => (
+      <span className={j.marca === 'intocavel' ? 'linha-critica' : j.marca === 'a_venda' ? 'tag-ok' : undefined}>
+        {j.pedido}
+        {MARCA[j.marca ?? ''] ?? ''}
+      </span>
+    ),
+  },
+  { chave: 'emp', rotulo: 'Emp', largura: '44px', classe: 'centro', render: (j) => (j.emprestimo ? 'sim' : '') },
+]
+
+const COLUNAS_EMPRESTIMO: Coluna<LinhaMercado>[] = [
+  ...BASE,
+  { chave: 'pct', rotulo: 'Dono quer', largura: '80px', classe: 'centro', render: (j) => `${j.pct}%` },
+  { chave: 'fatia', rotulo: 'Sua fatia', largura: '92px', classe: 'num', render: (j) => j.fatia },
+]
+
+const COLUNAS_VITRINE: Coluna<LinhaVitrine>[] = [
+  {
+    chave: 'nome',
+    rotulo: 'Jogador',
+    largura: 'minmax(130px, 1.4fr)',
+    classe: 'corta',
+    render: (j) => <span className={`tag-${j.tag}`}>{j.nome}</span>,
+  },
+  { chave: 'pos', rotulo: 'Pos', largura: '46px', classe: 'centro', render: (j) => j.pos },
+  { chave: 'ovr', rotulo: 'Ovr', largura: '42px', classe: 'num', render: (j) => j.ovr },
+  { chave: 'sal', rotulo: 'Salario', largura: '88px', classe: 'num', render: (j) => j.salario },
+  { chave: 'val', rotulo: 'Valor', largura: '92px', classe: 'num', render: (j) => j.valor },
+  { chave: 'ped', rotulo: 'Voce pede', largura: '96px', classe: 'num', render: (j) => j.pede },
+  { chave: 'pct', rotulo: '%', largura: '48px', classe: 'num', render: (j) => `${j.pct}%` },
+  {
+    chave: 'quem',
+    rotulo: 'Proposta',
+    largura: 'minmax(110px, 1fr)',
+    classe: 'corta',
+    render: (j) => (j.interessado ? <span className="tag-atencao">{j.interessado}: {j.oferta}</span> : '-'),
+  },
+]
+
+const COLUNAS_OFERTAS: Coluna<OfertaRecebida & { indice: number }>[] = [
+  { chave: 'nome', rotulo: 'Jogador', largura: 'minmax(120px, 1.2fr)', classe: 'corta', render: (o) => o.nome },
+  { chave: 'pos', rotulo: 'Pos', largura: '46px', classe: 'centro', render: (o) => o.pos },
+  { chave: 'ovr', rotulo: 'Ovr', largura: '42px', classe: 'num', render: (o) => o.ovr },
+  { chave: 'clube', rotulo: 'Interessado', largura: 'minmax(110px, 1fr)', classe: 'corta', render: (o) => `${o.clube} (${o.divisao})` },
+  { chave: 'of', rotulo: 'Oferta', largura: '96px', classe: 'num', render: (o) => o.oferta },
+  { chave: 'ped', rotulo: 'Voce pede', largura: '120px', classe: 'num', render: (o) => o.pede },
+  {
+    chave: 'dif',
+    rotulo: 'Diferenca',
+    largura: '96px',
+    classe: 'num',
+    render: (o) => <span className={`tag-${o.estado}`}>{o.diferenca}</span>,
+  },
+]
+
+const COLUNAS_AGENDADAS: Coluna<Agendada>[] = [
+  { chave: 'quem', rotulo: 'Jogador', largura: 'minmax(120px, 1.2fr)', classe: 'corta', render: (a) => a.jogador },
+  { chave: 'tipo', rotulo: 'Negocio', largura: '90px', classe: 'centro', render: (a) => a.tipo },
+  { chave: 'com', rotulo: 'Com', largura: 'minmax(110px, 1fr)', classe: 'corta', render: (a) => a.com },
+  { chave: 'valor', rotulo: 'Valor', largura: '100px', classe: 'num', render: (a) => a.valor },
+  { chave: 'quando', rotulo: 'Acertado em', largura: '96px', classe: 'centro', render: (a) => a.quando },
+]
+
+export function Mercado({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
+  const [marcado, setMarcado] = useState<number | null>(null)
+  const [vitrine, setVitrine] = useState<Set<number>>(new Set())
+  const [ofertas, setOfertas] = useState<Set<number>>(new Set())
+  const [agendadas, setAgendadas] = useState<Set<number>>(new Set())
+  const [pos, setPos] = useState(tela.filtros.pos ?? '')
+  const [ovr, setOvr] = useState(tela.filtros.ovr ? String(tela.filtros.ovr) : '')
+  const [idade, setIdade] = useState(tela.filtros.idade ? String(tela.filtros.idade) : '')
+  const [teto, setTeto] = useState(tela.filtros.teto ?? 0)
+
+  // a tela voltou do servidor (outra aba, negocio fechado): marcacoes antigas
+  // podem apontar para quem ja saiu
+  useEffect(() => {
+    setMarcado(null)
+    setVitrine(new Set())
+    setOfertas(new Set())
+    setAgendadas(new Set())
+  }, [tela])
+
+  const filtros = (): Partial<FiltrosMercado> => ({
+    pos: pos || null,
+    ovr: ovr ? Number(ovr) : null,
+    idade: idade ? Number(idade) : null,
+    teto: teto || null,
+  })
+
+  const aba = tela.aba
+  const alvo = tela.jogadores.find((j) => j.id === marcado) ?? null
+  const ofertasIdx = tela.ofertas.map((o, i) => ({ ...o, indice: i }))
+  const itensOfertas = ofertasIdx
+    .filter((o) => ofertas.has(o.indice))
+    .map((o) => ({ id: o.id, clube_id: o.clube_id }))
+  const entra = ofertasIdx.filter((o) => ofertas.has(o.indice)).reduce((s, o) => s + o.oferta_num, 0)
+
+  return (
+    <div className="tela">
+      <CabecalhoTela titulo={tela.titulo} sub={tela.subtitulo} metricas={tela.metricas} />
+
+      <div className="abas" role="tablist" aria-label="Areas do mercado">
+        {tela.abas.map((a) => (
+          <button
+            key={a.id}
+            type="button"
+            role="tab"
+            aria-selected={a.id === aba}
+            className={`aba${a.id === aba ? ' ativa' : ''}`}
+            disabled={ocupado}
+            onClick={() => a.id !== aba && aoAgir({ tipo: 'buscar', aba: a.id, filtros: filtros() })}
+          >
+            {a.nome}
+            {a.contador ? <span className="contador">{a.contador}</span> : null}
+          </button>
+        ))}
+        {!tela.aberto && (
+          <span className="aviso-janela">janela fechada: da para acertar agora, o jogador troca de clube na abertura</span>
+        )}
+      </div>
+
+      {aba !== 'vitrine' ? (
+        <>
+          <form
+            className="painel barra-acoes filtros"
+            onSubmit={(e) => {
+              e.preventDefault()
+              aoAgir({ tipo: 'buscar', aba, filtros: filtros() })
+            }}
+          >
+            <label className="campo-rotulo">
+              Posicao
+              <select className="seletor" value={pos} onChange={(e) => setPos(e.target.value)}>
+                <option value="">Todas</option>
+                {tela.posicoes.map((p) => (
+                  <option key={p}>{p}</option>
+                ))}
+              </select>
+            </label>
+            <label className="campo-rotulo">
+              Ovr min
+              <input
+                className="seletor entrada entrada-curta"
+                inputMode="numeric"
+                value={ovr}
+                onChange={(e) => setOvr(e.target.value.replace(/\D/g, '').slice(0, 2))}
+              />
+            </label>
+            <label className="campo-rotulo">
+              Idade max
+              <input
+                className="seletor entrada entrada-curta"
+                inputMode="numeric"
+                value={idade}
+                onChange={(e) => setIdade(e.target.value.replace(/\D/g, '').slice(0, 2))}
+              />
+            </label>
+            {aba !== 'livres' && <CampoDinheiro rotulo="Pedido ate" valor={teto} aoMudar={setTeto} />}
+            <button type="submit" className="bt-acao bt-media" disabled={ocupado}>
+              Buscar
+            </button>
+          </form>
+
+          <section className="painel painel-lista">
+            <Grade
+              colunas={aba === 'emprestimo' ? COLUNAS_EMPRESTIMO : COLUNAS_COMPRA}
+              itens={tela.jogadores}
+              idDe={(j) => j.id}
+              nomeDe={(j) => j.nome}
+              marcados={new Set(marcado === null ? [] : [marcado])}
+              aoMarcar={(id) => setMarcado(marcado === id ? null : id)}
+              aoAbrir={(j) => aoAbrirFicha(j.id)}
+              vazio="Ninguem com esse perfil agora. Afrouxe os filtros."
+            />
+            <div className="barra-acoes barra-presa">
+              <span className="resumo">
+                {/* com alguem marcado, a barra diz quem e: ela fica presa no rodape
+                    e a linha marcada pode estar la em cima, fora da vista */}
+                {alvo?.acertado ? (
+                  <strong className="tag-atencao">
+                    {alvo.nome} ja esta acertado com voce: chega na abertura da janela.
+                  </strong>
+                ) : alvo ? (
+                  <strong className="tag-ok">
+                    {alvo.nome} · {alvo.pos} · {alvo.ovr} ·{' '}
+                    {aba === 'emprestimo' ? `dono quer ${alvo.pct}%` : alvo.livre ? 'agente livre' : `pede ${alvo.pedido}`}
+                  </strong>
+                ) : aba === 'emprestimo' ? (
+                  'marque um jogador · aqui aparece so quem foi oferecido; para pedir qualquer outro, use Pedir emprestado na aba Comprar'
+                ) : (
+                  'marque um jogador · * o clube quer vender · ! nao quer vender (pede mais caro) · Emp: tambem sai por emprestimo'
+                )}
+              </span>
+              <button type="button" className="bt-fantasma" disabled={!alvo} onClick={() => alvo && aoAbrirFicha(alvo.id)}>
+                Ver ficha
+              </button>
+              {aba === 'compra' && (
+                <button
+                  type="button"
+                  className="bt-fantasma"
+                  disabled={!alvo || alvo.acertado || ocupado}
+                  onClick={() => alvo && aoAgir({ tipo: 'negociar', mesa: 'emprestimo', id: alvo.id })}
+                >
+                  Pedir emprestado
+                </button>
+              )}
+              <button
+                type="button"
+                className="bt-acao bt-media"
+                disabled={!alvo || alvo.acertado || ocupado}
+                onClick={() =>
+                  alvo && aoAgir({ tipo: 'negociar', mesa: aba === 'emprestimo' ? 'emprestimo' : 'compra', id: alvo.id })
+                }
+              >
+                {aba === 'emprestimo' ? 'Pegar emprestado' : aba === 'livres' ? 'Negociar contrato' : 'Negociar compra'}
+              </button>
+            </div>
+          </section>
+        </>
+      ) : (
+        <>
+          <div className="painel-titulo">Na vitrine</div>
+          <section className="painel painel-lista">
+            <Grade
+              colunas={COLUNAS_VITRINE}
+              itens={tela.vitrine}
+              idDe={(j) => j.id}
+              nomeDe={(j) => j.nome}
+              marcados={vitrine}
+              aoMarcar={(id) => setVitrine((s) => alternarMarca(s, id))}
+              aoAbrir={(j) => aoAbrirFicha(j.id)}
+              vazio="Ninguem na vitrine. Marque jogadores no Elenco e use Por a venda - da para precificar varios de uma vez."
+            />
+            {tela.vitrine.length > 0 && (
+              <div className="barra-acoes barra-presa">
+                <span className="resumo">
+                  {vitrine.size ? `${vitrine.size} marcado(s)` : 'sem marcar ninguem, a acao vale para todos da vitrine'}
+                </span>
+                <button
+                  type="button"
+                  className="bt-fantasma"
+                  disabled={ocupado}
+                  onClick={() => aoAgir({ tipo: 'reprecificar', ids: vitrine.size ? [...vitrine] : tela.vitrine.map((j) => j.id) })}
+                >
+                  Reprecificar
+                </button>
+                <button
+                  type="button"
+                  className="bt-fantasma"
+                  disabled={ocupado}
+                  onClick={() => aoAgir({ tipo: 'tirar', ids: vitrine.size ? [...vitrine] : tela.vitrine.map((j) => j.id) })}
+                >
+                  Tirar da vitrine
+                </button>
+              </div>
+            )}
+          </section>
+
+          <div className="painel-titulo">Propostas desta semana</div>
+          <section className="painel painel-lista">
+            <Grade
+              colunas={COLUNAS_OFERTAS}
+              itens={ofertasIdx}
+              idDe={(o) => o.indice}
+              nomeDe={(o) => `${o.nome}, oferta do ${o.clube}`}
+              marcados={ofertas}
+              aoMarcar={(i) => setOfertas((s) => alternarMarca(s, i))}
+              aoAbrir={(o) => aoAbrirFicha(o.id)}
+              vazio="Nenhuma proposta nesta semana. Ponha alguem na vitrine, ou baixe o preco: pedir muito acima do valor afasta comprador."
+            />
+            {tela.ofertas.length > 0 && (
+              <div className="barra-acoes barra-presa">
+                <span className="resumo">
+                  as mesmas ate a semana virar: nao adianta sair e voltar
+                  {itensOfertas.length > 0 &&
+                    ` · ${itensOfertas.length} marcada(s), entram R$ ${(entra / 1e6).toFixed(2)} mi`}
+                </span>
+                <button
+                  type="button"
+                  className="bt-fantasma"
+                  disabled={ocupado || !itensOfertas.length}
+                  onClick={() => aoAgir({ tipo: 'recusar', itens: itensOfertas })}
+                >
+                  Recusar marcadas
+                </button>
+                <button
+                  type="button"
+                  className="bt-acao bt-media"
+                  disabled={ocupado || !itensOfertas.length}
+                  onClick={() => aoAgir({ tipo: 'aceitar', itens: itensOfertas })}
+                >
+                  Aceitar marcadas
+                </button>
+              </div>
+            )}
+          </section>
+        </>
+      )}
+
+      {tela.agendadas.length > 0 && (
+        <>
+          <div className="painel-titulo tag-atencao">Acertado para a proxima janela</div>
+          <section className="painel painel-lista">
+            <Grade
+              colunas={COLUNAS_AGENDADAS}
+              itens={tela.agendadas}
+              idDe={(a) => a.indice}
+              nomeDe={(a) => a.jogador}
+              marcados={agendadas}
+              aoMarcar={(i) => setAgendadas((s) => alternarMarca(s, i))}
+            />
+            <div className="barra-acoes barra-presa">
+              <span className="resumo">entram sozinhos assim que a janela abrir, revalidando caixa e elenco</span>
+              <button
+                type="button"
+                className="bt-fantasma bt-perigo"
+                disabled={ocupado || agendadas.size === 0}
+                onClick={() => aoAgir({ tipo: 'cancelar', indices: [...agendadas] })}
+              >
+                Cancelar acerto
+              </button>
+            </div>
+          </section>
+        </>
+      )}
+    </div>
+  )
+}

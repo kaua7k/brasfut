@@ -1,0 +1,765 @@
+// A casca do jogo: menu, topo e a tela da vez.
+//
+// O estado do mundo mora no Python. Aqui so se guarda o retrato mais recente
+// dele - toda acao devolve a tela ja recalculada pelo servidor, entao a tela
+// nunca tenta adivinhar sozinha o que mudou. Foi assim que a janela tkinter
+// manteve cinco pontos da interface dando o mesmo veredito.
+
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { api, ErroDaApi } from './api'
+import { BarraTopo } from './componentes/BarraTopo'
+import { DialogoAvanco } from './componentes/DialogoAvanco'
+import { DialogoCeder } from './componentes/DialogoCeder'
+import { DialogoVitrine } from './componentes/DialogoVitrine'
+import { Ficha } from './componentes/Ficha'
+import { JanelaPendencia } from './componentes/JanelaPendencia'
+import { Mesa } from './componentes/Mesa'
+import { Resumo } from './componentes/Resumo'
+import { MenuLateral } from './componentes/MenuLateral'
+import { Abertura } from './telas/Abertura'
+import { Base, type AcaoBase } from './telas/Base'
+import { Classificacao } from './telas/Classificacao'
+import { Competicoes } from './telas/Competicoes'
+import { Elenco, type AcaoElenco } from './telas/Elenco'
+import { Escalacao, type AcaoEscalacao } from './telas/Escalacao'
+import { Estadio, type AcaoEstadio } from './telas/Estadio'
+import { Financas } from './telas/Financas'
+import { Infra } from './telas/Infra'
+import { Mercado, type AcaoMercado } from './telas/Mercado'
+import { Noticias } from './telas/Noticias'
+import { Painel } from './telas/Painel'
+import { Treino, type AcaoTreino } from './telas/Treino'
+import type {
+  Cabecalho,
+  ClubeOpcao,
+  Confirmar,
+  DadosPainel,
+  FichaJogador,
+  Origem,
+  Pendencia,
+  RespostaAcao,
+  ResumoTemporada,
+  SituacaoJogo,
+  TelaBase,
+  TelaCompeticoes,
+  TelaElenco,
+  TelaEscalacao,
+  TelaEstadio,
+  TelaFinancas,
+  TelaInfra,
+  TelaMercado,
+  TelaNoticias,
+  TelaTabela,
+  TelaTreino,
+  TipoMesa,
+} from './tipos'
+
+/** O conteudo da area principal. Cada tela traz o seu proprio cabecalho. */
+type Conteudo =
+  | { tipo: 'painel'; dados: DadosPainel }
+  | { tipo: 'elenco'; dados: TelaElenco }
+  | { tipo: 'base'; dados: TelaBase }
+  | { tipo: 'tabela'; dados: TelaTabela }
+  | { tipo: 'copas'; dados: TelaCompeticoes }
+  | { tipo: 'financas'; dados: TelaFinancas }
+  | { tipo: 'infra'; dados: TelaInfra }
+  | { tipo: 'noticias'; dados: TelaNoticias }
+  | { tipo: 'escalacao'; dados: TelaEscalacao }
+  | { tipo: 'treino'; dados: TelaTreino }
+  | { tipo: 'estadio'; dados: TelaEstadio }
+  | { tipo: 'mercado'; dados: TelaMercado }
+
+/** Confirmacao pendente: o texto que o servidor mandou e o que fazer no sim. */
+interface Pergunta {
+  confirmar: Confirmar
+  aoConfirmar: () => Promise<void>
+  /** Tela onde se conserta o problema, quando existe uma. */
+  destino?: string
+}
+
+export function App() {
+  const [situacao, setSituacao] = useState<SituacaoJogo | null>(null)
+  const [clubes, setClubes] = useState<ClubeOpcao[]>([])
+  const [conteudo, setConteudo] = useState<Conteudo | null>(null)
+  const [erro, setErro] = useState<string | null>(null)
+  const [recado, setRecado] = useState<string | null>(null)
+  const [ocupado, setOcupado] = useState(false)
+  const [mudandoAuto, setMudandoAuto] = useState(false)
+  const [salvando, setSalvando] = useState(false)
+  const [pergunta, setPergunta] = useState<Pergunta | null>(null)
+  const [pendencia, setPendencia] = useState<Pendencia | null>(null)
+  const [ficha, setFicha] = useState<FichaJogador | null>(null)
+  // dialogos do mercado: mesa de negociacao, vitrine em lote e cessao.
+  // renovar varios = uma mesa por vez, na ordem em que foram marcados
+  const [mesa, setMesa] = useState<{ tipo: TipoMesa; id: number } | null>(null)
+  const [filaRenovar, setFilaRenovar] = useState<number[]>([])
+  const [dialogoVitrine, setDialogoVitrine] = useState<number[] | null>(null)
+  const [dialogoCeder, setDialogoCeder] = useState<number[] | null>(null)
+  const [simulando, setSimulando] = useState(false)
+  // o resumo do ano: abre sozinho na virada e pelo Painel na pre-temporada.
+  // Enquanto ele esta aberto a janela de demissao espera - o resumo explica
+  // a demissao, entao vem antes dela
+  const [resumo, setResumo] = useState<ResumoTemporada | null>(null)
+  // o Desfazer oferecido junto do recado: vale alguns segundos e some
+  const [desfazer, setDesfazer] = useState<(() => void) | null>(null)
+
+  useEffect(() => {
+    if (!desfazer) return
+    const t = window.setTimeout(() => setDesfazer(null), 8000)
+    return () => window.clearTimeout(t)
+  }, [desfazer])
+
+  const comErro = useCallback(async (acao: () => Promise<void>) => {
+    setErro(null)
+    try {
+      await acao()
+    } catch (e) {
+      setErro(e instanceof ErroDaApi ? e.message : String(e))
+    }
+  }, [])
+
+  /** Busca uma tela pelo id do menu e a coloca na area principal. */
+  const irPara = useCallback(
+    (id: string, alvo?: string) =>
+      comErro(async () => {
+        setOcupado(true)
+        setRecado(null)
+        try {
+          switch (id) {
+            case 'painel':
+              setConteudo({ tipo: 'painel', dados: (await api.painel()).painel })
+              break
+            case 'elenco':
+              setConteudo({ tipo: 'elenco', dados: (await api.elenco()).tela })
+              break
+            case 'base':
+              setConteudo({ tipo: 'base', dados: (await api.base()).tela })
+              break
+            case 'tabela':
+              setConteudo({ tipo: 'tabela', dados: (await api.tabela(alvo)).tela })
+              break
+            case 'copas':
+              // o item do menu continua 'copas' (hash antigo segue valendo), mas
+              // a tela agora e Competicoes: estaduais, series e copas juntos
+              setConteudo({ tipo: 'copas', dados: (await api.competicoes(alvo)).tela })
+              break
+            case 'financas':
+              setConteudo({ tipo: 'financas', dados: (await api.financas()).tela })
+              break
+            case 'infra':
+              setConteudo({ tipo: 'infra', dados: (await api.infra()).tela })
+              break
+            case 'noticias':
+              setConteudo({ tipo: 'noticias', dados: (await api.noticias()).tela })
+              break
+            case 'escalacao':
+              setConteudo({ tipo: 'escalacao', dados: (await api.escalacao()).tela })
+              break
+            case 'treino':
+              setConteudo({ tipo: 'treino', dados: (await api.treino()).tela })
+              break
+            case 'estadio':
+              setConteudo({ tipo: 'estadio', dados: (await api.estadio()).tela })
+              break
+            case 'mercado':
+              setConteudo({ tipo: 'mercado', dados: (await api.mercado()).tela })
+              break
+            default:
+              // tela ainda nao migrada: o menu ja impede o clique, isto e a rede
+              setRecado('Essa tela ainda nao migrou. Use o jogo na janela antiga.')
+          }
+          setSituacao('pronto')
+          if (window.location.hash.slice(1) !== id) window.location.hash = id
+        } finally {
+          setOcupado(false)
+        }
+      }),
+    [comErro],
+  )
+
+  useEffect(() => {
+    comErro(async () => {
+      const r = await api.estado()
+      setSituacao(r.jogo)
+      // a pendencia (demissao) vai no save: reabrir o jogo tem que mostra-la
+      if (r.pendencia) setPendencia(r.pendencia)
+      // o hash manda na primeira tela: F5 nao joga o usuario de volta no Painel
+      const inicial = window.location.hash.slice(1) || 'painel'
+      if (r.jogo === 'pronto') await irPara(inicial)
+    })
+  }, [comErro, irPara])
+
+  // Voltar/Avancar do navegador e hash digitado a mao trocam de tela. O ref
+  // evita recarregar a tela que o proprio irPara acabou de marcar no hash.
+  const telaAtual = useRef<string | null>(null)
+  useEffect(() => {
+    telaAtual.current = conteudo?.tipo ?? null
+  }, [conteudo])
+  useEffect(() => {
+    const aoMudarHash = () => {
+      const id = window.location.hash.slice(1)
+      if (id && id !== telaAtual.current && situacao === 'pronto') irPara(id)
+    }
+    window.addEventListener('hashchange', aoMudarHash)
+    return () => window.removeEventListener('hashchange', aoMudarHash)
+  }, [irPara, situacao])
+
+  // ------------------------------------------------------------------ abertura
+  const abrir = () =>
+    comErro(async () => {
+      setOcupado(true)
+      try {
+        const r = await api.abrir()
+        if (r.pendencia) setPendencia(r.pendencia)
+      } finally {
+        setOcupado(false)
+      }
+      await irPara('painel')
+    })
+
+  const criar = () =>
+    comErro(async () => {
+      setOcupado(true)
+      try {
+        const r = await api.novo()
+        setClubes(r.clubes ?? [])
+        setSituacao('escolher_clube')
+      } finally {
+        setOcupado(false)
+      }
+    })
+
+  const escolherClube = (id: number) =>
+    comErro(async () => {
+      setOcupado(true)
+      try {
+        await api.escolherClube(id)
+      } finally {
+        setOcupado(false)
+      }
+      await irPara('painel')
+    })
+
+  // --------------------------------------------------------------------- acoes
+  const avancar = (confirmar = false) =>
+    comErro(async () => {
+      setOcupado(true)
+      setRecado(null)
+      try {
+        const r = await api.avancar(confirmar)
+        if (r.confirmar) {
+          // time quebrado: a decisao de entrar em campo assim e do usuario, e
+          // ele precisa ver o estrago antes de tomar
+          setPergunta({
+            confirmar: { titulo: r.confirmar.titulo, texto: r.confirmar.texto, perigo: true },
+            aoConfirmar: () => avancar(true),
+            destino: r.confirmar.destino,
+          })
+          return
+        }
+        setPergunta(null)
+        if (r.painel) setConteudo({ tipo: 'painel', dados: r.painel })
+        if (r.resumo) setResumo(r.resumo)
+        if (r.pendencia) setPendencia(r.pendencia)
+        if (r.encerrada) setRecado('Carreira encerrada.')
+        else if (r.resumo) setRecado(`Ano novo: pre-temporada ${r.resumo.temporada + 1}, mercado aberto.`)
+        else if (r.painel?.cabecalho.fase === 'encerrada')
+          setRecado(`A temporada acabou. ${r.painel.cabecalho.acao} vira o ano e mostra o resumo.`)
+        else if (r.fim_do_estadual) setRecado('O estadual acabou. Comeca a Serie A.')
+        else setRecado('Semana processada e salva.')
+      } finally {
+        setOcupado(false)
+      }
+    })
+
+  /**
+   * Executa uma ação de tela. Se o servidor pedir confirmação, guarda a
+   * pergunta e repete a mesma chamada com `confirmar` no sim — assim a conta
+   * mostrada e a conta cobrada são sempre a mesma.
+   */
+  function despachar<T>(
+    chamar: (confirmar: boolean) => Promise<RespostaAcao<T>>,
+    aplicar: (dados: T) => void,
+    aoDesfazer?: () => void,
+  ) {
+    const executar = (confirmar: boolean) =>
+      comErro(async () => {
+        setOcupado(true)
+        setRecado(null)
+        setDesfazer(null)
+        try {
+          const r = await chamar(confirmar)
+          if (r.confirmar) {
+            setPergunta({ confirmar: r.confirmar, aoConfirmar: () => executar(true) })
+            return
+          }
+          setPergunta(null)
+          if (r.tela) aplicar(r.tela)
+          if (r.recado) setRecado(r.recado)
+          if (r.desfazer && aoDesfazer) setDesfazer(() => aoDesfazer)
+        } finally {
+          setOcupado(false)
+        }
+      })
+    return executar(false)
+  }
+
+  const agirElenco = (acao: AcaoElenco, ids: number[]) => {
+    if (acao === 'vender') return setDialogoVitrine(ids)
+    if (acao === 'ceder') return setDialogoCeder(ids)
+    if (acao === 'renovar') {
+      setFilaRenovar(ids.slice(1))
+      return setMesa({ tipo: 'renovacao', id: ids[0] })
+    }
+    const rota = {
+      tirar: api.tirarDaVitrine,
+      rescindir: api.rescindir,
+      opcao: api.exercerOpcao,
+      chamar: api.chamarDeVolta,
+    }[acao]
+    despachar<TelaElenco>(
+      (c) => rota(ids, c),
+      (dados) => setConteudo({ tipo: 'elenco', dados }),
+    )
+  }
+
+  const agirBase = (acao: AcaoBase, ids: number[]) => {
+    const rota = acao === 'subir' ? api.subirDaBase : api.liberarDaBase
+    despachar<TelaBase>(
+      (c) => rota(ids, c),
+      (dados) => setConteudo({ tipo: 'base', dados }),
+    )
+  }
+
+  const investir = (id: string) =>
+    despachar<TelaInfra>(
+      (c) => api.investir(id, c),
+      (dados) => setConteudo({ tipo: 'infra', dados }),
+    )
+
+  const agirEscalacao = (acao: AcaoEscalacao) => {
+    const aplicar = (dados: TelaEscalacao) => setConteudo({ tipo: 'escalacao', dados })
+    if (acao.tipo === 'auto') {
+      comErro(async () => {
+        setMudandoAuto(true)
+        setRecado(null)
+        try {
+          const r = await api.definirAutoNaEscalacao(acao.ligada)
+          aplicar(r.tela)
+          if (r.mudou) {
+            setRecado(acao.ligada
+              ? 'Escalacao automatica ligada - o XI foi remontado.'
+              : 'Escalacao manual ligada - voce responde pelo XI.')
+          }
+        } finally {
+          setMudandoAuto(false)
+        }
+      })
+      return
+    }
+    const chamar = () => {
+      switch (acao.tipo) {
+        case 'esquema':
+          return api.mudarEsquema({
+            formacao: acao.formacao,
+            tatica: acao.tatica,
+            contagem: acao.contagem,
+          })
+        case 'trocar':
+          return api.trocarTitular(acao.titular, acao.reserva)
+        case 'plano':
+          return api.mudarPlano(acao.eixo, acao.valor)
+        case 'plano-padrao':
+          return api.planoPadrao()
+        case 'montar':
+          return api.montarMelhor()
+      }
+    }
+    despachar<TelaEscalacao>(chamar, aplicar, () =>
+      despachar<TelaEscalacao>(() => api.desfazerEsquema(), aplicar),
+    )
+  }
+
+  const agirTreino = (acao: AcaoTreino) => {
+    const aplicar = (dados: TelaTreino) => setConteudo({ tipo: 'treino', dados })
+    if (acao.tipo === 'regime') despachar<TelaTreino>(() => api.escolherRegime(acao.nome), aplicar)
+    else if (acao.tipo === 'foco') despachar<TelaTreino>(() => api.alternarFoco(acao.ids), aplicar)
+    else despachar<TelaTreino>(() => api.limparFoco(), aplicar)
+  }
+
+  const focoNaBase = (ids: number[]) =>
+    despachar<TelaBase>(
+      () => api.alternarFocoNaBase(ids),
+      (dados) => setConteudo({ tipo: 'base', dados }),
+    )
+
+  const agirEstadio = (acao: AcaoEstadio) => {
+    const aplicar = (dados: TelaEstadio) => setConteudo({ tipo: 'estadio', dados })
+    if (acao.tipo === 'preco') despachar<TelaEstadio>(() => api.mudarPreco(acao.preco), aplicar)
+    else despachar<TelaEstadio>((c) => api.contratarObra(acao.lugares, c), aplicar)
+  }
+
+  /** De onde veio a acao em lote do mercado, para a resposta trazer a mesma tela. */
+  const origem = (): Origem =>
+    conteudo?.tipo === 'mercado'
+      ? { tela: 'mercado', aba: conteudo.dados.aba, filtros: conteudo.dados.filtros }
+      : { tela: 'elenco' }
+
+  /** Aplica a tela que voltou de uma acao do mercado: Elenco ou Mercado. */
+  const aplicarVolta = (dados: unknown) => {
+    const d = dados as TelaElenco | TelaMercado
+    if ('aba' in d) setConteudo({ tipo: 'mercado', dados: d })
+    else setConteudo({ tipo: 'elenco', dados: d })
+  }
+
+  const recarregarAtual = async () => {
+    if (conteudo?.tipo === 'mercado') {
+      return comErro(async () => {
+        const r = await api.mercado(conteudo.dados.aba, conteudo.dados.filtros)
+        setConteudo({ tipo: 'mercado', dados: r.tela })
+      })
+    }
+    if (conteudo) await irPara(conteudo.tipo)
+  }
+
+  const agirMercado = (acao: AcaoMercado) => {
+    const aplicar = (dados: TelaMercado) => setConteudo({ tipo: 'mercado', dados })
+    switch (acao.tipo) {
+      case 'buscar':
+        return comErro(async () => {
+          setOcupado(true)
+          try {
+            aplicar((await api.mercado(acao.aba, acao.filtros)).tela)
+          } finally {
+            setOcupado(false)
+          }
+        })
+      case 'negociar':
+        return setMesa({ tipo: acao.mesa, id: acao.id })
+      case 'reprecificar':
+        return setDialogoVitrine(acao.ids)
+      case 'tirar':
+        return despachar<unknown>(() => api.tirarDaVitrineMercado(acao.ids, origem()), aplicarVolta)
+      case 'aceitar':
+        return despachar<TelaMercado>((c) => api.aceitarPropostas(acao.itens, c), aplicar)
+      case 'recusar':
+        return despachar<TelaMercado>(() => api.recusarPropostas(acao.itens), aplicar)
+      case 'cancelar':
+        return despachar<unknown>((c) => api.cancelarAgendadas(acao.indices, origem(), c), aplicarVolta)
+    }
+  }
+
+  const fecharMesa = async (fechou: boolean, texto: string | null) => {
+    setMesa(null)
+    if (filaRenovar.length) {
+      setMesa({ tipo: 'renovacao', id: filaRenovar[0] })
+      setFilaRenovar(filaRenovar.slice(1))
+    }
+    // o negocio mexeu em caixa, elenco e folha - e uma renovacao rompida mexe
+    // na moral: a tela de tras se refaz. O recado vem depois, senao a recarga
+    // (que limpa o recado da tela anterior) apagaria a noticia do negocio
+    if (fechou || conteudo?.tipo === 'elenco') await recarregarAtual()
+    if (texto) setRecado(texto)
+  }
+
+  const definirAuto = (ligada: boolean) =>
+    comErro(async () => {
+      setMudandoAuto(true)
+      try {
+        const r = await api.definirAuto(ligada)
+        setConteudo({ tipo: 'painel', dados: r.painel })
+        if (r.mudou) {
+          setRecado(ligada
+            ? 'Escalacao automatica ligada - o XI foi remontado.'
+            : 'Escalacao manual ligada - voce responde pelo XI.')
+        }
+      } finally {
+        setMudandoAuto(false)
+      }
+    })
+
+  const salvar = () =>
+    comErro(async () => {
+      setSalvando(true)
+      try {
+        await api.salvar()
+        setRecado('Jogo salvo.')
+      } finally {
+        setSalvando(false)
+      }
+    })
+
+  const abrirFicha = (id: number) =>
+    comErro(async () => {
+      setFicha((await api.ficha(id)).ficha)
+    })
+
+  // --------------------------------------------------------------------- telas
+  if (situacao === null) {
+    return <div className="centro-tela"><span className="carregando">abrindo o jogo…</span></div>
+  }
+
+  if (situacao !== 'pronto' || !conteudo) {
+    return (
+      <Abertura
+        situacao={situacao}
+        clubes={clubes}
+        erro={erro}
+        ocupado={ocupado}
+        aoAbrir={abrir}
+        aoCriar={criar}
+        aoEscolher={escolherClube}
+      />
+    )
+  }
+
+  const cabecalho: Cabecalho = conteudo.dados.cabecalho
+
+  return (
+    <div className="app">
+      <MenuLateral
+        clube={cabecalho.clube}
+        itens={cabecalho.menu}
+        atual={conteudo.tipo}
+        aoTrocar={(id) => irPara(id)}
+        aoSalvar={salvar}
+        salvando={salvando}
+      />
+
+      <div className="conteudo">
+        <BarraTopo
+          cabecalho={cabecalho}
+          aoAvancar={() => avancar(false)}
+          aoSimular={() => setSimulando(true)}
+          avancando={ocupado}
+        />
+
+        {(erro || recado) && (
+          <div
+            role="status"
+            style={{
+              padding: '8px 26px',
+              fontSize: 12.5,
+              fontWeight: 600,
+              color: erro ? 'var(--critico)' : 'var(--ok)',
+              borderBottom: '1px solid var(--borda-lateral)',
+            }}
+          >
+            {erro ?? recado}
+            {!erro && desfazer && (
+              <button type="button" className="bt-fantasma bt-mini bt-desfazer" onClick={desfazer}>
+                Desfazer
+              </button>
+            )}
+          </div>
+        )}
+
+        {conteudo.tipo === 'painel' && (
+          <Painel
+            dados={conteudo.dados}
+            aoDefinirAuto={definirAuto}
+            mudandoAuto={mudandoAuto}
+            aoIr={(destino) =>
+              destino === 'resumo'
+                ? comErro(async () => setResumo((await api.resumo()).resumo))
+                : irPara(destino)
+            }
+          />
+        )}
+        {conteudo.tipo === 'elenco' && (
+          <Elenco
+            tela={conteudo.dados}
+            ocupado={ocupado}
+            aoAbrirFicha={abrirFicha}
+            aoAgir={agirElenco}
+          />
+        )}
+        {conteudo.tipo === 'base' && (
+          <Base
+            tela={conteudo.dados}
+            ocupado={ocupado}
+            aoAbrirFicha={abrirFicha}
+            aoAgir={agirBase}
+            aoAlternarFoco={focoNaBase}
+          />
+        )}
+        {conteudo.tipo === 'tabela' && (
+          <Classificacao
+            tela={conteudo.dados}
+            ocupado={ocupado}
+            aoTrocarTorneio={(alvo) => irPara('tabela', alvo)}
+          />
+        )}
+        {conteudo.tipo === 'copas' && (
+          <Competicoes tela={conteudo.dados} ocupado={ocupado} aoTrocar={(alvo) => irPara('copas', alvo)} />
+        )}
+        {conteudo.tipo === 'financas' && <Financas tela={conteudo.dados} />}
+        {conteudo.tipo === 'infra' && (
+          <Infra tela={conteudo.dados} ocupado={ocupado} aoInvestir={investir} />
+        )}
+        {conteudo.tipo === 'noticias' && <Noticias tela={conteudo.dados} />}
+        {conteudo.tipo === 'escalacao' && (
+          <Escalacao
+            tela={conteudo.dados}
+            ocupado={ocupado || mudandoAuto}
+            mercadoPronto={cabecalho.menu.some((m) => m.id === 'mercado' && m.pronta)}
+            aoAbrirFicha={abrirFicha}
+            aoAgir={agirEscalacao}
+            aoIr={(destino) => irPara(destino)}
+          />
+        )}
+        {conteudo.tipo === 'treino' && (
+          <Treino tela={conteudo.dados} ocupado={ocupado} aoAbrirFicha={abrirFicha} aoAgir={agirTreino} />
+        )}
+        {conteudo.tipo === 'mercado' && (
+          <Mercado tela={conteudo.dados} ocupado={ocupado} aoAbrirFicha={abrirFicha} aoAgir={agirMercado} />
+        )}
+        {conteudo.tipo === 'estadio' && (
+          <Estadio tela={conteudo.dados} ocupado={ocupado} aoAgir={agirEstadio} />
+        )}
+      </div>
+
+      {ficha && (
+        <Ficha
+          ficha={ficha}
+          aoFechar={() => setFicha(null)}
+          acoes={
+            conteudo.tipo !== 'mercado' || conteudo.dados.aba === 'vitrine'
+              ? undefined
+              : conteudo.dados.aba === 'emprestimo'
+                ? [{ rotulo: 'Pegar emprestado', principal: true,
+                     aoClicar: () => { setFicha(null); setMesa({ tipo: 'emprestimo', id: ficha.id }) } }]
+                : [
+                    ...(ficha.clube !== 'sem clube'
+                      ? [{ rotulo: 'Pedir emprestado',
+                           aoClicar: () => { setFicha(null); setMesa({ tipo: 'emprestimo', id: ficha.id }) } }]
+                      : []),
+                    { rotulo: ficha.clube === 'sem clube' ? 'Negociar contrato' : 'Negociar compra',
+                      principal: true,
+                      aoClicar: () => { setFicha(null); setMesa({ tipo: 'compra', id: ficha.id }) } },
+                  ]
+          }
+        />
+      )}
+
+      {simulando && (
+        <DialogoAvanco
+          aoAbrirEscalacao={() => {
+            setSimulando(false)
+            irPara('escalacao')
+          }}
+          aoFechar={(houve, p) => {
+            setSimulando(false)
+            if (p) setPendencia(p)
+            // o mundo andou: a tela de tras (e o topo) se refazem
+            if (houve && conteudo) {
+              if (conteudo.tipo === 'mercado') recarregarAtual()
+              else irPara(conteudo.tipo)
+            }
+          }}
+        />
+      )}
+
+      {mesa && <Mesa key={`${mesa.tipo}-${mesa.id}`} tipo={mesa.tipo} id={mesa.id} aoFechar={fecharMesa} />}
+
+      {dialogoVitrine && (
+        <DialogoVitrine
+          ids={dialogoVitrine}
+          ocupado={ocupado}
+          aoFechar={() => setDialogoVitrine(null)}
+          aoConfirmar={(precos) => {
+            setDialogoVitrine(null)
+            despachar<unknown>(() => api.porAVenda(precos, origem()), aplicarVolta)
+          }}
+        />
+      )}
+
+      {dialogoCeder && (
+        <DialogoCeder
+          ids={dialogoCeder}
+          ocupado={ocupado}
+          aoFechar={() => setDialogoCeder(null)}
+          aoConfirmar={(itens) => {
+            setDialogoCeder(null)
+            despachar<unknown>((c) => api.ceder(itens, origem(), c), aplicarVolta)
+          }}
+        />
+      )}
+
+      {pergunta && (
+        <div
+          className="fundo-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-label={pergunta.confirmar.titulo}
+        >
+          <div className="modal">
+            <h2>{pergunta.confirmar.titulo}</h2>
+            <p>{pergunta.confirmar.texto}</p>
+            <div className="modal-acoes">
+              <button type="button" className="bt-fantasma" onClick={() => setPergunta(null)}>
+                Cancelar
+              </button>
+              {pergunta.destino && pergunta.destino !== conteudo.tipo && (
+                <button
+                  type="button"
+                  className="bt-fantasma"
+                  onClick={() => {
+                    const destino = pergunta.destino as string
+                    setPergunta(null)
+                    irPara(destino)
+                  }}
+                >
+                  Abrir {pergunta.destino}
+                </button>
+              )}
+              <button
+                type="button"
+                className={`bt-acao${pergunta.confirmar.perigo ? ' bt-perigo' : ''}`}
+                disabled={ocupado}
+                onClick={() => pergunta.aoConfirmar()}
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {resumo && (
+        <Resumo
+          resumo={resumo}
+          rotuloFechar={
+            pendencia ? 'Continuar' : resumo.previa ? 'Fechar' : `Comecar a pre-temporada ${resumo.temporada + 1}`
+          }
+          aoFechar={() => setResumo(null)}
+        />
+      )}
+
+      {pendencia && !resumo && (
+        <JanelaPendencia
+          pendencia={pendencia}
+          ocupado={ocupado}
+          aoEscolher={(id) =>
+            comErro(async () => {
+              const r = await api.escolherClube(id)
+              setPendencia(r.pendencia ?? null)
+              await irPara('painel')
+              setRecado('Carreira segue: bem-vindo ao clube novo.')
+            })
+          }
+          aoEncerrar={() =>
+            comErro(async () => {
+              const r = await api.encerrarCarreira()
+              setPendencia(r.pendencia ?? null)
+            })
+          }
+          aoNovaCarreira={() => {
+            setPendencia(null)
+            criar()
+          }}
+        />
+      )}
+    </div>
+  )
+}

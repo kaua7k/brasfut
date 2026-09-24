@@ -1,0 +1,1529 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+BRASFUT - janela do jogo, com dois modos que compartilham o mesmo save:
+  Visual  - paineis, tabelas e botoes
+  Linha   - console preto igual ao cmd, com comandos digitados
+
+Precisa do brasfut.py na mesma pasta (e do tkinter, que vem com o Python).
+"""
+
+import contextlib
+import io
+import os
+import sys
+import traceback
+
+try:
+    import tkinter as tk
+    from tkinter import ttk, messagebox
+except Exception:
+    print("Este computador nao tem o tkinter instalado junto com o Python.")
+    print("No Windows, reinstale o Python marcando a opcao 'tcl/tk and IDLE'.")
+    print("Enquanto isso da para jogar pelo terminal: python brasfut.py")
+    sys.exit(1)
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import brasfut as eng
+
+TEMA = {
+    "fundo": "#101318", "painel": "#171c24", "borda": "#262e3a", "linha": "#1d232c",
+    "txt": "#e8eaed", "fraco": "#8b96a5", "ok": "#4ade80", "ruim": "#f87171",
+    "av": "#fbbf24", "top": "#a78bfa", "acao": "#2f6feb", "consfundo": "#0b0d10",
+    "constxt": "#d8dee9",
+}
+MONO = ("Consolas", 10) if os.name == "nt" else ("DejaVu Sans Mono", 10)
+FONTE = ("Segoe UI", 10) if os.name == "nt" else ("DejaVu Sans", 10)
+FONTE_B = (FONTE[0], 10, "bold")
+FONTE_T = (FONTE[0], 15, "bold")
+
+
+def din(v):
+    return eng.din(v)
+
+
+def limpar_texto(txt):
+    """Tira as molduras de terminal do motor e deixa o texto limpo para a janela."""
+    saida, vazias = [], 0
+    for bruto in txt.splitlines():
+        linha = bruto.rstrip()
+        nu = linha.strip()
+        if nu and set(nu) <= set("-=+|.,: "):
+            continue
+        if nu.startswith("|"):
+            nu = nu[1:]
+            if nu.endswith("|"):
+                nu = nu[:-1]
+            linha = "  " + nu.strip()
+        if not linha.strip():
+            vazias += 1
+            if vazias > 1:
+                continue
+        else:
+            vazias = 0
+        saida.append(linha)
+    return "\n".join(saida).strip()
+
+
+def capturar(func, *a, **kw):
+    """Roda uma funcao do motor e devolve (retorno, texto impresso ja limpo)."""
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        ret = func(*a, **kw)
+    return ret, limpar_texto(eng.re.sub(r"\033\[[0-9;]*m", "", buf.getvalue()))
+
+
+class Dialogo(tk.Toplevel):
+    """Janela modal simples com corpo montado pela subclasse."""
+
+    def __init__(self, pai, titulo, largura=560, altura=420):
+        super().__init__(pai)
+        self.resultado = None
+        self.title(titulo)
+        self.configure(bg=TEMA["fundo"])
+        self.transient(pai)
+        self.resizable(False, False)
+        self.corpo = tk.Frame(self, bg=TEMA["fundo"], padx=16, pady=14)
+        self.corpo.pack(fill="both", expand=True)
+        self.geometry("%dx%d" % (largura, altura))
+        self.update_idletasks()
+        x = pai.winfo_rootx() + (pai.winfo_width() - largura) // 2
+        y = pai.winfo_rooty() + (pai.winfo_height() - altura) // 3
+        self.geometry("+%d+%d" % (max(0, x), max(0, y)))
+
+    def esperar(self):
+        self.grab_set()
+        self.wait_window(self)
+        return self.resultado
+
+
+def rotulo(pai, txt, cor=None, fonte=None, **kw):
+    return tk.Label(pai, text=txt, bg=kw.pop("bg", TEMA["fundo"]),
+                    fg=cor or TEMA["txt"], font=fonte or FONTE, anchor="w", **kw)
+
+
+def botao(pai, txt, cmd, cor=None, largura=None):
+    b = tk.Button(pai, text=txt, command=cmd, font=FONTE_B, relief="flat",
+                  bg=cor or TEMA["painel"], fg=TEMA["txt"], activebackground=TEMA["acao"],
+                  activeforeground="white", cursor="hand2", padx=12, pady=6,
+                  highlightthickness=0, bd=0)
+    if largura:
+        b.configure(width=largura)
+    return b
+
+
+def grade(pai, colunas, altura=14):
+    """Treeview com o visual do tema. colunas = [(id, titulo, largura, ancora)]"""
+    quadro = tk.Frame(pai, bg=TEMA["fundo"])
+    tv = ttk.Treeview(quadro, columns=[c[0] for c in colunas], show="headings",
+                      height=altura, selectmode="browse")
+    for cid, tit, larg, anc in colunas:
+        tv.heading(cid, text=tit)
+        tv.column(cid, width=larg, anchor=anc, stretch=False)
+    barra = ttk.Scrollbar(quadro, orient="vertical", command=tv.yview)
+    tv.configure(yscrollcommand=barra.set)
+    tv.pack(side="left", fill="both", expand=True)
+    barra.pack(side="right", fill="y")
+    tv.tag_configure("bom", foreground=TEMA["ok"])
+    tv.tag_configure("top", foreground=TEMA["top"])
+    tv.tag_configure("ruim", foreground=TEMA["ruim"])
+    tv.tag_configure("aviso", foreground=TEMA["av"])
+    tv.tag_configure("meu", foreground=TEMA["av"])
+    tv.tag_configure("fraco", foreground=TEMA["fraco"])
+    return quadro, tv
+
+
+def tag_ovr(ovr):
+    if ovr >= 78:
+        return "top"
+    if ovr >= 68:
+        return "bom"
+    if ovr >= 55:
+        return ""
+    return "fraco"
+
+
+def estilo_ttk(raiz):
+    st = ttk.Style(raiz)
+    try:
+        st.theme_use("clam")
+    except Exception:
+        pass
+    st.configure("Treeview", background=TEMA["painel"], fieldbackground=TEMA["painel"],
+                 foreground=TEMA["txt"], rowheight=22, borderwidth=0, font=MONO)
+    st.configure("Treeview.Heading", background=TEMA["linha"], foreground=TEMA["fraco"],
+                 relief="flat", font=(FONTE[0], 9, "bold"))
+    st.map("Treeview", background=[("selected", TEMA["acao"])],
+           foreground=[("selected", "white")])
+    st.configure("TCombobox", fieldbackground=TEMA["painel"], background=TEMA["painel"],
+                 foreground=TEMA["txt"], arrowcolor=TEMA["txt"])
+    st.configure("Vertical.TScrollbar", background=TEMA["linha"], troughcolor=TEMA["fundo"],
+                 bordercolor=TEMA["fundo"], arrowcolor=TEMA["fraco"])
+
+
+# ----------------------------------------------------------------------------
+# JANELA PRINCIPAL
+# ----------------------------------------------------------------------------
+
+NAV = [("painel", "Painel"), ("elenco", "Elenco"), ("escalacao", "Escalacao"),
+       ("tabela", "Tabela"), ("copas", "Copas"), ("mercado", "Mercado"),
+       ("financas", "Financas"), ("estadio", "Estadio"), ("infra", "Infraestrutura"),
+       ("noticias", "Noticias")]
+
+AJUDA = """COMANDOS
+  semana            joga a proxima semana          elenco        lista o elenco
+  escalacao         mostra o time                  troca 9 15    troca dois jogadores
+  auto              escalacao automatica           form 4-3-3    muda a formacao
+  tatica ofensivo   muda a tatica                  tabela [A-D]  classificacao
+  copas             situacao das copas             financas      caixa e folha
+  stats             artilharia                     noticias      ultimas do clube
+  mercado [POS]     quem esta a venda              salvar        grava o jogo
+  visual            volta para a tela visual       ajuda         mostra isto
+"""
+
+
+class Brasfut(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("BRASFUT %s" % eng.VERSAO)
+        self.geometry("1180x720")
+        self.minsize(980, 620)
+        self.configure(bg=TEMA["fundo"])
+        estilo_ttk(self)
+        eng.ESTILO["cor"] = False
+        eng.ESTILO["uni"] = False
+        self.G = None
+        self.modo = "visual"
+        self.view = "painel"
+        self.historico_console = []
+        self._monta_estrutura()
+        self._inicio = self.after(60, self.abrir_jogo)
+
+    # ---------------------------------------------------------------- estrutura
+    def _monta_estrutura(self):
+        self.topo = tk.Frame(self, bg=TEMA["painel"], height=74)
+        self.topo.pack(fill="x", side="top")
+        self.topo.pack_propagate(False)
+
+        esq = tk.Frame(self.topo, bg=TEMA["painel"])
+        esq.pack(side="left", padx=18, pady=10)
+        self.lb_clube = rotulo(esq, "", fonte=FONTE_T, bg=TEMA["painel"])
+        self.lb_clube.pack(anchor="w")
+        self.lb_sub = rotulo(esq, "", cor=TEMA["fraco"], bg=TEMA["painel"])
+        self.lb_sub.pack(anchor="w")
+
+        dirf = tk.Frame(self.topo, bg=TEMA["painel"])
+        dirf.pack(side="right", padx=16, pady=10)
+        linha1 = tk.Frame(dirf, bg=TEMA["painel"])
+        linha1.pack(anchor="e")
+        self.bt_modo = botao(linha1, "Modo linha", self.alternar_modo)
+        self.bt_modo.pack(side="right", padx=4)
+        botao(linha1, "Salvar", self.salvar).pack(side="right", padx=4)
+        self.bt_semana = botao(linha1, "Avancar semana", self.avancar, cor=TEMA["acao"])
+        self.bt_semana.pack(side="right", padx=4)
+        self.lb_caixa = rotulo(dirf, "", cor=TEMA["fraco"], bg=TEMA["painel"])
+        self.lb_caixa.pack(anchor="e", pady=(6, 0))
+
+        self.meio = tk.Frame(self, bg=TEMA["fundo"])
+        self.meio.pack(fill="both", expand=True)
+
+        self.lateral = tk.Frame(self.meio, bg=TEMA["painel"], width=170)
+        self.lateral.pack(side="left", fill="y")
+        self.lateral.pack_propagate(False)
+        self.bt_nav = {}
+        for chave, txt in NAV:
+            b = tk.Button(self.lateral, text="  " + txt, anchor="w", font=FONTE,
+                          relief="flat", bg=TEMA["painel"], fg=TEMA["fraco"],
+                          activebackground=TEMA["linha"], activeforeground="white",
+                          bd=0, highlightthickness=0, padx=10, pady=9, cursor="hand2",
+                          command=lambda c=chave: self.mostrar(c))
+            b.pack(fill="x")
+            self.bt_nav[chave] = b
+
+        self.area = tk.Frame(self.meio, bg=TEMA["fundo"])
+        self.area.pack(side="left", fill="both", expand=True)
+
+        self.console = tk.Frame(self.meio, bg=TEMA["consfundo"])
+        self.txt_console = tk.Text(self.console, bg=TEMA["consfundo"], fg=TEMA["constxt"],
+                                   font=MONO, relief="flat", wrap="none", padx=12, pady=8,
+                                   insertbackground=TEMA["ok"])
+        sb = ttk.Scrollbar(self.console, orient="vertical", command=self.txt_console.yview)
+        self.txt_console.configure(yscrollcommand=sb.set, state="disabled")
+        self.txt_console.pack(side="top", fill="both", expand=True)
+        sb.place(relx=1.0, rely=0, relheight=1.0, anchor="ne")
+        entrada = tk.Frame(self.console, bg=TEMA["consfundo"])
+        entrada.pack(side="bottom", fill="x", padx=10, pady=8)
+        tk.Label(entrada, text=">", bg=TEMA["consfundo"], fg=TEMA["ok"], font=MONO).pack(side="left")
+        self.ent_cmd = tk.Entry(entrada, bg=TEMA["consfundo"], fg=TEMA["constxt"], font=MONO,
+                                relief="flat", insertbackground=TEMA["ok"])
+        self.ent_cmd.pack(side="left", fill="x", expand=True, padx=6)
+        self.ent_cmd.bind("<Return>", self.executar_comando)
+
+        self.rodape = tk.Frame(self, bg=TEMA["painel"], height=26)
+        self.rodape.pack(fill="x", side="bottom")
+        self.lb_status = rotulo(self.rodape, "", cor=TEMA["fraco"], bg=TEMA["painel"])
+        self.lb_status.pack(side="left", padx=14)
+
+    def status(self, txt, cor=None):
+        self.lb_status.configure(text=txt, fg=cor or TEMA["fraco"])
+
+    def log(self, txt):
+        if not txt:
+            return
+        self.historico_console.append(txt.rstrip())
+        self.txt_console.configure(state="normal")
+        self.txt_console.insert("end", txt.rstrip() + "\n\n")
+        self.txt_console.see("end")
+        self.txt_console.configure(state="disabled")
+
+    # ------------------------------------------------------------------- inicio
+    def abrir_jogo(self):
+        G = None
+        if os.path.exists(eng.SAVE):
+            if messagebox.askyesno("BRASFUT", "Existe um jogo salvo.\nQuer continuar de onde parou?"):
+                try:
+                    G = eng.carregar()
+                except Exception as e:
+                    messagebox.showwarning("BRASFUT", "Nao consegui abrir o save (%s).\nVou comecar um jogo novo." % e)
+        if G is None:
+            G, texto = capturar(eng.criar_mundo, "Tecnico")
+            self.log(texto)
+            cid = NovoJogo(self, G).esperar()
+            if not cid:
+                self.destroy()
+                return
+            G["clube"] = cid
+            G["clubes"][cid]["escalacao"] = eng.auto_escalar(G, G["clubes"][cid])
+            eng.definir_objetivo(G)
+        G["auto"] = True          # impede que o motor peca input pelo terminal
+        eng.trocar_de_clube = self.escolher_novo_clube
+        self.G = G
+        self.log("Bem-vindo ao %s. Objetivo: %s." %
+                 (G["clubes"][G["clube"]]["nome"], G["objetivo"]))
+        self.log(AJUDA)
+        self.atualizar_topo()
+        self.mostrar("painel")
+
+    def atualizar_topo(self):
+        G = self.G
+        c = G["clubes"][G["clube"]]
+        self.lb_clube.configure(text=c["nome"])
+        if G["fase"] == "entretemporada":
+            quando = "Pre-temporada %d" % G["temporada"]
+            self.bt_semana.configure(text="Iniciar temporada")
+        else:
+            quando = "Temporada %d  |  semana %02d de %d" % (G["temporada"], G["semana"], eng.SEMANAS_LIGA)
+            self.bt_semana.configure(text="Avancar semana")
+        pos = ""
+        liga = G["ligas"][c["divisao"]]
+        if G["fase"] != "entretemporada" and liga["rodada"] > 0:
+            t = liga["tabela"][str(c["id"])]
+            pos = "  |  %do lugar, %d pts" % (eng.posicao_na_liga(G, c["id"]), t["p"])
+        self.lb_sub.configure(text="%s  |  Serie %s  |  %s%s" % (c["estadio"], c["divisao"], quando, pos))
+        self.lb_caixa.configure(
+            text="Caixa %s     Folha %s/mes     Elenco %d" %
+                 (din(c["dinheiro"]), din(eng.folha_semanal(G, c) * 4), len(c["elenco"])),
+            fg=TEMA["ok"] if c["dinheiro"] >= 0 else TEMA["ruim"])
+
+    # -------------------------------------------------------------------- modos
+    def alternar_modo(self):
+        if self.modo == "visual":
+            self.modo = "linha"
+            self.lateral.pack_forget()
+            self.area.pack_forget()
+            self.console.pack(fill="both", expand=True)
+            self.bt_modo.configure(text="Modo visual")
+            self.ent_cmd.focus_set()
+            self.status("modo linha: digite ajuda para ver os comandos")
+        else:
+            self.modo = "visual"
+            self.console.pack_forget()
+            self.lateral.pack(side="left", fill="y")
+            self.area.pack(side="left", fill="both", expand=True)
+            self.bt_modo.configure(text="Modo linha")
+            self.mostrar(self.view)
+            self.status("")
+
+    def mostrar(self, chave):
+        self.view = chave
+        for k, b in self.bt_nav.items():
+            b.configure(fg="white" if k == chave else TEMA["fraco"],
+                        bg=TEMA["linha"] if k == chave else TEMA["painel"])
+        for w in self.area.winfo_children():
+            w.destroy()
+        getattr(self, "tela_" + chave)(self.area)
+
+    def cabecalho_tela(self, pai, titulo, sub=""):
+        f = tk.Frame(pai, bg=TEMA["fundo"])
+        f.pack(fill="x", padx=18, pady=(14, 6))
+        rotulo(f, titulo, fonte=FONTE_T).pack(anchor="w")
+        if sub:
+            rotulo(f, sub, cor=TEMA["fraco"]).pack(anchor="w")
+        return f
+
+    # ------------------------------------------------------------------ semana
+    def avancar(self):
+        G = self.G
+        if G["fase"] == "entretemporada":
+            _, txt = capturar(eng.iniciar_temporada, G)
+            self.log(txt)
+            self.status("temporada iniciada")
+        else:
+            ok, txt = capturar(eng.jogar_semana, G)
+            self.log(txt)
+            if ok is False:
+                self.log("Carreira encerrada.")
+                messagebox.showinfo("BRASFUT", "Carreira encerrada.")
+                self.bt_semana.configure(state="disabled")
+            self.status("semana processada e salva", TEMA["ok"])
+        self.atualizar_topo()
+        if self.modo == "visual":
+            self.mostrar(self.view if self.view != "escalacao" else "painel")
+
+    def salvar(self):
+        try:
+            eng.salvar(self.G)
+            self.status("jogo salvo em %s" % os.path.basename(eng.SAVE), TEMA["ok"])
+        except Exception as e:
+            self.status("falha ao salvar: %s" % e, TEMA["ruim"])
+
+    def escolher_novo_clube(self, G):
+        """Substitui a versao de terminal do motor quando o tecnico e demitido."""
+        cands = [cl for cl in G["clubes"].values()
+                 if cl["divisao"] in "BCD" and cl["id"] != G["clube"]]
+        cands.sort(key=lambda cl: -cl["reputacao"])
+        ofertas = eng.rng.sample(cands[:30], min(4, len(cands)))
+        cid = EscolherClube(self, G, ofertas).esperar()
+        if not cid:
+            return False
+        G["clube"] = cid
+        eng.definir_objetivo(G)
+        return True
+
+    # ------------------------------------------------------------------ painel
+    def tela_painel(self, pai):
+        G, c = self.G, self.G["clubes"][self.G["clube"]]
+        self.cabecalho_tela(pai, "Painel", "Objetivo da temporada: %s" % G["objetivo"])
+        topo = tk.Frame(pai, bg=TEMA["fundo"])
+        topo.pack(fill="x", padx=18)
+
+        at, de, _ = eng.forcas(G, c)
+        cartoes = [
+            ("Proximo compromisso", eng.proximo_jogo(G) if G["fase"] != "entretemporada"
+             else "pre-temporada, mercado aberto", TEMA["txt"]),
+            ("Forca do time escalado", "ataque %.1f   defesa %.1f   media do elenco %.1f"
+             % (at, de, eng.media_elenco(G, c)), TEMA["txt"]),
+            ("Saldo semanal", "%s por semana, sem contar bilheteria"
+             % din(eng.receita_semanal(G, c) - eng.folha_semanal(G, c) - eng.custo_estrutura(c)),
+             TEMA["ok"] if eng.receita_semanal(G, c) - eng.folha_semanal(G, c) - eng.custo_estrutura(c) >= 0
+             else TEMA["ruim"]),
+        ]
+        for tit, val, cr in cartoes:
+            card = tk.Frame(topo, bg=TEMA["painel"], padx=14, pady=10)
+            card.pack(fill="x", pady=4)
+            rotulo(card, tit, cor=TEMA["fraco"], bg=TEMA["painel"]).pack(anchor="w")
+            rotulo(card, val, cor=cr, fonte=FONTE_B, bg=TEMA["painel"]).pack(anchor="w")
+
+        baixo = tk.Frame(pai, bg=TEMA["fundo"])
+        baixo.pack(fill="both", expand=True, padx=18, pady=12)
+
+        esq = tk.Frame(baixo, bg=TEMA["fundo"])
+        esq.pack(side="left", fill="both", expand=True, padx=(0, 10))
+        rotulo(esq, "DESTAQUES", cor=TEMA["fraco"]).pack(anchor="w", pady=(0, 4))
+        q, tv = grade(esq, [("nome", "Jogador", 170, "w"), ("pos", "Pos", 45, "center"),
+                            ("ovr", "Ovr", 45, "center"), ("j", "Jogos", 55, "center"),
+                            ("g", "Gols", 55, "center"), ("a", "Assist", 55, "center")], altura=9)
+        q.pack(fill="both", expand=True)
+        for j in sorted([G["jogadores"][p] for p in c["elenco"]],
+                        key=lambda x: (-x["g"], -x["a"], -x["ovr"]))[:9]:
+            tv.insert("", "end", values=(j["nome"], j["pos"], j["ovr"], j["j"], j["g"], j["a"]),
+                      tags=(tag_ovr(j["ovr"]),))
+
+        dirf = tk.Frame(baixo, bg=TEMA["fundo"])
+        dirf.pack(side="left", fill="both", expand=True)
+        rotulo(dirf, "ULTIMOS ACONTECIMENTOS", cor=TEMA["fraco"]).pack(anchor="w", pady=(0, 4))
+        cx = tk.Text(dirf, bg=TEMA["painel"], fg=TEMA["txt"], font=MONO, relief="flat",
+                     wrap="word", padx=10, pady=8, height=11)
+        cx.pack(fill="both", expand=True)
+        recente = "\n\n".join(self.historico_console[-3:]) or "Nada por aqui ainda."
+        cx.insert("1.0", recente)
+        cx.configure(state="disabled")
+
+    # ------------------------------------------------------------------ elenco
+    def tela_elenco(self, pai):
+        G, c = self.G, self.G["clubes"][self.G["clube"]]
+        self.cabecalho_tela(pai, "Elenco",
+                            "%d jogadores  |  media %.1f  |  clique duas vezes para ver a ficha"
+                            % (len(c["elenco"]), eng.media_elenco(G, c)))
+        cols = [("pos", "Pos", 45, "center"), ("nome", "Jogador", 190, "w"),
+                ("idade", "Idade", 50, "center"), ("ovr", "Ovr", 45, "center"),
+                ("pot", "Teto", 70, "center"), ("fis", "Fisico", 55, "center"),
+                ("moral", "Moral", 55, "center"), ("jg", "J/G", 60, "center"),
+                ("sal", "Salario", 95, "e"), ("ct", "Contrato", 70, "center"),
+                ("sit", "Situacao", 110, "w")]
+        q, tv = grade(pai, cols, altura=17)
+        q.pack(fill="both", expand=True, padx=18)
+        self.tv_elenco = tv
+        ordem = sorted(c["elenco"], key=lambda p: (eng.POS.index(G["jogadores"][p]["pos"]),
+                                                   -G["jogadores"][p]["ovr"]))
+        for pid in ordem:
+            j = G["jogadores"][pid]
+            sit = eng.re.sub(r"\033\[[0-9;]*m", "", eng.situacao(G, j))
+            tag = "ruim" if j["lesao"] or j["suspensao"] else tag_ovr(j["ovr"])
+            tv.insert("", "end", iid=str(pid),
+                      values=(j["pos"], j["nome"], j["idade"], j["ovr"], eng.scout(G, j), j["cond"],
+                              j["moral"], "%d/%d" % (j["j"], j["g"]), din(j["salario"]),
+                              "%d ano(s)" % j["contrato"], sit), tags=(tag,))
+        tv.bind("<Double-1>", lambda e: self.ficha_selecionada())
+        acoes = tk.Frame(pai, bg=TEMA["fundo"])
+        acoes.pack(fill="x", padx=18, pady=10)
+        botao(acoes, "Ver ficha", self.ficha_selecionada).pack(side="left", padx=(0, 6))
+        botao(acoes, "Por a venda", lambda: self.acao_jogador("venda")).pack(side="left", padx=6)
+        botao(acoes, "Ceder emprestimo", lambda: self.acao_jogador("emprestar")).pack(side="left", padx=6)
+        botao(acoes, "Renovar", lambda: self.acao_jogador("renovar")).pack(side="left", padx=6)
+        botao(acoes, "Rescindir", lambda: self.acao_jogador("rescindir")).pack(side="left", padx=6)
+        botao(acoes, "Comprar em definitivo",
+              lambda: self.acao_jogador("opcao")).pack(side="left", padx=6)
+
+    def selecionado(self):
+        sel = self.tv_elenco.selection()
+        if not sel:
+            messagebox.showinfo("BRASFUT", "Selecione um jogador na lista.")
+            return None
+        return self.G["jogadores"][int(sel[0])]
+
+    def ficha_selecionada(self):
+        j = self.selecionado()
+        if j:
+            Ficha(self, self.G, j).esperar()
+
+    def acao_jogador(self, qual):
+        j = self.selecionado()
+        if not j:
+            return
+        if qual == "opcao":
+            preco = eng.opcao_disponivel(self.G, j, self.G["clube"])
+            if preco <= 0:
+                messagebox.showinfo("BRASFUT", "%s nao tem opcao de compra combinada." % j["nome"])
+                return
+            if messagebox.askyesno("Opcao de compra",
+                                   "Comprar %s em definitivo por %s?" % (j["nome"], din(preco))):
+                self.log(eng.exercer_opcao(self.G, j["id"], self.G["clube"]))
+            self.atualizar_topo()
+            self.mostrar("elenco")
+            return
+        if j.get("dono"):
+            messagebox.showinfo("BRASFUT", "%s esta emprestado, o passe nao e seu." % j["nome"])
+            return
+        if qual == "venda":
+            PorAVenda(self, self.G, j).esperar()
+        elif qual == "emprestar":
+            CederEmprestimo(self, self.G, j).esperar()
+        elif qual == "renovar":
+            Renovar(self, self.G, j).esperar()
+        elif qual == "rescindir":
+            self.rescindir(j)
+        self.atualizar_topo()
+        self.mostrar("elenco")
+
+    def rescindir(self, j):
+        c = self.G["clubes"][self.G["clube"]]
+        multa = int(j["salario"] * 4 * max(1, j["contrato"]) * 0.5)
+        if not messagebox.askyesno("Rescindir", "Dispensar %s custa %s de multa e libera %s por mes.\nConfirma?"
+                                   % (j["nome"], din(multa), din(j["salario"]))):
+            return
+        if multa > c["dinheiro"]:
+            messagebox.showwarning("Rescindir", "Caixa insuficiente para a multa.")
+            return
+        c["dinheiro"] -= multa
+        c["elenco"].remove(j["id"])
+        if j["id"] in c.get("escalacao", []):
+            c["escalacao"].remove(j["id"])
+        j["clube"] = None
+        j["listado"] = 0
+        self.G["livres"].append(j["id"])
+        self.log("%s foi dispensado por %s de multa." % (j["nome"], din(multa)))
+
+    # --------------------------------------------------------------- escalacao
+    def tela_escalacao(self, pai):
+        G, c = self.G, self.G["clubes"][self.G["clube"]]
+        esc, _ = eng.escalacao_valida(G, c)
+        c["escalacao"] = esc
+        at, de, _ = eng.forcas(G, c)
+        self.cabecalho_tela(pai, "Escalacao",
+                            "ataque %.1f   defesa %.1f   selecione um titular e um reserva para trocar"
+                            % (at, de))
+        barra = tk.Frame(pai, bg=TEMA["fundo"])
+        barra.pack(fill="x", padx=18, pady=(0, 8))
+        rotulo(barra, "Formacao").pack(side="left")
+        cb_form = ttk.Combobox(barra, values=list(eng.FORMACOES), width=9, state="readonly")
+        cb_form.set(c["formacao"])
+        cb_form.pack(side="left", padx=8)
+        rotulo(barra, "Tatica").pack(side="left", padx=(12, 0))
+        cb_tat = ttk.Combobox(barra, values=list(eng.TATICAS), width=16, state="readonly")
+        cb_tat.set(c["tatica"])
+        cb_tat.pack(side="left", padx=8)
+
+        def aplicar(_=None):
+            c["formacao"] = cb_form.get()
+            c["tatica"] = cb_tat.get()
+            c["escalacao"] = eng.auto_escalar(G, c)
+            self.mostrar("escalacao")
+        cb_form.bind("<<ComboboxSelected>>", aplicar)
+        cb_tat.bind("<<ComboboxSelected>>", aplicar)
+        botao(barra, "Escalacao automatica", aplicar).pack(side="left", padx=12)
+        botao(barra, "Trocar selecionados", self.trocar_escalacao, cor=TEMA["acao"]).pack(side="left")
+
+        corpo = tk.Frame(pai, bg=TEMA["fundo"])
+        corpo.pack(fill="both", expand=True, padx=18, pady=6)
+        cols = [("pos", "Vaga", 80, "center"), ("nome", "Jogador", 175, "w"),
+                ("ovr", "Ovr", 45, "center"), ("fis", "Fisico", 55, "center"),
+                ("for", "Forma", 55, "center"), ("sit", "Situacao", 135, "w")]
+        esqf = tk.Frame(corpo, bg=TEMA["fundo"])
+        esqf.pack(side="left", fill="both", expand=True, padx=(0, 8))
+        rotulo(esqf, "TITULARES", cor=TEMA["fraco"]).pack(anchor="w")
+        q1, self.tv_xi = grade(esqf, cols, altura=13)
+        q1.pack(fill="both", expand=True)
+        dirf = tk.Frame(corpo, bg=TEMA["fundo"])
+        dirf.pack(side="left", fill="both", expand=True)
+        rotulo(dirf, "BANCO E RESERVAS", cor=TEMA["fraco"]).pack(anchor="w")
+        q2, self.tv_banco = grade(dirf, cols, altura=13)
+        q2.pack(fill="both", expand=True)
+
+        _, form = eng.escalacao_valida(G, c)
+        for pid, vaga in eng.atribuir_vagas(G, esc, form):
+            j = G["jogadores"][pid]
+            fora = vaga != j["pos"]
+            rotulo_vaga = "%s > %s" % (j["pos"], vaga) if fora else j["pos"]
+            obs = ("improvisado, rende %d%%" % int(eng.AFINIDADE[j["pos"]][vaga] * 100)) if fora else ""
+            self.tv_xi.insert("", "end", iid=str(pid),
+                              values=(rotulo_vaga, j["nome"], j["ovr"], j["cond"], j["forma"], obs),
+                              tags=("aviso" if fora else tag_ovr(j["ovr"]),))
+        resto = [p for p in c["elenco"] if p not in esc]
+        resto.sort(key=lambda p: (not eng.disponivel(G, p), eng.POS.index(G["jogadores"][p]["pos"]),
+                                  -eng.rendimento(G["jogadores"][p])))
+        for pid in resto:
+            j = G["jogadores"][pid]
+            sit = eng.re.sub(r"\033\[[0-9;]*m", "", eng.situacao(G, j))
+            self.tv_banco.insert("", "end", iid=str(pid),
+                                 values=(j["pos"], j["nome"], j["ovr"], j["cond"], j["forma"], sit),
+                                 tags=("ruim" if not eng.disponivel(G, pid) else tag_ovr(j["ovr"]),))
+
+    def trocar_escalacao(self):
+        G, c = self.G, self.G["clubes"][self.G["clube"]]
+        a = self.tv_xi.selection()
+        b = self.tv_banco.selection()
+        if not a or not b:
+            messagebox.showinfo("BRASFUT", "Selecione um titular na esquerda e um reserva na direita.")
+            return
+        pa, pb = int(a[0]), int(b[0])
+        if not eng.disponivel(G, pb):
+            messagebox.showwarning("BRASFUT", "%s nao tem condicao de jogar." % G["jogadores"][pb]["nome"])
+            return
+        nova = c["escalacao"][:]
+        nova[nova.index(pa)] = pb
+        c["escalacao"] = nova
+        self.mostrar("escalacao")
+
+    # ------------------------------------------------------------------ tabela
+    def tela_tabela(self, pai):
+        G = self.G
+        div_inicial = G["clubes"][G["clube"]]["divisao"]
+        f = self.cabecalho_tela(pai, "Classificacao")
+        cb = ttk.Combobox(f, values=["A", "B", "C", "D"], width=4, state="readonly")
+        cb.set(div_inicial)
+        cb.pack(anchor="w", pady=4)
+        corpo = tk.Frame(pai, bg=TEMA["fundo"])
+        corpo.pack(fill="both", expand=True, padx=18, pady=6)
+
+        def desenhar(_=None):
+            for w in corpo.winfo_children():
+                w.destroy()
+            div = cb.get()
+            liga = G["ligas"][div]
+            q, tv = grade(corpo, [("pos", "", 35, "center"), ("clube", "Clube", 200, "w"),
+                                  ("p", "P", 40, "center"), ("j", "J", 40, "center"),
+                                  ("v", "V", 40, "center"), ("e", "E", 40, "center"),
+                                  ("d", "D", 40, "center"), ("gp", "GP", 45, "center"),
+                                  ("gc", "GC", 45, "center"), ("sg", "SG", 45, "center")],
+                          altura=20)
+            q.pack(fill="both", expand=True)
+            ordem = eng.classificacao(G, liga)
+            for i, cid in enumerate(ordem, 1):
+                t = liga["tabela"][str(cid)]
+                tag = "bom" if i <= 4 else ("ruim" if i > len(ordem) - 4 else "")
+                if cid == G["clube"]:
+                    tag = "meu"
+                tv.insert("", "end", values=(i, G["clubes"][cid]["nome"], t["p"], t["j"], t["v"],
+                                             t["e"], t["d"], t["gp"], t["gc"], t["gp"] - t["gc"]),
+                          tags=(tag,))
+        cb.bind("<<ComboboxSelected>>", desenhar)
+        desenhar()
+
+
+    # ------------------------------------------------------------------- copas
+    def tela_copas(self, pai):
+        G = self.G
+        self.cabecalho_tela(pai, "Copas")
+        for cp in G["copas"].values():
+            card = tk.Frame(pai, bg=TEMA["painel"], padx=14, pady=10)
+            card.pack(fill="x", padx=18, pady=4)
+            rotulo(card, cp["nome"], fonte=FONTE_B, bg=TEMA["painel"]).pack(anchor="w")
+            if cp["campeao"]:
+                rotulo(card, "Campeao: %s" % G["clubes"][cp["campeao"]]["nome"],
+                       cor=TEMA["top"], bg=TEMA["painel"]).pack(anchor="w")
+                continue
+            n = len(cp["vivos"])
+            vivo = G["clube"] in cp["vivos"]
+            prox = cp["semanas"][cp["fase"]] if cp["fase"] < len(cp["semanas"]) else None
+            txt = "%s, %d clubes na disputa" % (eng.nome_fase(n), n)
+            if prox:
+                txt += "  |  proxima fase na semana %d" % prox
+            rotulo(card, txt, cor=TEMA["fraco"], bg=TEMA["painel"]).pack(anchor="w")
+            rotulo(card, "Seu clube segue vivo" if vivo else "Seu clube esta fora",
+                   cor=TEMA["ok"] if vivo else TEMA["ruim"], bg=TEMA["painel"]).pack(anchor="w")
+
+    # ----------------------------------------------------------------- mercado
+    def tela_mercado(self, pai):
+        G, c = self.G, self.G["clubes"][self.G["clube"]]
+        aberto = eng.mercado_aberto(G)
+        self.cabecalho_tela(pai, "Mercado",
+                            "janela %s  |  caixa %s  |  qualquer jogador ouve proposta, "
+                            "* quer vender, ! nao quer vender"
+                            % ("ABERTA" if aberto else "FECHADA", din(c["dinheiro"])))
+        filtros = tk.Frame(pai, bg=TEMA["fundo"])
+        filtros.pack(fill="x", padx=18, pady=(0, 8))
+        rotulo(filtros, "Tipo").pack(side="left")
+        cb_tipo = ttk.Combobox(filtros, values=["Qualquer jogador", "Agentes livres", "Emprestimo"],
+                               width=16, state="readonly")
+        cb_tipo.set("Qualquer jogador")
+        cb_tipo.pack(side="left", padx=6)
+        rotulo(filtros, "Posicao").pack(side="left", padx=(10, 0))
+        cb_pos = ttk.Combobox(filtros, values=["Todas"] + eng.POS, width=7, state="readonly")
+        cb_pos.set("Todas")
+        cb_pos.pack(side="left", padx=6)
+        rotulo(filtros, "Ovr min").pack(side="left", padx=(10, 0))
+        e_ovr = tk.Entry(filtros, width=5, bg=TEMA["painel"], fg=TEMA["txt"], relief="flat",
+                         insertbackground=TEMA["txt"])
+        e_ovr.pack(side="left", padx=6)
+        rotulo(filtros, "Idade max").pack(side="left", padx=(10, 0))
+        e_idade = tk.Entry(filtros, width=5, bg=TEMA["painel"], fg=TEMA["txt"], relief="flat",
+                           insertbackground=TEMA["txt"])
+        e_idade.pack(side="left", padx=6)
+
+        q, tv = grade(pai, [("pos", "Pos", 45, "center"), ("nome", "Jogador", 180, "w"),
+                            ("idade", "Idade", 50, "center"), ("ovr", "Ovr", 45, "center"),
+                            ("pot", "Teto", 70, "center"), ("clube", "Clube", 150, "w"),
+                            ("sal", "Salario", 90, "e"), ("preco", "Pedido", 100, "e")],
+                      altura=15)
+        q.pack(fill="both", expand=True, padx=18)
+        self.tv_mercado = tv
+        self.tipo_mercado = cb_tipo
+
+        def buscar(_=None):
+            tv.delete(*tv.get_children())
+            pos = None if cb_pos.get() == "Todas" else cb_pos.get()
+            try:
+                ovr = int(e_ovr.get())
+            except ValueError:
+                ovr = None
+            try:
+                idade = int(e_idade.get())
+            except ValueError:
+                idade = None
+            tipo = cb_tipo.get()
+            achados = eng.buscar(G, pos=pos, ovr=ovr, idade=idade,
+                                 so_livres=(tipo == "Agentes livres"),
+                                 so_emprestimo=(tipo == "Emprestimo"), limite=60)
+            if tipo == "Agentes livres":
+                achados = [j for j in (G["jogadores"][p] for p in G["livres"])
+                           if (not pos or j["pos"] == pos) and (not ovr or j["ovr"] >= ovr)
+                           and (not idade or j["idade"] <= idade)]
+                achados.sort(key=lambda j: -j["ovr"])
+                achados = achados[:60]
+            for j in achados:
+                clube = G["clubes"][j["clube"]]["nome"] if j["clube"] else "sem clube"
+                if j["clube"] is None:
+                    preco = "livre"
+                elif j["listado"]:
+                    preco = din(j["listado"]) + " *"
+                else:
+                    valor, intocavel = eng.pedido_efetivo(G, j)
+                    preco = din(valor) + (" !" if intocavel else "")
+                tv.insert("", "end", iid=str(j["id"]),
+                          values=(j["pos"], j["nome"], j["idade"], j["ovr"], eng.scout(G, j), clube,
+                                  din(j["salario"]), preco), tags=(tag_ovr(j["ovr"]),))
+            self.status("%d jogador(es) encontrados" % len(achados))
+        cb_tipo.bind("<<ComboboxSelected>>", buscar)
+        cb_pos.bind("<<ComboboxSelected>>", buscar)
+        botao(filtros, "Buscar", buscar, cor=TEMA["acao"]).pack(side="left", padx=12)
+
+        acoes = tk.Frame(pai, bg=TEMA["fundo"])
+        acoes.pack(fill="x", padx=18, pady=10)
+        botao(acoes, "Negociar", self.negociar, cor=TEMA["acao"]).pack(side="left")
+        botao(acoes, "Ver ficha", self.ficha_mercado).pack(side="left", padx=6)
+        botao(acoes, "Propostas recebidas", self.ver_propostas).pack(side="left", padx=6)
+        rotulo(acoes, "" if aberto else "Janela fechada: da para olhar, nao para contratar.",
+               cor=TEMA["av"]).pack(side="left", padx=12)
+        buscar()
+
+    def alvo_mercado(self):
+        sel = self.tv_mercado.selection()
+        if not sel:
+            messagebox.showinfo("BRASFUT", "Selecione um jogador na lista.")
+            return None
+        return self.G["jogadores"][int(sel[0])]
+
+    def ficha_mercado(self):
+        j = self.alvo_mercado()
+        if j:
+            Ficha(self, self.G, j).esperar()
+
+    def negociar(self):
+        j = self.alvo_mercado()
+        if not j:
+            return
+        if not eng.mercado_aberto(self.G):
+            messagebox.showinfo("BRASFUT", "A janela de transferencias esta fechada.")
+            return
+        tipo = self.tipo_mercado.get()
+        if tipo == "Emprestimo":
+            texto = PegarEmprestado(self, self.G, j).esperar()
+        else:
+            texto = Negociar(self, self.G, j).esperar()
+        if texto:
+            self.log(texto)
+        self.atualizar_topo()
+        self.mostrar("mercado")
+
+    def ver_propostas(self):
+        G, c = self.G, self.G["clubes"][self.G["clube"]]
+        alvos = [G["jogadores"][p] for p in c["elenco"]
+                 if G["jogadores"][p]["listado"] and not G["jogadores"][p].get("dono")]
+        if not alvos:
+            messagebox.showinfo("BRASFUT", "Nenhum jogador seu esta a venda.\nUse o Elenco para por alguem na vitrine.")
+            return
+        ofertas = []
+        for j in alvos:
+            agressivo = eng.clamp(1.6 - j["listado"] / max(1.0, j["valor"] * 1.4), 0.05, 0.95)
+            compradores = [cl for cl in G["clubes"].values()
+                           if cl["divisao"] != "EX" and cl["id"] != c["id"]
+                           and cl["dinheiro"] > j["listado"] * 1.2
+                           and cl["reputacao"] > j["ovr"] - 24]
+            if compradores and eng.rng.random() < agressivo:
+                cl = eng.rng.choice(compradores)
+                ofertas.append((j, cl, int(j["listado"] * eng.rng.uniform(0.72, 1.10))))
+        if not ofertas:
+            messagebox.showinfo("BRASFUT", "Nenhuma proposta chegou nesta semana.\nTalvez o preco esteja alto.")
+            return
+        texto = Propostas(self, self.G, ofertas).esperar()
+        if texto:
+            self.log(texto)
+        self.atualizar_topo()
+        self.mostrar("mercado")
+
+    # ---------------------------------------------------------------- financas
+    def tela_financas(self, pai):
+        G, c = self.G, self.G["clubes"][self.G["clube"]]
+        rec, folha, est = eng.receita_semanal(G, c), eng.folha_semanal(G, c), eng.custo_estrutura(c)
+        self.cabecalho_tela(pai, "Financas")
+        linhas = [("Caixa atual", din(c["dinheiro"]), TEMA["ok"] if c["dinheiro"] >= 0 else TEMA["ruim"]),
+                  ("TV e patrocinio", din(rec) + " por semana", TEMA["txt"]),
+                  ("Folha salarial", din(-folha) + " por semana", TEMA["ruim"]),
+                  ("Estrutura e operacao", din(-est) + " por semana", TEMA["ruim"]),
+                  ("Saldo semanal", din(rec - folha - est),
+                   TEMA["ok"] if rec - folha - est >= 0 else TEMA["ruim"]),
+                  ("Folha mensal", din(folha * 4), TEMA["txt"])]
+        for tit, val, cr in linhas:
+            f = tk.Frame(pai, bg=TEMA["painel"], padx=14, pady=8)
+            f.pack(fill="x", padx=18, pady=2)
+            rotulo(f, tit, cor=TEMA["fraco"], bg=TEMA["painel"], width=24).pack(side="left")
+            rotulo(f, val, cor=cr, fonte=FONTE_B, bg=TEMA["painel"]).pack(side="left")
+        rotulo(pai, "MAIORES SALARIOS", cor=TEMA["fraco"]).pack(anchor="w", padx=18, pady=(12, 4))
+        q, tv = grade(pai, [("nome", "Jogador", 200, "w"), ("pos", "Pos", 50, "center"),
+                            ("sal", "Salario mensal", 120, "e"), ("obs", "Observacao", 220, "w")],
+                      altura=6)
+        q.pack(fill="x", padx=18)
+        for j in sorted([G["jogadores"][p] for p in c["elenco"]], key=lambda x: -x["salario"])[:6]:
+            obs = "" if not j.get("dono") else "emprestado, pagamos %d%%" % j["emp_pct"]
+            tv.insert("", "end", values=(j["nome"], j["pos"], din(j["salario"]), obs))
+
+    # ----------------------------------------------------------------- estadio
+    def tela_estadio(self, pai):
+        c = self.G["clubes"][self.G["clube"]]
+        self.cabecalho_tela(pai, "Estadio", c["estadio"])
+        info = tk.Frame(pai, bg=TEMA["painel"], padx=16, pady=12)
+        info.pack(fill="x", padx=18)
+        rotulo(info, "Capacidade: %s lugares" % f"{c['capacidade']:,}".replace(",", "."),
+               fonte=FONTE_B, bg=TEMA["painel"]).pack(anchor="w")
+        rotulo(info, "Preco do ingresso: R$ %d" % c["preco"], bg=TEMA["painel"]).pack(anchor="w")
+        if c["obra_semanas"]:
+            rotulo(info, "Obra: +%d lugares, faltam %d semanas" % (c["obra_lugares"], c["obra_semanas"]),
+                   cor=TEMA["av"], bg=TEMA["painel"]).pack(anchor="w")
+        f = tk.Frame(pai, bg=TEMA["fundo"])
+        f.pack(fill="x", padx=18, pady=14)
+        rotulo(f, "Novo preco do ingresso (R$ 5 a 300)").pack(anchor="w")
+        e_preco = tk.Entry(f, width=8, bg=TEMA["painel"], fg=TEMA["txt"], relief="flat",
+                           insertbackground=TEMA["txt"])
+        e_preco.insert(0, str(c["preco"]))
+        e_preco.pack(anchor="w", pady=4)
+
+        def mudar_preco():
+            try:
+                v = int(e_preco.get())
+            except ValueError:
+                return
+            c["preco"] = int(eng.clamp(v, 5, 300))
+            self.status("ingresso a R$ %d. Caro afasta publico, barato enche o estadio." % c["preco"])
+            self.mostrar("estadio")
+        botao(f, "Aplicar preco", mudar_preco).pack(anchor="w", pady=4)
+
+        rotulo(f, "\nAmpliar o estadio  -  R$ 3.500 por lugar, 1 semana a cada 1.500 lugares").pack(anchor="w")
+        e_lug = tk.Entry(f, width=8, bg=TEMA["painel"], fg=TEMA["txt"], relief="flat",
+                         insertbackground=TEMA["txt"])
+        e_lug.pack(anchor="w", pady=4)
+
+        def ampliar():
+            try:
+                v = int(e_lug.get())
+            except ValueError:
+                return
+            if c["obra_semanas"]:
+                messagebox.showinfo("BRASFUT", "Ja existe uma obra em andamento.")
+                return
+            v = int(eng.clamp(v, 1000, 40000))
+            custo = v * 3500
+            if custo > c["dinheiro"]:
+                messagebox.showwarning("BRASFUT", "Caixa insuficiente. Custaria %s." % din(custo))
+                return
+            if not messagebox.askyesno("Obra", "Ampliar em %d lugares por %s?" % (v, din(custo))):
+                return
+            c["dinheiro"] -= custo
+            c["obra_lugares"] = v
+            c["obra_semanas"] = max(2, v // 1500)
+            self.log("Obra contratada: +%d lugares por %s, pronta em %d semanas."
+                     % (v, din(custo), c["obra_semanas"]))
+            self.atualizar_topo()
+            self.mostrar("estadio")
+        botao(f, "Contratar obra", ampliar, cor=TEMA["acao"]).pack(anchor="w", pady=4)
+
+    # ------------------------------------------------------------------- infra
+    def tela_infra(self, pai):
+        c = self.G["clubes"][self.G["clube"]]
+        self.cabecalho_tela(pai, "Infraestrutura", "caixa %s" % din(c["dinheiro"]))
+        itens = [("ct", "Centro de treinamento", "evolucao dos jogadores"),
+                 ("base", "Categorias de base", "qualidade das crias no fim do ano"),
+                 ("medico", "Departamento medico", "menos lesao e recuperacao mais rapida")]
+        for chave, nome, desc in itens:
+            card = tk.Frame(pai, bg=TEMA["painel"], padx=16, pady=12)
+            card.pack(fill="x", padx=18, pady=4)
+            rotulo(card, "%s  -  nivel %d de 10" % (nome, c[chave]), fonte=FONTE_B,
+                   bg=TEMA["painel"]).pack(anchor="w")
+            rotulo(card, desc, cor=TEMA["fraco"], bg=TEMA["painel"]).pack(anchor="w")
+            rotulo(card, "[" + "#" * c[chave] + "." * (10 - c[chave]) + "]",
+                   cor=TEMA["ok"], fonte=MONO, bg=TEMA["painel"]).pack(anchor="w", pady=2)
+            if c[chave] >= 10:
+                rotulo(card, "nivel maximo", cor=TEMA["top"], bg=TEMA["painel"]).pack(anchor="w")
+                continue
+            custo = int((c[chave] + 1) ** 2 * 900_000)
+            botao(card, "Subir para o nivel %d por %s" % (c[chave] + 1, din(custo)),
+                  lambda k=chave, v=custo: self.investir(k, v)).pack(anchor="w", pady=4)
+
+    def investir(self, chave, custo):
+        c = self.G["clubes"][self.G["clube"]]
+        if custo > c["dinheiro"]:
+            messagebox.showwarning("BRASFUT", "Caixa insuficiente.")
+            return
+        c["dinheiro"] -= custo
+        c[chave] += 1
+        self.log("Investimento de %s feito. %s agora esta no nivel %d."
+                 % (din(custo), chave.upper(), c[chave]))
+        self.atualizar_topo()
+        self.mostrar("infra")
+
+    # ---------------------------------------------------------------- noticias
+    def tela_noticias(self, pai):
+        self.cabecalho_tela(pai, "Noticias")
+        cx = tk.Text(pai, bg=TEMA["painel"], fg=TEMA["txt"], font=MONO, relief="flat",
+                     wrap="word", padx=12, pady=10)
+        cx.pack(fill="both", expand=True, padx=18, pady=6)
+        linhas = self.G["noticias"][-25:] or ["Nada publicado ainda."]
+        cx.insert("1.0", "\n".join(linhas))
+        cx.configure(state="disabled")
+
+    # ------------------------------------------------------------ modo console
+    def executar_comando(self, _=None):
+        cmd = self.ent_cmd.get().strip()
+        self.ent_cmd.delete(0, "end")
+        if not cmd:
+            return
+        self.log("> " + cmd)
+        G = self.G
+        c = G["clubes"][G["clube"]]
+        partes = cmd.lower().split()
+        verbo, args = partes[0], partes[1:]
+        try:
+            if verbo in ("semana", "s", "jogar"):
+                self.avancar()
+            elif verbo == "elenco":
+                _, t = capturar(eng.tela_elenco, G, None, False)
+                self.log(t)
+            elif verbo in ("tabela", "classificacao"):
+                div = args[0].upper() if args and args[0].upper() in "ABCD" else c["divisao"]
+                _, t = capturar(eng.tela_tabela, G, div)
+                self.log(t)
+            elif verbo == "copas":
+                _, t = capturar(eng.tela_copas, G)
+                self.log(t)
+            elif verbo in ("financas", "caixa"):
+                _, t = capturar(eng.tela_financas, G)
+                self.log(t)
+            elif verbo in ("stats", "artilharia"):
+                _, t = capturar(eng.tela_estatisticas, G)
+                self.log(t)
+            elif verbo == "noticias":
+                self.log("\n".join(G["noticias"][-15:]) or "Nada por aqui.")
+            elif verbo == "escalacao":
+                self.log(self.texto_escalacao())
+            elif verbo == "auto":
+                c["escalacao"] = eng.auto_escalar(G, c)
+                self.log(self.texto_escalacao())
+            elif verbo == "troca" and len(args) == 2:
+                self.troca_console(args)
+            elif verbo == "form" and args:
+                achou = [f for f in eng.FORMACOES if f.lower() == args[0]]
+                if achou:
+                    c["formacao"] = achou[0]
+                    c["escalacao"] = eng.auto_escalar(G, c)
+                    self.log("Formacao agora e %s." % achou[0])
+                else:
+                    self.log("Formacoes: " + ", ".join(eng.FORMACOES))
+            elif verbo == "tatica" and args:
+                achou = [t for t in eng.TATICAS if t.lower().startswith(" ".join(args))]
+                if achou:
+                    c["tatica"] = achou[0]
+                    self.log("Tatica agora e %s." % achou[0])
+                else:
+                    self.log("Taticas: " + ", ".join(eng.TATICAS))
+            elif verbo == "mercado":
+                pos = args[0].upper() if args and args[0].upper() in eng.POS else None
+                lst = eng.buscar(G, pos=pos, limite=20)
+                if not lst:
+                    self.log("Ninguem a venda com esse filtro agora.")
+                else:
+                    linhas = ["%-4s %-22s %3s %3s  %-20s %12s" %
+                              (j["pos"], j["nome"][:22], j["idade"], j["ovr"],
+                               G["clubes"][j["clube"]]["nome"][:20], din(j["listado"]))
+                              for j in lst]
+                    self.log("\n".join(linhas) + "\n\nUse o modo visual para negociar.")
+            elif verbo == "salvar":
+                self.salvar()
+                self.log("Jogo salvo.")
+            elif verbo == "visual":
+                self.alternar_modo()
+            elif verbo in ("ajuda", "help", "?"):
+                self.log(AJUDA)
+            else:
+                self.log("Nao conheco esse comando. Digite ajuda.")
+        except Exception:
+            self.log("Deu erro nesse comando:\n" + traceback.format_exc())
+        self.atualizar_topo()
+
+    def texto_escalacao(self):
+        G, c = self.G, self.G["clubes"][self.G["clube"]]
+        esc, _ = eng.escalacao_valida(G, c)
+        c["escalacao"] = esc
+        at, de, _ = eng.forcas(G, c)
+        linhas = ["%s  |  %s  |  ataque %.1f  defesa %.1f" % (c["formacao"], c["tatica"], at, de), ""]
+        for i, pid in enumerate(esc, 1):
+            j = G["jogadores"][pid]
+            linhas.append("%2d  %-4s %-22s ovr %2d  fis %3d  moral %3d"
+                          % (i, j["pos"], j["nome"][:22], j["ovr"], j["cond"], j["moral"]))
+        resto = [p for p in c["elenco"] if p not in esc]
+        resto.sort(key=lambda p: -eng.rendimento(G["jogadores"][p]))
+        linhas.append("")
+        linhas.append("BANCO")
+        for i, pid in enumerate(resto, 12):
+            j = G["jogadores"][pid]
+            sit = eng.re.sub(r"\033\[[0-9;]*m", "", eng.situacao(G, j))
+            linhas.append("%2d  %-4s %-22s ovr %2d  fis %3d  %s"
+                          % (i, j["pos"], j["nome"][:22], j["ovr"], j["cond"], sit))
+        linhas.append("")
+        linhas.append("troca 9 15 para trocar dois jogadores")
+        return "\n".join(linhas)
+
+    def troca_console(self, args):
+        G, c = self.G, self.G["clubes"][self.G["clube"]]
+        esc, _ = eng.escalacao_valida(G, c)
+        resto = [p for p in c["elenco"] if p not in esc]
+        resto.sort(key=lambda p: -eng.rendimento(G["jogadores"][p]))
+        todos = esc + resto
+        try:
+            a, b = int(args[0]), int(args[1])
+        except ValueError:
+            self.log("Use dois numeros, por exemplo: troca 9 15")
+            return
+        if not (1 <= a <= len(todos) and 1 <= b <= len(todos)):
+            self.log("Numero fora da lista.")
+            return
+        pa, pb = todos[a - 1], todos[b - 1]
+        for p in (pa, pb):
+            if not eng.disponivel(G, p):
+                self.log("%s nao tem condicao de jogar." % G["jogadores"][p]["nome"])
+                return
+        nova = esc[:]
+        if pa in nova and pb in nova:
+            i1, i2 = nova.index(pa), nova.index(pb)
+            nova[i1], nova[i2] = nova[i2], nova[i1]
+        elif pa in nova:
+            nova[nova.index(pa)] = pb
+        elif pb in nova:
+            nova[nova.index(pb)] = pa
+        else:
+            self.log("Escolha pelo menos um titular.")
+            return
+        c["escalacao"] = nova
+        self.log(self.texto_escalacao())
+
+
+# ----------------------------------------------------------------------------
+# DIALOGOS
+# ----------------------------------------------------------------------------
+
+class NovoJogo(Dialogo):
+    def __init__(self, pai, G):
+        super().__init__(pai, "Comecar carreira", 700, 560)
+        self.G = G
+        rotulo(self.corpo, "Escolha o clube", fonte=FONTE_T).pack(anchor="w")
+        rotulo(self.corpo, "A reputacao define caixa, publico e a forca do elenco.",
+               cor=TEMA["fraco"]).pack(anchor="w", pady=(0, 8))
+        barra = tk.Frame(self.corpo, bg=TEMA["fundo"])
+        barra.pack(fill="x", pady=4)
+        rotulo(barra, "Divisao").pack(side="left")
+        self.cb = ttk.Combobox(barra, values=["A", "B", "C", "D"], width=4, state="readonly")
+        self.cb.set("B")
+        self.cb.pack(side="left", padx=8)
+        self.cb.bind("<<ComboboxSelected>>", lambda e: self.listar())
+        q, self.tv = grade(self.corpo, [("nome", "Clube", 170, "w"), ("uf", "UF", 40, "center"),
+                                        ("est", "Estadio", 170, "w"), ("cap", "Capacidade", 85, "e"),
+                                        ("rep", "Rep", 45, "center"), ("cx", "Caixa", 95, "e"),
+                                        ("el", "Elenco", 55, "center")], altura=14)
+        q.pack(fill="both", expand=True, pady=8)
+        self.tv.bind("<Double-1>", lambda e: self.confirmar())
+        botao(self.corpo, "Assumir este clube", self.confirmar, cor=TEMA["acao"]).pack(anchor="e")
+        self.listar()
+
+    def listar(self):
+        self.tv.delete(*self.tv.get_children())
+        times = sorted([c for c in self.G["clubes"].values() if c["divisao"] == self.cb.get()],
+                       key=lambda c: -c["reputacao"])
+        for c in times:
+            self.tv.insert("", "end", iid=str(c["id"]),
+                           values=(c["nome"], c["uf"], c["estadio"],
+                                   f"{c['capacidade']:,}".replace(",", "."), c["reputacao"],
+                                   din(c["dinheiro"]), len(c["elenco"])))
+
+    def confirmar(self):
+        sel = self.tv.selection()
+        if not sel:
+            return
+        self.resultado = int(sel[0])
+        self.destroy()
+
+
+class EscolherClube(Dialogo):
+    def __init__(self, pai, G, ofertas):
+        super().__init__(pai, "Voce esta sem clube", 620, 340)
+        self.G = G
+        rotulo(self.corpo, "Voce foi demitido", fonte=FONTE_T).pack(anchor="w")
+        rotulo(self.corpo, "Estes clubes querem o seu trabalho. Escolha um ou encerre a carreira.",
+               cor=TEMA["fraco"]).pack(anchor="w", pady=(0, 8))
+        q, self.tv = grade(self.corpo, [("nome", "Clube", 180, "w"), ("div", "Serie", 50, "center"),
+                                        ("rep", "Rep", 50, "center"), ("cx", "Caixa", 100, "e"),
+                                        ("el", "Elenco", 60, "center")], altura=5)
+        q.pack(fill="both", expand=True, pady=6)
+        for cl in ofertas:
+            self.tv.insert("", "end", iid=str(cl["id"]),
+                           values=(cl["nome"], cl["divisao"], cl["reputacao"],
+                                   din(cl["dinheiro"]), len(cl["elenco"])))
+        f = tk.Frame(self.corpo, bg=TEMA["fundo"])
+        f.pack(fill="x", pady=8)
+        botao(f, "Assumir", self.confirmar, cor=TEMA["acao"]).pack(side="right")
+        botao(f, "Encerrar carreira", self.destroy).pack(side="right", padx=8)
+
+    def confirmar(self):
+        sel = self.tv.selection()
+        if not sel:
+            return
+        self.resultado = int(sel[0])
+        self.destroy()
+
+
+class Ficha(Dialogo):
+    def __init__(self, pai, G, j):
+        super().__init__(pai, j["nome"], 520, 420)
+        _, texto = capturar(eng.ficha_completa, G, j)
+        rotulo(self.corpo, j["nome"], fonte=FONTE_T).pack(anchor="w")
+        rotulo(self.corpo, "%s, %d anos" % (eng.NOME_POS[j["pos"]], j["idade"]),
+               cor=TEMA["fraco"]).pack(anchor="w", pady=(0, 8))
+        cx = tk.Text(self.corpo, bg=TEMA["painel"], fg=TEMA["txt"], font=MONO, relief="flat",
+                     wrap="word", padx=10, pady=8, height=15)
+        cx.pack(fill="both", expand=True)
+        cx.insert("1.0", texto.replace("|", " ").replace("+", " "))
+        cx.configure(state="disabled")
+        botao(self.corpo, "Fechar", self.destroy).pack(anchor="e", pady=6)
+
+
+class Negociar(Dialogo):
+    """Mesa de compra. Nao decide nada: pergunta ao motor e mostra o veredito."""
+
+    def __init__(self, pai, G, j):
+        super().__init__(pai, "Negociar " + j["nome"], 560, 490)
+        self.G, self.j = G, j
+        self.c = G["clubes"][G["clube"]]
+        self.livre = j["clube"] is None
+        self.etapa = "passe" if not self.livre else "anos"
+        self.rodada = 0
+        self.passe_fechado = 0
+        self.anos = 3
+        self.salario = j["salario"]
+
+        rotulo(self.corpo, j["nome"], fonte=FONTE_T).pack(anchor="w")
+        vendedor = G["clubes"][j["clube"]]["nome"] if j["clube"] else "sem clube"
+        rotulo(self.corpo, "%s, %d anos, overall %d, teto %s  |  %s"
+               % (eng.NOME_POS[j["pos"]], j["idade"], j["ovr"], eng.scout(G, j), vendedor),
+               cor=TEMA["fraco"]).pack(anchor="w", pady=(0, 10))
+        if self.livre:
+            info = "Agente livre, sem custo de passe. Salario atual: %s/mes" % din(j["salario"])
+        else:
+            alvo_preco, intocavel = eng.pedido_efetivo(G, j)
+            info = ("Pedido pelo passe: %s%s        Salario atual: %s/mes"
+                    % (din(alvo_preco), "  (nao esta a venda)" if intocavel else "",
+                       din(j["salario"])))
+        rotulo(self.corpo, info, cor=TEMA["av"]).pack(anchor="w")
+        imp = eng.importancia(G, j)
+        peso = "reserva" if imp < 0.3 else ("titular" if imp < 0.7 else "peca central do time")
+        rotulo(self.corpo, "No clube atual ele e %s.  Seu caixa: %s" % (peso, din(self.c["dinheiro"])),
+               cor=TEMA["fraco"]).pack(anchor="w")
+
+        self.lb_etapa = rotulo(self.corpo, "", fonte=FONTE_B)
+        self.lb_etapa.pack(anchor="w", pady=(12, 4))
+        self.entrada = tk.Entry(self.corpo, width=16, bg=TEMA["painel"], fg=TEMA["txt"],
+                                relief="flat", font=MONO, insertbackground=TEMA["txt"])
+        self.entrada.pack(anchor="w", pady=4)
+        self.entrada.bind("<Return>", lambda e: self.enviar())
+        botao(self.corpo, "Enviar proposta", self.enviar, cor=TEMA["acao"]).pack(anchor="w", pady=6)
+        self.dialogo = tk.Text(self.corpo, bg=TEMA["painel"], fg=TEMA["txt"], font=MONO,
+                               relief="flat", wrap="word", padx=10, pady=8, height=8)
+        self.dialogo.pack(fill="both", expand=True, pady=8)
+        self.atualiza_etapa()
+        self.entrada.focus_set()
+
+    def fala(self, txt):
+        self.dialogo.configure(state="normal")
+        self.dialogo.insert("end", txt + "\n")
+        self.dialogo.see("end")
+        self.dialogo.configure(state="disabled")
+
+    def atualiza_etapa(self):
+        textos = {"passe": "Quanto voce oferece pelo passe? (em reais)",
+                  "anos": "Anos de contrato (1 a 5)",
+                  "salario": "Salario mensal oferecido ao jogador? (em reais)"}
+        self.lb_etapa.configure(text=textos[self.etapa])
+
+    def _prop(self, **kw):
+        base = dict(jogador=self.j["id"], comprador=self.c["id"], valor=self.passe_fechado,
+                    salario=self.salario, anos=self.anos)
+        base.update(kw)
+        return eng.Proposta(**base)
+
+    def encerra(self, texto):
+        self.resultado = texto
+        self.fala(texto)
+        self.after(900, self.destroy)
+
+    def enviar(self):
+        try:
+            v = int(self.entrada.get().replace(".", "").replace(",", ""))
+        except ValueError:
+            return
+        self.entrada.delete(0, "end")
+        if self.etapa == "passe":
+            r = eng.avaliar_clube(self.G, self._prop(valor=v))
+            self.fala(r.motivo)
+            if r.aceita:
+                self.passe_fechado = v
+                self.etapa = "anos"
+                self.rodada = 0
+            elif r.encerrada:
+                self.encerra("Negociacao por %s encerrada." % self.j["nome"])
+                return
+            else:
+                self.rodada += 1
+                if self.rodada >= 3:
+                    self.encerra("Sem acordo pelo passe de %s." % self.j["nome"])
+                    return
+        elif self.etapa == "anos":
+            self.anos = int(eng.clamp(v, 1, 5))
+            self.etapa = "salario"
+            self.fala("Contrato de %d ano(s). Agora o salario." % self.anos)
+        else:
+            prop = self._prop(salario=v)
+            r = eng.avaliar_jogador(self.G, prop)
+            self.fala(r.motivo)
+            if r.aceita:
+                self.encerra(eng.fechar_compra(self.G, prop))
+                return
+            if r.encerrada:
+                self.encerra("%s recusou a proposta." % self.j["nome"])
+                return
+            self.rodada += 1
+            if self.rodada >= 3:
+                self.encerra("%s nao chegou a um acordo salarial." % self.j["nome"])
+                return
+        self.atualiza_etapa()
+
+
+class PegarEmprestado(Dialogo):
+    def __init__(self, pai, G, j):
+        super().__init__(pai, "Emprestimo de " + j["nome"], 560, 430)
+        self.G, self.j = G, j
+        self.c = G["clubes"][G["clube"]]
+        self.rodada = 0
+        dono = G["clubes"][j["clube"]]
+        rotulo(self.corpo, j["nome"], fonte=FONTE_T).pack(anchor="w")
+        rotulo(self.corpo, "%s, %d anos, overall %d  |  dono: %s"
+               % (eng.NOME_POS[j["pos"]], j["idade"], j["ovr"], dono["nome"]),
+               cor=TEMA["fraco"]).pack(anchor="w", pady=(0, 8))
+        rotulo(self.corpo, "Salario dele: %s por mes. Voce assume uma fatia ate o fim da temporada."
+               % din(j["salario"]), cor=TEMA["av"]).pack(anchor="w")
+        rotulo(self.corpo, "Opcao de compra ao fim (em reais, 0 = sem opcao)").pack(anchor="w", pady=(10, 2))
+        self.e_opcao = tk.Entry(self.corpo, width=14, bg=TEMA["painel"], fg=TEMA["txt"],
+                                relief="flat", font=MONO, insertbackground=TEMA["txt"])
+        self.e_opcao.insert(0, "0")
+        self.e_opcao.pack(anchor="w")
+        rotulo(self.corpo, "Quanto do salario voce banca? (0 a 100)", fonte=FONTE_B).pack(anchor="w", pady=(10, 2))
+        self.entrada = tk.Entry(self.corpo, width=8, bg=TEMA["painel"], fg=TEMA["txt"],
+                                relief="flat", font=MONO, insertbackground=TEMA["txt"])
+        self.entrada.pack(anchor="w")
+        self.entrada.bind("<Return>", lambda e: self.enviar())
+        botao(self.corpo, "Propor", self.enviar, cor=TEMA["acao"]).pack(anchor="w", pady=8)
+        self.dialogo = tk.Text(self.corpo, bg=TEMA["painel"], fg=TEMA["txt"], font=MONO,
+                               relief="flat", wrap="word", padx=10, pady=8, height=6)
+        self.dialogo.pack(fill="both", expand=True, pady=6)
+        self.entrada.focus_set()
+
+    def fala(self, t):
+        self.dialogo.configure(state="normal")
+        self.dialogo.insert("end", t + "\n")
+        self.dialogo.configure(state="disabled")
+
+    def enviar(self):
+        try:
+            pct = int(self.entrada.get())
+        except ValueError:
+            return
+        try:
+            opcao = int(self.e_opcao.get().replace(".", "").replace(",", ""))
+        except ValueError:
+            opcao = 0
+        self.entrada.delete(0, "end")
+        prop = eng.Proposta(jogador=self.j["id"], comprador=self.c["id"], pct_salario=pct,
+                            opcao_compra=opcao, tipo=eng.TIPO_EMPRESTIMO)
+        r = eng.avaliar_emprestimo(self.G, prop)
+        self.fala(r.motivo)
+        if r.aceita:
+            self.resultado = eng.fechar_emprestimo(self.G, prop)
+            self.fala(self.resultado)
+            self.after(900, self.destroy)
+            return
+        if r.encerrada:
+            self.resultado = r.motivo
+            self.after(900, self.destroy)
+            return
+        self.rodada += 1
+        if self.rodada >= 3:
+            self.resultado = "Emprestimo de %s nao saiu." % self.j["nome"]
+            self.fala(self.resultado)
+            self.after(900, self.destroy)
+
+
+class CederEmprestimo(Dialogo):
+    def __init__(self, pai, G, j):
+        super().__init__(pai, "Ceder " + j["nome"], 600, 400)
+        self.G, self.j = G, j
+        c = G["clubes"][G["clube"]]
+        interessados = [cl for cl in G["clubes"].values()
+                        if cl["divisao"] != "EX" and cl["id"] != c["id"]
+                        and cl["reputacao"] <= c["reputacao"] + 6
+                        and eng.conta_posicao(G, cl, j["pos"]) <= eng.ELENCO_PADRAO[j["pos"]] + 1]
+        interessados.sort(key=lambda cl: -cl["reputacao"])
+        self.ofertas = []
+        for cl in interessados[:6]:
+            cap = eng.clamp(cl["dinheiro"] / max(1, j["salario"] * 12) * 30, 15, 95)
+            self.ofertas.append((cl, int(eng.clamp(cap * eng.rng.uniform(0.7, 1.2), 10, 100))))
+        rotulo(self.corpo, "Ceder %s por emprestimo" % j["nome"], fonte=FONTE_T).pack(anchor="w")
+        rotulo(self.corpo, "Ele volta no fim da temporada. Quem receber assume parte do salario de %s."
+               % din(j["salario"]), cor=TEMA["fraco"]).pack(anchor="w", pady=(0, 8))
+        if not self.ofertas:
+            rotulo(self.corpo, "Nenhum clube demonstrou interesse neste jogador.",
+                   cor=TEMA["av"]).pack(anchor="w", pady=10)
+            botao(self.corpo, "Fechar", self.destroy).pack(anchor="e")
+            return
+        q, self.tv = grade(self.corpo, [("nome", "Clube", 180, "w"), ("div", "Serie", 50, "center"),
+                                        ("rep", "Rep", 45, "center"), ("pct", "Assume", 70, "center"),
+                                        ("sobra", "Sobra pra voce", 110, "e")], altura=6)
+        q.pack(fill="both", expand=True, pady=6)
+        for i, (cl, pct) in enumerate(self.ofertas):
+            self.tv.insert("", "end", iid=str(i),
+                           values=(cl["nome"], cl["divisao"], cl["reputacao"], "%d%%" % pct,
+                                   din(j["salario"] * (100 - pct) // 100)))
+        f = tk.Frame(self.corpo, bg=TEMA["fundo"])
+        f.pack(fill="x", pady=6)
+        botao(f, "Aceitar proposta", self.confirmar, cor=TEMA["acao"]).pack(side="right")
+        botao(f, "Cancelar", self.destroy).pack(side="right", padx=8)
+
+    def confirmar(self):
+        sel = self.tv.selection()
+        if not sel:
+            return
+        cl, pct = self.ofertas[int(sel[0])]
+        eng.emprestar(self.G, self.j["id"], cl["id"], pct)
+        eng.noticia(self.G, "%s cedeu %s ao %s por emprestimo."
+                    % (self.G["clubes"][self.G["clube"]]["nome"], self.j["nome"], cl["nome"]))
+        self.resultado = "%s cedido ao %s, que assume %d%% do salario." % (self.j["nome"], cl["nome"], pct)
+        messagebox.showinfo("Emprestimo", self.resultado)
+        self.destroy()
+
+
+class PorAVenda(Dialogo):
+    def __init__(self, pai, G, j):
+        super().__init__(pai, "Vitrine", 480, 260)
+        self.G, self.j = G, j
+        rotulo(self.corpo, j["nome"], fonte=FONTE_T).pack(anchor="w")
+        rotulo(self.corpo, "Valor de mercado estimado: %s" % din(j["valor"]),
+               cor=TEMA["av"]).pack(anchor="w", pady=4)
+        rotulo(self.corpo, "Pedir muito acima do valor afasta proposta.\nAbaixo, elas chegam rapido.",
+               cor=TEMA["fraco"]).pack(anchor="w", pady=4)
+        if j["listado"]:
+            rotulo(self.corpo, "Hoje ele esta na vitrine por %s." % din(j["listado"])).pack(anchor="w")
+            botao(self.corpo, "Tirar da vitrine", self.tirar).pack(anchor="w", pady=8)
+        rotulo(self.corpo, "Preco pedido (em reais)", fonte=FONTE_B).pack(anchor="w", pady=(8, 2))
+        self.entrada = tk.Entry(self.corpo, width=16, bg=TEMA["painel"], fg=TEMA["txt"],
+                                relief="flat", font=MONO, insertbackground=TEMA["txt"])
+        self.entrada.insert(0, str(int(j["valor"] * 1.3)))
+        self.entrada.pack(anchor="w")
+        self.entrada.bind("<Return>", lambda e: self.confirmar())
+        botao(self.corpo, "Por a venda", self.confirmar, cor=TEMA["acao"]).pack(anchor="w", pady=10)
+
+    def tirar(self):
+        self.j["listado"] = 0
+        self.resultado = "%s saiu da vitrine." % self.j["nome"]
+        self.destroy()
+
+    def confirmar(self):
+        try:
+            v = int(self.entrada.get().replace(".", "").replace(",", ""))
+        except ValueError:
+            return
+        self.j["listado"] = max(0, v)
+        self.resultado = "%s esta na vitrine por %s." % (self.j["nome"], din(v))
+        self.destroy()
+
+
+class Renovar(Dialogo):
+    def __init__(self, pai, G, j):
+        super().__init__(pai, "Renovar " + j["nome"], 500, 320)
+        self.G, self.j = G, j
+        self.pedido = int(j["salario"] * eng.rng.uniform(1.05, 1.45))
+        if j["idade"] <= 23 and j["pot"] - j["ovr"] > 8:
+            self.pedido = int(self.pedido * 1.15)
+        self.rodada = 0
+        rotulo(self.corpo, j["nome"], fonte=FONTE_T).pack(anchor="w")
+        rotulo(self.corpo, "Contrato atual: %d ano(s), %s por mes" % (j["contrato"], din(j["salario"])),
+               cor=TEMA["fraco"]).pack(anchor="w", pady=(0, 8))
+        rotulo(self.corpo, "Ele pede algo perto de %s por mes." % din(self.pedido),
+               cor=TEMA["av"]).pack(anchor="w")
+        rotulo(self.corpo, "\nSalario oferecido", fonte=FONTE_B).pack(anchor="w")
+        self.e_sal = tk.Entry(self.corpo, width=14, bg=TEMA["painel"], fg=TEMA["txt"], relief="flat",
+                              font=MONO, insertbackground=TEMA["txt"])
+        self.e_sal.pack(anchor="w", pady=4)
+        rotulo(self.corpo, "Anos (1 a 5)").pack(anchor="w")
+        self.e_anos = tk.Entry(self.corpo, width=6, bg=TEMA["painel"], fg=TEMA["txt"], relief="flat",
+                               font=MONO, insertbackground=TEMA["txt"])
+        self.e_anos.insert(0, "3")
+        self.e_anos.pack(anchor="w", pady=4)
+        botao(self.corpo, "Propor renovacao", self.confirmar, cor=TEMA["acao"]).pack(anchor="w", pady=8)
+        self.lb = rotulo(self.corpo, "", cor=TEMA["fraco"])
+        self.lb.pack(anchor="w")
+
+    def confirmar(self):
+        try:
+            sal = int(self.e_sal.get().replace(".", "").replace(",", ""))
+            anos = int(eng.clamp(int(self.e_anos.get()), 1, 5))
+        except ValueError:
+            return
+        if sal >= self.pedido:
+            self.j["salario"] = sal
+            self.j["contrato"] = anos
+            self.j["moral"] = eng.clamp(self.j["moral"] + 12, 5, 100)
+            self.resultado = "%s renovou por %d ano(s), %s por mes." % (self.j["nome"], anos, din(sal))
+            messagebox.showinfo("Renovacao", self.resultado)
+            self.destroy()
+            return
+        self.rodada += 1
+        if self.rodada >= 3:
+            self.j["moral"] = eng.clamp(self.j["moral"] - 8, 5, 100)
+            self.resultado = "%s recusou renovar e vai ouvir o mercado." % self.j["nome"]
+            messagebox.showinfo("Renovacao", self.resultado)
+            self.destroy()
+            return
+        self.lb.configure(text="Recusado. O empresario insiste nos %s." % din(self.pedido))
+
+
+class Propostas(Dialogo):
+    def __init__(self, pai, G, ofertas):
+        super().__init__(pai, "Propostas recebidas", 620, 360)
+        self.G, self.ofertas = G, ofertas
+        rotulo(self.corpo, "Propostas desta semana", fonte=FONTE_T).pack(anchor="w")
+        q, self.tv = grade(self.corpo, [("nome", "Jogador", 160, "w"), ("ovr", "Ovr", 45, "center"),
+                                        ("clube", "Interessado", 170, "w"),
+                                        ("of", "Oferta", 100, "e"), ("ped", "Voce pede", 100, "e")],
+                           altura=7)
+        q.pack(fill="both", expand=True, pady=8)
+        for i, (j, cl, v) in enumerate(ofertas):
+            self.tv.insert("", "end", iid=str(i),
+                           values=(j["nome"], j["ovr"], cl["nome"], din(v), din(j["listado"])))
+        f = tk.Frame(self.corpo, bg=TEMA["fundo"])
+        f.pack(fill="x")
+        botao(f, "Aceitar", self.confirmar, cor=TEMA["acao"]).pack(side="right")
+        botao(f, "Recusar todas", self.destroy).pack(side="right", padx=8)
+
+    def confirmar(self):
+        sel = self.tv.selection()
+        if not sel:
+            return
+        j, cl, v = self.ofertas[int(sel[0])]
+        eng.transferir(self.G, j["id"], cl["id"], v)
+        eng.noticia(self.G, "%s vendeu %s ao %s por %s."
+                    % (self.G["clubes"][self.G["clube"]]["nome"], j["nome"], cl["nome"], din(v)))
+        self.resultado = "VENDIDO: %s para o %s por %s." % (j["nome"], cl["nome"], din(v))
+        messagebox.showinfo("Venda", self.resultado)
+        self.destroy()
+
+
+def main():
+    try:
+        app = Brasfut()
+        app.mainloop()
+    except Exception:
+        erro = traceback.format_exc()
+        try:
+            import tkinter.messagebox as mb
+            mb.showerror("BRASFUT", "Deu problema ao abrir o jogo:\n\n" + erro[-1200:])
+        except Exception:
+            print(erro)
+
+
+if __name__ == "__main__":
+    main()
