@@ -635,6 +635,16 @@ ingresso de referência (`eng.preco_referencia`) e a manutenção por lugar.
 Mercado e mesa de compra mostram o valor de mercado ao lado do pedido e o
 porquê do pedido.
 
+**Salário do contrato** (economia, entrega 2). Salário de profissional só
+muda ao contratar (`transferir` grava o de mercado, `salario_de`; a mesa do
+usuário sobrescreve com o negociado), renovar, subir da base e nas regras de
+acesso/rebaixamento. `aplicar_evolucao` e `evoluir_jogadores` só reescrevem a
+bolsa da base. A máquina renovando vai para o mercado. Os pedidos (compra e
+renovação) partem de `salario_referencia` = max(mercado, 85% do atual): quem
+evoluiu barato pede aumento, veterano aceita até 15% de corte. Em três
+temporadas: salário/mercado vai de p10 0,48 a p90 1,16, folha BR cerca de 12%
+menor.
+
 **Capturas.** `ferramentas/capturas.py` sobe uma cópia isolada do jogo
 (motor, api, `web/dist` e cópia do save) na porta 8791, abre o save e
 fotografa as 13 telas (`--avancar N` joga N semanas na cópia antes; `--query` põe parâmetro na URL, para build de teste) em 1280x720, 1366x768, 1440x900, 1920x1080 e
@@ -726,6 +736,8 @@ velha para apagar na mão. `--sim` não trava, porque não grava no save.
   em lote.
 - **`test_extrato.py`** o extrato fecha com o caixa numa temporada inteira,
   compra, venda, obra e infra entram, premiação prevista = paga, telas.
+- **`test_salario_contrato.py`** evolução e virada não apagam o salário,
+  bolsa segue a tabela, pedido parte do mercado, máquina renova no mercado.
 - **`test_tokens.py`** lint visual: cor e fonte só por token, escala de
   seis degraus, sem `--acento`, sem inline fixo no TSX.
 

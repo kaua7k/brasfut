@@ -3918,6 +3918,9 @@ def transferir(G, pid, destino_id, valor):
         if origem:
             origem["base_elenco"] = [p for p in origem.get("base_elenco", []) if p != pid]
         j["categoria"] = "pro"
+    # contrato novo: salario de mercado do overall de hoje. A mesa do usuario
+    # (fechar_compra) grava o negociado logo depois
+    j["salario"] = salario_de(j["ovr"])
     if origem:
         if pid in origem["elenco"]:
             origem["elenco"].remove(pid)
@@ -4192,9 +4195,16 @@ def pedido_efetivo(G: Mundo, j: Jogador) -> Tuple[int, bool]:
     return pedido, intocavel
 
 
+def salario_referencia(j: Jogador) -> int:
+    """De onde parte o que o jogador pede: o mercado do overall de hoje, e
+    nunca menos que 85% do que ja ganha. Quem evoluiu com contrato barato pede
+    aumento; o veterano em queda aceita corte de ate 15%."""
+    return max(salario_de(j["ovr"]), int(j["salario"] * 0.85))
+
+
 def exigencia_salarial(G: Mundo, j: Jogador, destino: Clube, anos: int = 3) -> int:
     """Quanto o jogador quer por mes para assinar com este clube."""
-    base = j["salario"] * 1.12
+    base = salario_referencia(j) * 1.12
     rep_origem = G["clubes"][j["clube"]]["reputacao"] if j["clube"] else 42
     gap = destino["reputacao"] - rep_origem
     if gap < -8:
@@ -4496,7 +4506,7 @@ def exigencia_renovacao(G: Mundo, j: Jogador, anos: int = 3) -> int:
     aceita menos. Estavel dentro da janela: a mesma tela reaberta pede o mesmo.
     """
     c = G["clubes"][j["clube"]]
-    base = j["salario"] * 1.12
+    base = salario_referencia(j) * 1.12
     base *= 1.0 + 0.45 * importancia(G, j)
     if j["idade"] <= 23 and j["pot"] - j["ovr"] >= 8:
         base *= 1.18
@@ -5211,7 +5221,11 @@ def aplicar_evolucao(G: Mundo, j: Jogador, meses: float = 1.0) -> int:
     if j["ovr"] >= j["pot"]:
         j["ovr_frac"] = min(j["ovr_frac"], 0.0)
     if mudou:
-        j["salario"] = salario_devido(j)
+        # salario de profissional e o do contrato: so muda ao contratar ou
+        # renovar (decisao de 2026-09-25). Antes voltava a tabela a cada ponto
+        # de overall e a renovacao durava ate o proximo treino.
+        if da_base(j):
+            j["salario"] = salario_devido(j)
         j["valor"] = valor_de(j["ovr"], j["idade"], j["pot"])
     return mudou
 
@@ -5898,7 +5912,8 @@ def evoluir_jogadores(G: Mundo) -> None:
     for j in list(G["jogadores"].values()):
         j["idade"] += 1
         aplicar_evolucao(G, j, meses=1.5)      # janela sem jogos, ritmo reduzido
-        j["salario"] = salario_devido(j)
+        if da_base(j):
+            j["salario"] = salario_devido(j)      # bolsa; o profissional tem contrato
         j["valor"] = valor_de(j["ovr"], j["idade"], j["pot"])
         j["j"] = j["g"] = j["a"] = j["ca"] = j["cv"] = 0
         j["nota_soma"], j["nota_j"] = 0.0, 0
@@ -5943,9 +5958,11 @@ def fim_de_contrato(G):
             continue
         if c["divisao"] == "EX":
             j["contrato"] = rng.randint(1, 3)
+            j["salario"] = salario_de(j["ovr"])
             continue
         if rng.random() < 0.88:
             j["contrato"] = rng.randint(1, 4)
+            j["salario"] = salario_de(j["ovr"])     # renovou: salario de mercado
         else:
             c["elenco"].remove(j["id"])
             if j["id"] in c.get("escalacao", []):
