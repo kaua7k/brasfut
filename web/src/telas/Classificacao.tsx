@@ -22,7 +22,7 @@ const COLUNAS: Coluna<LinhaClassificacao>[] = [
     largura: 'minmax(150px, 2fr)',
     classe: 'corta',
     render: (l) => (
-      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span className="linha-flex">
         <MarcaZona zona={l.zona} texto={l.zona_texto} />
         {l.clube}
       </span>
@@ -48,7 +48,7 @@ export function Classificacao({ tela, aoTrocarTorneio, ocupado }: Props) {
   return (
     <div className="tela">
       <CabecalhoTela titulo={tela.titulo} sub={tela.subtitulo}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12 }}>
+        <div className="linha-flex larga mt-3">
           <label htmlFor="torneio" className="painel-titulo">Torneio</label>
           <select
             id="torneio"
@@ -63,7 +63,7 @@ export function Classificacao({ tela, aoTrocarTorneio, ocupado }: Props) {
               </option>
             ))}
           </select>
-          {tela.legenda && <span className="sub" style={{ color: 'var(--fraco)' }}>{tela.legenda}</span>}
+          {tela.legenda && <span className="sub txt-fraco">{tela.legenda}</span>}
         </div>
       </CabecalhoTela>
 
@@ -71,8 +71,8 @@ export function Classificacao({ tela, aoTrocarTorneio, ocupado }: Props) {
         // estadual com grupos: uma tabela por grupo, verde = vai ao mata-mata
         <div className="competicao-tabelas">
           {tela.grupos.map((g) => (
-            <section className="painel" style={{ overflow: 'hidden' }} key={g.nome}>
-              <div className="painel-titulo" style={{ padding: '12px 16px 4px' }}>{g.nome}</div>
+            <section className="painel corte" key={g.nome}>
+              <div className="painel-titulo cab-tabela">{g.nome}</div>
               <Grade
                 colunas={COLUNAS}
                 itens={g.linhas}
@@ -84,7 +84,7 @@ export function Classificacao({ tela, aoTrocarTorneio, ocupado }: Props) {
           ))}
         </div>
       ) : (
-        <section className="painel" style={{ overflow: 'hidden' }}>
+        <section className="painel corte">
           <Grade
             colunas={COLUNAS}
             itens={tela.linhas}

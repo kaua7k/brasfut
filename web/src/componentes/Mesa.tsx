@@ -282,7 +282,7 @@ export function Mesa({ tipo, id, aoFechar }: Props) {
                       {n}
                     </button>
                   ))}
-                  <span className="tag-fraco" style={{ fontSize: 11.5 }}>contrato curto sai mais caro</span>
+                  <span className="tag-fraco txt-p">contrato curto sai mais caro</span>
                 </div>
                 <CampoDinheiro
                   rotulo="Salario mensal oferecido"

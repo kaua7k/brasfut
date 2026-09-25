@@ -611,16 +611,7 @@ export function App() {
         />
 
         {(erro || recado) && (
-          <div
-            role="status"
-            style={{
-              padding: '8px 26px',
-              fontSize: 12.5,
-              fontWeight: 600,
-              color: erro ? 'var(--critico)' : 'var(--ok)',
-              borderBottom: '1px solid var(--borda-lateral)',
-            }}
-          >
+          <div role="status" className={erro ? 'recado-app erro' : 'recado-app'}>
             {erro ?? recado}
             {!erro && desfazer && (
               <button type="button" className="bt-fantasma bt-mini bt-desfazer" onClick={desfazer}>

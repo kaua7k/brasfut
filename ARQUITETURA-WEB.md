@@ -523,6 +523,38 @@ semanas), pedido inteiro −19%, saída idêntica.
 - `testes/test_textos.py` é o lint: zero "(s)" e zero "mi" com ponto nas
   fontes e nas telas, zero "Serie ENG", menu e título com o mesmo nome.
 
+## Onda 2
+
+Escopo, ordem e decisões: `docs/three-amigos/2026-09-25-onda-2-decisoes.md`.
+
+**Tokens de CSS.** Todo valor visual mora no `:root` de
+`web/src/estilo/base.css`; fora dele o CSS e o TSX só usam `var(--...)`.
+- *Três cores, três sentidos*: **azul** (`--acao`, fundo com texto branco,
+  5,2:1; `--acao-linha`, texto/borda/traço, 7,2:1) é você e o que você faz:
+  botão principal, aba e alavanca ativas, foco, link, caixa marcada, seu
+  clube na tabela, barra de progresso. **Dourado** (`--conquista`) é marca e
+  conquista: escudo, troféu, título, reputação, overall da ficha. **Âmbar**
+  (`--atencao`) é só atenção. O antigo `--acento` fazia os três papéis e
+  saiu.
+- *Fonte*: seis degraus (`--fs-mini` 11, `--fs-p` 12, `--fs-m` 13,
+  `--fs-base` 14, `--fs-g` 17, `--fs-gg` 22). Eram 18 tamanhos; o menor
+  rótulo subiu de 10 para 11px.
+- *Inline*: `style={{}}` só para valor que vem do dado (posição no campo,
+  largura de barra). O resto virou classe, e as utilitárias (`.mt-*`,
+  `.mb-*`, `.txt-*`, `.painel.enxuto`...) ficam no fim do `base.css` para
+  vencer a classe base de mesma especificidade.
+- `testes/test_tokens.py` é o lint: zero hex, rgba ou `font-size` em px fora
+  do `:root`, no máximo seis degraus de fonte, todo `var()` usado existe,
+  nenhum `--acento`, nenhum inline fixo no TSX.
+
+**Capturas.** `ferramentas/capturas.py` sobe uma cópia isolada do jogo
+(motor, api, `web/dist` e cópia do save) na porta 8791, abre o save e
+fotografa as 13 telas em 1280x720, 1366x768, 1440x900, 1920x1080 e
+2560x1440 com o Edge headless (`--timeout` porque a Escalação tem animação
+infinita e segurava o Edge). `comparar <antes> <depois>` dá a porcentagem de
+pixels diferentes por captura, lendo o PNG só com `zlib`. Rode `npm run
+build` antes: a captura usa `web/dist`.
+
 ## Receita para migrar a próxima tela
 
 Exemplo com `tela_elenco` (brasfut_app.py:1744):
@@ -594,14 +626,13 @@ velha para apagar na mão. `--sim` não trava, porque não grava no save.
   clube, prazo absoluto, barra de forças e os textos corrigidos.
 - **`test_continentais.py`** grupos da Libertadores e da Sul-Americana até o
   playoff e as oitavas, e save antigo ganhando os clubes que faltam.
+- **`test_tokens.py`** lint visual: cor e fonte só por token, escala de
+  seis degraus, sem `--acento`, sem inline fixo no TSX.
 
 Nenhum teste grava no save real: `apoio.py` intercepta `eng.salvar` e falha na hora se alguém tentar (a comparação por hash dava alarme falso com o jogo aberto).
-A interface (React) ainda é conferida à mão. Roteiro que funciona: copiar
-`api/`, `brasfut.py`, `server.py`, `web/dist` e uma cópia do save para uma pasta
-temporária, subir com `BRASFUT_PORTA=8791 python server.py --sem-abrir`,
-preparar o estado por `curl` na API e fotografar com
-`msedge --headless=new --user-data-dir=<pasta nova> --screenshot=... URL/#tela`
-(o arquivo aparece alguns segundos depois de o processo sair).
+A interface (React) ainda é conferida à mão, com `ferramentas/capturas.py`
+(ver *Onda 2*): `tirar` antes e depois da mudança, `comparar` para achar as
+telas que mexeram, e olhar essas.
 
 ## Pontas soltas conhecidas
 

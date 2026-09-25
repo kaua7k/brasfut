@@ -55,8 +55,8 @@ export function Carreira({ tela, ocupado, aoPedirDemissao, aoResponderProposta }
       </section>
 
       {tela.propostas.length > 0 && (
-        <section className="painel" style={{ padding: '14px 18px' }}>
-          <div className="painel-titulo" style={{ marginBottom: 8 }}>
+        <section className="painel enxuto">
+          <div className="painel-titulo mb-2">
             Propostas de emprego
           </div>
           {tela.propostas.map((o) => (
@@ -65,12 +65,12 @@ export function Carreira({ tela, ocupado, aoPedirDemissao, aoResponderProposta }
         </section>
       )}
 
-      <section className="painel" style={{ padding: '14px 18px' }}>
-        <div className="painel-titulo" style={{ marginBottom: 10 }}>
+      <section className="painel enxuto">
+        <div className="painel-titulo mb-3">
           Sala de trofeus
         </div>
         {trofeus.length === 0 ? (
-          <div className="vazio" style={{ padding: 0 }}>
+          <div className="vazio justo">
             Nenhuma taca ainda. Estadual, Copa, Serie, continental: tudo que voce ganhar fica aqui para sempre.
           </div>
         ) : (
@@ -86,8 +86,8 @@ export function Carreira({ tela, ocupado, aoPedirDemissao, aoResponderProposta }
         )}
       </section>
 
-      <section className="painel" style={{ padding: '14px 18px' }}>
-        <div className="painel-titulo" style={{ marginBottom: 10 }}>
+      <section className="painel enxuto">
+        <div className="painel-titulo mb-3">
           Clubes dirigidos
         </div>
         {passagens.map((p, i) => (
@@ -188,8 +188,8 @@ function SairDoClube({
 }) {
   const [certeza, setCerteza] = useState(false)
   return (
-    <section className="painel faixa critico" style={{ marginTop: 4 }}>
-      <div style={{ minWidth: 0 }}>
+    <section className="painel faixa critico mt-1">
+      <div className="encolhe">
         <div className="faixa-titulo">Pedir demissao</div>
         <div className="faixa-detalhe">
           {certeza

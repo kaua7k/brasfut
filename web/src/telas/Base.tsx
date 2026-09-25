@@ -77,7 +77,7 @@ export function Base(props: Props) {
   return (
     <div className="tela">
       <CabecalhoTela titulo={tela.titulo} sub={tela.subtitulo} metricas={tela.metricas} />
-      <div className="alavanca" role="tablist" style={{ marginBottom: 12 }}>
+      <div className="alavanca mb-3" role="tablist">
         {abas.map(([id, rotulo]) => (
           <button
             key={id}
@@ -151,8 +151,7 @@ function Garotos({ tela, ocupado, aoAbrirFicha, aoAgir, aoAlternarFoco }: Props)
         </button>
         <button
           type="button"
-          className="bt-acao"
-          style={{ height: 36, borderRadius: 'var(--raio-p)', padding: '0 16px' }}
+          className="bt-acao medio"
           title={porque([[nenhum, MARQUE], [ocupado, AGUARDE]])}
           disabled={nenhum || ocupado}
           onClick={() => aoAgir('subir', ids)}
@@ -183,11 +182,11 @@ function Peneira({ tela, ocupado, aoPeneira, aoCandidato }: Props) {
     : `Desligada. Escolha onde procurar: a cada ${pen.a_cada} semanas chegam candidatos, e cada um espera ${pen.vale} semanas pela sua resposta.`
   return (
     <>
-      <section className="painel" style={{ padding: '14px 18px' }}>
-        <div className="painel-titulo" style={{ marginBottom: 6 }}>
+      <section className="painel enxuto">
+        <div className="painel-titulo mb-2">
           Peneira
         </div>
-        <p className="tag-fraco" style={{ margin: '0 0 12px' }}>
+        <p className="tag-fraco m-0 mb-3">
           {estado}
         </p>
         <div className="regioes-peneira" role="radiogroup" aria-label="Regiao da peneira">
@@ -223,8 +222,7 @@ function Peneira({ tela, ocupado, aoPeneira, aoCandidato }: Props) {
           )}
           <button
             type="button"
-            className="bt-acao"
-            style={{ height: 36, borderRadius: 'var(--raio-p)' }}
+            className="bt-acao medio"
             title={porque([[ocupado, AGUARDE], [!regiao, 'Escolha uma regiao']])}
             disabled={ocupado || !regiao}
             onClick={() => aoPeneira(regiao, foco || null)}
@@ -234,12 +232,12 @@ function Peneira({ tela, ocupado, aoPeneira, aoCandidato }: Props) {
         </div>
       </section>
 
-      <section className="painel" style={{ padding: '14px 18px' }}>
-        <div className="painel-titulo" style={{ marginBottom: 8 }}>
+      <section className="painel enxuto">
+        <div className="painel-titulo mb-2">
           Candidatos · {tela.vagas_livres === 1 ? '1 vaga livre' : `${tela.vagas_livres} vagas livres`} na base
         </div>
         {tela.candidatos.length === 0 ? (
-          <div className="vazio" style={{ padding: 0 }}>
+          <div className="vazio justo">
             Nenhum candidato esperando. Com a peneira ligada, eles chegam a cada {pen.a_cada} semanas.
           </div>
         ) : (
@@ -277,12 +275,12 @@ function Peneira({ tela, ocupado, aoPeneira, aoCandidato }: Props) {
 // ---------------------------------------------------------------- revelados
 function Revelados({ tela }: { tela: TelaBase }) {
   return (
-    <section className="painel" style={{ padding: '14px 18px' }}>
-      <div className="painel-titulo" style={{ marginBottom: 8 }}>
+    <section className="painel enxuto">
+      <div className="painel-titulo mb-2">
         Revelacoes da academia
       </div>
       {tela.revelados.length === 0 ? (
-        <div className="vazio" style={{ padding: 0 }}>
+        <div className="vazio justo">
           Ninguem subiu da base ainda. Quem subir ao profissional fica registrado aqui.
         </div>
       ) : (

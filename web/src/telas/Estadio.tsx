@@ -79,7 +79,7 @@ export function Estadio({ tela, ocupado, aoAgir }: Props) {
             Aplicar preco
           </button>
           {!precoValido && preco !== '' && (
-            <span className="linha-critica" style={{ fontSize: 12 }}>
+            <span className="linha-critica txt-p">
               fora do limite de R$ {tela.preco_min} a R$ {tela.preco_max}
             </span>
           )}
@@ -122,7 +122,7 @@ export function Estadio({ tela, ocupado, aoAgir }: Props) {
             >
               Contratar obra
             </button>
-            <span className={lugaresValido && !cabe ? 'linha-critica' : 'tag-fraco'} style={{ fontSize: 12 }}>
+            <span className={`${lugaresValido && !cabe ? 'linha-critica' : 'tag-fraco'} txt-p`}>
               {previa}
             </span>
           </form>

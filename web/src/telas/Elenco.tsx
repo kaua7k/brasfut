@@ -206,7 +206,7 @@ export function Elenco({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
         </div>
 
         {!tela.mercado_aberto && (
-          <div className="barra-acoes" style={{ paddingTop: 0 }}>
+          <div className="barra-acoes colada">
             <span className="aviso">
               Janela fechada: da para renovar e rescindir, nao para vender ou emprestar.
             </span>

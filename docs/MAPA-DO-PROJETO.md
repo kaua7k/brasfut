@@ -43,7 +43,8 @@ Atas de decisão de roadmap: `docs/three-amigos/`.
 | `web/src/telas/*.tsx` | 14 arquivos | Uma tela por arquivo (Painel, Elenco, Escalação, Mercado, Financas, etc.) | Ao mexer numa tela específica |
 | `web/src/componentes/*.tsx` | 14 arquivos | Diálogos e peças reusáveis (Mesa, Grade, Campo, Ficha...) | Componente compartilhado entre telas |
 | `web/src/api.ts`, `tipos.ts`, `formato.ts` | — | Cliente HTTP, tipos TS espelhando os DTOs, formatação (dinheiro, número) | Contrato front↔back |
-| `testes/*.py` | 14 arquivos | `unittest` da stdlib, sem dependência externa. `cd testes && python -m unittest -v` (~20s) | Rodar antes de qualquer PR |
+| `testes/*.py` | 15 arquivos | `unittest` da stdlib, sem dependência externa. `cd testes && python -m unittest -v` (~20s) | Rodar antes de qualquer PR |
+| `ferramentas/capturas.py` | — | Capturas das 13 telas em 5 resoluções (Edge headless, cópia isolada) e comparação por pixel | Antes/depois de mexer em CSS ou tela |
 | `ferramentas/importar_elencos.py` | — | Importa elencos reais (football-data.org / API-Football) | Atualização de temporada real |
 | `.backup-pre-patch/` | — | Snapshots do motor pré-patch (histórico, não código ativo) | Raramente |
 
@@ -94,8 +95,8 @@ decisões em `docs/three-amigos/2026-09-25-onda-2-decisoes.md`):
 - Tela da partida: resumo compacto no retorno do avanço (placar, gols,
   cartões, posse, "Ver detalhes"); histórico curto de partidas do clube;
   normalizar chaves de `notas` no save.
-- Tokens de CSS (paleta/escala únicas, fim dos hex soltos e inline styles)
-  — só depois de ter baseline visual da Onda 1.
+- ~~Tokens de CSS~~ — feito: azul = ação, dourado = conquista, âmbar =
+  atenção; 6 degraus de fonte; inline só dinâmico (`test_tokens.py`).
 - Somar `nota_soma` e prêmios do ano/seleção.
 - Confiança da diretoria semanal com causa/tendência; IA também demite
   técnico.
@@ -111,7 +112,7 @@ decisões em `docs/three-amigos/2026-09-25-onda-2-decisoes.md`):
   mercado disputado, olheiros, Copinha, história do clube.
 
 **Perguntas em aberto**: limite semanal de livres contratados pela IA; cor
-da ação primária (decidir no item de tokens da Onda 2). Histórico = 10
+da ação primária decidida: azul. Histórico = 10
 partidas, demissão em qualquer semana após aviso e IA também usando
 instruções condicionais foram decididos em 2026-09-25.
 

@@ -33,7 +33,7 @@ export function Infra({ tela, ocupado, aoInvestir }: Props) {
             </div>
 
             {it.custo === null ? (
-              <div style={{ fontSize: 12.5, fontWeight: 700, color: '#a78bfa' }}>nivel maximo</div>
+              <div className="txt-p negrito txt-titular">nivel maximo</div>
             ) : (
               <button
                 type="button"

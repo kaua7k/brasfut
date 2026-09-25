@@ -231,7 +231,7 @@ export function Escalacao({ tela, ocupado, mercadoPronto, aoAbrirFicha, aoAgir, 
         aria-live="polite"
       >
         <div className="faixa-icone">{iconeDeEstado(tela.prontidao.estado)}</div>
-        <div style={{ minWidth: 0 }}>
+        <div className="encolhe">
           <div className="faixa-titulo">{tela.prontidao.titulo}</div>
           <div className="faixa-detalhe">{tela.prontidao.detalhe}</div>
           {saida && !saida.alternativa && (
@@ -416,7 +416,7 @@ export function Escalacao({ tela, ocupado, mercadoPronto, aoAbrirFicha, aoAgir, 
       </section>
 
       {editando && (
-        <section className="painel" style={{ padding: 14 }} aria-label="Editar formacao">
+        <section className="painel compacto" aria-label="Editar formacao">
           <EditorFormacao
             inicial={tela.contagem}
             limites={tela.limites}
@@ -453,13 +453,13 @@ export function Escalacao({ tela, ocupado, mercadoPronto, aoAbrirFicha, aoAgir, 
             <span>
               <i className="disco-mini">77</i> overall
             </span>
-            <span style={{ color: 'var(--atencao)' }}>
+            <span className="txt-atencao">
               <i className="ponto" /> custa rendimento
             </span>
-            <span style={{ color: 'var(--critico)' }}>
+            <span className="txt-critico">
               <i className="ponto" /> cobra caro
             </span>
-            <span style={{ color: 'var(--acento)' }}>
+            <span className="txt-acao">
               <i className="ponto cheio" /> marcado
             </span>
           </div>

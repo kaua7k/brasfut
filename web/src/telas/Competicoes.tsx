@@ -37,7 +37,7 @@ const COLUNAS: Coluna<LinhaClassificacao>[] = [
     largura: '52px',
     classe: 'num',
     render: (l) => (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      <span className="linha-inline">
         <MarcaZona zona={l.zona} texto={l.zona_texto} />
         {l.pos}
       </span>
@@ -105,11 +105,11 @@ function Pontos({ d }: { d: DetalhePontos }) {
           {d.grupos ? (
             d.grupos.map((g, i) => (
               <section className="painel painel-lista" key={g.nome}>
-                <div className="painel-cab" style={{ padding: '12px 16px 4px' }}>
+                <div className="painel-cab cab-tabela">
                   <span className="painel-titulo">
                     {d.fase1} · {g.nome}
                   </span>
-                  {i === 0 && <span className="tag-fraco" style={{ fontSize: 12 }}>{d.legenda}</span>}
+                  {i === 0 && <span className="tag-fraco txt-p">{d.legenda}</span>}
                 </div>
                 <Grade
                   colunas={COLUNAS}
@@ -122,9 +122,9 @@ function Pontos({ d }: { d: DetalhePontos }) {
             ))
           ) : (
             <section className="painel painel-lista">
-              <div className="painel-cab" style={{ padding: '12px 16px 4px' }}>
+              <div className="painel-cab cab-tabela">
                 <span className="painel-titulo">{d.fase1 ?? 'Classificacao'}</span>
-                <span className="tag-fraco" style={{ fontSize: 12 }}>{d.legenda}</span>
+                <span className="tag-fraco txt-p">{d.legenda}</span>
               </div>
               <Grade
                 colunas={COLUNAS}
@@ -215,7 +215,7 @@ function Fase({ f }: { f: FaseCopa }) {
   const visiveis = aberta ? f.jogos : meus
   return (
     <section className={`painel copa-fase ${f.estado}`}>
-      <div className="painel-cab" style={{ padding: '12px 16px 6px' }}>
+      <div className="painel-cab cab-tabela">
         <span className="painel-titulo">
           {f.nome} · semana {f.semana}
           {f.nota
@@ -246,7 +246,7 @@ function Situacao({ s, campeao }: { s: NonNullable<DetalheCopa['situacao']>; cam
       {campeao && (
         <>
           <div className="espaco" />
-          <span className="tag-top" style={{ fontWeight: 700 }}>Campeao: {campeao}</span>
+          <span className="tag-top negrito">Campeao: {campeao}</span>
         </>
       )}
     </section>
@@ -279,7 +279,7 @@ function Grupos({ grupos, titulo, nota }: { grupos: GrupoCopa[]; titulo: string;
   const visiveis = todos || !meu ? grupos : [meu]
   return (
     <section className="painel copa-grupos">
-      <div className="painel-cab" style={{ padding: '12px 16px 6px' }}>
+      <div className="painel-cab cab-tabela">
         <span className="painel-titulo">{titulo}</span>
         {meu && (
           <button type="button" className="bt-fantasma bt-mini" aria-expanded={todos} onClick={() => setTodos(!todos)}>
@@ -291,7 +291,7 @@ function Grupos({ grupos, titulo, nota }: { grupos: GrupoCopa[]; titulo: string;
         {visiveis.map((g) => (
           <div key={g.nome} className="grupo-copa">
             {grupos.length > 1 && (
-              <div className="painel-titulo" style={{ padding: '4px 16px' }}>{g.nome}</div>
+              <div className="painel-titulo cab-grupo">{g.nome}</div>
             )}
             <Grade
               colunas={COLUNAS}
@@ -318,7 +318,7 @@ function Grupos({ grupos, titulo, nota }: { grupos: GrupoCopa[]; titulo: string;
         ))}
       </div>
       {nota && (
-        <div className="tag-fraco" style={{ padding: '6px 16px 12px' }}>
+        <div className="tag-fraco rodape-tabela">
           {nota}
         </div>
       )}
@@ -352,7 +352,7 @@ export function Competicoes({ tela, ocupado, aoTrocar }: Props) {
             <span className={`aba-estado${c.vivo ? '' : ' fora'}`}>{c.estado}</span>
           </button>
         ))}
-        <label className="campo-rotulo" style={{ marginLeft: 'auto' }}>
+        <label className="campo-rotulo empurra">
           Outros torneios
           <select
             className="seletor"

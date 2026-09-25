@@ -72,7 +72,7 @@ export function DialogoVitrine({ ids, ocupado, aoConfirmar, aoFechar }: Props) {
         </p>
 
         <div className="painel-titulo">Preco como percentual do valor de mercado</div>
-        <div className="atalhos" style={{ margin: '6px 0 12px' }}>
+        <div className="atalhos mt-2 mb-3">
           {PERCENTUAIS.map((p) => (
             <button key={p.pct} type="button" className="bt-fantasma bt-mini" onClick={() => aplicarPct(p.pct)}>
               {p.rotulo}
@@ -124,7 +124,7 @@ export function DialogoVitrine({ ids, ocupado, aoConfirmar, aoFechar }: Props) {
           </button>
         </div>
 
-        <div className="mesa-linha tag-fraco" style={{ marginTop: 10 }}>
+        <div className="mesa-linha tag-fraco mt-3">
           pedido somado {reais(total)} · folha que sairia {reais(folha)} por mes
         </div>
         {invalidos.length > 0 && (

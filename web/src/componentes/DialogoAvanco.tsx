@@ -205,8 +205,8 @@ export function DialogoAvanco({ aoFechar, aoAbrirEscalacao }: Props) {
 
         {quebrado && (
           <div className="mesa-bloco avanco-quebrado">
-            <div className="linha-critica" style={{ whiteSpace: 'pre-line' }}>{quebrado}</div>
-            <div className="modal-acoes" style={{ justifyContent: 'flex-start' }}>
+            <div className="linha-critica pre-linha">{quebrado}</div>
+            <div className="modal-acoes a-esquerda">
               <button type="button" className="bt-fantasma" onClick={aoAbrirEscalacao}>
                 Abrir escalacao
               </button>

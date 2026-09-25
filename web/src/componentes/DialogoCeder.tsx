@@ -93,7 +93,7 @@ export function DialogoCeder({ ids, ocupado, aoConfirmar, aoFechar }: Props) {
           </p>
         )}
         {linhas !== null && linhas.length > 0 && (
-          <section className="painel" style={{ overflow: 'hidden' }}>
+          <section className="painel corte">
             <Grade
               colunas={COLUNAS}
               itens={linhas.map((l, i) => ({ ...l, indice: i }))}
@@ -104,7 +104,7 @@ export function DialogoCeder({ ids, ocupado, aoConfirmar, aoFechar }: Props) {
             />
           </section>
         )}
-        <div className="mesa-linha tag-fraco" style={{ marginTop: 10 }}>
+        <div className="mesa-linha tag-fraco mt-3">
           {plural(escolhidas.length, 'jogador', 'jogadores')} {escolhidas.length === 1 ? 'sairia' : 'sairiam'}, aliviando {reais(alivio)} por mes na folha · marcar
           outra linha do mesmo jogador troca o clube escolhido
         </div>

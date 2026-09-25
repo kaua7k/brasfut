@@ -24,7 +24,7 @@ export function Financas({ tela }: { tela: TelaFinancas }) {
     <div className="tela">
       <CabecalhoTela titulo={tela.titulo} sub="entra e sai, por semana" />
 
-      <section className="painel" style={{ overflow: 'hidden' }}>
+      <section className="painel corte">
         {tela.linhas.map((l) => (
           <div className={`linha-valor${l.destaque ? ' total' : ''}`} key={l.nome}>
             <span className="rot">{l.nome}</span>
@@ -43,7 +43,7 @@ export function Financas({ tela }: { tela: TelaFinancas }) {
           </div>
         </div>
       </section>
-      <section className="painel" style={{ overflow: 'hidden' }}>
+      <section className="painel corte">
         {tela.mensal.linhas.map((l) => (
           <div className={`linha-valor${l.destaque ? ' total' : ''}`} key={l.nome}>
             <span className="rot">{l.nome}</span>
@@ -62,7 +62,7 @@ export function Financas({ tela }: { tela: TelaFinancas }) {
       </section>
 
       <div className="painel-titulo">Maiores salarios</div>
-      <section className="painel" style={{ overflow: 'hidden' }}>
+      <section className="painel corte">
         <Grade colunas={COLUNAS} itens={tela.maiores} idDe={(j) => j.id} vazio="Elenco vazio." />
       </section>
     </div>

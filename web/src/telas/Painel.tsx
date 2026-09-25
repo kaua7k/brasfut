@@ -82,7 +82,7 @@ function FaixaProntidao({
   return (
     <section className={`painel faixa ${prontidao.estado}`}>
       <div className="faixa-icone">{iconeDeEstado(prontidao.estado)}</div>
-      <div style={{ minWidth: 0 }}>
+      <div className="encolhe">
         <div className="faixa-titulo">{prontidao.titulo}</div>
         <div className="faixa-detalhe">{prontidao.detalhe}</div>
       </div>
@@ -114,7 +114,7 @@ function FaixaContratos({
   return (
     <section className={`painel faixa ${aviso.estado}`}>
       <div className="faixa-icone">{iconeDeEstado(aviso.estado)}</div>
-      <div style={{ minWidth: 0 }}>
+      <div className="encolhe">
         <div className="faixa-titulo">{aviso.texto}</div>
         <div className="faixa-detalhe">
           {nomes}
@@ -142,7 +142,7 @@ function FaixaProposta({
   return (
     <section className="painel faixa atencao">
       <div className="faixa-icone">{iconeDeEstado('atencao')}</div>
-      <div style={{ minWidth: 0 }}>
+      <div className="encolhe">
         <div className="faixa-titulo">
           O {proposta.clube} ({proposta.liga}, REP {proposta.reputacao}) quer voce como tecnico
         </div>
@@ -204,10 +204,10 @@ function FaixaResultados({ resultados }: { resultados: Resultados }) {
 
         <div className="espaco" />
 
-        <div style={{ textAlign: 'right' }}>
+        <div className="a-direita">
           {/* a contagem e a real (no comeco do ano sao menos de 5) e a seta diz
               o sentido: o mais antigo a esquerda, o ultimo jogo a direita */}
-          <div className="painel-titulo" style={{ marginBottom: 4 }}>
+          <div className="painel-titulo mb-1">
             {forma.length === 1 ? 'Ultimo jogo' : `Ultimos ${forma.length || 5}`}
             {forma.length > 1 && <span className="tag-fraco"> · antigo → recente</span>}
           </div>
@@ -238,10 +238,10 @@ function FaixaResultados({ resultados }: { resultados: Resultados }) {
 function CardProximo({ proximo, meuClube }: { proximo: Proximo; meuClube: string }) {
   const temAdversario = proximo.tipo === 'jogo'
   return (
-    <section className="painel" style={{ padding: '16px 22px' }}>
-      <div className="painel-cab" style={{ marginBottom: 14 }}>
+    <section className="painel folgado">
+      <div className="painel-cab mb-3">
         <span className="painel-titulo">Proximo jogo</span>
-        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--acento)' }}>
+        <span className="txt-mini negrito txt-acao">
           {proximo.legenda}
         </span>
       </div>
@@ -272,7 +272,7 @@ function CardProximo({ proximo, meuClube }: { proximo: Proximo; meuClube: string
       </div>
 
       {proximo.extras > 0 && (
-        <div style={{ fontSize: 11, color: 'var(--atencao)', marginTop: 10, textAlign: 'center' }}>
+        <div className="txt-mini txt-atencao mt-3 a-centro">
           +{plural(proximo.extras, 'jogo')} nesta semana
         </div>
       )}
@@ -329,10 +329,9 @@ function CardEscalacao({
   const ressalvas = escalacao.jogadores.filter((j) => j.estado !== 'ok')
   return (
     <section
-      className="painel"
-      style={{ padding: '16px 22px', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+      className="painel folgado estica"
     >
-      <div className="painel-cab" style={{ marginBottom: 12 }}>
+      <div className="painel-cab mb-3">
         <span className="painel-titulo">
           Escalacao · {escalacao.formacao} · {escalacao.tatica}
         </span>
@@ -361,9 +360,9 @@ function CardEscalacao({
       <Campo jogadores={escalacao.jogadores} vagasAbertas={escalacao.vagas_abertas} />
 
       <div className="legenda-campo">
-        <span><i className="ponto" style={{ color: 'var(--txt)' }} /> em ordem</span>
-        <span style={{ color: 'var(--atencao)' }}><i className="ponto" /> custa rendimento</span>
-        <span style={{ color: 'var(--critico)' }}><i className="ponto" /> cobra caro</span>
+        <span><i className="ponto txt-normal" /> em ordem</span>
+        <span className="txt-atencao"><i className="ponto" /> custa rendimento</span>
+        <span className="txt-critico"><i className="ponto" /> cobra caro</span>
       </div>
 
       {/* o campo mostra a forma; a lista mostra o preco. So aparece quem tem
@@ -375,7 +374,7 @@ function CardEscalacao({
           Ninguem improvisado, desgastado ou pendurado no XI.
         </div>
       ) : (
-        <div className="xi-lista" style={{ marginTop: 10 }}>
+        <div className="xi-lista mt-3">
           {ressalvas.map((j) => (
             <div className="xi-linha" key={j.id}>
               <span className={`xi-vaga ${j.improvisado ? j.estado : ''}`}>
@@ -392,7 +391,7 @@ function CardEscalacao({
           {escalacao.vagas_abertas > 0 && (
             <div className="xi-linha">
               <span className="xi-vaga critico">---</span>
-              <span className="xi-nome" style={{ color: 'var(--critico)' }}>
+              <span className="xi-nome txt-critico">
                 {plural(escalacao.vagas_abertas, 'vaga')} sem jogador apto
               </span>
               <span className="xi-num">--</span>
@@ -409,9 +408,9 @@ function CardEscalacao({
 // ------------------------------------------------------------------- objetivo
 function CardObjetivo({ objetivo }: { objetivo: Objetivo }) {
   return (
-    <section className="painel" style={{ padding: '14px 18px' }}>
+    <section className="painel enxuto">
       <div className="painel-titulo">Objetivo da temporada</div>
-      <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4 }}>{objetivo.texto}</div>
+      <div className="txt-m seminegrito mt-1">{objetivo.texto}</div>
 
       <div className="objetivo-barra">
         <div className={`cheio ${objetivo.estado}`} style={{ width: `${objetivo.progresso}%` }} />
@@ -436,8 +435,8 @@ function CardObjetivo({ objetivo }: { objetivo: Objetivo }) {
 // --------------------------------------------------------------------- tabela
 function CardTabela({ tabela }: { tabela: Tabela }) {
   return (
-    <section className="painel" style={{ padding: '16px 0 4px' }}>
-      <div className="painel-titulo" style={{ padding: '0 18px 12px' }}>{tabela.titulo}</div>
+    <section className="painel em-lista">
+      <div className="painel-titulo cab-lista">{tabela.titulo}</div>
       {tabela.vazio ? (
         <div className="vazio">{tabela.vazio}</div>
       ) : (
@@ -473,8 +472,8 @@ function CardTabela({ tabela }: { tabela: Tabela }) {
 // ------------------------------------------------------------------ destaques
 function CardDestaques({ destaques }: { destaques: Destaque[] }) {
   return (
-    <section className="painel" style={{ padding: '16px 18px' }}>
-      <div className="painel-titulo" style={{ marginBottom: 12 }}>Destaques do elenco</div>
+    <section className="painel enxuto">
+      <div className="painel-titulo mb-3">Destaques do elenco</div>
       <div className="destaques">
         {destaques.map((d) => (
           <div className="destaque" key={d.id}>
@@ -493,10 +492,9 @@ function CardDestaques({ destaques }: { destaques: Destaque[] }) {
 function CardNoticias({ noticias }: { noticias: Noticia[] }) {
   return (
     <section
-      className="painel"
-      style={{ padding: '16px 0', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+      className="painel em-lista estica"
     >
-      <div className="painel-cab" style={{ padding: '0 18px 10px' }}>
+      <div className="painel-cab cab-lista">
         <span className="painel-titulo">Noticias do clube</span>
       </div>
       <div className="noticias">
@@ -521,8 +519,8 @@ function CardNoticias({ noticias }: { noticias: Noticia[] }) {
 // ------------------------------------------------------------- pelo mundo
 function CardMundo({ mundo, aoIr }: { mundo: Manchete[]; aoIr: (destino: string) => void }) {
   return (
-    <section className="painel" style={{ padding: '16px 0' }}>
-      <div className="painel-cab" style={{ padding: '0 18px 10px' }}>
+    <section className="painel em-lista">
+      <div className="painel-cab cab-lista">
         <span className="painel-titulo">Pelo mundo</span>
         <div className="espaco" />
         <button type="button" className="bt-link" onClick={() => aoIr('noticias')}>
