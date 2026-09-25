@@ -688,6 +688,8 @@ export interface FichaJogador {
   carreira: { j: number; g: number; tit: number }
   /** premios do ano que o jogador ganhou, do mais novo para o mais velho */
   premios: string[]
+  /** as ultimas causas da moral, da mais nova para a mais velha */
+  moral_causas: { texto: string; estado: string; quando: string }[]
   contrato: {
     anos: number
     salario: string

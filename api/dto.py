@@ -1165,12 +1165,24 @@ def ficha(pid):
         ],
         "temporada": {"j": j["j"], "g": j["g"], "a": j["a"], "ca": j["ca"], "cv": j["cv"]},
         "carreira": {"j": j["car_j"], "g": j["car_g"], "tit": j["car_tit"]},
+        # por que a moral esta onde esta: as ultimas causas, da mais nova
+        "moral_causas": [{"texto": "%+d: %s" % (d, causa), "estado": "ok" if d > 0 else "critico",
+                          "quando": _quando(G, sem)}
+                         for sem, d, causa in reversed(j.get("moral_hist", []))],
         "premios": ["%s %d" % (p["nome"], p["temporada"]) for p in reversed(j.get("premios", []))],
         "contrato": {"anos": j["contrato"], "salario": eng.din(j["salario"]),
                      "valor": eng.din(j["valor"]),
                      "emprestado_aqui": bool(j.get("dono")),
                      "emp_pct": j.get("emp_pct", 100)},
     }
+
+
+def _quando(G, sem):
+    """Semana absoluta em texto relativo: 'nesta semana', 'ha 3 semanas'."""
+    atras = eng.semana_absoluta(G) - int(sem)
+    if atras <= 0:
+        return "nesta semana"
+    return "ha %s" % eng.plural(atras, "semana")
 
 
 # ------------------------------------------------------------------ escalacao

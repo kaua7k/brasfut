@@ -2735,8 +2735,9 @@ def simular(G, casa_id, fora_id, comp="liga", neutro=False):
                 j["nota_soma"] = round(j.get("nota_soma", 0.0) + notas[pid], 1)
                 j["nota_j"] = j.get("nota_j", 0) + 1
 
-    aplicar_moral(G, list(jogaram_c), gc, gf)
-    aplicar_moral(G, list(jogaram_f), gf, gc)
+    classico = eh_classico(G, casa_id, fora_id)
+    aplicar_moral(G, list(jogaram_c), gc, gf, fora["nome"], classico)
+    aplicar_moral(G, list(jogaram_f), gf, gc, casa["nome"], classico)
     eventos.sort(key=lambda e: e[0])
     return {"casa": casa_id, "fora": fora_id, "gc": gc, "gf": gf,
             "pub": pub, "renda": renda, "eventos": eventos, "comp": comp,
@@ -2744,21 +2745,50 @@ def simular(G, casa_id, fora_id, comp="liga", neutro=False):
             "xi": {"casa": jogaram_c, "fora": jogaram_f}}
 
 
-def aplicar_moral(G, esc, pro, contra):
+MORAL_HIST = 5          # causas de moral guardadas por jogador (so do meu clube)
+PESO_CLASSICO_MORAL = 2  # vitoria ou derrota em classico mexe o dobro na moral
+
+
+def anotar_moral(G: Mundo, j: Jogador, delta: int, causa: str) -> None:
+    """Guarda a causa da mudanca de moral, para a ficha explicar o numero.
+    So para quem esta no meu clube: o resto do mundo nao aparece em lugar
+    nenhum e encheria o save."""
+    if not delta or j.get("clube") != G.get("clube"):
+        return
+    hist = j.setdefault("moral_hist", [])
+    hist.append([semana_absoluta(G), int(delta), causa])
+    del hist[:-MORAL_HIST]
+
+
+def mexer_moral(G: Mundo, j: Jogador, delta: int, causa: str) -> None:
+    antes = j["moral"]
+    j["moral"] = clamp(j["moral"] + delta, 5, 100)
+    anotar_moral(G, j, j["moral"] - antes, causa)
+
+
+def aplicar_moral(G, esc, pro, contra, rival=None, classico=False):
     if pro > contra:
-        dm, df = 3, 3
+        dm, df, fato = 3, 3, "vitoria"
     elif pro == contra:
-        dm, df = 1, 1
+        dm, df, fato = 1, 1, "empate"
     else:
-        dm, df = -3, -3
+        dm, df, fato = -3, -3, "derrota"
+    if classico and pro != contra:
+        dm *= PESO_CLASSICO_MORAL
+    causa = "%s %s%s" % (fato, "no classico contra o " if classico else
+                         {"vitoria": "sobre o ", "empate": "com o ", "derrota": "para o "}[fato],
+                         rival or "adversario")
+    causa += " (%d x %d)" % (pro, contra)
     for pid in esc:
         j = G["jogadores"][pid]
+        antes = j["moral"]
         m = j["moral"] + dm + rng.randint(-2, 2)
         f = j["forma"] + df + rng.randint(-6, 6)
         # puxao de volta para a media: sem isto, moral vira espiral divergente e
         # o campeonato passa a separar times por historico em vez de por elenco.
         j["moral"] = int(round(clamp(m + 0.12 * (65 - m), 5, 100)))
         j["forma"] = int(round(clamp(f + 0.12 * (65 - f), 5, 100)))
+        anotar_moral(G, j, j["moral"] - antes, causa)
 
 
 def penaltis(G: Mundo, a: int, b: int, comp: str = "liga") -> int:
@@ -4148,7 +4178,7 @@ def transferir(G, pid, destino_id, valor):
     j["dono"] = None
     j["emp_pct"] = 100
     j["emp_opcao"] = 0
-    j["moral"] = clamp(j["moral"] + 8, 5, 100)
+    mexer_moral(G, j, 8, "chegou ao clube")
 
 
 def emprestar(G, pid, destino_id, pct):
@@ -4166,7 +4196,7 @@ def emprestar(G, pid, destino_id, pct):
     j["emp_pct"] = int(clamp(pct, 0, 100))
     j["listado"] = 0
     j["emp_listado"] = 0
-    j["moral"] = clamp(j["moral"] + 6, 5, 100)
+    mexer_moral(G, j, 6, "chegou por emprestimo")
 
 
 def devolver_emprestimo(G, pid):
@@ -4756,7 +4786,7 @@ def fechar_renovacao(G: Mundo, prop: Proposta) -> str:
     j = G["jogadores"][prop.jogador]
     j["salario"] = int(prop.salario)
     j["contrato"] = int(clamp(prop.anos, 1, 5))
-    j["moral"] = clamp(j["moral"] + 12, 5, 100)
+    mexer_moral(G, j, 12, "renovou o contrato")
     noticia(G, "%s renovou com o %s por %s."
             % (j["nome"], G["clubes"][j["clube"]]["nome"], plural(j["contrato"], "ano")))
     return "%s renovou por %s, %s por mes." % (j["nome"], plural(j["contrato"], "ano"), din(prop.salario))
@@ -4764,7 +4794,7 @@ def fechar_renovacao(G: Mundo, prop: Proposta) -> str:
 
 def romper_renovacao(G: Mundo, j: Jogador) -> str:
     """Conversa esgotada: ele fecha a porta e a moral cai."""
-    j["moral"] = clamp(j["moral"] - 8, 5, 100)
+    mexer_moral(G, j, -8, "a renovacao nao saiu")
     return "%s recusou renovar e vai ouvir o mercado." % j["nome"]
 
 
@@ -5740,7 +5770,7 @@ def promover_da_base(G: Mundo, pid: int, anos: int = 3) -> Tuple[bool, str]:
     j["contrato"] = int(clamp(anos, 1, 5))
     j["salario"] = salario_devido(j)
     j["desde"] = G["temporada"] * 100 + G["semana"]
-    j["moral"] = clamp(j["moral"] + 14, 5, 100)
+    mexer_moral(G, j, 14, "subiu da base ao profissional")
     c.setdefault("revelados", []).append({"id": pid, "nome": j["nome"], "pos": j["pos"],
                                          "temporada": int(G["temporada"]), "ovr": int(j["ovr"])})
     del c["revelados"][:-30]
@@ -6132,7 +6162,9 @@ def evoluir_jogadores(G: Mundo) -> None:
         # espiral de moral atravessava temporadas.
         j["cond"] = 100
         j["forma"] = clamp(60 + rng.randint(0, 12), 5, 100)
+        antes = j["moral"]
         j["moral"] = clamp(int(j["moral"] + 0.6 * (65 - j["moral"])), 5, 100)
+        anotar_moral(G, j, j["moral"] - antes, "ferias e pre-temporada")
         j["lesao"] = 0
         j["amar"] = {k: 0 for k in COMPETICOES}
         j["susp"] = {k: 0 for k in COMPETICOES}
