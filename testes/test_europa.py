@@ -38,7 +38,8 @@ class TestEuropa(unittest.TestCase):
         # MLS tem 29: so o turno, para caber nas 38 semanas
         self.assertLessEqual(len(eng.ligas_ext(G)["USA"]["rodadas"]), 38)
         santos = next(c for c in G["clubes"].values() if c["nome"] == "Santos")
-        self.assertIn("Neymar", {G["jogadores"][p]["nome"] for p in santos["elenco"]})
+        # o Santos e o elenco original feito a mao, nao o da API (ver test_elencos)
+        self.assertIn("Neymar Jr", {G["jogadores"][p]["nome"] for p in santos["elenco"]})
         # europeu nao entra nas copas sul-americanas nem no mercado
         for k in ("lib", "sul"):
             self.assertFalse(any(G["clubes"][i].get("liga_ext") for i in G["copas"][k]["vivos"]))

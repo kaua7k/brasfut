@@ -1055,8 +1055,12 @@ def nova_liga_ext(codigo, nome, ids):
 
 def aplicar_mundo(G, usados, sul=False):
     """Cria as ligas europeias que faltam. Com sul=True (so em mundo novo), poe
-    tambem os elencos reais dos sul-americanos e dos brasileiros sincronizados:
-    em save ja comecado eles nao mudam, para nao virar o elenco de ninguem."""
+    tambem os elencos reais dos sul-americanos: em save ja comecado eles nao
+    mudam, para nao virar o elenco de ninguem.
+
+    Os brasileiros vem so de ELENCOS_EMBUTIDOS (feitos a mao). O bloco "brasil"
+    que o importador chegou a gerar (o Santos da API por cima do original) e
+    ignorado de proposito."""
     m = mundo_embutido()
     if not m:
         return
@@ -1088,10 +1092,9 @@ def aplicar_mundo(G, usados, sul=False):
     if not sul:
         return
     por_nome = {c["nome"]: c for c in G["clubes"].values() if not c.get("europeu")}
-    for bloco in ("sul", "brasil"):
-        for nome, lista in (m.get(bloco) or {}).items():
-            if nome in por_nome and lista:
-                trocar_elenco(G, por_nome[nome], lista, usados)
+    for nome, lista in (m.get("sul") or {}).items():
+        if nome in por_nome and lista and por_nome[nome]["divisao"] not in DIVISOES_BR:
+            trocar_elenco(G, por_nome[nome], lista, usados)
 
 
 def falta_mundo(G):

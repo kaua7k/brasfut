@@ -82,8 +82,10 @@ API_AF = "https://v3.football.api-sports.io"
 POS_AF = {"Goalkeeper": "Goalkeeper", "Defender": "Defence", "Midfielder": "Midfield",
           "Attacker": "Offence"}
 
-# Brasil: so estes clubes sao sincronizados; o resto do embutido nao muda
-BRASIL_SINCRONIZAR = ["Santos"]
+# Brasil: nenhum clube e sincronizado. Os elencos brasileiros sao os embutidos
+# em brasfut.py (ELENCOS_EMBUTIDOS), feitos a mao; a API trocou o Santos original
+# e o jogo passou a ignorar o bloco "brasil" (decidido em 2026-09-25).
+BRASIL_SINCRONIZAR = []
 
 POS_EXATA = {
     "Goalkeeper": "GOL", "Centre-Back": "ZAG", "Left-Back": "LAT", "Right-Back": "LAT",
