@@ -15,9 +15,10 @@ interface Props {
   aoTrocar: (id: string) => void
   aoSalvar: () => void
   salvando: boolean
+  aoAjuda: () => void
 }
 
-export function MenuLateral({ clube, itens, atual, aoTrocar, aoSalvar, salvando }: Props) {
+export function MenuLateral({ clube, itens, atual, aoTrocar, aoSalvar, salvando, aoAjuda }: Props) {
   return (
     <nav className="lateral" aria-label="Telas do jogo">
       <div className="marca">
@@ -64,7 +65,7 @@ export function MenuLateral({ clube, itens, atual, aoTrocar, aoSalvar, salvando 
           <IconeSalvar />
           <span className="rotulo-nav">{salvando ? 'Salvando…' : 'Salvar'}</span>
         </button>
-        <button type="button" className="navitem" disabled aria-label="Ajuda" title="Ajuda: ainda so na janela do jogo">
+        <button type="button" className="navitem" onClick={aoAjuda} aria-label="Ajuda" title="Ajuda">
           <IconeAjuda />
           <span className="rotulo-nav">Ajuda</span>
         </button>

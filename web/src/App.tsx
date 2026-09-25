@@ -17,6 +17,7 @@ import { Ficha } from './componentes/Ficha'
 import { JanelaPendencia } from './componentes/JanelaPendencia'
 import { Mesa } from './componentes/Mesa'
 import { Resumo } from './componentes/Resumo'
+import { Ajuda, BoasVindas } from './componentes/Ajuda'
 import { MenuLateral } from './componentes/MenuLateral'
 import { Abertura } from './telas/Abertura'
 import { Base, type AcaoBase } from './telas/Base'
@@ -33,6 +34,8 @@ import { Carreira } from './telas/Carreira'
 import { Painel } from './telas/Painel'
 import { Treino, type AcaoTreino } from './telas/Treino'
 import type {
+  Ajuda as DadosAjuda,
+  BoasVindas as DadosBoasVindas,
   Cabecalho,
   ClubeOpcao,
   Config,
@@ -117,6 +120,9 @@ export function App() {
   // Enquanto ele esta aberto a janela de demissao espera - o resumo explica
   // a demissao, entao vem antes dela
   const [resumo, setResumo] = useState<ResumoTemporada | null>(null)
+  // ajuda pelo menu; boas-vindas so na carreira nova, logo depois de escolher o clube
+  const [ajuda, setAjuda] = useState<DadosAjuda | null>(null)
+  const [boasVindas, setBoasVindas] = useState<DadosBoasVindas | null>(null)
   // o Desfazer oferecido junto do recado: vale alguns segundos e some
   const [desfazer, setDesfazer] = useState<(() => void) | null>(null)
 
@@ -291,6 +297,13 @@ export function App() {
         setOcupado(false)
       }
       await irPara('painel')
+      const r = await api.ajuda()
+      setBoasVindas(r.boas_vindas)
+    })
+
+  const abrirAjuda = () =>
+    comErro(async () => {
+      setAjuda((await api.ajuda()).ajuda)
     })
 
   // --------------------------------------------------------------------- acoes
@@ -599,6 +612,7 @@ export function App() {
         aoTrocar={(id) => irPara(id)}
         aoSalvar={salvar}
         salvando={salvando}
+        aoAjuda={abrirAjuda}
       />
 
       <div className="conteudo">
@@ -853,6 +867,19 @@ export function App() {
           aoFechar={() => setResumo(null)}
         />
       )}
+
+      {boasVindas && (
+        <BoasVindas
+          dados={boasVindas}
+          aoFechar={() => setBoasVindas(null)}
+          aoVerAjuda={() => {
+            setBoasVindas(null)
+            abrirAjuda()
+          }}
+        />
+      )}
+
+      {ajuda && <Ajuda ajuda={ajuda} aoFechar={() => setAjuda(null)} />}
 
       {pendencia && !resumo && (
         <JanelaPendencia

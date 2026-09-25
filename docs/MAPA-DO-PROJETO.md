@@ -41,9 +41,9 @@ Atas de decisão de roadmap: `docs/three-amigos/`.
 | `api/avanco.py` | — | Avançar em ritmos (jogo/semana/mês/janela/temporada) | Botão *Avançar*/*Simular* |
 | `api/campo.py` | — | Vaga (GOL, ZAG...) → ponto no campo, para as formações | Desenho do campo na Escalação |
 | `web/src/telas/*.tsx` | 14 arquivos | Uma tela por arquivo (Painel, Elenco, Escalação, Mercado, Financas, etc.) | Ao mexer numa tela específica |
-| `web/src/componentes/*.tsx` | 18 arquivos (`Partida.tsx`: resumo e detalhe da partida; `DialogoRenovar.tsx`: renovação em lote) | Diálogos e peças reusáveis (Mesa, Grade, Campo, Ficha...) | Componente compartilhado entre telas |
+| `web/src/componentes/*.tsx` | 19 arquivos (`Ajuda.tsx`: ajuda e boas-vindas; `Partida.tsx`: resumo e detalhe da partida; `DialogoRenovar.tsx`: renovação em lote) | Diálogos e peças reusáveis (Mesa, Grade, Campo, Ficha...) | Componente compartilhado entre telas |
 | `web/src/api.ts`, `tipos.ts`, `formato.ts` | — | Cliente HTTP, tipos TS espelhando os DTOs, formatação (dinheiro, número) | Contrato front↔back |
-| `testes/*.py` | 25 arquivos (`desempenho.py` e `balanceamento.py` são harness lentos, fora da suíte) | `unittest` da stdlib, sem dependência externa. `cd testes && python -m unittest -v` (~90s, 119 testes) | Rodar antes de qualquer PR |
+| `testes/*.py` | 26 arquivos (`desempenho.py` e `balanceamento.py` são harness lentos, fora da suíte) | `unittest` da stdlib, sem dependência externa. `cd testes && python -m unittest -v` (~90s, 122 testes) | Rodar antes de qualquer PR |
 | `ferramentas/capturas.py` | — | Capturas das 13 telas em 5 resoluções (Edge headless, cópia isolada) e comparação por pixel | Antes/depois de mexer em CSS ou tela |
 | `ferramentas/importar_elencos.py` | — | Importa elencos reais (football-data.org / API-Football) | Atualização de temporada real |
 | `.backup-pre-patch/` | — | Snapshots do motor pré-patch (histórico, não código ativo) | Raramente |
@@ -127,8 +127,9 @@ primária decidida: azul. Histórico = 10
 partidas, demissão em qualquer semana após aviso e IA também usando
 instruções condicionais foram decididos em 2026-09-25.
 
-**Pontas soltas conhecidas** (`ARQUITETURA-WEB.md`): partida lance a lance,
-boas-vindas e ajuda só existem no tkinter; motor escreve sem acento (dívida
+**Pontas soltas conhecidas** (`ARQUITETURA-WEB.md`): partida lance a lance só
+existe no tkinter (ajuda e boas-vindas migraram: `componentes/Ajuda.tsx`,
+`GET /api/ajuda`); motor escreve sem acento (dívida
 de quando era terminal); React não tem testes (só a API tem).
 
 ## Como rodar / testar

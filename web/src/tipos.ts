@@ -1214,3 +1214,25 @@ export interface TelaCompeticoes {
   alvo: string
   detalhe: DetalhePontos | DetalheCopa
 }
+
+/** Um item de texto da ajuda: o nome de uma tela ou de um termo e a explicacao. */
+export interface ItemAjuda {
+  nome: string
+  texto: string
+}
+
+/** GET /api/ajuda: o que cada tela faz e o que os termos querem dizer. */
+export interface Ajuda {
+  telas: ItemAjuda[]
+  termos: ItemAjuda[]
+}
+
+/** A apresentacao da carreira nova (dto.boas_vindas). */
+export interface BoasVindas {
+  clube: string
+  linha: string
+  objetivo: string
+  aviso: string
+  passos: ItemAjuda[]
+  sem_pressa: string
+}
