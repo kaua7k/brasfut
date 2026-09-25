@@ -601,9 +601,25 @@ em `sondar_treinador` sem mudar o sorteio de antes. Nada disso usa o `rng`.
 O Painel mostra número, tendência de 4 semanas, marcas de 30 e 15 e as
 causas da última semana (`dto._confianca`).
 
+**Simular por semana.** `avanco.relato` devolve `{titulo, jogos, avisos}`
+(`fora["semana"]` em `/api/avancar`): cada jogo com resultado, mandante
+primeiro, lado do meu clube, competição e `decisao` do mata-mata
+(`avanco.decisao`: classificado ou eliminado, "nos pênaltis", agregado do meu
+lado, campeão na final). A ida da copa sai marcada `perna: "ida"` no motor,
+porque as duas pernas são jogadas na mesma semana e a ida já sabe o
+vencedor. `DialogoAvanco` desenha ritmos como cartões e o relato em blocos
+por semana; a decisão também aparece no cartão da partida.
+
+**Renovação em lote.** Marcar vários e renovar abre `DialogoRenovar` (um só
+continua abrindo a mesa, para negociar): prazo único (padrão 5 anos), o que
+cada um pede nesse prazo e a folha antes e depois
+(`/api/mercado/renovar-lote/linhas`). Confirmar fecha todos pelo pedido
+(`/api/mercado/renovar-lote`), que é sempre aceito. Antes eram N mesas em
+fila.
+
 **Capturas.** `ferramentas/capturas.py` sobe uma cópia isolada do jogo
 (motor, api, `web/dist` e cópia do save) na porta 8791, abre o save e
-fotografa as 13 telas (`--avancar N` joga N semanas na cópia antes) em 1280x720, 1366x768, 1440x900, 1920x1080 e
+fotografa as 13 telas (`--avancar N` joga N semanas na cópia antes; `--query` põe parâmetro na URL, para build de teste) em 1280x720, 1366x768, 1440x900, 1920x1080 e
 2560x1440 com o Edge headless (`--timeout` porque a Escalação tem animação
 infinita e segurava o Edge). `comparar <antes> <depois>` dá a porcentagem de
 pixels diferentes por captura, lendo o PNG só com `zlib`. Rode `npm run
@@ -687,6 +703,9 @@ velha para apagar na mão. `--sim` não trava, porque não grava no save.
 - **`test_confianca.py`** esperado contra resultado, dificuldade, aviso antes
   da demissão, modo sem demissão, recuperação, máquina demitindo no turno,
   clube novo e o Painel.
+- **`test_simular_renovar.py`** decisão do mata-mata no relato (pênaltis,
+  agregado do meu lado, ida que não decide), semana estruturada e renovação
+  em lote.
 - **`test_tokens.py`** lint visual: cor e fonte só por token, escala de
   seis degraus, sem `--acento`, sem inline fixo no TSX.
 

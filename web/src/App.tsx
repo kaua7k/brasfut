@@ -12,6 +12,7 @@ import { BarraTopo } from './componentes/BarraTopo'
 import { DialogoAvanco } from './componentes/DialogoAvanco'
 import { DialogoCeder } from './componentes/DialogoCeder'
 import { DialogoVitrine } from './componentes/DialogoVitrine'
+import { DialogoRenovar } from './componentes/DialogoRenovar'
 import { Ficha } from './componentes/Ficha'
 import { JanelaPendencia } from './componentes/JanelaPendencia'
 import { Mesa } from './componentes/Mesa'
@@ -106,11 +107,10 @@ export function App() {
   const [pergunta, setPergunta] = useState<Pergunta | null>(null)
   const [pendencia, setPendencia] = useState<Pendencia | null>(null)
   const [ficha, setFicha] = useState<FichaJogador | null>(null)
-  // dialogos do mercado: mesa de negociacao, vitrine em lote e cessao.
-  // renovar varios = uma mesa por vez, na ordem em que foram marcados
+  // dialogos do mercado: mesa de negociacao, vitrine e renovacao em lote, cessao.
   const [mesa, setMesa] = useState<{ tipo: TipoMesa; id: number } | null>(null)
-  const [filaRenovar, setFilaRenovar] = useState<number[]>([])
   const [dialogoVitrine, setDialogoVitrine] = useState<number[] | null>(null)
+  const [dialogoRenovar, setDialogoRenovar] = useState<number[] | null>(null)
   const [dialogoCeder, setDialogoCeder] = useState<number[] | null>(null)
   const [simulando, setSimulando] = useState(false)
   // o resumo do ano: abre sozinho na virada e pelo Painel na pre-temporada.
@@ -361,7 +361,8 @@ export function App() {
     if (acao === 'vender') return setDialogoVitrine(ids)
     if (acao === 'ceder') return setDialogoCeder(ids)
     if (acao === 'renovar') {
-      setFilaRenovar(ids.slice(1))
+      // um jogador: a mesa, para negociar; varios: a renovacao em lote
+      if (ids.length > 1) return setDialogoRenovar(ids)
       return setMesa({ tipo: 'renovacao', id: ids[0] })
     }
     const rota = {
@@ -516,7 +517,7 @@ export function App() {
       case 'contra':
         return despachar<TelaMercado>(() => api.contraproposta(acao.id, acao.clube_id, acao.valor), aplicar)
       case 'renovar':
-        // a mesma fila do Elenco: uma mesa de renovacao depois da outra
+        // o mesmo caminho do Elenco: varios vao para a renovacao em lote
         return agirElenco('renovar', acao.ids)
       case 'cancelar':
         return despachar<unknown>((c) => api.cancelarAgendadas(acao.indices, origem(), c), aplicarVolta)
@@ -525,10 +526,6 @@ export function App() {
 
   const fecharMesa = async (fechou: boolean, texto: string | null) => {
     setMesa(null)
-    if (filaRenovar.length) {
-      setMesa({ tipo: 'renovacao', id: filaRenovar[0] })
-      setFilaRenovar(filaRenovar.slice(1))
-    }
     // o negocio mexeu em caixa, elenco e folha - e uma renovacao rompida mexe
     // na moral: a tela de tras se refaz. O recado vem depois, senao a recarga
     // (que limpa o recado da tela anterior) apagaria a noticia do negocio
@@ -751,6 +748,28 @@ export function App() {
           aoConfirmar={(precos) => {
             setDialogoVitrine(null)
             despachar<unknown>(() => api.porAVenda(precos, origem()), aplicarVolta)
+          }}
+        />
+      )}
+
+      {dialogoRenovar && (
+        <DialogoRenovar
+          ids={dialogoRenovar}
+          ocupado={ocupado}
+          aoFechar={() => setDialogoRenovar(null)}
+          aoConfirmar={(anos) => {
+            const ids = dialogoRenovar
+            setDialogoRenovar(null)
+            comErro(async () => {
+              setOcupado(true)
+              try {
+                const r = await api.renovarLote(ids, anos)
+                await recarregarAtual()
+                setRecado(r.recado)
+              } finally {
+                setOcupado(false)
+              }
+            })
           }}
         />
       )}

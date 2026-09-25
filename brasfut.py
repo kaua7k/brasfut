@@ -3775,6 +3775,7 @@ def jogar_fase_copa(G, chave):
                 r2["penaltis"] = venc
             r2["agregado"] = [a, ga, b, gb]
             r1["venc"] = r2["venc"] = venc
+            r1["perna"] = "ida"
             res.extend([r1, r2])
             # a volta e r2 com os lados trocados: guardado do ponto de vista de a
             registro["jogos"].append({"a": a, "b": b, "ida": [r1["gc"], r1["gf"]],

@@ -65,6 +65,7 @@ export function ResumoPartida({ partidas, historico = 5, alerta }: PropsResumo) 
         </span>
         <span className={`partida-time${p.eu === 1 ? ' eu' : ''}`}>{p.times[1]}</span>
       </div>
+      {p.detalhes.decisao && <div className="partida-decisao">{p.detalhes.decisao}</div>}
 
       <div className="partida-lances">
         <Lances p={p} lado={0} />

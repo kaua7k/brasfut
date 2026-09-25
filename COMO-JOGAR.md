@@ -129,6 +129,21 @@ por jogo de 2,75 para 2,77, empates de 24,2% para 23,4%, e quem perde aos 70 esc
 derrota um pouco menos (11,9% → 10,7%): segurar o resultado rende mais do que ir para o
 tudo ou nada.
 
+## Simular e renovar em lote
+
+**Simular.** Os ritmos (jogo a jogo, 1 semana, 1 mês, até a janela, temporada toda) são
+cartões; as condições de parar ficam logo abaixo. O relato mostra cada semana num bloco:
+resultado, placar com o mandante primeiro, seu time em destaque e a competição. No
+mata-mata, o jogo que decide diz o que aconteceu: "Classificado nos pênaltis · agregado
+3 x 3", "Eliminado · agregado 1 x 2", "Campeão". Lesão e proposta nova aparecem na semana
+em que aconteceram, e no fim vem o resumo da última partida.
+
+**Renovar vários.** Marque os jogadores no Elenco (ou use "Renovar os N" no Painel) e uma
+janela só mostra o que cada um pede para renovar, num prazo único para todos (5 anos por
+padrão; prazo longo sai um pouco mais barato por mês), e a folha antes e depois. Um clique
+renova todos pelo que pediram. Quer pechinchar? Marque só aquele jogador: abre a mesa de
+negociação, com três tentativas.
+
 ## A diretoria
 
 A diretoria não espera o fim do ano para ter opinião. No cartão **Objetivo da temporada**,

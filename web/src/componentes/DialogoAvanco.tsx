@@ -11,7 +11,9 @@
 import { porque } from '../motivo'
 import { useEffect, useRef, useState } from 'react'
 import { api, ErroDaApi } from '../api'
-import type { LinhaRelato, OpcaoAvanco, Paradas, Partida, Pendencia } from '../tipos'
+import { plural } from '../formato'
+import { iconeDeEstado } from '../icones'
+import type { OpcaoAvanco, Paradas, Partida, Pendencia, RelatoSemana } from '../tipos'
 import { ResumoPartida } from './Partida'
 
 interface Props {
@@ -52,7 +54,7 @@ export function DialogoAvanco({ aoFechar, aoAbrirEscalacao }: Props) {
   const [rodando, setRodando] = useState(false)
   const [feitas, setFeitas] = useState(0)
   const [total, setTotal] = useState(0)
-  const [linhas, setLinhas] = useState<LinhaRelato[]>([])
+  const [semanas, setSemanas] = useState<RelatoSemana[]>([])
   const [partidas, setPartidas] = useState<Partida[]>([])
   const [motivo, setMotivo] = useState<string | null>(null)
   const [quebrado, setQuebrado] = useState<string | null>(null)
@@ -80,7 +82,7 @@ export function DialogoAvanco({ aoFechar, aoAbrirEscalacao }: Props) {
   // e efeito que devolve algo que nao e funcao derruba a tela inteira
   useEffect(() => {
     fimDoLog.current?.scrollIntoView({ block: 'nearest' })
-  }, [linhas])
+  }, [semanas])
 
   const opcao = opcoes.find((o) => o.id === escolha)
 
@@ -120,7 +122,7 @@ export function DialogoAvanco({ aoFechar, aoAbrirEscalacao }: Props) {
         confirmar = false
         houve.current = true
         setFeitas(i + 1)
-        setLinhas((l) => [...l, ...(r.linhas ?? [])])
+        if (r.semana) setSemanas((l) => [...l, r.semana!])
         if (r.partidas?.length) setPartidas((p) => [...p, ...r.partidas!].slice(-5))
         if (r.opcoes) setOpcoes(r.opcoes)
         if (r.pendencia) pendencia.current = r.pendencia
@@ -152,9 +154,11 @@ export function DialogoAvanco({ aoFechar, aoAbrirEscalacao }: Props) {
       aria-label="Simular"
       onKeyDown={(e) => e.key === 'Escape' && fechar()}
     >
-      <div className="modal modal-largo">
+      <div className="modal modal-largo simular">
         <h2>Simular</h2>
-        <p>Escolha o tamanho do pulo. Fim do estadual e fim da temporada param sempre.</p>
+        <p className="tag-fraco m-0">
+          Escolha o tamanho do pulo. Fim do estadual e fim da temporada param sempre.
+        </p>
 
         {opcoes.length === 0 && !erro && (
           <div className="mesa-bloco tag-atencao">
@@ -163,37 +167,45 @@ export function DialogoAvanco({ aoFechar, aoAbrirEscalacao }: Props) {
           </div>
         )}
 
-        <fieldset className="mesa-bloco avanco-opcoes" disabled={rodando} hidden={opcoes.length === 0}>
+        <fieldset className="simular-bloco" disabled={rodando} hidden={opcoes.length === 0}>
           <legend className="painel-titulo">Quanto avancar</legend>
-          {opcoes.map((o) => (
-            <label key={o.id} className={`avanco-opcao${o.semanas <= 0 ? ' desligada' : ''}`}>
-              <input
-                type="radio"
-                name="ritmo"
-                value={o.id}
-                checked={escolha === o.id}
-                disabled={o.semanas <= 0}
-                onChange={() => setEscolha(o.id)}
-              />
-              <strong>{o.rotulo}</strong>
-              <span className="tag-fraco">{o.nota}</span>
-            </label>
-          ))}
+          <div className="ritmos">
+            {opcoes.map((o) => (
+              <label
+                key={o.id}
+                className={`ritmo${escolha === o.id ? ' ativo' : ''}${o.semanas <= 0 ? ' desligada' : ''}`}
+              >
+                <input
+                  type="radio"
+                  className="so-leitor"
+                  name="ritmo"
+                  value={o.id}
+                  checked={escolha === o.id}
+                  disabled={o.semanas <= 0}
+                  onChange={() => setEscolha(o.id)}
+                />
+                <span className="ritmo-nome">{o.rotulo}</span>
+                <span className="ritmo-nota">{o.semanas > 0 ? o.nota : 'nada para simular agora'}</span>
+              </label>
+            ))}
+          </div>
         </fieldset>
 
         {paradas && (
-          <fieldset className="mesa-bloco" disabled={rodando}>
+          <fieldset className="simular-bloco" disabled={rodando}>
             <legend className="painel-titulo">Parar antes se</legend>
-            {(Object.keys(TEXTO_PARADA) as (keyof Paradas)[]).map((k) => (
-              <label key={k} className="avanco-parada">
-                <input
-                  type="checkbox"
-                  checked={paradas[k]}
-                  onChange={(e) => setParadas({ ...paradas, [k]: e.target.checked })}
-                />
-                {TEXTO_PARADA[k]}
-              </label>
-            ))}
+            <div className="paradas">
+              {(Object.keys(TEXTO_PARADA) as (keyof Paradas)[]).map((k) => (
+                <label key={k} className="avanco-parada">
+                  <input
+                    type="checkbox"
+                    checked={paradas[k]}
+                    onChange={(e) => setParadas({ ...paradas, [k]: e.target.checked })}
+                  />
+                  {TEXTO_PARADA[k]}
+                </label>
+              ))}
+            </div>
           </fieldset>
         )}
 
@@ -201,8 +213,7 @@ export function DialogoAvanco({ aoFechar, aoAbrirEscalacao }: Props) {
           <div className="avanco-progresso">
             <progress max={total || 1} value={feitas} aria-label="Semanas simuladas" />
             <span className="tag-fraco">
-              {rodando ? `${feitas} de ${total}` : feitas === 1 ? '1 semana simulada' : `${feitas} semanas simuladas`}
-              {motivo && ` · parou: ${motivo}`}
+              {rodando ? `semana ${feitas} de ${total}` : `${plural(feitas, 'semana')} simulada${feitas === 1 ? '' : 's'}`}
             </span>
           </div>
         )}
@@ -221,11 +232,43 @@ export function DialogoAvanco({ aoFechar, aoAbrirEscalacao }: Props) {
           </div>
         )}
 
-        {linhas.length > 0 && (
-          <div className="avanco-log" aria-live="polite">
-            {linhas.map((l, i) => (
-              <div key={i} className={`tag-${l.estado}`}>{l.texto}</div>
+        {semanas.length > 0 && (
+          <div className="relato" aria-live="polite">
+            {semanas.map((sem, i) => (
+              <section className="relato-semana" key={i} aria-label={sem.titulo}>
+                <h3 className="relato-titulo">{sem.titulo}</h3>
+                {sem.jogos.length === 0 && <div className="relato-vazio">sem jogo · o elenco descansou</div>}
+                {sem.jogos.map((j, k) => (
+                  <div className="relato-jogo" key={k}>
+                    <span
+                      className={`forma-badge ${j.resultado}`}
+                      aria-label={{ V: 'vitoria', E: 'empate', D: 'derrota' }[j.resultado]}
+                    >
+                      {j.resultado}
+                    </span>
+                    <span className={`relato-time${j.eu === 0 ? ' eu' : ''}`}>{j.times[0]}</span>
+                    <span className={`relato-placar ${j.estado}`}>
+                      {j.placar[0]} x {j.placar[1]}
+                    </span>
+                    <span className={`relato-time fora${j.eu === 1 ? ' eu' : ''}`}>{j.times[1]}</span>
+                    <span className="relato-comp">{j.comp}</span>
+                    {j.decisao && (
+                      <span className={`relato-decisao ${j.decisao.estado}`}>
+                        {iconeDeEstado(j.decisao.estado, 14)}
+                        {j.decisao.texto}
+                      </span>
+                    )}
+                  </div>
+                ))}
+                {sem.avisos.map((a, k) => (
+                  <div className={`relato-aviso ${a.estado}`} key={k}>
+                    {iconeDeEstado(a.estado, 14)}
+                    {a.texto}
+                  </div>
+                ))}
+              </section>
             ))}
+            {motivo && !rodando && <div className="relato-fim">Parou: {motivo}</div>}
             <div ref={fimDoLog} />
           </div>
         )}

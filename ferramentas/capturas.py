@@ -7,6 +7,7 @@ headless. Nada toca o save de verdade nem o servidor que estiver aberto.
     python ferramentas/capturas.py tirar  <pasta>            # 13 telas x 5 resolucoes
     python ferramentas/capturas.py tirar  <pasta> --telas painel,elenco --res 1280x720
     python ferramentas/capturas.py tirar  <pasta> --avancar 6  # joga 6 semanas na copia antes
+    python ferramentas/capturas.py tirar  <pasta> --query "?x=1"  # parametro na URL (build de teste)
     python ferramentas/capturas.py comparar <antes> <depois>  # % de pixels diferentes
 
 So stdlib: o PNG do Edge e lido com zlib (8 bits, RGB/RGBA, sem entrelacamento).
@@ -68,7 +69,7 @@ def _post(url, caminho, corpo):
     return json.loads(urllib.request.urlopen(pedido, timeout=300).read() or b"{}")
 
 
-def tirar(destino, telas, resolucoes, avancar=0):
+def tirar(destino, telas, resolucoes, avancar=0, query=""):
     os.makedirs(destino, exist_ok=True)
     edge = _edge()
     pasta = _copia_isolada()
@@ -97,7 +98,7 @@ def tirar(destino, telas, resolucoes, avancar=0):
                     subprocess.run([edge, "--headless=new", "--disable-gpu", "--hide-scrollbars",
                                     "--user-data-dir=" + perfil, "--window-size=%s,%s" % (w, h),
                                     "--virtual-time-budget=6000", "--timeout=8000",
-                                    "--screenshot=" + arquivo, url + "#" + tela],
+                                    "--screenshot=" + arquivo, url + query + "#" + tela],
                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60)
                 except subprocess.TimeoutExpired:
                     pass
@@ -194,7 +195,8 @@ def main(args):
         if "--res" in args:
             res = args[args.index("--res") + 1].split(",")
         avancar = int(args[args.index("--avancar") + 1]) if "--avancar" in args else 0
-        tirar(args[1], telas, res, avancar)
+        query = args[args.index("--query") + 1] if "--query" in args else ""
+        tirar(args[1], telas, res, avancar, query)
     elif len(args) == 3 and args[0] == "comparar":
         comparar(args[1], args[2])
     else:

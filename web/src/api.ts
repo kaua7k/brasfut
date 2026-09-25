@@ -18,6 +18,7 @@ import type {
   FiltrosMercado,
   LinhaCessao,
   LinhaPrecoVitrine,
+  PreviaRenovacao,
   Mesa,
   Origem,
   PropostaMesa,
@@ -185,6 +186,10 @@ export const api = {
       id,
       proposta,
     }),
+  linhasRenovacao: (ids: number[], anos: number) =>
+    pedir<PreviaRenovacao>('/api/mercado/renovar-lote/linhas', { ids, anos }),
+  renovarLote: (ids: number[], anos: number) =>
+    pedir<{ recado: string; feitos: string[] }>('/api/mercado/renovar-lote', { ids, anos }),
   linhasVitrine: (ids: number[]) =>
     pedir<{ linhas: LinhaPrecoVitrine[] }>('/api/mercado/vitrine/linhas', { ids }),
   sugerirPrecos: (ids: number[], pct: number) =>

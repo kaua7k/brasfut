@@ -1363,6 +1363,13 @@ button.jogador:hover .disco, button.jogador:focus-visible .disco { transform: sc
   font-size: var(--fs-m);
 }
 .vitrine-linha:last-child { border-bottom: none; }
+.renovar-linhas { display: flex; flex-direction: column; border: 1px solid var(--borda); border-radius: var(--raio-m); max-height: 340px; overflow: auto; }
+.renovar-linha { display: grid; grid-template-columns: minmax(0, 1fr) 110px 110px 110px; gap: 12px; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--divisor); font-size: var(--fs-p); }
+.renovar-linha:last-child { border-bottom: none; }
+.renovar-linha.cab { font-size: var(--fs-mini); text-transform: uppercase; letter-spacing: 0.05em; color: var(--fraco); font-weight: 700; position: sticky; top: 0; background: var(--painel); }
+.renovar-linha.fora { opacity: 0.6; }
+.renovar-linha .num { text-align: right; }
+.renovar-linha .corta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vitrine-linha.cab { font-size: var(--fs-mini); text-transform: uppercase; letter-spacing: 0.05em; color: var(--fraco); font-weight: 700; }
 .vitrine-linha .num { text-align: right; }
 .vitrine-linha .corta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1442,25 +1449,72 @@ button.jogador:hover .disco, button.jogador:focus-visible .disco { transform: sc
 
 /* ------------------------------------------------------------- simular */
 .bt-simular { min-height: 44px; border-radius: var(--raio-m); padding: 0 16px; font-size: var(--fs-m); }
-.avanco-opcoes, .modal fieldset { margin: 12px 0 0; }
+.modal fieldset { margin: 12px 0 0; }
 .avanco-opcao, .avanco-parada { display: flex; align-items: center; gap: 10px; font-size: var(--fs-m); padding: 3px 0; cursor: pointer; }
 .avanco-opcao.desligada { opacity: 0.45; cursor: not-allowed; }
 .avanco-opcao input, .avanco-parada input { accent-color: var(--acao-linha); width: 16px; height: 16px; }
 .avanco-opcao strong { min-width: 170px; }
 .avanco-progresso { display: flex; align-items: center; gap: 12px; margin-top: 14px; font-size: var(--fs-p); }
 .avanco-progresso progress { flex: 1; height: 8px; accent-color: var(--acao-linha); }
-.avanco-log {
+/* Simular: ritmos como cartoes, paradas em duas colunas e o relato por semana */
+.simular-bloco { border: 0; padding: 0; margin: 14px 0 0; min-width: 0; }
+.simular-bloco legend { margin-bottom: 8px; padding: 0; }
+.ritmos { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.ritmo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--borda-controle);
+  border-radius: var(--raio-m);
+  background: var(--linha);
+  cursor: pointer;
+}
+.ritmo:hover { border-color: var(--acao-linha); }
+.ritmo.ativo { border-color: var(--acao-linha); background: var(--acao-marcada); box-shadow: inset 0 0 0 1px var(--acao-linha); }
+.ritmo:focus-within { outline: 2px solid var(--acao-linha); outline-offset: 2px; }
+.ritmo.desligada { opacity: 0.45; cursor: not-allowed; }
+.ritmo-nome { font-family: var(--titulo); font-weight: 700; font-size: var(--fs-base); color: var(--txt); }
+.ritmo-nota { font-size: var(--fs-mini); color: var(--fraco); line-height: 1.4; }
+.paradas { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 2px 16px; }
+
+.relato {
   margin-top: 12px;
-  max-height: 220px;
+  max-height: 300px;
   overflow: auto;
-  padding: 10px 14px;
   border-radius: var(--raio-m);
   background: var(--fundo);
   border: 1px solid var(--borda);
   font-size: var(--fs-p);
-  line-height: 1.6;
   font-variant-numeric: tabular-nums;
 }
+.relato-semana { padding: 8px 14px; border-bottom: 1px solid var(--divisor); }
+.relato-semana:last-of-type { border-bottom: none; }
+.relato-titulo { font-family: var(--corpo); font-size: var(--fs-mini); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--fraco); margin: 0 0 4px; }
+.relato-vazio { color: var(--fraco); }
+.relato-jogo {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto minmax(0, 1fr) minmax(0, 150px);
+  align-items: center;
+  gap: 4px 10px;
+  padding: 3px 0;
+}
+.relato-jogo .forma-badge { width: 22px; height: 22px; font-size: var(--fs-mini); }
+.relato-time { color: var(--txt-2); text-align: right; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.relato-time.fora { text-align: left; }
+.relato-time.eu { color: var(--txt); font-weight: 700; }
+.relato-placar { font-family: var(--titulo); font-weight: 700; font-size: var(--fs-base); text-align: center; min-width: 48px; }
+.relato-placar.ok { color: var(--ok); }
+.relato-placar.atencao { color: var(--atencao); }
+.relato-placar.critico { color: var(--critico); }
+.relato-comp { color: var(--fraco); font-size: var(--fs-mini); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.relato-decisao { grid-column: 2 / -1; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
+.relato-decisao.ok { color: var(--ok); }
+.relato-decisao.critico { color: var(--critico); }
+.relato-aviso { display: flex; align-items: center; gap: 6px; padding: 2px 0 2px 36px; }
+.relato-aviso.atencao { color: var(--atencao); }
+.relato-aviso.critico { color: var(--critico); }
+.relato-fim { padding: 8px 14px; border-top: 1px solid var(--divisor); color: var(--txt-2); font-weight: 600; }
 .avanco-quebrado { border-color: var(--critico-borda); }
 
 /* ----------------------------------------------------- resumo e demissao */
@@ -1626,6 +1680,7 @@ button.forma-badge { border: 0; padding: 0; cursor: pointer; }
 .partida-time { font-family: var(--titulo); font-size: var(--fs-base); font-weight: 700; color: var(--txt-2); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .partida-time:first-child { text-align: right; }
 .partida-time.eu { color: var(--txt); }
+.partida-decisao { text-align: center; font-weight: 700; color: var(--atencao); font-size: var(--fs-p); margin: -4px 0 8px; }
 .partida-lances { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 .partida-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; font-size: var(--fs-p); }
 .partida-lances .partida-lista:first-child { align-items: flex-end; text-align: right; }

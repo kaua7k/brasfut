@@ -172,7 +172,7 @@ def avancar(corpo):
         # o relato e o motivo de parar servem o avanco em ritmos (jogo, mes,
         # janela, temporada): o navegador roda o laco semana a semana e para
         # quando o servidor disser por que
-        fora["linhas"], fora["jogou"] = avanco.relato(G, antes)
+        fora["semana"], fora["jogou"] = avanco.relato(G, antes)
         # as partidas desta semana, ja no formato do cartao: o fim do Simular
         # mostra o resumo sem pedir nada de novo
         n = len(eng.resultados_da_semana(G)) if fora["jogou"] else 0
@@ -1052,6 +1052,29 @@ def propor(corpo):
             SESSAO.anotar(texto)
         eng.salvar_auto(G, forcar=True)
         return {"fechou": fechou, "recado": texto, "mesa": leitura}
+
+
+@rota("POST", "/api/mercado/renovar-lote/linhas")
+def linhas_renovacao(corpo):
+    with SESSAO.cadeado:
+        return mercado.linhas_renovacao(_ids(corpo), corpo.get("anos"))
+
+
+@rota("POST", "/api/mercado/renovar-lote")
+def renovar_lote(corpo):
+    with SESSAO.cadeado:
+        G = SESSAO.exigir()
+        feitos, pulados, anos = mercado.renovar_lote(_ids(corpo), corpo.get("anos"))
+        if not feitos:
+            raise ErroDeUso("Ninguem para renovar: %s." % ", ".join(pulados) if pulados
+                            else "Ninguem para renovar.")
+        SESSAO.invalidar()
+        eng.salvar_auto(G, forcar=True)
+        recado = "%s renovado%s por %s." % (eng.plural(len(feitos), "jogador", "jogadores"),
+                                            "" if len(feitos) == 1 else "s", eng.plural(anos, "ano"))
+        if pulados:
+            recado += " Ficaram de fora: %s." % ", ".join(pulados)
+        return {"recado": recado, "feitos": feitos}
 
 
 @rota("POST", "/api/mercado/vitrine/linhas")
