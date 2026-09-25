@@ -6182,6 +6182,9 @@ def fim_de_contrato(G):
 
 
 LIVRES_POR_SEMANA = 10
+# cada clube da IA assina no maximo um livre por semana: sem isto o clube
+# rico do topo da fila levava os melhores livres todos de uma vez
+LIVRES_POR_CLUBE = 1
 
 
 def contratar_livres_ia(G):
@@ -6193,8 +6196,14 @@ def contratar_livres_ia(G):
     livres = sorted((G["jogadores"][p] for p in G["livres"]
                      if p in G["jogadores"] and p not in presos),
                     key=lambda j: -j["ovr"])
+    agora = semana_absoluta(G)
+
+    def pode(c):
+        feito = c.get("livres_sem") or [None, 0]
+        return len(c["elenco"]) < 30 and not (feito[0] == agora and feito[1] >= LIVRES_POR_CLUBE)
+
     clubes = [c for c in G["clubes"].values()
-              if c["divisao"] != "EX" and c["id"] != G.get("clube") and len(c["elenco"]) < 30]
+              if c["divisao"] != "EX" and c["id"] != G.get("clube") and pode(c)]
     feitos = 0
     for j in livres[:40]:
         if feitos >= LIVRES_POR_SEMANA:
@@ -6216,7 +6225,9 @@ def contratar_livres_ia(G):
         c = cands[0] if rng.random() < 0.6 else rng.choice(cands[:5])
         transferir(G, j["id"], c["id"], 0)
         j["contrato"] = rng.randint(1, 3)
-        clubes = [x for x in clubes if len(x["elenco"]) < 30]
+        feito = c.get("livres_sem") or [None, 0]
+        c["livres_sem"] = [agora, (feito[1] if feito[0] == agora else 0) + 1]
+        clubes = [x for x in clubes if pode(x)]
         feitos += 1
         if j["ovr"] >= 78:
             manchete(G, "mercado", "%s, sem clube, assina com o %s." % (j["nome"], c["nome"]))
