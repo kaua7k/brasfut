@@ -85,7 +85,8 @@ class TestExtrato(unittest.TestCase):
     def test_telas_mostram_o_que_o_dinheiro_e(self):
         fin = apoio.chamar("GET", "/api/financas")["tela"]
         nomes = [l["nome"] for l in fin["extrato"]["entradas"]]
-        self.assertIn("Cotas de TV e patrocinio", nomes)
+        self.assertIn("Cotas de TV", nomes)
+        self.assertIn("Patrocinio", nomes)
         self.assertIn("Bilheteria", nomes)
         self.assertTrue(all(l.get("dica") for l in fin["extrato"]["entradas"] + fin["extrato"]["saidas"]))
         self.assertTrue(fin["premiacao"])

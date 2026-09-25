@@ -1054,6 +1054,30 @@ def propor(corpo):
         return {"fechou": fechou, "recado": texto, "mesa": leitura}
 
 
+@rota("POST", "/api/patrocinio/assinar")
+def assinar_patrocinio(corpo):
+    """Escolhe uma das tres propostas de um espaco vago."""
+    espaco = corpo.get("espaco")
+    indice = corpo.get("indice")
+    if espaco not in eng.ESPACOS_PATROCINIO or not isinstance(indice, int):
+        raise ErroDeUso("proposta invalida")
+    with SESSAO.cadeado:
+        G = SESSAO.exigir()
+        c = G["clubes"][G["clube"]]
+        if espaco not in eng.espacos_vagos(G, c):
+            raise ErroDeUso("Esse espaco ja tem contrato.")
+        ofertas = eng.ofertas_patrocinio(G, c, espaco)
+        if not 0 <= indice < len(ofertas):
+            raise ErroDeUso("proposta invalida")
+        eng.assinar_patrocinio(G, c, espaco, ofertas[indice])
+        eng.salvar_auto(G, forcar=True)
+        k = ofertas[indice]
+        return {"recado": "%s: %s por %s, %s por semana." % (
+                    eng.NOME_ESPACO[espaco], k["empresa"], eng.plural(k["temporadas"], "temporada"),
+                    eng.din(k["semanal"])),
+                "tela": dto.financas()}
+
+
 @rota("POST", "/api/mercado/renovar-lote/linhas")
 def linhas_renovacao(corpo):
     with SESSAO.cadeado:

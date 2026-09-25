@@ -484,6 +484,8 @@ def painel():
         "noticias": _noticias(G),
         "contratos": _contratos_acabando(G),
         "propostas_emprego": _propostas_emprego(G),
+        "patrocinio_vago": ([eng.NOME_ESPACO[e] for e in eng.espacos_vagos(G, G["clubes"][G["clube"]])]
+                            or None),
         "mundo": _mundo(G, 6),
     }
 
@@ -819,6 +821,8 @@ def copas():
 # o que cada linha do extrato quer dizer, em uma frase
 DICA_EXTRATO = {
     "tv": "fixo toda semana: depende da serie e da reputacao do clube",
+    "patrocinio": "contratos master e de uniforme, por semana (veja Patrocinio)",
+    "patrocinio_bonus": "pago na virada a quem bateu a meta do contrato",
     "bilheteria": "jogos em casa: publico vezes ingresso (veja Estadio)",
     "premio_liga": "paga na virada do ano, pela posicao final",
     "premio_estadual": "so o campeao recebe",
@@ -844,11 +848,11 @@ def _extrato(G, c):
     entradas, saidas = [], []
     for chave, rotulo in eng.EXTRATO:
         v = int(ex.get(chave, 0))
-        if not v and chave not in ("tv", "bilheteria", "folha", "estrutura"):
+        if not v and chave not in ("tv", "patrocinio", "bilheteria", "folha", "estrutura"):
             continue
         linha = {"nome": rotulo, "valor": eng.din(v), "dica": DICA_EXTRATO.get(chave, ""),
                  "estado": "ok" if v > 0 else ("critico" if v < 0 else "")}
-        (entradas if v > 0 or chave in ("tv", "bilheteria") else saidas).append(linha)
+        (entradas if v > 0 or chave in ("tv", "patrocinio", "bilheteria") else saidas).append(linha)
     resultado = int(c["dinheiro"]) - int(st["caixa_ini"])
     # save de versao anterior: o ano comecou antes do extrato existir, e o que
     # andou antes fica numa linha propria em vez de a conta nao fechar
@@ -861,6 +865,34 @@ def _extrato(G, c):
     return {"temporada": int(G["temporada"]), "entradas": entradas, "saidas": saidas,
             "caixa_ini": eng.din(st["caixa_ini"]), "caixa": eng.din(c["dinheiro"]),
             "resultado": eng.din(resultado), "estado": "ok" if resultado >= 0 else "critico"}
+
+
+def _linha_patrocinio(G, oferta):
+    return {"empresa": oferta["empresa"], "perfil": oferta["perfil"],
+            "semanal": eng.din(oferta["semanal"]),
+            "temporadas": eng.plural(oferta["temporadas"], "temporada"),
+            "meta": eng.TEXTO_META.get(oferta["meta"], oferta["meta"]),
+            "bonus": eng.din(oferta["bonus"]) if oferta.get("bonus") else None,
+            # o que o contrato rende num ano sem bonus (50 semanas com jogo e sem)
+            "ano": eng.din(oferta["semanal"] * 50)}
+
+
+def patrocinio(G, c):
+    """Contratos em vigor e, nos espacos vagos, as tres propostas do ano."""
+    contratos = c.get("patrocinios") or {}
+    vigentes, vagos = [], []
+    for espaco in eng.ESPACOS_PATROCINIO:
+        k = contratos.get(espaco)
+        if k:
+            vigentes.append(dict(_linha_patrocinio(G, k), espaco=espaco, nome=eng.NOME_ESPACO[espaco]))
+        else:
+            vagos.append({"espaco": espaco, "nome": eng.NOME_ESPACO[espaco],
+                          "ofertas": [dict(_linha_patrocinio(G, o), indice=i)
+                                      for i, o in enumerate(eng.ofertas_patrocinio(G, c, espaco))]})
+    return {"contratos": vigentes, "vagos": vagos,
+            "explica": ("Contrato longo protege de um ano ruim; o fixo alto rende mais agora. "
+                        "A meta paga o bonus na virada. Sem escolha, a proposta equilibrada "
+                        "assina quando a bola rolar.")}
 
 
 def _premiacao_em_jogo(G, c):
@@ -911,13 +943,15 @@ def financas():
         "titulo": "Financas",
         "extrato": _extrato(G, c),
         "linhas": [
-            {"nome": "Cotas de TV e patrocinio", "valor": eng.din(rec), "estado": ""},
+            {"nome": "Cotas de TV", "valor": eng.din(eng.tv_semanal(c)), "estado": ""},
+            {"nome": "Patrocinio", "valor": eng.din(rec - eng.tv_semanal(c)), "estado": ""},
             {"nome": "Folha salarial", "valor": eng.din(-folha), "estado": "critico"},
             {"nome": "Estrutura e operacao", "valor": eng.din(-est), "estado": "critico"},
             {"nome": "Saldo fixo da semana", "valor": eng.din(saldo),
              "estado": "ok" if saldo >= 0 else "critico", "destaque": True},
         ],
         "premiacao": _premiacao_em_jogo(G, c),
+        "patrocinio": patrocinio(G, c),
         "mensal": _verba_mensal(G, c),
         "elenco": {"valor": eng.din(sum(j["valor"] for j in proprios)),
                    "folha_mes": eng.din(folha * 4), "jogadores": len(jogs),

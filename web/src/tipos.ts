@@ -207,6 +207,8 @@ export interface DadosPainel {
   contratos: AvisoContratos | null
   /** clubes querendo o treinador */
   propostas_emprego: PropostaEmprego[]
+  /** espacos de patrocinio sem contrato (pre-temporada): atalho para Financas */
+  patrocinio_vago: string[] | null
   /** o resto do futebol: as ultimas manchetes */
   mundo: Manchete[]
 }
@@ -594,6 +596,22 @@ export interface LinhaDinheiro {
   destaque?: boolean
 }
 
+export interface ContratoPatrocinio {
+  empresa: string
+  perfil: string
+  semanal: string
+  temporadas: string
+  meta: string
+  bonus: string | null
+  ano: string
+}
+
+export interface Patrocinio {
+  contratos: (ContratoPatrocinio & { espaco: string; nome: string })[]
+  vagos: { espaco: string; nome: string; ofertas: (ContratoPatrocinio & { indice: number })[] }[]
+  explica: string
+}
+
 export interface TelaFinancas {
   cabecalho: Cabecalho
   titulo: string
@@ -610,6 +628,7 @@ export interface TelaFinancas {
   /** o que entra e sai toda semana, sem bilheteria nem premio */
   linhas: LinhaDinheiro[]
   premiacao: LinhaDinheiro[]
+  patrocinio: Patrocinio
   mensal: VerbaMensal
   elenco: { valor: string; folha_mes: string; jogadores: number; emprestados: number }
   maiores: { id: number; nome: string; pos: string; salario: string; valor: string; obs: string }[]

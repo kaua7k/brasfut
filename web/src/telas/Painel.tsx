@@ -48,6 +48,21 @@ export function Painel({ dados, aoDefinirAuto, mudandoAuto, aoIr, aoRenovar, aoR
         {dados.propostas_emprego.map((o) => (
           <FaixaProposta key={o.id} proposta={o} aoResponder={aoResponderProposta} />
         ))}
+        {dados.patrocinio_vago && (
+          <section className="painel faixa atencao">
+            <div className="faixa-icone">{iconeDeEstado('atencao')}</div>
+            <div className="encolhe">
+              <div className="faixa-titulo">Patrocinio a escolher: {dados.patrocinio_vago.join(' e ')}</div>
+              <div className="faixa-detalhe">
+                Tres propostas por espaco. Sem escolha, a equilibrada assina quando a bola rolar.
+              </div>
+            </div>
+            <div className="espaco" />
+            <button type="button" className="bt-fantasma" onClick={() => aoIr('financas')}>
+              Ver propostas
+            </button>
+          </section>
+        )}
         {dados.resultados.partidas.length > 0 ? (
           <ResumoPartida partidas={dados.resultados.partidas} alerta={dados.resultados.alerta} />
         ) : (
