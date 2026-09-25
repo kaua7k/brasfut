@@ -49,11 +49,29 @@ def acertados(G):
     return {a["jogador"]: a for _i, a in eng.minhas_agendadas(G) if a.get("para") == G["clube"]}
 
 
+def _porque_do_pedido(G, j, intocavel):
+    """O que empurra o pedido acima do valor, em palavras (a conta e preco_pedido)."""
+    motivos = []
+    if intocavel:
+        motivos.append("o clube nao quer vender")
+    imp = eng.importancia(G, j)
+    if imp >= 0.6:
+        motivos.append("ele e peca central do time")
+    elif imp >= 0.3:
+        motivos.append("ele e titular")
+    if j["contrato"] >= 4:
+        motivos.append("contrato longo")
+    elif j["contrato"] <= 1:
+        motivos.append("ultimo ano de contrato baixa o preco")
+    return (": " + ", ".join(motivos)) if motivos else ""
+
+
 def _linha_busca(G, c, j, aba, pendentes=None):
     clube = eng.nome_clube(G, j["clube"])
     linha = {"id": j["id"], "pos": j["pos"], "nome": j["nome"], "idade": j["idade"],
              "ovr": j["ovr"], "teto": eng.scout(G, j), "clube": clube,
              "salario": eng.din(j["salario"]), "livre": j["clube"] is None,
+             "valor": eng.din(j["valor"]), "valor_num": int(j["valor"]),
              "acertado": bool(pendentes and j["id"] in pendentes),
              "tag": dto._tag_ovr(j["ovr"])}
     if aba == "emprestimo":
@@ -302,7 +320,9 @@ def mesa(tipo, pid, proposta=None):
         base.update(
             livre=livre, intocavel=intocavel, pedido=eng.din(pedido), pedido_num=int(pedido),
             contexto=("Agente livre: nao ha passe a pagar, so acertar contrato." if livre else
-                      "No clube atual ele e %s. Contrato dele: %s." % (_peso(G, j), eng.plural(j["contrato"], "ano"))),
+                      "No clube atual ele e %s. Contrato dele: %s. Valor de mercado %s: o pedido e %d%% "
+                      "disso%s." % (_peso(G, j), eng.plural(j["contrato"], "ano"), eng.din(j["valor"]),
+                                    round(100.0 * pedido / max(1, j["valor"])), _porque_do_pedido(G, j, intocavel))),
             exigencia=eng.din(exig), exigencia_num=int(exig),
             valor=valor, salario=salario,
             leitura_passe=None if livre else _leitura(valor, pedido),

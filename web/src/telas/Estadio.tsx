@@ -48,6 +48,19 @@ export function Estadio({ tela, ocupado, aoAgir }: Props) {
     <div className="tela">
       <CabecalhoTela titulo={tela.titulo} sub={tela.subtitulo} metricas={tela.metricas} />
 
+      <section className="painel corte financas-colunas-unica" aria-label="Como o estadio esta rendendo">
+        <div className="painel-titulo cab-tabela">Como o estadio esta rendendo</div>
+        {tela.rendimento.map((l) => (
+          <div className="linha-valor" key={l.nome}>
+            <span className="rot">
+              {l.nome}
+              {l.dica && <span className="linha-dica">{l.dica}</span>}
+            </span>
+            <span className={`val ${l.estado ?? ''}`}>{l.valor}</span>
+          </div>
+        ))}
+      </section>
+
       <section className="cartao">
         <div className="titulo">Preco do ingresso</div>
         <div className="desc">

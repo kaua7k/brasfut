@@ -72,6 +72,7 @@ const BASE: Coluna<LinhaMercado>[] = [
 
 const COLUNAS_COMPRA: Coluna<LinhaMercado>[] = [
   ...BASE,
+  { chave: 'valor', rotulo: 'Valor', largura: '92px', classe: 'num', ordem: (j) => j.valor_num, render: (j) => j.valor },
   {
     chave: 'pedido',
     rotulo: 'Pedido',

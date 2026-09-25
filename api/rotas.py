@@ -595,7 +595,7 @@ def investir(corpo):
                 "texto": ("Subir %s para o nivel %d custa %s.\n\nCaixa depois: %s."
                           % (chave.upper(), c[chave] + 1, eng.din(custo),
                              eng.din(c["dinheiro"] - custo)))}}
-        c["dinheiro"] -= custo
+        eng.lancar(G, c, -custo, "infra")
         c[chave] += 1
         eng.salvar_auto(G, forcar=True)
         return {"recado": "%s agora esta no nivel %d." % (chave.upper(), c[chave]),
@@ -980,7 +980,7 @@ def contratar_obra(corpo):
                 "texto": ("Ampliar em %s lugares custa %s e fica pronto em %d semanas.\n\n"
                           "Caixa depois: %s." % (dto.milhar(lugares), eng.din(custo), semanas,
                                                   eng.din(c["dinheiro"] - custo)))}}
-        c["dinheiro"] -= custo
+        eng.lancar(G, c, -custo, "obras")
         c["obra_lugares"] = lugares
         c["obra_semanas"] = semanas
         texto = ("Obra contratada: +%s lugares por %s, pronta em %d semanas."

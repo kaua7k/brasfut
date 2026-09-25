@@ -585,12 +585,34 @@ export interface TelaCopas {
   copas: CopaItem[]
 }
 
+export interface LinhaDinheiro {
+  nome: string
+  valor: string
+  estado?: string
+  /** uma frase: de onde vem esse dinheiro */
+  dica?: string
+  destaque?: boolean
+}
+
 export interface TelaFinancas {
   cabecalho: Cabecalho
   titulo: string
-  linhas: { nome: string; valor: string; estado: string; destaque?: boolean }[]
+  /** o ano ate agora, por categoria; a soma fecha com o caixa */
+  extrato: {
+    temporada: number
+    entradas: LinhaDinheiro[]
+    saidas: LinhaDinheiro[]
+    caixa_ini: string
+    caixa: string
+    resultado: string
+    estado: Estado
+  }
+  /** o que entra e sai toda semana, sem bilheteria nem premio */
+  linhas: LinhaDinheiro[]
+  premiacao: LinhaDinheiro[]
   mensal: VerbaMensal
-  maiores: { id: number; nome: string; pos: string; salario: string; obs: string }[]
+  elenco: { valor: string; folha_mes: string; jogadores: number; emprestados: number }
+  maiores: { id: number; nome: string; pos: string; salario: string; valor: string; obs: string }[]
 }
 
 export interface VerbaMensal {
@@ -791,6 +813,8 @@ export interface TelaEstadio {
   lugares_max: number
   caixa: string
   caixa_num: number
+  /** os jogos em casa do ano e o que pesa no preco e na obra */
+  rendimento: LinhaDinheiro[]
 }
 
 // ============================================================================
@@ -822,6 +846,8 @@ export interface LinhaMercado {
   // compra
   pedido?: string
   pedido_num?: number
+  valor: string
+  valor_num: number
   marca?: '' | 'a_venda' | 'intocavel'
   emprestimo?: boolean
   // emprestimo

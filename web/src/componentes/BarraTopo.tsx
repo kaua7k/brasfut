@@ -29,7 +29,7 @@ export function BarraTopo({ cabecalho, aoAvancar, aoSimular, avancando }: Props)
       <div className="espaco" />
 
       {cabecalho.chips.map((chip) => (
-        <div className={`chip chip-${chip.label.toLowerCase()}`} key={chip.label}>
+        <div className={`chip chip-${chip.label.split("/")[0].toLowerCase()}`} key={chip.label}>
           <span className="rotulo">{chip.label}</span>
           <span className={`valor${chip.estado === 'critico' ? ' critico' : ''}`}>{chip.valor}</span>
         </div>

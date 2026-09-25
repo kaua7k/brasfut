@@ -80,7 +80,7 @@ def cabecalho(G):
              "estado": "ok" if c["dinheiro"] >= 0 else "critico"},
             {"label": "Verba", "valor": eng.din(eng.verba_contratacao(G, c)),
              "estado": "ok" if eng.verba_contratacao(G, c) > 0 else "critico"},
-            {"label": "Folha", "valor": eng.din(eng.folha_semanal(G, c) * 4)},
+            {"label": "Folha/mes", "valor": eng.din(eng.folha_semanal(G, c) * 4)},
             {"label": "Elenco", "valor": "%d jogadores" % len(c["elenco"])},
         ],
         "menu": [{"id": k, "nome": n, "pronta": p} for k, n, p in MENU],
@@ -604,6 +604,8 @@ def elenco():
         "metricas": [
             {"valor": len(c["elenco"]), "nome": "jogadores"},
             {"valor": "%.1f" % eng.media_elenco(G, c), "nome": "media de overall"},
+            {"valor": eng.din(sum(G["jogadores"][p]["valor"] for p in c["elenco"]
+                                  if not G["jogadores"][p].get("dono"))), "nome": "valor do elenco"},
             {"valor": na_vitrine, "nome": "na vitrine",
              "estado": "atencao" if na_vitrine else None},
             {"valor": acabando, "nome": "ultimo ano",
@@ -814,6 +816,80 @@ def copas():
 
 
 # ------------------------------------------------------------------- financas
+# o que cada linha do extrato quer dizer, em uma frase
+DICA_EXTRATO = {
+    "tv": "fixo toda semana: depende da serie e da reputacao do clube",
+    "bilheteria": "jogos em casa: publico vezes ingresso (veja Estadio)",
+    "premio_liga": "paga na virada do ano, pela posicao final",
+    "premio_estadual": "so o campeao recebe",
+    "premio_copa": "so o campeao recebe",
+    "premio_grupo": "cada vitoria na fase de grupos do continental",
+    "vendas": "passes vendidos",
+    "emprestimos": "taxas de emprestimo pagas e recebidas",
+    "folha": "salarios do elenco e bolsa da base",
+    "estrutura": "CT, base, medico, manutencao do estadio e operacao do clube",
+    "treino": "treino individual dos jogadores marcados",
+    "peneira": "peneira regional da base",
+    "compras": "passes comprados",
+    "rescisoes": "multas de quem foi dispensado",
+    "obras": "ampliacao do estadio",
+    "infra": "niveis de CT, base e medico",
+}
+
+
+def _extrato(G, c):
+    """O ano do clube em categorias; a soma fecha com o caixa (test_extrato)."""
+    st = eng.stats_ano(G)
+    ex = st.get("extrato", {})
+    entradas, saidas = [], []
+    for chave, rotulo in eng.EXTRATO:
+        v = int(ex.get(chave, 0))
+        if not v and chave not in ("tv", "bilheteria", "folha", "estrutura"):
+            continue
+        linha = {"nome": rotulo, "valor": eng.din(v), "dica": DICA_EXTRATO.get(chave, ""),
+                 "estado": "ok" if v > 0 else ("critico" if v < 0 else "")}
+        (entradas if v > 0 or chave in ("tv", "bilheteria") else saidas).append(linha)
+    resultado = int(c["dinheiro"]) - int(st["caixa_ini"])
+    # save de versao anterior: o ano comecou antes do extrato existir, e o que
+    # andou antes fica numa linha propria em vez de a conta nao fechar
+    antes = resultado - sum(int(v) for v in ex.values())
+    if antes:
+        (entradas if antes > 0 else saidas).append({
+            "nome": "Antes do extrato", "valor": eng.din(antes),
+            "dica": "movimentos deste ano feitos numa versao anterior do jogo, sem categoria",
+            "estado": "ok" if antes > 0 else "critico"})
+    return {"temporada": int(G["temporada"]), "entradas": entradas, "saidas": saidas,
+            "caixa_ini": eng.din(st["caixa_ini"]), "caixa": eng.din(c["dinheiro"]),
+            "resultado": eng.din(resultado), "estado": "ok" if resultado >= 0 else "critico"}
+
+
+def _premiacao_em_jogo(G, c):
+    """Quanto o clube ainda pode ganhar: a liga pela posicao de hoje e as copas vivas."""
+    itens = []
+    liga = G["ligas"].get(c["divisao"])
+    if liga and liga["rodada"] > 0:
+        pos = eng.posicao_na_liga(G, c["id"])
+        itens.append({"nome": "%s, terminando em %do" % (eng.nome_da_liga(G, c["divisao"]), pos),
+                      "valor": eng.din(eng.premio_liga(c["divisao"], pos)),
+                      "dica": "campeao leva %s; cada posicao abaixo paga menos"
+                              % eng.din(eng.premio_liga(c["divisao"], 1))})
+    elif liga:
+        itens.append({"nome": "%s, campeao" % eng.nome_da_liga(G, c["divisao"]),
+                      "valor": eng.din(eng.premio_liga(c["divisao"], 1)),
+                      "dica": "a liga ainda nao comecou; paga pela posicao final"})
+    for chave, cp in G["copas"].items():
+        if cp.get("campeao") is None and c["id"] in cp.get("vivos", []) and eng.PREMIO_COPA.get(chave):
+            itens.append({"nome": "%s, se for campeao" % cp["nome"],
+                          "valor": eng.din(eng.PREMIO_COPA[chave]),
+                          "dica": "so o campeao recebe"})
+    est = eng.meu_estadual(G)
+    if est and G.get("fase") == "estadual" and not est.get("campeao"):
+        itens.append({"nome": "%s, se for campeao" % est["nome"],
+                      "valor": eng.din(eng.premio_estadual(est) + c["reputacao"] * 22_000),
+                      "dica": "so o campeao recebe"})
+    return itens
+
+
 def financas():
     G = SESSAO.exigir()
     c = G["clubes"][G["clube"]]
@@ -825,25 +901,27 @@ def financas():
     maiores = []
     for j in sorted([G["jogadores"][p] for p in c["elenco"]], key=lambda x: -x["salario"])[:6]:
         maiores.append({"id": j["id"], "nome": j["nome"], "pos": j["pos"],
-                        "salario": eng.din(j["salario"]),
+                        "salario": eng.din(j["salario"]), "valor": eng.din(j["valor"]),
                         "obs": ("emprestado, pagamos %d%%" % j["emp_pct"]) if j.get("dono") else ""})
+    jogs = [G["jogadores"][p] for p in c["elenco"]]
+    proprios = [j for j in jogs if not j.get("dono")]
 
     return {
         "cabecalho": cabecalho(G),
         "titulo": "Financas",
+        "extrato": _extrato(G, c),
         "linhas": [
-            {"nome": "Caixa atual", "valor": eng.din(c["dinheiro"]),
-             "estado": "ok" if c["dinheiro"] >= 0 else "critico"},
-            {"nome": "TV e patrocinio", "valor": eng.din(rec) + " por semana", "estado": ""},
-            {"nome": "Folha salarial", "valor": eng.din(-folha) + " por semana",
-             "estado": "critico"},
-            {"nome": "Estrutura e operacao", "valor": eng.din(-est) + " por semana",
-             "estado": "critico"},
-            {"nome": "Saldo semanal", "valor": eng.din(saldo),
+            {"nome": "Cotas de TV e patrocinio", "valor": eng.din(rec), "estado": ""},
+            {"nome": "Folha salarial", "valor": eng.din(-folha), "estado": "critico"},
+            {"nome": "Estrutura e operacao", "valor": eng.din(-est), "estado": "critico"},
+            {"nome": "Saldo fixo da semana", "valor": eng.din(saldo),
              "estado": "ok" if saldo >= 0 else "critico", "destaque": True},
-            {"nome": "Folha mensal", "valor": eng.din(folha * 4), "estado": ""},
         ],
+        "premiacao": _premiacao_em_jogo(G, c),
         "mensal": _verba_mensal(G, c),
+        "elenco": {"valor": eng.din(sum(j["valor"] for j in proprios)),
+                   "folha_mes": eng.din(folha * 4), "jogadores": len(jogs),
+                   "emprestados": len(jogs) - len(proprios)},
         "maiores": maiores,
     }
 
@@ -1335,7 +1413,35 @@ def estadio():
         "lugares_max": LUGARES_MAX,
         "caixa": eng.din(c["dinheiro"]),
         "caixa_num": int(c["dinheiro"]),
+        "rendimento": _rendimento_estadio(G, c),
     }
+
+
+def _rendimento_estadio(G, c):
+    """Os jogos em casa do ano: publico, ocupacao e renda, e o que pesa no preco."""
+    jogos = eng.stats_ano(G).get("jogos_casa", [])
+    ref = eng.preco_referencia(c)
+    linhas = []
+    if jogos:
+        pub = sum(j[0] for j in jogos) / len(jogos)
+        ocup = sum(j[0] / max(1, j[2]) for j in jogos) / len(jogos)
+        renda = sum(j[1] for j in jogos)
+        linhas += [
+            {"nome": "Jogos em casa no ano", "valor": str(len(jogos))},
+            {"nome": "Publico medio", "valor": "%s (%d%% ocupado)" % (milhar(pub), round(ocup * 100)),
+             "estado": "ok" if ocup >= 0.7 else ("atencao" if ocup >= 0.4 else "critico")},
+            {"nome": "Renda media por jogo", "valor": eng.din(renda / len(jogos))},
+            {"nome": "Bilheteria no ano", "valor": eng.din(renda)},
+        ]
+    else:
+        linhas.append({"nome": "Jogos em casa no ano", "valor": "nenhum ainda"})
+    linhas += [
+        {"nome": "Ingresso de referencia da sua torcida", "valor": "R$ %d" % round(ref),
+         "dica": "acima disso o publico cai rapido; adversario grande e copa enchem mais"},
+        {"nome": "Manutencao de cada 1.000 lugares", "valor": eng.din(1000 * eng.manutencao_por_lugar(c)) + " por semana",
+         "dica": "ampliar aumenta o custo fixo; estadio cheio tambem pesa a favor em campo"},
+    ]
+    return linhas
 
 
 def previa_esquema(cont):
@@ -1411,16 +1517,35 @@ def resumo(r, previa=False):
     for nome, pos, j, g, a in r.get("destaques", []):
         destaques.append(item("%s (%s): %d jogos, %d gols, %d assistencias" % (nome, pos, j, g, a)))
     secao("Seus destaques", destaques or [item("Ninguem marcou nesta temporada.")])
-    secao("Dinheiro no ano", [
-        item("Caixa: %s no comeco, %s no fim" % (eng.din(fin["caixa_ini"]), eng.din(fin["caixa_fim"]))),
-        item("Entrou: %s de receita, %s de bilheteria%s" % (
-            eng.din(fin["receita"]), eng.din(fin["renda_jogos"]),
-            "" if previa else ", %s de premiacao" % eng.din(fin["premios"]))),
-        item("Saiu: %s entre folha, estrutura e treino" % eng.din(fin["gasto"])),
-        item("Vendas: %s em %s · Compras: %s em %s" % (
-            eng.din(fin["vendido"]), eng.plural(len(r["vendas"]), "negocio"),
-            eng.din(fin["comprado"]), eng.plural(len(r["compras"]), "negocio"))),
-    ])
+    if "extrato" in r:
+        # o extrato do ano: uma linha por categoria, e a soma fecha com o caixa
+        resultado = fin["caixa_fim"] - fin["caixa_ini"]
+        linhas = [item("Caixa: %s no comeco, %s no fim (%s%s no ano)" % (
+            eng.din(fin["caixa_ini"]), eng.din(fin["caixa_fim"]),
+            "+" if resultado >= 0 else "-", eng.din(abs(resultado))),
+            "ok" if resultado >= 0 else "critico")]
+        for chave, rotulo in eng.EXTRATO:
+            v = int(r["extrato"].get(chave, 0))
+            if v:
+                linhas.append(item("%s: %s" % (rotulo, eng.din(v)), "ok" if v > 0 else "critico"))
+        antes = resultado - sum(int(v) for v in r["extrato"].values())
+        if antes:
+            linhas.append(item("Antes do extrato (save de versao anterior): %s" % eng.din(antes)))
+        if previa:
+            linhas.append(item("A premiacao da liga entra quando o ano virar."))
+        secao("Dinheiro no ano", linhas)
+    else:
+        # resumo de save antigo, sem extrato: a bilheteria ja esta dentro da receita
+        secao("Dinheiro no ano", [
+            item("Caixa: %s no comeco, %s no fim" % (eng.din(fin["caixa_ini"]), eng.din(fin["caixa_fim"]))),
+            item("Entrou: %s de receita (dos quais %s de bilheteria)%s" % (
+                eng.din(fin["receita"]), eng.din(fin["renda_jogos"]),
+                "" if previa else ", mais %s de premiacao" % eng.din(fin["premios"]))),
+            item("Saiu: %s entre folha, estrutura e treino" % eng.din(fin["gasto"])),
+            item("Vendas: %s em %s · Compras: %s em %s" % (
+                eng.din(fin["vendido"]), eng.plural(len(r["vendas"]), "negocio"),
+                eng.din(fin["comprado"]), eng.plural(len(r["compras"]), "negocio"))),
+        ])
     secao("Mercado", [item("vendeu %s ao %s por %s" % (n, cl, eng.din(v)), "ok") for n, cl, v in r["vendas"]]
           + [item("comprou %s do %s por %s" % (n, cl, eng.din(v)), "atencao") for n, cl, v in r["compras"]])
     secao("Quem cresceu", [item("%s: +%d de overall, chegou a %d" % (n, d, o), "ok")
