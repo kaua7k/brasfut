@@ -9,6 +9,12 @@ o jogo continuar exatamente o mesmo.
     python desempenho.py --gravar antes.json     # na versao de referencia
     python desempenho.py --comparar antes.json   # depois da mudanca
 
+Campo novo que so guarda (nao sorteia, nao muda jogo) mexe no hash do mundo
+sem mudar o jogo. --ignorar tira do hash chaves do mundo e do jogador, e vale
+nas duas pontas (rode a referencia com o mesmo --ignorar):
+
+    python desempenho.py --gravar antes.json --ignorar historico_meus,nota_soma,nota_j
+
 Para cada seed, mundo novo pelo mesmo caminho da tela (/api/novo, /api/clube)
 e N semanas por /api/avancar. A cada semana guarda o sha256 do mundo inteiro
 (json com chaves ordenadas) e do log: a comparacao e da saida completa, nao de
@@ -53,6 +59,16 @@ def digest(obj):
     return hashlib.sha256(texto.encode("utf-8")).hexdigest()
 
 
+IGNORAR = set()
+
+
+def mundo_sem_ignorados(G):
+    jogadores = {str(k): {c: v for c, v in j.items() if c not in IGNORAR}
+                 for k, j in G["jogadores"].items()}
+    mundo = {c: v for c, v in G.items() if c not in IGNORAR}
+    return dict(mundo, clubes={str(k): v for k, v in G["clubes"].items()}, jogadores=jogadores)
+
+
 def rodar(seed, semanas):
     if os.path.exists(apoio.SAVE_TESTE):
         os.remove(apoio.SAVE_TESTE)
@@ -68,8 +84,7 @@ def rodar(seed, semanas):
         r = apoio.avancar({"leve": True})
         dt = time.perf_counter() - t0
         fora.append({"semana": semana, "euro": euro, "tempo": dt, "motor": _MOTOR[0] - m0,
-                     "mundo": digest(dict(G, clubes={str(k): v for k, v in G["clubes"].items()},
-                                          jogadores={str(k): v for k, v in G["jogadores"].items()})),
+                     "mundo": digest(mundo_sem_ignorados(G)),
                      "log": digest(r.get("log", "")), "jogos": digest(r.get("jogos"))})
     return fora
 
@@ -89,7 +104,9 @@ def main():
     ap.add_argument("--gravar")
     ap.add_argument("--comparar")
     ap.add_argument("--semanas", type=int, default=SEMANAS)
+    ap.add_argument("--ignorar", default="", help="chaves fora do hash, separadas por virgula")
     a = ap.parse_args()
+    IGNORAR.update(c for c in a.ignorar.split(",") if c)
     corridas = {str(s): rodar(s, a.semanas) for s in SEEDS}
     tempos = resumo_tempos(list(corridas.values()))
     print("semana de liga: media %.3f s, pior %.3f s" % (tempos["liga_media"], tempos["liga_max"]))

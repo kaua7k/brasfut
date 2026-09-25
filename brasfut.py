@@ -737,7 +737,7 @@ def novo_jogador(G, pos, nivel, usados, idade=None):
         "valor": valor_de(ovr, idade, teto), "clube": None, "listado": 0,
         "dono": None, "emp_pct": 100, "emp_listado": 0, "emp_opcao": 0,
         "pago": 0, "desde": 0, "ovr_frac": 0.0, "j_mes": 0,
-        "j": 0, "g": 0, "a": 0, "ca": 0, "cv": 0, "nota_soma": 0.0,
+        "j": 0, "g": 0, "a": 0, "ca": 0, "cv": 0, "nota_soma": 0.0, "nota_j": 0,
         "car_j": 0, "car_g": 0, "car_tit": 0,
         "categoria": "pro", "g_mes": 0, "a_mes": 0, "ovr_ini": ovr, "pot_rev": 0,
     }
@@ -938,7 +938,7 @@ def criar_mundo(nome_tecnico):
          "clubes": {}, "jogadores": {}, "livres": [], "noticias": [], "historico": [],
          "tecnico": nome_tecnico, "clube": None, "auto": False, "fase": "liga",
          "objetivo": "", "log_semana": [], "artilharia_temp": {},
-         "placar_hist": [], "temporada_stats": {}, "ultimos_meus": [],
+         "placar_hist": [], "temporada_stats": {}, "ultimos_meus": [], "historico_meus": [],
          "agendadas": [], "emp_ofertas": {"stamp": "", "itens": []},
          "estaduais": {}, "semana_est": 0}
     usados = set()
@@ -2607,6 +2607,12 @@ def simular(G, casa_id, fora_id, comp="liga", neutro=False):
             elif vaga in ("GOL", "ZAG") and contra >= 3:
                 nota -= 0.5
             notas[pid] = round(clamp(nota, 3.0, 10.0), 1)
+            j = G["jogadores"].get(pid)
+            if j:
+                # media do ano = nota_soma / nota_j (nota_j e separado de j["j"]:
+                # save antigo tem jogos sem nota, e a media nao pode inventa-las)
+                j["nota_soma"] = round(j.get("nota_soma", 0.0) + notas[pid], 1)
+                j["nota_j"] = j.get("nota_j", 0) + 1
 
     aplicar_moral(G, list(jogaram_c), gc, gf)
     aplicar_moral(G, list(jogaram_f), gf, gc)
@@ -3315,6 +3321,7 @@ def _semana_estadual(G: Mundo) -> List[Dict[str, Any]]:
             if G["clube"] in (r["casa"], r["fora"]):
                 meus.append(r)
     G["ultimos_meus"] = [dict(r) for r in meus]
+    guardar_historico(G, meus)
     for r in meus:
         registrar_placar(G, r)
     economia_semanal(G)
@@ -3762,6 +3769,7 @@ def avancar_semana(G):
     fechar_grupos(G)
     manchetes_da_semana(G, todos, antes)
     G["ultimos_meus"] = [dict(r) for r in meus]
+    guardar_historico(G, meus)
     for r in meus:
         registrar_placar(G, r)
     economia_semanal(G)
@@ -5799,6 +5807,7 @@ def evoluir_jogadores(G: Mundo) -> None:
         j["salario"] = salario_devido(j)
         j["valor"] = valor_de(j["ovr"], j["idade"], j["pot"])
         j["j"] = j["g"] = j["a"] = j["ca"] = j["cv"] = 0
+        j["nota_soma"], j["nota_j"] = 0.0, 0
         j["j_mes"] = 0
         j["amarelos"] = 0
         # ferias e pre-temporada: sem isto o elenco comecava o ano novo exatamente
@@ -7487,7 +7496,9 @@ def nome_competicao(G, comp, casa=None):
     """
     if comp == "liga":
         div = casa["divisao"] if casa else G["clubes"][G["clube"]]["divisao"]
-        return "Brasileirao Serie " + div
+        if div in DIVISOES_BR:
+            return "Brasileirao Serie " + div
+        return nome_da_liga(G, div)
     if comp == "estadual":
         for est in G.get("estaduais", {}).values():
             if casa is None or casa["id"] in est["times"]:
@@ -7726,6 +7737,91 @@ def forma_recente(G: Mundo, quantos: int = 5) -> List[Tuple[str, str]]:
 def resultados_da_semana(G: Mundo) -> List[Dict[str, Any]]:
     """O que o meu clube jogou na ultima semana processada."""
     return list(G.get("ultimos_meus") or [])
+
+
+HISTORICO_PARTIDAS = 10     # ultimas partidas do meu clube guardadas no save
+
+
+def media_nota(j: Jogador) -> Optional[float]:
+    """Media de nota no ano; None enquanto nao ha jogo com nota."""
+    n = int(j.get("nota_j", 0))
+    if n <= 0:
+        return None
+    return round(j.get("nota_soma", 0.0) / n, 2)
+
+
+def registro_partida(G: Mundo, r: Dict[str, Any]) -> Dict[str, Any]:
+    """A partida em formato de guardar: so listas e nomes, nada de dict com id.
+
+    O retorno de simular tem notas e xi com o id do jogador como chave; o JSON
+    transforma essa chave em texto e o id deixa de achar o jogador. Aqui cada
+    jogador ja vai com o nome, entao o registro sobrevive ao save, a venda e a
+    aposentadoria de quem jogou.
+    """
+    casa, fora = G["clubes"][r["casa"]], G["clubes"][r["fora"]]
+
+    def nome(pid):
+        j = G["jogadores"].get(pid) if pid is not None else None
+        return j["nome"] if j else ""
+
+    gols, cartoes, subs, lesoes = [], [], [], []
+    for minuto, lado, tipo, pid, extra in r.get("eventos", []):
+        if tipo == "gol":
+            gols.append([minuto, lado, nome(pid), nome(extra)])
+        elif tipo in ("amarelo", "vermelho"):
+            cartoes.append([minuto, lado, tipo, nome(pid)])
+        elif tipo == "substituicao":
+            subs.append([minuto, lado, nome(pid), nome(extra)])
+        elif tipo == "lesao":
+            lesoes.append([minuto, lado, nome(pid)])
+    notas = r.get("notas") or {}
+    linhas = []
+    for lado, chave in ((0, "casa"), (1, "fora")):
+        for pid, vaga in ((r.get("xi") or {}).get(chave) or {}).items():
+            linhas.append([lado, pid, nome(pid), vaga, notas.get(pid, 6.0)])
+    melhor = max(linhas, key=lambda x: x[4]) if linhas else None
+    if G.get("fase") == "estadual":
+        rodada = "Estadual, rodada %d" % max(1, int(G.get("semana_est", 1)))
+    else:
+        rodada = "Semana %02d" % max(1, int(G.get("semana", 1)))
+    reg = {
+        "temporada": G["temporada"], "semana_abs": semana_absoluta(G), "rodada": rodada,
+        "comp": r.get("comp"), "comp_nome": nome_competicao(G, r.get("comp"), casa),
+        "casa": casa["id"], "fora": fora["id"], "casa_nome": casa["nome"], "fora_nome": fora["nome"],
+        "eu": 0 if casa["id"] == G["clube"] else 1,
+        "gc": r["gc"], "gf": r["gf"], "pub": r.get("pub", 0), "renda": r.get("renda", 0),
+        "stats": {k: list(v) for k, v in (r.get("stats") or {}).items()},
+        "gols": gols, "cartoes": cartoes, "subs": subs, "lesoes": lesoes,
+        # notas: [lado, id, nome, vaga, nota] por jogador que entrou em campo
+        "notas": linhas,
+        "melhor": dict(zip(("lado", "id", "nome", "vaga", "nota"), melhor)) if melhor else None,
+    }
+    if "agregado" in r:
+        a, ga, b, gb = r["agregado"]
+        reg["agregado"] = [G["clubes"][a]["nome"], ga, gb, G["clubes"][b]["nome"]]
+    if "penaltis" in r:
+        reg["penaltis"] = G["clubes"][r["penaltis"]]["nome"]
+    return reg
+
+
+def guardar_historico(G: Mundo, meus: List[Dict[str, Any]]) -> None:
+    """Empilha as partidas da semana; fica so com as HISTORICO_PARTIDAS ultimas."""
+    if not meus:
+        return
+    hist = G.setdefault("historico_meus", [])
+    hist.extend(registro_partida(G, r) for r in meus)
+    del hist[:-HISTORICO_PARTIDAS]
+
+
+def _normalizar_partida(r: Dict[str, Any]) -> None:
+    """Partida crua que passou pelo JSON: id volta a ser int nas chaves."""
+    if isinstance(r.get("notas"), dict):
+        r["notas"] = {int(k): v for k, v in r["notas"].items()}
+    xi = r.get("xi")
+    if isinstance(xi, dict):
+        for lado in ("casa", "fora"):
+            if isinstance(xi.get(lado), dict):
+                xi[lado] = {int(k): v for k, v in xi[lado].items()}
 
 
 # ----------------------------------------------------------------------------
@@ -8179,6 +8275,13 @@ def migrar(G):
     G.setdefault("ofertas", {"stamp": "", "itens": []})
     G.setdefault("placar_hist", [])
     G.setdefault("ultimos_meus", [])
+    for r in G["ultimos_meus"]:
+        _normalizar_partida(r)
+    G.setdefault("historico_meus", [])
+    for j in G["jogadores"].values():
+        if "nota_j" not in j:
+            # save antigo nunca somou nota: comeca a media do zero, sem inventar
+            j["nota_soma"], j["nota_j"] = 0.0, 0
     G.setdefault("agendadas", [])
     G.setdefault("semana_est", 0)
     migrar_prazos(G)
