@@ -49,7 +49,7 @@ def opcoes(G):
             {"id": "mes", "rotulo": "1 mes", "semanas": min(4, faltam),
              "nota": "quatro rodadas"},
             {"id": "temporada", "rotulo": "Ate o fim do estadual", "semanas": faltam,
-             "nota": "%d rodada(s) ate o Brasileirao" % faltam},
+             "nota": "%s ate o Brasileirao" % eng.plural(faltam, "rodada")},
         ]
     faltam = max(0, eng.SEMANAS_LIGA - G["semana"] + 1)
     janela = _semanas_ate_mudar_janela(G)
@@ -62,9 +62,9 @@ def opcoes(G):
         {"id": "mes", "rotulo": "1 mes", "semanas": min(4, faltam), "nota": "quatro semanas"},
         {"id": "janela", "rotulo": "Ate a janela %s" % ("fechar" if aberta else "abrir"),
          "semanas": min(janela, faltam),
-         "nota": ("%d semana(s)" % janela) if janela > 0 else "sem janela pela frente"},
+         "nota": eng.plural(janela, "semana") if janela > 0 else "sem janela pela frente"},
         {"id": "temporada", "rotulo": "Temporada toda", "semanas": faltam,
-         "nota": "as %d semana(s) que faltam, ate a virada do ano" % faltam},
+         "nota": "%s que faltam, ate a virada do ano" % eng.plural(faltam, "semana")},
     ]
 
 
@@ -105,11 +105,11 @@ def relato(G, antes):
             "estado": "ok" if gm > gs else ("atencao" if gm == gs else "critico")})
     novas = len(eng.propostas_recebidas(G))
     if novas > antes["propostas"]:
-        linhas.append({"texto": "   %d proposta(s) na mesa" % novas, "estado": "atencao"})
+        linhas.append({"texto": "   %s na mesa" % eng.plural(novas, "proposta"), "estado": "atencao"})
     for p in c["elenco"]:
         j = G["jogadores"][p]
         if j["lesao"] > 0 and p not in antes["lesionados"]:
-            linhas.append({"texto": "   lesao: %s, %d semana(s) fora" % (j["nome"], j["lesao"]),
+            linhas.append({"texto": "   lesao: %s, %s fora" % (j["nome"], eng.plural(j["lesao"], "semana")),
                            "estado": "critico"})
     return linhas, bool(jogos)
 

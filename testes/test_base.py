@@ -51,7 +51,7 @@ class TestPeneira(unittest.TestCase):
         c = self.c
         j = eng.gerar_cria(self.G, c, set(), idade=15)
         j["obs"] = 0
-        largura = lambda: (lambda n: n[-1] - n[0])([int(x) for x in eng.scout(self.G, j).replace("teto ~", "").split("-")])
+        largura = lambda: (lambda n: n[-1] - n[0])([int(x) for x in eng.scout(self.G, j).replace("~", "").split("-")])
         antes = largura()
         j["obs"] = 18
         self.assertLessEqual(largura(), antes)

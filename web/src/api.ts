@@ -156,6 +156,8 @@ export const api = {
   mudarPlano: (eixo: string, valor: string) =>
     pedir<RespostaAcao<TelaEscalacao>>('/api/escalacao/plano', { eixo, valor }),
   planoPadrao: () => pedir<RespostaAcao<TelaEscalacao>>('/api/escalacao/plano', { padrao: true }),
+  mudarCondicional: (condicao: string, minuto: number | null, tatica: string | null) =>
+    pedir<RespostaAcao<TelaEscalacao>>('/api/escalacao/condicional', { condicao, minuto, tatica }),
 
   // ------------------------------------------------------------------ treino
   treino: () => pedir<{ tela: TelaTreino }>('/api/treino'),

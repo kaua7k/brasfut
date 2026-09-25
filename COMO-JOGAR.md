@@ -93,7 +93,7 @@ contra jogar só com os 11.
 lado a lado em barras, o minuto a minuto (gols com assistência, cartões, lesões,
 substituições) e a **nota de cada jogador** do seu time, com o melhor em campo destacado.
 Nota 6,0 é jogo correto; gol vale +1,0 e assistência +0,5, e o resultado do time entra na
-conta de todo mundo. Dá para reabrir clicando no placar do Painel. No modo linha, o
+conta de todo mundo. Dá para reabrir clicando no placar do Painel. Na interface web, o resumo (gols e cartões com minuto, posse, chutes, melhor em campo) aparece no Painel na volta do avanço e no fim do Simular, e as bolinhas das últimas partidas trocam o jogo mostrado; "Ver detalhes" abre as notas dos dois times. No modo linha, o
 relatório agora traz as estatísticas, as substituições e o melhor em campo.
 
 ## Plano de jogo
@@ -114,6 +114,51 @@ o time entrega e a fadiga). E há **transição**: quem espera atrás com linha 
 castiga quem sobe a linha e pressiona alto. Calibrado para que nenhuma escolha domine —
 contra um adversário igual, as opções ficam entre 1,58 e 1,88 ponto por jogo, e o que
 decide é o confronto, não a opção.
+
+### Se o jogo apertar
+
+Ainda na Escalação, abaixo do plano: uma instrução para cada situação — **se estiver
+perdendo** e **se estiver vencendo** — com o minuto (a partir do intervalo, 46', ou da
+janela dos 70, 71') e a mentalidade. O jogo não pausa: a partida confere o placar nessas
+duas paradas e troca a mentalidade sozinha. Vale enquanto o placar pedir; se virar, volta
+a mentalidade de antes. A troca aparece no resumo da partida ("71' vira Ofensivo").
+
+A máquina também reage, com regra fixa aos 71': perdendo, sobe um degrau (Equilibrado →
+Ofensivo); vencendo, desce um (Equilibrado → Contra-ataque). Medido em 16 mil jogos: gols
+por jogo de 2,75 para 2,77, empates de 24,2% para 23,4%, e quem perde aos 70 escapa da
+derrota um pouco menos (11,9% → 10,7%): segurar o resultado rende mais do que ir para o
+tudo ou nada.
+
+## A diretoria
+
+A diretoria não espera o fim do ano para ter opinião. No cartão **Objetivo da temporada**,
+no Painel, fica a **confiança da diretoria**: um número de 0 a 100, a tendência das últimas
+4 semanas e, logo abaixo, por que ele mudou na última semana ("-8 derrota para o Espanyol",
+"+1 dentro da meta").
+
+- **Resultado contra o esperado.** Ganhar de quem é mais forte vale muito; perder para quem
+  é mais fraco custa caro. O esperado vem do tamanho dos dois elencos e do mando de campo.
+  Clássico vale o dobro, para o bem e para o mal.
+- **Posição contra a meta.** No Brasileirão (da 6ª rodada em diante), a posição puxa a
+  confiança aos poucos para um patamar: alto dentro da meta, baixo longe dela, mais baixo
+  ainda na zona de rebaixamento. Sozinha, a tabela leva no máximo ao aviso.
+- **Caixa no vermelho** também pesa.
+- A **dificuldade** da carreira multiplica só as quedas.
+
+Abaixo de **30** a diretoria avisa. Depois do aviso, se a confiança cair abaixo de **15**, a
+demissão pode vir já na semana seguinte, no meio do ano. Voltar acima de 40 derruba o aviso.
+No fim da temporada a avaliação de sempre continua, mas pesa a confiança: quem chega com a
+diretoria do lado quase não cai, quem chega avisado cai muito mais. Clube novo começa em 60;
+ano novo anda metade do caminho de volta aos 60. No modo sem demissão a diretoria só fala.
+
+Medido em seis carreiras de 50 semanas (Séries A a D): a confiança andou entre 37 e 82 em
+cinco delas; o Flamengo com meta de título caiu até 19, levou o aviso e se recuperou.
+Ninguém foi demitido.
+
+**Os outros clubes também demitem.** No fim do turno e no fim do ano, clube que despencou
+seis posições abaixo do próprio tamanho e está no terço de baixo manda o treinador embora
+(sai no feed do mundo). A vaga fica aberta dez semanas, e é esse clube que liga primeiro
+quando você está indo bem.
 
 ## O que a varredura encontrou e o que mudou
 

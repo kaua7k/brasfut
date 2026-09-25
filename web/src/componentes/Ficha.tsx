@@ -14,10 +14,10 @@ interface Props {
   acoes?: { rotulo: string; principal?: boolean; aoClicar: () => void }[]
 }
 
-function corDaBarra(valor: number) {
-  if (valor >= 65) return 'var(--ok)'
-  if (valor >= 45) return 'var(--atencao)'
-  return 'var(--critico)'
+function estadoDaBarra(valor: number) {
+  if (valor >= 65) return 'ok'
+  if (valor >= 45) return 'atencao'
+  return 'critico'
 }
 
 export function Ficha({ ficha, aoFechar, acoes }: Props) {
@@ -32,21 +32,21 @@ export function Ficha({ ficha, aoFechar, acoes }: Props) {
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="ficha-topo">
           <div className="ficha-ovr">{ficha.ovr}</div>
-          <div style={{ minWidth: 0 }}>
+          <div className="encolhe">
             <h2>{ficha.nome}</h2>
-            <div className="sub" style={{ color: 'var(--fraco)', fontSize: 12.5 }}>
+            <div className="sub txt-fraco txt-p">
               {ficha.posicao_nome}, {ficha.idade} anos · {ficha.clube} · joga {ficha.papel}
             </div>
             {ficha.situacao && (
-              <div style={{ color: 'var(--atencao)', fontSize: 12, marginTop: 4 }}>
+              <div className="txt-atencao txt-p mt-1">
                 {ficha.situacao}
               </div>
             )}
           </div>
         </div>
 
-        <div className="painel-titulo" style={{ marginBottom: 6 }}>Leitura do olheiro</div>
-        <div style={{ fontSize: 13, marginBottom: 12 }}>{ficha.olheiro}</div>
+        <div className="painel-titulo mb-2">Leitura do olheiro</div>
+        <div className="txt-m mb-3">{ficha.olheiro}</div>
 
         <ul className="ficha-notas">
           {ficha.notas.map((n, i) => (
@@ -62,13 +62,13 @@ export function Ficha({ ficha, aoFechar, acoes }: Props) {
                 <strong>{b.valor}</strong>
               </div>
               <div className="barra">
-                <div style={{ width: `${b.valor}%`, background: corDaBarra(b.valor) }} />
+                <div className={estadoDaBarra(b.valor)} style={{ width: `${b.valor}%` }} />
               </div>
             </div>
           ))}
         </div>
 
-        <div className="painel-titulo" style={{ margin: '4px 0 8px' }}>Temporada</div>
+        <div className="painel-titulo mt-1 mb-2">Temporada</div>
         <div className="ficha-numeros">
           <div className="cx"><div className="n">{ficha.temporada.j}</div><div className="r">jogos</div></div>
           <div className="cx"><div className="n">{ficha.temporada.g}</div><div className="r">gols</div></div>
@@ -77,22 +77,22 @@ export function Ficha({ ficha, aoFechar, acoes }: Props) {
           <div className="cx"><div className="n">{ficha.temporada.cv}</div><div className="r">vermelhos</div></div>
         </div>
 
-        <div className="painel-titulo" style={{ margin: '14px 0 8px' }}>Carreira e contrato</div>
+        <div className="painel-titulo mt-3 mb-2">Carreira e contrato</div>
         <div className="ficha-numeros">
           <div className="cx"><div className="n">{ficha.carreira.j}</div><div className="r">jogos</div></div>
           <div className="cx"><div className="n">{ficha.carreira.g}</div><div className="r">gols</div></div>
           <div className="cx"><div className="n">{ficha.contrato.anos}</div><div className="r">anos de contrato</div></div>
-          <div className="cx"><div className="n" style={{ fontSize: 13 }}>{ficha.contrato.salario}</div><div className="r">salario</div></div>
-          <div className="cx"><div className="n" style={{ fontSize: 13 }}>{ficha.contrato.valor}</div><div className="r">valor</div></div>
+          <div className="cx"><div className="n menor">{ficha.contrato.salario}</div><div className="r">salario</div></div>
+          <div className="cx"><div className="n menor">{ficha.contrato.valor}</div><div className="r">valor</div></div>
         </div>
 
         {ficha.contrato.emprestado_aqui && (
-          <p style={{ marginTop: 14, marginBottom: 0, color: 'var(--atencao)', fontSize: 12.5 }}>
+          <p className="mt-3 mb-0 txt-atencao txt-p">
             Esta emprestado aqui: pagamos {ficha.contrato.emp_pct}% do salario e o passe nao e nosso.
           </p>
         )}
 
-        <div className="modal-acoes" style={{ marginTop: 18 }}>
+        <div className="modal-acoes mt-4">
           {acoes?.map((a) => (
             <button
               key={a.rotulo}

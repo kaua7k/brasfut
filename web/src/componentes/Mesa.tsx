@@ -6,6 +6,7 @@
 // fechar e reabrir nao zera - era assim que a janela antiga deixava insistir
 // numa mesa que o outro lado ja tinha encerrado.
 
+import { porque } from '../motivo'
 import { useEffect, useRef, useState } from 'react'
 import { api, ErroDaApi } from '../api'
 import type { Atalho, Leitura, Mesa as DadosMesa, PropostaMesa, TipoMesa } from '../tipos'
@@ -281,7 +282,7 @@ export function Mesa({ tipo, id, aoFechar }: Props) {
                       {n}
                     </button>
                   ))}
-                  <span className="tag-fraco" style={{ fontSize: 11.5 }}>contrato curto sai mais caro</span>
+                  <span className="tag-fraco txt-p">contrato curto sai mais caro</span>
                 </div>
                 <CampoDinheiro
                   rotulo="Salario mensal oferecido"
@@ -322,8 +323,8 @@ export function Mesa({ tipo, id, aoFechar }: Props) {
                 <button
                   type="button"
                   className="bt-acao bt-media"
+                  title={porque([[bloqueada, 'Esta mesa ja fechou nesta semana'], [semCaixa, 'Falta verba para esta proposta']], semCaixa ? 'passa da verba para contratar' : undefined)}
                   disabled={bloqueada || semCaixa}
-                  title={semCaixa ? 'passa da verba para contratar' : undefined}
                   onClick={enviar}
                 >
                   {tipo === 'compra'

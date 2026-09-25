@@ -6,8 +6,10 @@
 // vitrine nao cobra nada e se desfaz com um clique, por isso nao ha pergunta
 // de confirmacao no fim.
 
+import { porque, AGUARDE } from '../motivo'
 import { useEffect, useState } from 'react'
 import { api, ErroDaApi } from '../api'
+import { dinheiro as reais, plural } from '../formato'
 import type { LinhaPrecoVitrine } from '../tipos'
 import { CampoDinheiro } from './CampoDinheiro'
 
@@ -24,11 +26,6 @@ const PERCENTUAIS = [
   { pct: 130, rotulo: 'com lucro 130%' },
   { pct: 200, rotulo: 'so por muito 200%' },
 ]
-
-function reais(v: number) {
-  if (v >= 1e6) return `R$ ${(v / 1e6).toFixed(2)} mi`
-  return `R$ ${Math.round(v / 1000)} mil`
-}
 
 export function DialogoVitrine({ ids, ocupado, aoConfirmar, aoFechar }: Props) {
   const [linhas, setLinhas] = useState<LinhaPrecoVitrine[]>([])
@@ -70,12 +67,12 @@ export function DialogoVitrine({ ids, ocupado, aoConfirmar, aoFechar }: Props) {
       <div className="modal modal-largo">
         <h2>Por a venda</h2>
         <p>
-          {linhas.length} jogador(es). Pedir muito acima do valor afasta proposta; abaixo, elas chegam
+          {plural(linhas.length, 'jogador', 'jogadores')}. Pedir muito acima do valor afasta proposta; abaixo, elas chegam
           rapido.
         </p>
 
         <div className="painel-titulo">Preco como percentual do valor de mercado</div>
-        <div className="atalhos" style={{ margin: '6px 0 12px' }}>
+        <div className="atalhos mt-2 mb-3">
           {PERCENTUAIS.map((p) => (
             <button key={p.pct} type="button" className="bt-fantasma bt-mini" onClick={() => aplicarPct(p.pct)}>
               {p.rotulo}
@@ -97,7 +94,7 @@ export function DialogoVitrine({ ids, ocupado, aoConfirmar, aoFechar }: Props) {
                 <span role="cell" className="corta">
                   <span className={`tag-${l.tag}`}>{l.nome}</span>{' '}
                   <span className="tag-fraco">
-                    {l.pos} · {l.ovr} · {l.contrato} ano(s)
+                    {l.pos} · {l.ovr} · {plural(l.contrato, 'ano')}
                   </span>
                 </span>
                 <span role="cell" className="tag-fraco">{l.valor}</span>
@@ -119,6 +116,7 @@ export function DialogoVitrine({ ids, ocupado, aoConfirmar, aoFechar }: Props) {
           <button
             type="button"
             className="bt-fantasma"
+            title={porque([[fixo < 1000, 'O preco minimo de vitrine e R$ 1.000']])}
             disabled={fixo < 1000}
             onClick={() => setPrecos(Object.fromEntries(linhas.map((l) => [l.id, fixo])))}
           >
@@ -126,7 +124,7 @@ export function DialogoVitrine({ ids, ocupado, aoConfirmar, aoFechar }: Props) {
           </button>
         </div>
 
-        <div className="mesa-linha tag-fraco" style={{ marginTop: 10 }}>
+        <div className="mesa-linha tag-fraco mt-3">
           pedido somado {reais(total)} · folha que sairia {reais(folha)} por mes
         </div>
         {invalidos.length > 0 && (
@@ -141,6 +139,7 @@ export function DialogoVitrine({ ids, ocupado, aoConfirmar, aoFechar }: Props) {
           <button
             type="button"
             className="bt-acao bt-media"
+            title={porque([[ocupado, AGUARDE], [!linhas.length, 'Ninguem para por na vitrine'], [invalidos.length > 0, 'Algum preco esta abaixo de R$ 1.000']])}
             disabled={ocupado || !linhas.length || invalidos.length > 0}
             onClick={() => aoConfirmar(linhas.map((l) => ({ id: l.id, preco: precos[l.id] })))}
           >

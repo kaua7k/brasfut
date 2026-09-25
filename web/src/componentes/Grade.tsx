@@ -14,7 +14,7 @@
 // Ordenar: clicar no cabecalho de uma coluna ordena a lista por ela - numero
 // do maior para o menor, texto de A a Z; o segundo clique inverte e o terceiro
 // volta a ordem que veio do servidor. A chave de ordem sai do que a celula
-// mostra ("R$ 1.20 mi", "450 mil", "65%", "3 ano(s)"), entao toda coluna ja
+// mostra ("R$ 1,2 mi", "450 mil", "65%", "3 anos"), entao toda coluna ja
 // nasce ordenavel; `ordem` na coluna so e preciso quando o texto engana.
 
 import { Children, isValidElement, useMemo, useState, type ReactNode } from 'react'
@@ -90,8 +90,8 @@ function textoDe(no: ReactNode): string {
   return ''
 }
 
-/** "R$ 1.20 mi" -> 1200000; "450 mil" -> 450000; "-R$ 3 mi" -> -3000000;
- *  "65%" -> 65; "3 ano(s) !" -> 3; "Meia" -> "meia"; "-" ou vazio -> null. */
+/** "R$ 1,2 mi" -> 1200000; "450 mil" -> 450000; "-R$ 3 mi" -> -3000000;
+ *  "65%" -> 65; "3 anos !" -> 3; "Meia" -> "meia"; "-" ou vazio -> null. */
 export function chaveDeOrdem(no: ReactNode): number | string | null {
   if (typeof no === 'number') return no
   const txt = textoDe(no).trim()
@@ -106,8 +106,8 @@ export function chaveDeOrdem(no: ReactNode): number | string | null {
     const mult = { mi: 1e6, mil: 1e3, bi: 1e9 }[(dinheiro[4] ?? '').toLowerCase()] ?? 1
     if (!Number.isNaN(n)) return sinal * n * mult
   }
-  // numero no comeco da celula ("65%", "3 ano(s)", "+4", "70-80"): vale ele
-  const numero = /^([+-]?\d+(?:[.,]\d+)?)\s*(mil|mi)?\b/i.exec(txt)
+  // numero no comeco da celula ("65%", "3 anos", "+4", "70-80", "~75"): vale ele
+  const numero = /^~?([+-]?\d+(?:[.,]\d+)?)\s*(mil|mi)?\b/i.exec(txt)
   if (numero) {
     const n = Number.parseFloat(numero[1].replace(',', '.'))
     const mult = { mi: 1e6, mil: 1e3 }[(numero[2] ?? '').toLowerCase()] ?? 1
@@ -148,6 +148,14 @@ function gravarMemoria(chave: string | undefined, ordem: Ordem | null) {
   }
 }
 
+/** O menor que a coluna aceita: "92px" -> 92, "minmax(140px, 1.6fr)" -> 140.
+ *  Somado, vira a largura minima da linha - abaixo dela a grade rola de lado
+ *  em vez de espremer as colunas uma por cima da outra. */
+function larguraMinima(largura: string): number {
+  const px = /(\d+(?:\.\d+)?)px/.exec(largura)
+  return px ? Number(px[1]) : 60
+}
+
 export function Grade<T>({
   colunas,
   itens,
@@ -166,6 +174,11 @@ export function Grade<T>({
   const [ordem, setOrdem] = useState<Ordem | null>(() => lerMemoria(memoria))
   const selecionavel = Boolean(marcados && aoMarcar)
   const grid = (selecionavel ? '30px ' : '') + colunas.map((c) => c.largura).join(' ')
+  // colunas + vaos de 10px + padding lateral de 16px, como no CSS de .grade-linha
+  const n = colunas.length + (selecionavel ? 1 : 0)
+  const minimo =
+    (selecionavel ? 30 : 0) + colunas.reduce((s, c) => s + larguraMinima(c.largura), 0) + 10 * (n - 1) + 32
+  const estilo = { gridTemplateColumns: grid, minWidth: minimo }
 
   const chaveDe = (c: Coluna<T>) => (c.ordem === undefined ? (i: T) => chaveDeOrdem(c.render(i)) : c.ordem)
   const colunaOrdem = ordem ? colunas.find((c) => c.chave === ordem.chave && c.ordem !== null) : undefined
@@ -212,7 +225,7 @@ export function Grade<T>({
 
   return (
     <div className="grade" role="table">
-      <div className="grade-linha cab" style={{ gridTemplateColumns: grid }} role="row">
+      <div className="grade-linha cab" style={estilo} role="row">
         {selecionavel &&
           (aoMarcarTodos ? (
             <button
@@ -269,9 +282,18 @@ export function Grade<T>({
             className={`grade-linha ${classeDe?.(item) ?? ''}${marcada ? ' marcada' : ''}${
               aoAbrir ? ' abrivel' : ''
             }`}
-            style={{ gridTemplateColumns: grid }}
-            title={aoAbrir ? `duplo-clique abre a ficha de ${nome}` : undefined}
+            style={estilo}
+            // abrir a ficha tambem pelo teclado: Tab chega na linha, Enter abre
+            tabIndex={aoAbrir ? 0 : undefined}
+            title={aoAbrir ? `Duplo clique ou Enter abre a ficha de ${nome}` : undefined}
             onDoubleClick={aoAbrir ? () => aoAbrir(item) : undefined}
+            onKeyDown={
+              aoAbrir
+                ? (e) => {
+                    if (e.key === 'Enter' && e.target === e.currentTarget) aoAbrir(item)
+                  }
+                : undefined
+            }
             onClick={selecionavel && marcarAoClicar ? () => aoMarcar?.(id) : undefined}
           >
             {selecionavel && (

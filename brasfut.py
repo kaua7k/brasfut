@@ -331,6 +331,12 @@ TV = {"A": (420_000, 15_000), "B": (250_000, 6_000),
 
 DIVISOES_BR = ("A", "B", "C", "D")
 
+
+def tem_rebaixamento(div: str) -> bool:
+    """Quem cai: as quatro ultimas das Series A, B e C. A D e o fundo do
+    sistema e as ligas de fora nao tem acesso nem queda."""
+    return div in ("A", "B", "C")
+
 # As ligas de fora sao divisoes como as series: clube com divisao "ENG" joga,
 # compra, vende e pode ser treinado. Cada liga tem o seu dinheiro: TV semanal
 # (base, por ponto de reputacao; calibrada para saldo semanal pouco acima de
@@ -588,17 +594,25 @@ def clamp(v, lo, hi):
 
 
 def din(v):
-    """Formata dinheiro em reais de forma curta."""
+    """Formata dinheiro em reais de forma curta, em pt-BR: "R$ 37,6 mi",
+    "R$ 764 mil", "-R$ 5,4 bi". Formatador unico: tela, noticia e terminal
+    escrevem dinheiro por aqui (a web tem o espelho em web/src/formato.ts)."""
     v = float(v)
     s = "-" if v < 0 else ""
     v = abs(v)
     if v >= 1_000_000_000:
-        return "%sR$ %.2f bi" % (s, v / 1_000_000_000)
+        return "%sR$ %s bi" % (s, ("%.1f" % (v / 1_000_000_000)).replace(".", ","))
     if v >= 1_000_000:
-        return "%sR$ %.2f mi" % (s, v / 1_000_000)
-    if v >= 1_000:
+        return "%sR$ %s mi" % (s, ("%.1f" % (v / 1_000_000)).replace(".", ","))
+    if v >= 100_000:
         return "%sR$ %.0f mil" % (s, v / 1_000)
-    return "%sR$ %.0f" % (s, v)
+    # abaixo de cem mil o arredondamento mentiria: R$ 3.500 viraria "R$ 4 mil"
+    return "%sR$ %s" % (s, "{:,.0f}".format(v).replace(",", "."))
+
+
+def plural(n, singular, plural_=None):
+    """"1 ano", "3 anos", "2 jogadores". Nunca "ano(s)"."""
+    return "%d %s" % (n, singular if n == 1 else (plural_ or singular + "s"))
 
 
 def poisson(lmbda):
@@ -723,7 +737,7 @@ def novo_jogador(G, pos, nivel, usados, idade=None):
         "valor": valor_de(ovr, idade, teto), "clube": None, "listado": 0,
         "dono": None, "emp_pct": 100, "emp_listado": 0, "emp_opcao": 0,
         "pago": 0, "desde": 0, "ovr_frac": 0.0, "j_mes": 0,
-        "j": 0, "g": 0, "a": 0, "ca": 0, "cv": 0, "nota_soma": 0.0,
+        "j": 0, "g": 0, "a": 0, "ca": 0, "cv": 0, "nota_soma": 0.0, "nota_j": 0,
         "car_j": 0, "car_g": 0, "car_tit": 0,
         "categoria": "pro", "g_mes": 0, "a_mes": 0, "ovr_ini": ovr, "pot_rev": 0,
     }
@@ -820,14 +834,14 @@ def aplicar_elencos_reais(G, usados):
         importados.add(c["id"])
         trocados += 1
     if trocados:
-        print("Elencos reais de %d clube(s) carregados (%s)." % (trocados, origem))
+        print("Elencos reais de %s carregados (%s)." % (plural(trocados, "clube"), origem))
     if completados:
-        print("%d jogador(es) de reserva foram gerados para fechar buracos de posicao." % completados)
+        print("%s de reserva gerados para fechar buracos de posicao." % plural(completados, "jogador", "jogadores"))
     if trocados >= 5:
         ajustados = recalibrar_gerados(G, importados)
         if ajustados:
-            print("%d clube(s) sem elenco no arquivo foram nivelados pela curva do seu arquivo."
-                  % ajustados)
+            print("%s sem elenco no arquivo nivelados pela curva do seu arquivo."
+                  % plural(ajustados, "clube"))
 
 
 def recalibrar_gerados(G, importados):
@@ -924,7 +938,7 @@ def criar_mundo(nome_tecnico):
          "clubes": {}, "jogadores": {}, "livres": [], "noticias": [], "historico": [],
          "tecnico": nome_tecnico, "clube": None, "auto": False, "fase": "liga",
          "objetivo": "", "log_semana": [], "artilharia_temp": {},
-         "placar_hist": [], "temporada_stats": {}, "ultimos_meus": [],
+         "placar_hist": [], "temporada_stats": {}, "ultimos_meus": [], "historico_meus": [],
          "agendadas": [], "emp_ofertas": {"stamp": "", "itens": []},
          "estaduais": {}, "semana_est": 0}
     usados = set()
@@ -999,6 +1013,25 @@ def nome_da_liga(G, div):
         return "Serie %s" % div
     liga = G.get("ligas", {}).get(div)
     return liga.get("nome", div) if liga else div
+
+
+_REPETIDOS = {"n": -1, "nomes": set()}
+
+
+def nome_clube(G, cid):
+    """Nome do clube para lista e noticia. Nome repetido no mundo (o Athletic
+    mineiro e o de Bilbao) ganha a liga ao lado: "Athletic (La Liga)"."""
+    c = G["clubes"].get(cid) if cid is not None else None
+    if not c:
+        return "sem clube"
+    if _REPETIDOS["n"] != len(G["clubes"]):
+        vistos, repetidos = set(), set()
+        for x in G["clubes"].values():
+            (repetidos if x["nome"] in vistos else vistos).add(x["nome"])
+        _REPETIDOS.update(n=len(G["clubes"]), nomes=repetidos)
+    if c["nome"] in _REPETIDOS["nomes"]:
+        return "%s (%s)" % (c["nome"], nome_da_liga(G, c["divisao"]) if c["divisao"] != "EX" else "exterior")
+    return c["nome"]
 
 
 def nova_liga_ext(codigo, nome, ids):
@@ -1614,12 +1647,13 @@ def _atribuicao_hungara(custo: List[List[float]]) -> List[int]:
             visto[col] = True
             linha = dono[col]
             base = custo[linha - 1]
+            u_linha = u[linha]      # nao muda dentro do laco; mesma conta, na mesma ordem
             delta = INF
             prox = 0
             for j in range(1, m + 1):
                 if visto[j]:
                     continue
-                atual = base[j - 1] - u[linha] - v[j]
+                atual = base[j - 1] - u_linha - v[j]
                 if atual < menor[j]:
                     menor[j] = atual
                     caminho[j] = col
@@ -1681,8 +1715,13 @@ def montar_escalacao(G: Mundo, c: Clube, comp: str = "liga",
         return []
     vagas = _vagas_do_esquema(form)
     peso = _peso_vagas(form)
-    valores = [[nota_escalacao(G["jogadores"][pid], vaga) * peso[vaga] for pid in aptos]
-               for vaga in vagas]
+    # as vagas repetem (4 ZAG/LAT, 3 MEI...): a linha de notas de cada posicao
+    # e a mesma, entao sai uma vez so. _resolver_vagas copia antes de mexer.
+    linhas: Dict[str, List[float]] = {}
+    for vaga in vagas:
+        if vaga not in linhas:
+            linhas[vaga] = [nota_escalacao(G["jogadores"][pid], vaga) * peso[vaga] for pid in aptos]
+    valores = [linhas[vaga] for vaga in vagas]
     esc = [aptos[k] for k in _resolver_vagas(valores, len(aptos)) if 0 <= k < len(aptos)]
     esc.sort(key=lambda p: POS.index(G["jogadores"][p]["pos"]))
     return esc[:11]
@@ -1819,8 +1858,42 @@ def vagas_manuais(c: Optional[Clube]) -> Dict[int, str]:
     return {int(p): v for p, v in (c.get("vagas_manuais") or [])}
 
 
+# Memo exato do laco de simulacao. atribuir_vagas e funcao pura de (formacao,
+# vagas fixadas e, de cada titular na ordem do XI: posicao, overall, condicao,
+# forma e moral) - rendimento() nao le mais nada. A chave leva tudo isso, entao
+# o memo nunca devolve conta velha: jogador que cansou no intervalo ou mudou de
+# moral e outra chave. Acerta quando o mesmo XI e medido de novo no mesmo
+# estado (posse, forcas do primeiro tempo, diagnostico, painel). Vive fora do
+# save e se esvazia inteiro quando enche; esvaziar nunca muda resultado.
+_MEMO_VAGAS: Dict[Any, List[Tuple[int, str]]] = {}
+MEMO_MAX = 20_000
+
+
+def _chave_xi(G: Mundo, esc: List[int], form: Dict[str, int],
+              fixas: Optional[Dict[int, str]]) -> Any:
+    js = G["jogadores"]
+    jogadores = tuple((pid, js[pid]["pos"], js[pid]["ovr"], js[pid]["cond"],
+                       js[pid]["forma"], js[pid]["moral"]) for pid in esc)
+    return (tuple(sorted(form.items())), tuple(sorted((fixas or {}).items())), jogadores)
+
+
 def atribuir_vagas(G: Mundo, esc: List[int], form: Dict[str, int],
                    fixas: Optional[Dict[int, str]] = None) -> List[Tuple[int, str]]:
+    """Diz em que vaga do esquema cada titular esta jogando (com memo exato;
+    a conta mora em _atribuir_vagas)."""
+    if not esc:
+        return []
+    chave = _chave_xi(G, esc, form, fixas)
+    feito = _MEMO_VAGAS.get(chave)
+    if feito is None:
+        if len(_MEMO_VAGAS) >= MEMO_MAX:
+            _MEMO_VAGAS.clear()
+        feito = _MEMO_VAGAS[chave] = _atribuir_vagas(G, esc, form, fixas)
+    return list(feito)
+
+
+def _atribuir_vagas(G: Mundo, esc: List[int], form: Dict[str, int],
+                    fixas: Optional[Dict[int, str]] = None) -> List[Tuple[int, str]]:
     """Diz em que vaga do esquema cada titular esta jogando.
 
     Fonte unica: forcas() calcula a penalidade a partir daqui e a interface
@@ -1848,10 +1921,13 @@ def atribuir_vagas(G: Mundo, esc: List[int], form: Dict[str, int],
         else:
             soltos.append(pid)
     if soltos:
-        valores = [[rendimento(G["jogadores"][pid],
-                               AFINIDADE[G["jogadores"][pid]["pos"]][vaga]) * peso[vaga]
-                    for pid in soltos]
-                   for vaga in livres]
+        linhas: Dict[str, List[float]] = {}
+        for vaga in livres:
+            if vaga not in linhas:
+                linhas[vaga] = [rendimento(G["jogadores"][pid],
+                                           AFINIDADE[G["jogadores"][pid]["pos"]][vaga]) * peso[vaga]
+                                for pid in soltos]
+        valores = [linhas[vaga] for vaga in livres]
         for i, k in enumerate(_resolver_vagas(valores, len(soltos))):
             if 0 <= k < len(soltos):
                 saida.append((soltos[k], livres[i]))
@@ -1973,10 +2049,10 @@ def diagnostico_escalacao(G: Mundo, c: Optional[Clube] = None,
         causas.append("%s de %s rende %d%%"
                       % (nome(pid), vaga, int(AFINIDADE[jogs[pid]["pos"]][vaga] * 100)))
     if caidos:
-        causas.append("%d titular(es) fora" % len(caidos))
+        causas.append("%s fora" % plural(len(caidos), "titular", "titulares"))
     leves = [t for t in improvisados if t not in graves]
     if leves:
-        causas.append("%d improvisado(s)" % len(leves))
+        causas.append(plural(len(leves), "improvisado"))
     if desgastados:
         causas.append("%d no limite fisico" % len(desgastados))
 
@@ -2005,7 +2081,7 @@ def diagnostico_escalacao(G: Mundo, c: Optional[Clube] = None,
         tem = naturais_aptos.get(vaga, 0)
         titulo_aviso = ("LIMITE DO ELENCO - %s: %s joga de %s e rende %d%%"
                         % ("voce nao tem %s aptos" % PLURAL_POS[vaga] if tem == 0
-                           else "so %d %s apto(s)" % (tem, NOME_POS[vaga].lower()),
+                           else "so %d %s %s" % (tem, NOME_POS[vaga].lower(), "apto" if tem == 1 else "aptos"),
                            nome(pid), vaga, int(AFINIDADE[jogs[pid]["pos"]][vaga] * 100)))
         detalhe = ("A formacao pede %d %s e o elenco tem %d. %sTroque a formacao ou contrate."
                    % (form.get(vaga, 0), PLURAL_POS[vaga], tem,
@@ -2022,21 +2098,22 @@ def diagnostico_escalacao(G: Mundo, c: Optional[Clube] = None,
         if estrutural_leve:
             vaga = improvisados[0][1]
             tem = naturais_aptos.get(vaga, 0)
-            titulo_aviso = ("LIMITE DO ELENCO - %s: %d improvisado(s) em campo"
+            titulo_aviso = ("LIMITE DO ELENCO - %s: %s em campo"
                             % ("voce nao tem %s aptos" % PLURAL_POS[vaga] if tem == 0
-                               else "so %d %s apto(s)" % (tem, NOME_POS[vaga].lower()),
-                               len(improvisados)))
+                               else "so %d %s %s" % (tem, NOME_POS[vaga].lower(), "apto" if tem == 1 else "aptos"),
+                               plural(len(improvisados), "improvisado")))
             detalhe = ("A formacao pede %d %s e o elenco tem %d. Rendimento medio do improviso: "
                        "%d%%. %sTroque a formacao ou contrate."
                        % (form.get(vaga, 0), PLURAL_POS[vaga], tem, int(medio * 100),
                           "O automatico ja escalou o melhor possivel. " if auto else ""))
         else:
-            titulo_aviso = "ESCALACAO COM RESSALVA - %d improvisado(s) em campo" % len(improvisados)
+            titulo_aviso = "ESCALACAO COM RESSALVA - %s em campo" % plural(len(improvisados), "improvisado")
             detalhe = ("Rendimento medio do improviso: %d%%. Da para jogar, mas voce perde forca."
                        % int(medio * 100))
     elif len(desgastados) >= 3:
         estado = "atencao"
-        titulo_aviso = "ESCALACAO COM RESSALVA - %d titular(es) no limite fisico" % len(desgastados)
+        titulo_aviso = ("ESCALACAO COM RESSALVA - %s no limite fisico"
+                        % plural(len(desgastados), "titular", "titulares"))
         detalhe = "Abaixo de 45 de fisico o jogador rende menos e machuca mais."
     elif aptos < 14:
         estado = "atencao"
@@ -2044,11 +2121,11 @@ def diagnostico_escalacao(G: Mundo, c: Optional[Clube] = None,
         detalhe = "Sem banco de verdade, a proxima lesao vira time incompleto."
     elif len(pendurados) >= 3:
         estado = "atencao"
-        titulo_aviso = "ESCALACAO COM RESSALVA - %d pendurado(s) em campo" % len(pendurados)
+        titulo_aviso = "ESCALACAO COM RESSALVA - %s em campo" % plural(len(pendurados), "pendurado")
         detalhe = "Mais um amarelo e eles ficam de fora da proxima rodada."
     elif caidos:
         estado = "atencao"
-        titulo_aviso = "ESCALACAO REFEITA - %d titular(es) fora" % len(caidos)
+        titulo_aviso = "ESCALACAO REFEITA - %s fora" % plural(len(caidos), "titular", "titulares")
         detalhe = (("A maquina ja repos: %s de fora, alguem assumiu a vaga."
                     if auto else
                     "Repusemos sem te perguntar: %s de fora. Confira quem entrou.")
@@ -2056,8 +2133,9 @@ def diagnostico_escalacao(G: Mundo, c: Optional[Clube] = None,
     else:
         estado = "ok"
         titulo_aviso = "TIME PRONTO PARA A SEMANA"
-        detalhe = ("11 em campo, goleiro no gol, nenhum improvisado. Ataque %.1f, defesa %.1f."
-                   % (ataque, defesa))
+        # ataque e defesa ficam na barra do proximo jogo e no campo da
+        # Escalacao; repetir aqui era o mesmo numero duas vezes na tela
+        detalhe = "11 em campo, goleiro no gol, nenhum improvisado."
 
     return {
         "auto": auto,
@@ -2224,6 +2302,68 @@ def definir_plano(G: Mundo, c: Clube, eixo: str, valor: str) -> Tuple[bool, str]
     return True, "%s: %s - %s" % (eixo.capitalize(), valor, tabela[valor]["desc"])
 
 
+# Instrucao condicional pre-jogo: "se perdendo a partir do 71', Ofensivo". A
+# partida ja para no intervalo (46') e na janela dos 70 (71'); e ali que a
+# regra e conferida. Vale enquanto a condicao durar: virou o placar, volta a
+# mentalidade de antes. Troca so a mentalidade (c["tatica"]), que ja pesa no
+# ataque, na defesa, no cansaco e no cartao - custo O(1), sem pausar o jogo.
+ESCADA_TATICA = ["Retranca", "Contra-ataque", "Equilibrado", "Ofensivo", "Pressao total"]
+MINUTOS_CONDICIONAL = (46, 71)
+CONDICOES = ("perdendo", "vencendo")
+
+
+def condicionais_de(c: Optional[Clube]) -> Dict[str, Optional[Dict[str, Any]]]:
+    """As regras do clube, so as validas. Save antigo nao tem nenhuma."""
+    out: Dict[str, Optional[Dict[str, Any]]] = {k: None for k in CONDICOES}
+    guardado = (c or {}).get("condicionais") or {}
+    for cond in CONDICOES:
+        r = guardado.get(cond)
+        if (isinstance(r, dict) and r.get("minuto") in MINUTOS_CONDICIONAL
+                and r.get("tatica") in TATICAS):
+            out[cond] = {"minuto": r["minuto"], "tatica": r["tatica"]}
+    return out
+
+
+def definir_condicional(G: Mundo, c: Clube, condicao: str, minuto: Optional[int],
+                        tatica: Optional[str]) -> Tuple[bool, str]:
+    """minuto vazio (ou 0) apaga a regra daquela condicao."""
+    if condicao not in CONDICOES:
+        return False, "Condicao desconhecida."
+    regras = {k: v for k, v in condicionais_de(c).items() if v}
+    if not minuto:
+        regras.pop(condicao, None)
+        c["condicionais"] = regras
+        return True, "Sem instrucao se estiver %s." % condicao
+    if minuto not in MINUTOS_CONDICIONAL:
+        return False, "A instrucao so vale no intervalo (46') ou aos 71'."
+    if tatica not in TATICAS:
+        return False, "Mentalidade desconhecida."
+    regras[condicao] = {"minuto": int(minuto), "tatica": tatica}
+    c["condicionais"] = regras
+    return True, "Se estiver %s a partir dos %d': %s." % (condicao, minuto, tatica)
+
+
+def tatica_condicional(G: Mundo, c: Clube, original: str, pro: int, contra: int,
+                       minuto: int) -> str:
+    """A mentalidade que o clube usa a partir deste minuto, pelo placar.
+
+    O meu clube segue as regras que eu deixei. A maquina tem regra fixa na
+    janela dos 70: perdendo sobe um degrau na escada, vencendo desce um.
+    """
+    if pro == contra:
+        return original
+    condicao = "perdendo" if pro < contra else "vencendo"
+    if c["id"] == G.get("clube"):
+        regra = condicionais_de(c)[condicao]
+        if regra and regra["minuto"] <= minuto:
+            return regra["tatica"]
+        return original
+    if minuto < MINUTOS_CONDICIONAL[-1] or original not in ESCADA_TATICA:
+        return original
+    i = ESCADA_TATICA.index(original) + (1 if condicao == "perdendo" else -1)
+    return ESCADA_TATICA[max(0, min(len(ESCADA_TATICA) - 1, i))]
+
+
 def _efeitos(plano: Dict[str, str]) -> Dict[str, float]:
     """Soma os cinco botoes nos numeros que a partida sabe usar."""
     out = {"posse": 0.0, "volume": 1.0, "qualidade": 1.0, "concede": 1.0,
@@ -2388,126 +2528,142 @@ def simular(G, casa_id, fora_id, comp="liga", neutro=False):
     # e o mesmo que comecou, nem em pernas nem em nomes.
     europeu = comp in COMPS_EUROPA or (comp == "liga" and G["clubes"][casa_id]["divisao"] not in DIVISOES_BR)
     expoente = EXP_FORCA_EUROPA if europeu else EXP_FORCA
-    for ini, fim, minutos in ((1, 45, 45), (46, 70, 25), (71, 92, 20)):
-        at_c, de_c = forcas_de(G, casa, esc_c)
-        at_f, de_f = forcas_de(G, fora, esc_f)
-        xg_c = 1.22 * ((at_c / max(25.0, de_f)) ** expoente) * fator_casa
-        xg_f = 1.10 * ((at_f / max(25.0, de_c)) ** expoente)
-        # concede > 1 quer dizer "este time entrega mais chance": ele MULTIPLICA
-        # o xG de quem esta atacando. Dividir fazia linha alta defender melhor.
-        xg_c *= ef_c["qualidade"] * ef_c["volume"] * ef_f["concede"]
-        xg_f *= ef_f["qualidade"] * ef_f["volume"] * ef_c["concede"]
-        # transicao: quem espera atras castiga quem sobe demais a linha
-        xg_c *= 1.0 + ef_c["contra"] * max(0.0, ef_f["expoe"])
-        xg_f *= 1.0 + ef_f["contra"] * max(0.0, ef_c["expoe"])
-        xg_c *= rng.uniform(0.82, 1.20) * (minutos / 90.0)
-        xg_f *= rng.uniform(0.82, 1.20) * (minutos / 90.0)
+    # a mentalidade pode mudar no meio (instrucao condicional); o clube sai do
+    # jogo com a que entrou, ate se a partida estourar no meio
+    originais = (casa["tatica"], fora["tatica"])
+    instrucoes = []
+    try:
+        for ini, fim, minutos in ((1, 45, 45), (46, 70, 25), (71, 92, 20)):
+            if ini > 1:
+                for lado, clube, antes in ((0, casa, originais[0]), (1, fora, originais[1])):
+                    pro, contra = (gc, gf) if lado == 0 else (gf, gc)
+                    nova = tatica_condicional(G, clube, antes, pro, contra, ini)
+                    if nova != clube["tatica"]:
+                        clube["tatica"] = nova
+                        motivo = ("perdendo" if pro < contra else
+                                  "vencendo" if pro > contra else "empatado")
+                        instrucoes.append([ini, lado, nova, motivo])
+            at_c, de_c = forcas_de(G, casa, esc_c)
+            at_f, de_f = forcas_de(G, fora, esc_f)
+            xg_c = 1.22 * ((at_c / max(25.0, de_f)) ** expoente) * fator_casa
+            xg_f = 1.10 * ((at_f / max(25.0, de_c)) ** expoente)
+            # concede > 1 quer dizer "este time entrega mais chance": ele MULTIPLICA
+            # o xG de quem esta atacando. Dividir fazia linha alta defender melhor.
+            xg_c *= ef_c["qualidade"] * ef_c["volume"] * ef_f["concede"]
+            xg_f *= ef_f["qualidade"] * ef_f["volume"] * ef_c["concede"]
+            # transicao: quem espera atras castiga quem sobe demais a linha
+            xg_c *= 1.0 + ef_c["contra"] * max(0.0, ef_f["expoe"])
+            xg_f *= 1.0 + ef_f["contra"] * max(0.0, ef_c["expoe"])
+            xg_c *= rng.uniform(0.82, 1.20) * (minutos / 90.0)
+            xg_f *= rng.uniform(0.82, 1.20) * (minutos / 90.0)
 
-        for lado, xg, esc, adv_vagas, ef in ((0, xg_c, esc_c, vagas_f, ef_c),
-                                             (1, xg_f, esc_f, vagas_c, ef_f)):
-            if not esc:
-                continue
-            fatia = posse if lado == 0 else (1.0 - posse)
-            chances = CHANCES_BASE * (0.55 + 0.9 * fatia) * ef["volume"] * (minutos / 90.0)
-            chances = max(1, int(round(chances * rng.uniform(0.8, 1.2))))
-            conversao = clamp(xg / chances, 0.005, 0.60)
-            vagas = vagas_c if lado == 0 else vagas_f
-            for _ in range(chances):
-                stats["chutes"][lado] += 1
-                minuto = rng.randint(ini, fim)
-                sorte = rng.random()
-                if sorte < conversao:
-                    stats["no_gol"][lado] += 1
-                    autor = sorteia_autor(G, esc, GOL_W, vagas)
-                    assist = sorteia_autor(G, esc, ASS_W, vagas)
-                    if assist == autor:
-                        assist = None
-                    if autor:
-                        ja = G["jogadores"][autor]
-                        ja["g"] += 1
-                        ja["car_g"] += 1
-                        ja["g_mes"] = ja.get("g_mes", 0) + 1
-                        notas[autor] = notas.get(autor, 6.0) + 1.0
-                    if assist:
-                        js = G["jogadores"][assist]
-                        js["a"] += 1
-                        js["a_mes"] = js.get("a_mes", 0) + 1
-                        notas[assist] = notas.get(assist, 6.0) + 0.5
-                    eventos.append((minuto, lado, "gol", autor, assist))
-                    if lado == 0:
-                        gc += 1
-                    else:
-                        gf += 1
-                elif sorte < conversao + 0.30:
-                    stats["no_gol"][lado] += 1
-                    stats["defesas"][1 - lado] += 1
-                    goleiro = next((p for p, v in adv_vagas.items() if v == "GOL"), None)
-                    if goleiro:
-                        notas[goleiro] = notas.get(goleiro, 6.0) + 0.10
-                elif sorte < conversao + 0.55:
-                    stats["escanteios"][lado] += 1
-
-        # cartoes, faltas e lesoes do periodo
-        for lado, esc, dono, ef in ((0, esc_c, casa, ef_c), (1, esc_f, fora, ef_f)):
-            vagas = vagas_c if lado == 0 else vagas_f
-            jogaram = jogaram_c if lado == 0 else jogaram_f
-            banco = banco_c if lado == 0 else banco_f
-            _, _, mult_cartao = CUSTO_TATICA.get(dono["tatica"], (9, 20, 1.0))
-            mult_cartao *= ef["cartao"]
-            for pid in list(esc):
-                j = G["jogadores"][pid]
-                peso = RISCO_CARTAO[vagas.get(pid, j["pos"])] * mult_cartao * (minutos / 90.0)
-                if rng.random() < 0.55 * peso:
-                    stats["faltas"][lado] += 1
-                if rng.random() < 0.214 * peso:
-                    j["ca"] += 1
-                    j["amar"][comp] = j["amar"].get(comp, 0) + 1
-                    notas[pid] = notas.get(pid, 6.0) - 0.25
-                    eventos.append((rng.randint(ini, fim), lado, "amarelo", pid, None))
-                    if j["amar"][comp] >= 3:
-                        j["amar"][comp] = 0
-                        j["susp"][comp] = j["susp"].get(comp, 0) + 1
-                        sincronizar_suspensao(j)
-                if rng.random() < 0.013 * peso:
-                    j["cv"] += 1
-                    j["susp"][comp] = j["susp"].get(comp, 0) + 1 + rng.randint(0, 2)
-                    sincronizar_suspensao(j)
-                    notas[pid] = notas.get(pid, 6.0) - 1.5
-                    eventos.append((rng.randint(ini, fim), lado, "vermelho", pid, None))
-                    esc.remove(pid)              # expulso sai de campo de verdade
+            for lado, xg, esc, adv_vagas, ef in ((0, xg_c, esc_c, vagas_f, ef_c),
+                                                 (1, xg_f, esc_f, vagas_c, ef_f)):
+                if not esc:
                     continue
-                risco = RISCO_LESAO_JOGO * (1.0 - 0.05 * dono["medico"]) * (minutos / 90.0)
-                risco *= risco_lesao_treino(G, dono)
-                risco *= 1.0 + 1.6 * max(0.0, (55 - j["cond"]) / 55.0)
-                if rng.random() < risco:
-                    j["lesao"] = rng.choice(SEMANAS_LESAO) + 1
-                    if j["ovr"] >= CRAQUE_OVR and j["lesao"] >= LESAO_MANCHETE:
-                        manchete(G, "lesao", "%s, do %s, se machuca e fica %d semanas fora." % (
-                            j["nome"], dono["nome"], j["lesao"]))
-                    eventos.append((rng.randint(ini, fim), lado, "lesao", pid, None))
-                    usou = _trocar(G, dono, esc, banco, vagas, jogaram,
-                                   rng.randint(ini, fim), lado, eventos, subs,
-                                   forcado=pid,
-                                   usadas=usadas_c if lado == 0 else usadas_f)
-                    if lado == 0:
-                        usadas_c += usou
-                    else:
-                        usadas_f += usou
+                fatia = posse if lado == 0 else (1.0 - posse)
+                chances = CHANCES_BASE * (0.55 + 0.9 * fatia) * ef["volume"] * (minutos / 90.0)
+                chances = max(1, int(round(chances * rng.uniform(0.8, 1.2))))
+                conversao = clamp(xg / chances, 0.005, 0.60)
+                vagas = vagas_c if lado == 0 else vagas_f
+                for _ in range(chances):
+                    stats["chutes"][lado] += 1
+                    minuto = rng.randint(ini, fim)
+                    sorte = rng.random()
+                    if sorte < conversao:
+                        stats["no_gol"][lado] += 1
+                        autor = sorteia_autor(G, esc, GOL_W, vagas)
+                        assist = sorteia_autor(G, esc, ASS_W, vagas)
+                        if assist == autor:
+                            assist = None
+                        if autor:
+                            ja = G["jogadores"][autor]
+                            ja["g"] += 1
+                            ja["car_g"] += 1
+                            ja["g_mes"] = ja.get("g_mes", 0) + 1
+                            notas[autor] = notas.get(autor, 6.0) + 1.0
+                        if assist:
+                            js = G["jogadores"][assist]
+                            js["a"] += 1
+                            js["a_mes"] = js.get("a_mes", 0) + 1
+                            notas[assist] = notas.get(assist, 6.0) + 0.5
+                        eventos.append((minuto, lado, "gol", autor, assist))
+                        if lado == 0:
+                            gc += 1
+                        else:
+                            gf += 1
+                    elif sorte < conversao + 0.30:
+                        stats["no_gol"][lado] += 1
+                        stats["defesas"][1 - lado] += 1
+                        goleiro = next((p for p, v in adv_vagas.items() if v == "GOL"), None)
+                        if goleiro:
+                            notas[goleiro] = notas.get(goleiro, 6.0) + 0.10
+                    elif sorte < conversao + 0.55:
+                        stats["escanteios"][lado] += 1
 
-        _fadigar(G, esc_c, minutos, casa, ef_c)
-        _fadigar(G, esc_f, minutos, fora, ef_f)
+            # cartoes, faltas e lesoes do periodo
+            for lado, esc, dono, ef in ((0, esc_c, casa, ef_c), (1, esc_f, fora, ef_f)):
+                vagas = vagas_c if lado == 0 else vagas_f
+                jogaram = jogaram_c if lado == 0 else jogaram_f
+                banco = banco_c if lado == 0 else banco_f
+                _, _, mult_cartao = CUSTO_TATICA.get(dono["tatica"], (9, 20, 1.0))
+                mult_cartao *= ef["cartao"]
+                for pid in list(esc):
+                    j = G["jogadores"][pid]
+                    peso = RISCO_CARTAO[vagas.get(pid, j["pos"])] * mult_cartao * (minutos / 90.0)
+                    if rng.random() < 0.55 * peso:
+                        stats["faltas"][lado] += 1
+                    if rng.random() < 0.214 * peso:
+                        j["ca"] += 1
+                        j["amar"][comp] = j["amar"].get(comp, 0) + 1
+                        notas[pid] = notas.get(pid, 6.0) - 0.25
+                        eventos.append((rng.randint(ini, fim), lado, "amarelo", pid, None))
+                        if j["amar"][comp] >= 3:
+                            j["amar"][comp] = 0
+                            j["susp"][comp] = j["susp"].get(comp, 0) + 1
+                            sincronizar_suspensao(j)
+                    if rng.random() < 0.013 * peso:
+                        j["cv"] += 1
+                        j["susp"][comp] = j["susp"].get(comp, 0) + 1 + rng.randint(0, 2)
+                        sincronizar_suspensao(j)
+                        notas[pid] = notas.get(pid, 6.0) - 1.5
+                        eventos.append((rng.randint(ini, fim), lado, "vermelho", pid, None))
+                        esc.remove(pid)              # expulso sai de campo de verdade
+                        continue
+                    risco = RISCO_LESAO_JOGO * (1.0 - 0.05 * dono["medico"]) * (minutos / 90.0)
+                    risco *= risco_lesao_treino(G, dono)
+                    risco *= 1.0 + 1.6 * max(0.0, (55 - j["cond"]) / 55.0)
+                    if rng.random() < risco:
+                        j["lesao"] = rng.choice(SEMANAS_LESAO) + 1
+                        if j["ovr"] >= CRAQUE_OVR and j["lesao"] >= LESAO_MANCHETE:
+                            manchete(G, "lesao", "%s, do %s, se machuca e fica %d semanas fora." % (
+                                j["nome"], dono["nome"], j["lesao"]))
+                        eventos.append((rng.randint(ini, fim), lado, "lesao", pid, None))
+                        usou = _trocar(G, dono, esc, banco, vagas, jogaram,
+                                       rng.randint(ini, fim), lado, eventos, subs,
+                                       forcado=pid,
+                                       usadas=usadas_c if lado == 0 else usadas_f)
+                        if lado == 0:
+                            usadas_c += usou
+                        else:
+                            usadas_f += usou
 
-        if fim < 90:
-            # janela de substituicao. O limite sobe a cada parada: no intervalo
-            # so sai quem ja esta ruim, no fim do jogo troca-se perna cansada.
-            limite = 70 if fim <= 45 else 84
-            for _ in range(3):
-                usadas_c += _trocar(G, casa, esc_c, banco_c, vagas_c, jogaram_c,
-                                    fim + 1, 0, eventos, subs, usadas=usadas_c,
-                                    limite_cond=limite)
-                usadas_f += _trocar(G, fora, esc_f, banco_f, vagas_f, jogaram_f,
-                                    fim + 1, 1, eventos, subs, usadas=usadas_f,
-                                    limite_cond=limite)
+            _fadigar(G, esc_c, minutos, casa, ef_c)
+            _fadigar(G, esc_f, minutos, fora, ef_f)
+
+            if fim < 90:
+                # janela de substituicao. O limite sobe a cada parada: no intervalo
+                # so sai quem ja esta ruim, no fim do jogo troca-se perna cansada.
+                limite = 70 if fim <= 45 else 84
+                for _ in range(3):
+                    usadas_c += _trocar(G, casa, esc_c, banco_c, vagas_c, jogaram_c,
+                                        fim + 1, 0, eventos, subs, usadas=usadas_c,
+                                        limite_cond=limite)
+                    usadas_f += _trocar(G, fora, esc_f, banco_f, vagas_f, jogaram_f,
+                                        fim + 1, 1, eventos, subs, usadas=usadas_f,
+                                        limite_cond=limite)
+    finally:
+        casa["tatica"], fora["tatica"] = originais
 
     # partida disputada conta para todo mundo que entrou em campo, titular ou nao
     for jogaram in (jogaram_c, jogaram_f):
@@ -2529,13 +2685,19 @@ def simular(G, casa_id, fora_id, comp="liga", neutro=False):
             elif vaga in ("GOL", "ZAG") and contra >= 3:
                 nota -= 0.5
             notas[pid] = round(clamp(nota, 3.0, 10.0), 1)
+            j = G["jogadores"].get(pid)
+            if j:
+                # media do ano = nota_soma / nota_j (nota_j e separado de j["j"]:
+                # save antigo tem jogos sem nota, e a media nao pode inventa-las)
+                j["nota_soma"] = round(j.get("nota_soma", 0.0) + notas[pid], 1)
+                j["nota_j"] = j.get("nota_j", 0) + 1
 
     aplicar_moral(G, list(jogaram_c), gc, gf)
     aplicar_moral(G, list(jogaram_f), gf, gc)
     eventos.sort(key=lambda e: e[0])
     return {"casa": casa_id, "fora": fora_id, "gc": gc, "gf": gf,
             "pub": pub, "renda": renda, "eventos": eventos, "comp": comp,
-            "stats": stats, "notas": notas, "subs": subs,
+            "stats": stats, "notas": notas, "subs": subs, "instrucoes": instrucoes,
             "xi": {"casa": jogaram_c, "fora": jogaram_f}}
 
 
@@ -3105,7 +3267,7 @@ def campanha_estadual(G: Mundo, est: Dict[str, Any], cid: int) -> str:
             if j["venc"] != cid:
                 if k == len(est["mata"]) - 1:
                     return "vice-campeao"
-                return "eliminado na %s" % f["nome"].lower()
+                return "eliminado " + _na_fase(f["nome"].lower())
     g = grupo_do_clube(est, cid)
     liga = subtabela(est, est["grupos"][g]) if g is not None else est
     pos = classificacao(G, liga).index(cid) + 1
@@ -3173,9 +3335,9 @@ def manchete_abertura_brasileirao(G: Mundo) -> Optional[str]:
         texto = "Depois do titulo do %s, %s estreia na %s com favoritismo." % (est["nome"], c["nome"], liga)
     elif campanha == "vice-campeao":
         texto = "Vice do %s, %s chega a %s querendo dar o troco." % (est["nome"], c["nome"], liga)
-    elif campanha.startswith("eliminado na "):
+    elif campanha.startswith("eliminado "):
         texto = "Eliminado %s do %s, %s busca a volta por cima na %s." % (
-            _na_fase(campanha[len("eliminado na "):]), est["nome"], c["nome"], liga)
+            campanha[len("eliminado "):], est["nome"], c["nome"], liga)
     elif campanha.endswith("fora do mata-mata"):
         fase = est.get("nome1") or "Primeira fase"
         # "Taca Guanabara" e nome proprio; "Primeira fase" e "Fase de grupos" nao
@@ -3222,8 +3384,9 @@ def encerrar_estaduais(G: Mundo) -> List[str]:
         cl["esc_stamp"] = ""
     c = G["clubes"][G["clube"]]
     c["escalacao"] = auto_escalar(G, c)
-    recados.append("Brasileirao Serie %s comecando. Objetivo: %s."
-                   % (c["divisao"], G["objetivo"]))
+    recados.append("%s comecando. Objetivo: %s."
+                   % (("Brasileirao " if brasileiro(c) else "") + nome_da_liga(G, c["divisao"]),
+                      G["objetivo"]))
     salvar_auto(G)
     return recados
 
@@ -3236,9 +3399,11 @@ def _semana_estadual(G: Mundo) -> List[Dict[str, Any]]:
             if G["clube"] in (r["casa"], r["fora"]):
                 meus.append(r)
     G["ultimos_meus"] = [dict(r) for r in meus]
+    guardar_historico(G, meus)
     for r in meus:
         registrar_placar(G, r)
     economia_semanal(G)
+    atualizar_confianca(G, meus)
     recuperacao(G)
     mercado_ia(G)
     contratar_livres_ia(G)
@@ -3643,8 +3808,18 @@ def jogar_fase_copa(G, chave):
     return res
 
 
+def semana_absoluta(G: Mundo) -> int:
+    """Semanas jogadas desde o comeco do save, estadual incluido.
+
+    G["semana"] fica em 0 durante todo o estadual e volta a 1 no Brasileirao:
+    prazo contado nela durava o estadual inteiro de graca (a proposta de 6
+    semanas feita na virada valia ~20). Prazo se conta aqui."""
+    return int(G.get("semana_abs", 0))
+
+
 def avancar_semana(G):
     G["log_semana"] = []
+    G["semana_abs"] = semana_absoluta(G) + 1
     if G.get("fase") == "estadual":
         return _semana_estadual(G)
     sem = G["semana"]
@@ -3671,11 +3846,14 @@ def avancar_semana(G):
                 if G["clube"] in (r["casa"], r["fora"]):
                     meus.append(r)
     fechar_grupos(G)
+    ia_demite_tecnicos(G)
     manchetes_da_semana(G, todos, antes)
     G["ultimos_meus"] = [dict(r) for r in meus]
+    guardar_historico(G, meus)
     for r in meus:
         registrar_placar(G, r)
     economia_semanal(G)
+    atualizar_confianca(G, meus)
     recuperacao(G)
     mercado_ia(G)
     contratar_livres_ia(G)
@@ -3808,6 +3986,7 @@ def mercado_ia(G):
     clubes = [c for c in G["clubes"].values()
               if c["divisao"] != "EX" and c["id"] != G["clube"]]
     rng.shuffle(clubes)
+    presos = presos_em_acerto(G)
     for c in clubes[:14]:
         if rng.random() > 0.35:
             continue
@@ -3831,7 +4010,7 @@ def mercado_ia(G):
         caixa = min(c["dinheiro"] * 0.55, verba_contratacao(G, c))
         alvos = [j for j in G["jogadores"].values()
                  if j["listado"] and j["clube"] not in (None, c["id"], G["clube"])
-                 and j["listado"] <= caixa and j["ovr"] > media_elenco(G, c) - 2
+                 and j["id"] not in presos and j["listado"] <= caixa and j["ovr"] > media_elenco(G, c) - 2
                  and j["listado"] <= verba_contratacao(G, c, j["salario"])]
         if alvos and len(c["elenco"]) < 28 and rng.random() < 0.85:
             alvo = rng.choice(alvos)
@@ -3839,8 +4018,9 @@ def mercado_ia(G):
             if conta_posicao(G, vendedor, alvo["pos"]) > ELENCO_PADRAO[alvo["pos"]] - 1:
                 transferir(G, alvo["id"], c["id"], alvo["listado"])
         # contrata livre
-        if len(c["elenco"]) < 24 and G["livres"] and rng.random() < 0.4:
-            pid = rng.choice(G["livres"])
+        soltos = [p for p in G["livres"] if p not in presos]
+        if len(c["elenco"]) < 24 and soltos and rng.random() < 0.4:
+            pid = rng.choice(soltos)
             transferir(G, pid, c["id"], 0)
             G["jogadores"][pid]["contrato"] = rng.randint(1, 3)
 
@@ -4059,7 +4239,7 @@ def avaliar_jogador(G: Mundo, prop: Proposta) -> Resposta:
     destino = G["clubes"][prop.comprador]
     exig = exigencia_salarial(G, j, destino, prop.anos)
     if prop.salario >= exig:
-        return Resposta(True, "Acertado: %s por mes, %d ano(s)." % (din(prop.salario), prop.anos), exig)
+        return Resposta(True, "Acertado: %s por mes, %s." % (din(prop.salario), plural(prop.anos, "ano")), exig)
     if prop.salario < exig * 0.60:
         return Resposta(False, "Ele nem levou a proposta ao empresario.", exig, True)
     rep_origem = G["clubes"][j["clube"]]["reputacao"] if j["clube"] else 42
@@ -4159,19 +4339,21 @@ def fechar_compra(G: Mundo, prop: Proposta) -> str:
 
     Com a janela fechada o acordo vale, mas fica agendado: o jogador troca de
     clube na abertura. Negociar pode sempre; entrar e sair, so na janela.
+    Agente livre e a excecao: ja saiu do clube, entao assina na hora com quem
+    fechar primeiro, janela aberta ou fechada (vale para a IA tambem).
     """
-    if not mercado_aberto(G):
-        return agendar(G, prop, "Contratacao acertada")
     j = G["jogadores"][prop.jogador]
+    if not assina_na_hora(G, j):
+        return agendar(G, prop, "Contratacao acertada")
     comprador = G["clubes"][prop.comprador]
-    nome_antigo = G["clubes"][j["clube"]]["nome"] if j["clube"] else "sem clube"
+    nome_antigo = nome_clube(G, j["clube"])
     transferir(G, prop.jogador, prop.comprador, prop.valor)
     j["salario"] = prop.salario
     j["contrato"] = int(clamp(prop.anos, 1, 5))
     noticia(G, "%s contratou %s (%s) do %s por %s."
             % (comprador["nome"], j["nome"], j["pos"], nome_antigo, din(prop.valor)))
-    return ("CONTRATADO: %s assina por %d ano(s). Passe %s, salario %s por mes."
-            % (j["nome"], j["contrato"], din(prop.valor), din(prop.salario)))
+    return ("CONTRATADO: %s assina por %s. Passe %s, salario %s por mes."
+            % (j["nome"], plural(j["contrato"], "ano"), din(prop.valor), din(prop.salario)))
 
 
 def fechar_emprestimo(G: Mundo, prop: Proposta) -> str:
@@ -4331,7 +4513,7 @@ def avaliar_renovacao(G: Mundo, prop: Proposta) -> Resposta:
         return Resposta(False, "Ele nao e do seu clube.", 0, True)
     exig = exigencia_renovacao(G, j, prop.anos)
     if prop.salario >= exig:
-        return Resposta(True, "Acertado: %s por mes, %d ano(s)." % (din(prop.salario), prop.anos),
+        return Resposta(True, "Acertado: %s por mes, %s." % (din(prop.salario), plural(prop.anos, "ano")),
                         exig)
     if prop.salario < exig * 0.72:
         return Resposta(False, "O empresario devolveu a proposta sem levar ao jogador.", exig, True)
@@ -4344,9 +4526,9 @@ def fechar_renovacao(G: Mundo, prop: Proposta) -> str:
     j["salario"] = int(prop.salario)
     j["contrato"] = int(clamp(prop.anos, 1, 5))
     j["moral"] = clamp(j["moral"] + 12, 5, 100)
-    noticia(G, "%s renovou com o %s por %d ano(s)."
-            % (j["nome"], G["clubes"][j["clube"]]["nome"], j["contrato"]))
-    return "%s renovou por %d ano(s), %s por mes." % (j["nome"], j["contrato"], din(prop.salario))
+    noticia(G, "%s renovou com o %s por %s."
+            % (j["nome"], G["clubes"][j["clube"]]["nome"], plural(j["contrato"], "ano")))
+    return "%s renovou por %s, %s por mes." % (j["nome"], plural(j["contrato"], "ano"), din(prop.salario))
 
 
 def romper_renovacao(G: Mundo, j: Jogador) -> str:
@@ -4486,12 +4668,24 @@ def proxima_janela(G: Mundo) -> int:
     return max(1, SEMANAS_LIGA + 1 - G["semana"])
 
 
+def assina_na_hora(G: Mundo, j: Jogador) -> bool:
+    """A contratacao se cumpre agora? Com a janela aberta, sempre; fechada, so
+    agente livre - ele nao tem clube de onde sair."""
+    return mercado_aberto(G) or j["clube"] is None
+
+
+def presos_em_acerto(G: Mundo) -> set:
+    """Quem ja tem acerto fechado com algum clube. Ninguem mais assina com eles,
+    nem a IA pegando agente livre."""
+    return {a["jogador"] for a in agendadas(G)}
+
+
 def recado_janela(G: Mundo) -> str:
     faltam = proxima_janela(G)
     if not faltam:
         return "Janela aberta: o negocio se cumpre na hora."
     return ("Janela fechada: da para acertar agora, mas ele so troca de clube na "
-            "abertura, em %d semana(s)." % faltam)
+            "abertura, em %s." % plural(faltam, "semana"))
 
 
 def agendadas(G: Mundo) -> List[Dict[str, Any]]:
@@ -4551,12 +4745,21 @@ def _validar_agendada(G: Mundo, a: Dict[str, Any]) -> Optional[str]:
 
 
 def executar_agendadas(G: Mundo) -> List[str]:
-    """Cumpre, na abertura da janela, tudo o que foi acertado antes."""
-    if not mercado_aberto(G) or not agendadas(G):
+    """Cumpre, na abertura da janela, tudo o que foi acertado antes. Com a
+    janela fechada so cumpre acerto com agente livre (save de antes da regra
+    que faz livre assinar na hora)."""
+    if not agendadas(G):
+        return []
+    aberto = mercado_aberto(G)
+    pendentes, fica = [], []
+    for a in agendadas(G):
+        livre = a.get("de") is None and a["tipo"] != TIPO_EMPRESTIMO
+        (pendentes if aberto or livre else fica).append(a)
+    if not pendentes:
         return []
     recados = []
-    pendentes = agendadas(G)
-    G["agendadas"] = []
+    G["agendadas"] = fica
+    prefixo = "Janela aberta: " if aberto else ""
     for a in pendentes:
         queda = _validar_agendada(G, a)
         j = G["jogadores"].get(a["jogador"])
@@ -4570,11 +4773,11 @@ def executar_agendadas(G: Mundo) -> List[str]:
             prop = Proposta(jogador=a["jogador"], comprador=a["para"],
                             pct_salario=a["pct_salario"], opcao_compra=a["opcao_compra"],
                             tipo=TIPO_EMPRESTIMO)
-            recados.append("Janela aberta: " + fechar_emprestimo(G, prop))
+            recados.append(prefixo + fechar_emprestimo(G, prop))
         else:
             prop = Proposta(jogador=a["jogador"], comprador=a["para"], valor=a["valor"],
                             salario=a["salario"] or j["salario"], anos=a["anos"] or 3)
-            recados.append("Janela aberta: " + fechar_compra(G, prop))
+            recados.append(prefixo + fechar_compra(G, prop))
     return recados
 
 
@@ -5043,7 +5246,8 @@ def scout(G: Mundo, j: Jogador, clube_id: Optional[int] = None) -> str:
     lo = int(clamp(visto - margem * 0.6, j["ovr"], POT_MAX))
     hi = int(clamp(visto + margem * 0.6, lo + 1, POT_MAX))
     if hi - lo <= 3:
-        return "teto ~%d" % int((lo + hi) / 2)
+        # so o numero: quem mostra ja escreve "teto" antes (dava "teto teto ~75")
+        return "~%d" % int((lo + hi) / 2)
     return "%d-%d" % (lo, hi)
 
 
@@ -5149,9 +5353,9 @@ def alternar_foco(G: Mundo, c: Clube, pid: int) -> Tuple[bool, str]:
     if j.get("dono"):
         return False, "%s esta emprestado: o dono manda no desenvolvimento dele." % j["nome"]
     if len(foco) >= vagas_treino(c):
-        return False, ("O CT nivel %d sustenta %d nome(s) em treino individual. "
+        return False, ("O CT nivel %d sustenta %s em treino individual. "
                        "Tire alguem antes, ou melhore o CT."
-                       % (c.get("ct", 3), vagas_treino(c)))
+                       % (c.get("ct", 3), plural(vagas_treino(c), "nome")))
     foco.append(pid)
     c["treino_foco"] = foco
     return True, ("%s entrou no treino individual: evolui 50%% mais rapido, e custa %s por semana."
@@ -5308,8 +5512,8 @@ def promover_da_base(G: Mundo, pid: int, anos: int = 3) -> Tuple[bool, str]:
     if c["id"] == G.get("clube"):
         noticia(G, "%s (%d anos, %s) subiu da base ao profissional."
                 % (j["nome"], j["idade"], j["pos"]))
-    return True, ("%s subiu ao profissional: %d ano(s) de contrato, %s por mes."
-                  % (j["nome"], j["contrato"], din(j["salario"])))
+    return True, ("%s subiu ao profissional: %s de contrato, %s por mes."
+                  % (j["nome"], plural(j["contrato"], "ano"), din(j["salario"])))
 
 
 def dispensar_da_base(G: Mundo, pid: int) -> Tuple[bool, str]:
@@ -5372,8 +5576,8 @@ def desligar_peneira(G: Mundo, c: Clube) -> Tuple[bool, str]:
 
 def candidatos_base(G: Mundo, c: Clube) -> List[Dict[str, Any]]:
     """Os candidatos ainda de pe (os vencidos saem aqui)."""
-    vivos = [k for k in c.get("base_candidatos", [])
-             if k["temporada"] == G["temporada"] and k["expira"] >= G["semana"]]
+    agora = semana_absoluta(G)
+    vivos = [k for k in c.get("base_candidatos", []) if k.get("vence", 0) > agora]
     c["base_candidatos"] = vivos
     return vivos
 
@@ -5394,7 +5598,7 @@ def _novo_candidato(G: Mundo, c: Clube, regiao: str, foco: Optional[str]) -> Dic
     return {"cid": G["seq_cand"], "nome": gerar_nome({j["nome"] for j in G["jogadores"].values()}), "pos": pos, "idade": idade,
             "ovr": ovr, "pot": sortear_potencial(ovr, idade, qualidade),
             "regiao": r["nome"], "temporada": int(G["temporada"]),
-            "expira": int(G["semana"]) + CANDIDATO_VALE}
+            "vence": semana_absoluta(G) + CANDIDATO_VALE}
 
 
 def rodar_peneira(G: Mundo) -> List[Dict[str, Any]]:
@@ -5411,7 +5615,7 @@ def rodar_peneira(G: Mundo) -> List[Dict[str, Any]]:
     novos = [_novo_candidato(G, c, pen["regiao"], pen.get("foco"))
              for _ in range(1 + (1 if rng.random() < 0.45 + 0.03 * c["base"] else 0))]
     c.setdefault("base_candidatos", []).extend(novos)
-    noticia(G, "Peneira no %s: %d garoto(s) para avaliar na tela da Base." % (r["nome"], len(novos)))
+    noticia(G, "Peneira no %s: %s para avaliar na tela da Base." % (r["nome"], plural(len(novos), "garoto")))
     return novos
 
 
@@ -5658,11 +5862,11 @@ def leitura_teto(j: Jogador) -> str:
     if rev >= 3:
         return "estourou a previsao: teto revisado %d pontos para cima" % rev
     if rev > 0:
-        return "rendeu acima do previsto: teto subiu %d ponto(s)" % rev
+        return "rendeu acima do previsto: teto subiu %s" % plural(rev, "ponto")
     if rev <= -3:
         return "a previsao nao se cumpriu: teto cortado %d pontos" % -rev
     if rev < 0:
-        return "teto cortado %d ponto(s) pelo que rendeu" % -rev
+        return "teto cortado %s pelo que rendeu" % plural(-rev, "ponto")
     return ""
 
 
@@ -5684,6 +5888,7 @@ def evoluir_jogadores(G: Mundo) -> None:
         j["salario"] = salario_devido(j)
         j["valor"] = valor_de(j["ovr"], j["idade"], j["pot"])
         j["j"] = j["g"] = j["a"] = j["ca"] = j["cv"] = 0
+        j["nota_soma"], j["nota_j"] = 0.0, 0
         j["j_mes"] = 0
         j["amarelos"] = 0
         # ferias e pre-temporada: sem isto o elenco comecava o ano novo exatamente
@@ -5746,7 +5951,9 @@ def contratar_livres_ia(G):
     e que pagam o salario. Antes a IA pegava livre ao acaso, so com elenco
     abaixo de 24, e a limpeza de fim de ano guardava justamente os melhores:
     a fila de craques sem clube so crescia."""
-    livres = sorted((G["jogadores"][p] for p in G["livres"] if p in G["jogadores"]),
+    presos = presos_em_acerto(G)
+    livres = sorted((G["jogadores"][p] for p in G["livres"]
+                     if p in G["jogadores"] and p not in presos),
                     key=lambda j: -j["ovr"])
     clubes = [c for c in G["clubes"].values()
               if c["divisao"] != "EX" and c["id"] != G.get("clube") and len(c["elenco"]) < 30]
@@ -5780,7 +5987,9 @@ def contratar_livres_ia(G):
 
 def contratar_livre_ia(G, c, pos, nivel_alvo):
     """Clube da IA busca um agente livre da posicao; devolve True se contratou."""
-    cands = [G["jogadores"][p] for p in G["livres"] if G["jogadores"][p]["pos"] == pos]
+    presos = presos_em_acerto(G)
+    cands = [G["jogadores"][p] for p in G["livres"]
+             if G["jogadores"][p]["pos"] == pos and p not in presos]
     if not cands:
         return False
     cands.sort(key=lambda j: -j["ovr"])
@@ -5937,11 +6146,182 @@ def avaliar_diretoria(G, posicao_final):
         return True, "A diretoria cobrou resultados, mas o seu cargo e intocavel (modo sem demissao)."
     margem = posicao_final - alvo
     risco = (0.25 + margem * 0.14) * dificuldade(G)["diretoria"]
-    if G["clubes"][G["clube"]]["divisao"] in DIVISOES_BR and posicao_final > 16:
+    # a confianca do ano pesa: quem chegou com a diretoria do lado quase nao cai
+    # (60 da x0,25), quem ja estava avisado cai muito mais (10 da x1,5)
+    risco *= clamp((70 - confianca(G)["valor"]) / 40.0, 0.25, 1.5)
+    if tem_rebaixamento(G["clubes"][G["clube"]]["divisao"]) and posicao_final > 16:
         risco += 0.30 * dificuldade(G)["diretoria"]
     if rng.random() < risco:
         return False, "A diretoria decidiu encerrar seu ciclo no %s." % G["clubes"][G["clube"]]["nome"]
     return True, "A diretoria cobrou resultados, mas manteve voce no cargo."
+
+
+# ----------------------------------------------------------------------------
+# CONFIANCA DA DIRETORIA
+#
+# Um numero de 0 a 100 que anda toda semana e diz por que andou. Resultado
+# contra o esperado pela forca dos elencos (classico vale o dobro), posicao
+# contra a meta e caixa no vermelho. Abaixo de CONFIANCA_AVISO a diretoria
+# avisa; avisado, abaixo de CONFIANCA_DEMISSAO a demissao pode vir na semana
+# seguinte, no meio do ano (decisao do usuario em 2026-09-25). A dificuldade
+# multiplica so as quedas. Nada aqui sorteia: e conta sobre o que ja aconteceu.
+# ----------------------------------------------------------------------------
+
+CONFIANCA_INICIAL = 60
+CONFIANCA_AVISO = 30
+CONFIANCA_DEMISSAO = 15
+CONFIANCA_RECUPERA = 40     # voltou acima disto, o aviso cai
+CONFIANCA_HIST = 12         # semanas guardadas (a tendencia usa as 4 ultimas)
+PATAMAR_CONFIANCA = {"meta": 75, "perto": 55, "longe": 35, "rebaixamento": 22}
+
+
+def confianca(G: Mundo) -> Dict[str, Any]:
+    return G.setdefault("confianca", {"valor": CONFIANCA_INICIAL, "hist": [], "aviso": None})
+
+
+def reiniciar_confianca(G: Mundo, valor: int = CONFIANCA_INICIAL) -> None:
+    G["confianca"] = {"valor": int(valor), "hist": [], "aviso": None}
+
+
+def tendencia_confianca(G: Mundo, semanas: int = 4) -> int:
+    return sum(h[1] for h in confianca(G)["hist"][-semanas:])
+
+
+def forca_elenco(G: Mundo, c: Clube) -> float:
+    """Media de overall dos 11 melhores: o tamanho do time, sem cansaco do dia."""
+    ovrs = sorted((G["jogadores"][p]["ovr"] for p in c["elenco"] if p in G["jogadores"]), reverse=True)
+    top = ovrs[:11]
+    return sum(top) / len(top) if top else 40.0
+
+
+# curva medida no proprio motor (9 mil jogos, forca_elenco do mandante menos a
+# do visitante contra os pontos do mandante): escala 24 e casa valendo 4 de
+# overall. Com a curva mais inclinada o favorito "devia" ganhar mais do que o
+# motor deixa e a confianca escorria ate de quem jogava o esperado.
+ESCALA_ESPERADO = 24.0
+CASA_ESPERADO = 4.0
+
+
+def resultado_esperado(G: Mundo, meu: Clube, adv: Clube, em_casa: Optional[bool]) -> float:
+    """0 a 1: quanto o meu time devia tirar do jogo (vitoria 1, empate 0,5)."""
+    diff = forca_elenco(G, meu) - forca_elenco(G, adv)
+    if em_casa is not None:
+        diff += CASA_ESPERADO if em_casa else -CASA_ESPERADO
+    return clamp(1.0 / (1.0 + 10 ** (-diff / ESCALA_ESPERADO)), 0.1, 0.9)
+
+
+def atualizar_confianca(G: Mundo, meus: List[Dict[str, Any]]) -> None:
+    """A semana da diretoria: soma as causas, avisa e, se for o caso, demite."""
+    conf = confianca(G)
+    c = G["clubes"][G["clube"]]
+    causas: List[List[Any]] = []
+    for r in meus:
+        em_casa = r["casa"] == c["id"]
+        adv = G["clubes"].get(r["fora"] if em_casa else r["casa"])
+        if not adv:
+            continue
+        gm, gs = (r["gc"], r["gf"]) if em_casa else (r["gf"], r["gc"])
+        pontos = 1.0 if gm > gs else (0.5 if gm == gs else 0.0)
+        neutro = r.get("pub", 0) == 0 and r.get("comp") not in ("liga", "estadual")
+        esperado = resultado_esperado(G, c, adv, None if neutro else em_casa)
+        classico = eh_classico(G, r["casa"], r["fora"])
+        delta = int(round((pontos - esperado) * 8 * (2 if classico else 1)))
+        if delta:
+            quem = "vitoria sobre" if gm > gs else ("empate com" if gm == gs else "derrota para")
+            causas.append([delta, "%s o %s%s" % (quem, adv["nome"], " no classico" if classico else "")])
+    # a posicao nao soma sem fim: puxa a confianca para um patamar (12% da
+    # distancia por semana). Sozinha ela leva no maximo ao aviso; demissao
+    # pede resultado abaixo do esperado em cima
+    liga = G["ligas"].get(c["divisao"])
+    if G.get("fase") == "liga" and liga and liga["rodada"] >= 6:
+        pos = posicao_na_liga(G, c["id"])
+        total = len(liga["times"])
+        alvo = int(G.get("objetivo_alvo", 16))
+        if tem_rebaixamento(c["divisao"]) and pos > total - 4:
+            patamar, txt = PATAMAR_CONFIANCA["rebaixamento"], "zona de rebaixamento (%do)" % pos
+        elif pos <= alvo:
+            patamar, txt = PATAMAR_CONFIANCA["meta"], "dentro da meta (%do)" % pos
+        elif pos <= alvo + 3:
+            patamar, txt = PATAMAR_CONFIANCA["perto"], "perto da meta (%do, meta top %d)" % (pos, alvo)
+        else:
+            patamar, txt = PATAMAR_CONFIANCA["longe"], "abaixo da meta (%do, meta top %d)" % (pos, alvo)
+        puxao = int(round((patamar - conf["valor"]) * 0.12))
+        if puxao:
+            causas.append([puxao, txt])
+    if c["dinheiro"] < 0:
+        causas.append([-1, "caixa no vermelho"])
+    mult = dificuldade(G)["diretoria"]
+    for x in causas:
+        if x[0] < 0:
+            x[0] = int(round(x[0] * mult)) or -1
+    total_semana = sum(x[0] for x in causas)
+    conf["valor"] = int(clamp(conf["valor"] + total_semana, 0, 100))
+    if causas:
+        conf["hist"].append([semana_absoluta(G), total_semana, causas])
+        del conf["hist"][:-CONFIANCA_HIST]
+    agora = semana_absoluta(G)
+    if conf["aviso"] is None and conf["valor"] < CONFIANCA_AVISO:
+        conf["aviso"] = agora
+        noticia(G, "A diretoria perdeu a paciencia: se a confianca cair abaixo de %d, voce esta fora."
+                % CONFIANCA_DEMISSAO)
+    elif conf["aviso"] is not None and conf["valor"] >= CONFIANCA_RECUPERA:
+        conf["aviso"] = None
+        noticia(G, "A diretoria voltou a confiar no trabalho.")
+    elif (conf["aviso"] is not None and conf["aviso"] < agora
+          and conf["valor"] < CONFIANCA_DEMISSAO and not opcoes_carreira(G)["sem_demissao"]):
+        G["motivo_demissao"] = ("Depois do aviso, a confianca da diretoria caiu para %d. "
+                                "O %s encerrou o seu ciclo no meio da temporada." % (conf["valor"], c["nome"]))
+        noticia(G, "Demitido: o %s perdeu a confianca no treinador." % c["nome"])
+        trocar_de_clube(G)
+
+
+# a maquina demite tambem, nos marcos: fim do turno e fim da temporada. Sem
+# sorteio: clube que despencou 6 posicoes abaixo do tamanho (ordem de
+# reputacao na liga) e esta no terco de baixo manda o treinador embora. A vaga
+# fica aberta VAGA_TECNICO_SEMANAS e e ela que liga para o treinador que vai bem.
+VAGA_TECNICO_SEMANAS = 10
+DEMISSOES_POR_MARCO = 2
+
+
+def ia_demite_tecnicos(G: Mundo, fim_de_ano: bool = False) -> List[int]:
+    demitiu = []
+    for liga in G["ligas"].values():
+        rodadas = len(liga.get("rodadas") or [])
+        if not rodadas or not liga["times"]:
+            continue
+        if fim_de_ano:
+            if liga["rodada"] < rodadas:
+                continue
+        elif liga["rodada"] != rodadas // 2 or liga.get("turno_avaliado") == G["temporada"]:
+            continue
+        liga["turno_avaliado"] = G["temporada"]
+        ordem = classificacao(G, liga)
+        tamanho = sorted(ordem, key=lambda cid: -G["clubes"][cid]["reputacao"])
+        total = len(ordem)
+        caidos = []
+        for pos, cid in enumerate(ordem, 1):
+            if cid == G.get("clube"):
+                continue
+            queda = pos - (tamanho.index(cid) + 1)
+            if queda >= 6 and pos > round(total * 0.6):
+                caidos.append((-queda, pos, cid))
+        for _q, pos, cid in sorted(caidos)[:DEMISSOES_POR_MARCO]:
+            cl = G["clubes"][cid]
+            manchete(G, "tecnico", "%s demite o treinador depois de %s em %do." % (
+                cl["nome"], "fechar o ano" if fim_de_ano else "fechar o turno", pos))
+            G.setdefault("vagas_tecnico", []).append(
+                {"id": cid, "vence": semana_absoluta(G) + VAGA_TECNICO_SEMANAS})
+            demitiu.append(cid)
+    return demitiu
+
+
+def vagas_tecnico(G: Mundo) -> List[int]:
+    """Clubes com o cargo vago (as vencidas e a do meu clube saem aqui)."""
+    agora = semana_absoluta(G)
+    vivas = [v for v in G.get("vagas_tecnico", [])
+             if v["vence"] > agora and v["id"] in G["clubes"] and v["id"] != G.get("clube")]
+    G["vagas_tecnico"] = vivas
+    return [v["id"] for v in vivas]
 
 
 # ----------------------------------------------------------------------------
@@ -6112,13 +6492,27 @@ def assumir_clube(G: Mundo, cid: int, saida: str) -> None:
     proposta aceita - e o unico lugar que muda G["clube"] depois do inicio."""
     antigo = G["clubes"][G["clube"]]
     _fechar_passagem(G, saida)
+    largar_clube(antigo)
     G["clube"] = cid
     herdar_preferencias(G, antigo)
     definir_objetivo(G)
+    reiniciar_confianca(G)
     G["propostas_emprego"] = []
     carreira(G).append(_passagem(G, cid))
     noticia(G, "%s deixa o %s (%s) e assume o %s." %
             (G.get("tecnico") or "O tecnico", antigo["nome"], saida, G["clubes"][cid]["nome"]))
+
+
+def largar_clube(c: Clube) -> None:
+    """O que era decisao do tecnico sai junto com ele. Sem isto a maquina
+    herdava as vagas fixadas na Escalacao (atribuir_vagas le de qualquer
+    clube), o CT seguia cobrando o treino individual e a peneira paga seguia
+    ligada num clube que nao e mais dele."""
+    c.pop("vagas_manuais", None)
+    c["treino_foco"] = []
+    c["peneira"] = None
+    c["base_candidatos"] = []
+    c["esc_stamp"] = ""
 
 
 def encerrar_passagem(G: Mundo, saida: str) -> None:
@@ -6139,8 +6533,9 @@ def clubes_interessados(G: Mundo, n: int, teto: int) -> List[Clube]:
 
 def propostas_emprego(G: Mundo) -> List[Dict[str, Any]]:
     """As propostas ainda de pe (as vencidas saem aqui)."""
+    agora = semana_absoluta(G)
     vivas = [o for o in G.get("propostas_emprego", [])
-             if o["temporada"] == G["temporada"] and o["expira"] >= G["semana"]
+             if o.get("vence", 0) > agora
              and o["id"] in G["clubes"] and o["id"] != G.get("clube")]
     G["propostas_emprego"] = vivas
     return vivas
@@ -6183,12 +6578,18 @@ def sondar_treinador(G: Mundo, ano_bom: Optional[bool] = None) -> Optional[Dict[
     if not cands:
         return None
     cl = cands[0] if rng.random() < 0.5 else rng.choice(cands)
+    # clube que acabou de demitir o treinador liga antes (mesmo sorteio de
+    # antes: a vaga so muda quem, nunca se)
+    vagas = set(vagas_tecnico(G))
+    com_vaga = [x for x in cands if x["id"] in vagas]
+    if com_vaga:
+        cl = com_vaga[0]
     oferta = {"id": cl["id"], "clube": cl["nome"], "divisao": cl["divisao"],
               "reputacao": cl["reputacao"], "temporada": int(G["temporada"]),
-              "expira": int(G["semana"]) + PROPOSTA_VALIDADE}
+              "vence": semana_absoluta(G) + PROPOSTA_VALIDADE}
     G.setdefault("propostas_emprego", []).append(oferta)
-    noticia(G, "O %s quer contratar %s. A proposta vale ate a semana %d." %
-            (cl["nome"], G.get("tecnico") or "voce", oferta["expira"]))
+    noticia(G, "O %s quer contratar %s. A proposta vale por %d semanas." %
+            (cl["nome"], G.get("tecnico") or "voce", PROPOSTA_VALIDADE))
     return oferta
 
 
@@ -6399,8 +6800,8 @@ def ficha(G, j, mostrar_clube=True):
     l.append("Overall %s   Teto estimado %s   %s" %
              (cor(str(j["ovr"]), cor_ovr(j["ovr"])), cor(scout(G, j), "av"), barra(j["ovr"])))
     l.append("Condicao %3d  Forma %3d  Moral %3d" % (j["cond"], j["forma"], j["moral"]))
-    l.append("Salario %s/mes   Valor de mercado %s   Contrato %d ano(s)" %
-             (din(j["salario"]), din(j["valor"]), j["contrato"]))
+    l.append("Salario %s/mes   Valor de mercado %s   Contrato %s" %
+             (din(j["salario"]), din(j["valor"]), plural(j["contrato"], "ano")))
     if j["listado"]:
         l.append("Pedido do clube: %s" % din(j["listado"]))
     if j.get("emp_listado"):
@@ -6538,9 +6939,10 @@ def ficha_completa(G, j):
     if em_foco(G, j):
         linhas.append("Em treino individual: evolui 50% mais rapido.")
     caixa(linhas + [
-           "Temporada: %d jogo(s), %d gol(s), %d assistencia(s), %d amarelo(s)" %
-           (j["j"], j["g"], j["a"], j["ca"]),
-           "Carreira no jogo: %d jogo(s) e %d gol(s)" % (j["car_j"], j["car_g"]),
+           "Temporada: %s, %s, %s, %s" %
+           (plural(j["j"], "jogo"), plural(j["g"], "gol"), plural(j["a"], "assistencia"),
+            plural(j["ca"], "amarelo")),
+           "Carreira no jogo: %s e %s" % (plural(j["car_j"], "jogo"), plural(j["car_g"], "gol")),
            "Condicao %s %d   Forma %s %d   Moral %s %d" %
            (barra(j["cond"], 8), j["cond"], barra(j["forma"], 8), j["forma"],
             barra(j["moral"], 8), j["moral"])])
@@ -6838,7 +7240,8 @@ def tela_estatisticas(G):
     meus = sorted([G["jogadores"][p] for p in c["elenco"]], key=lambda j: (-j["g"], -j["a"]))[:5]
     print(cor("\nDESTAQUES DO ELENCO", "fraco"))
     for j in meus:
-        print("  %-20s %d jogo(s), %d gol(s), %d assistencia(s)" % (j["nome"], j["j"], j["g"], j["a"]))
+        print("  %-20s %s, %s, %s" % (j["nome"], plural(j["j"], "jogo"), plural(j["g"], "gol"),
+                                     plural(j["a"], "assistencia")))
     if c["titulos"]:
         print(cor("\nTitulos: ", "fraco") + ", ".join("%s x%d" % (k, v) for k, v in c["titulos"].items()))
 
@@ -6970,7 +7373,7 @@ def tela_mercado(G):
                (cor(din(c["dinheiro"]), "ok" if c["dinheiro"] >= 0 else "ruim"),
                 len(c["elenco"]), din(folha_semanal(G, c) * 4)),
                "Janelas: semanas 1 a 4, 19 a 22 e a pre-temporada inteira",
-               "Na vitrine: %d jogador(es) seu(s)" % pendentes])
+               "Na vitrine: %s seus" % plural(pendentes, "jogador", "jogadores")])
         menu([("1", "Procurar jogador para comprar"),
               ("2", "Agentes livres"),
               ("3", "Buscar jogador por emprestimo"),
@@ -7292,7 +7695,7 @@ def renovar(G):
     ficha(G, j)
     anos = ler_int("Anos de contrato (1 a 5): ", G, 1, 5) or 3
     pedido = exigencia_renovacao(G, j, anos)
-    print("Ele pede algo perto de %s por mes por %d ano(s)." % (cor(din(pedido), "neg"), anos))
+    print("Ele pede algo perto de %s por mes por %s." % (cor(din(pedido), "neg"), plural(anos, "ano")))
     for _ in range(3):
         sal = ler_int("Salario oferecido (0 desiste): ", G, 0)
         if not sal:
@@ -7352,7 +7755,9 @@ def nome_competicao(G, comp, casa=None):
     """
     if comp == "liga":
         div = casa["divisao"] if casa else G["clubes"][G["clube"]]["divisao"]
-        return "Brasileirao Serie " + div
+        if div in DIVISOES_BR:
+            return "Brasileirao Serie " + div
+        return nome_da_liga(G, div)
     if comp == "estadual":
         for est in G.get("estaduais", {}).values():
             if casa is None or casa["id"] in est["times"]:
@@ -7425,7 +7830,7 @@ def relatorio(G, r):
             continue
         j = G["jogadores"][pid]
         if tipo == "lesao":
-            print(cor("   lesao: %s fica fora por %d semana(s)" % (j["nome"], j["lesao"]), "ruim"))
+            print(cor("   lesao: %s fica fora por %s" % (j["nome"], plural(j["lesao"], "semana")), "ruim"))
         elif tipo == "vermelho":
             print(cor("   cartao vermelho: %s" % j["nome"], "ruim"))
         elif tipo == "amarelo":
@@ -7593,6 +7998,93 @@ def resultados_da_semana(G: Mundo) -> List[Dict[str, Any]]:
     return list(G.get("ultimos_meus") or [])
 
 
+HISTORICO_PARTIDAS = 10     # ultimas partidas do meu clube guardadas no save
+
+
+def media_nota(j: Jogador) -> Optional[float]:
+    """Media de nota no ano; None enquanto nao ha jogo com nota."""
+    n = int(j.get("nota_j", 0))
+    if n <= 0:
+        return None
+    return round(j.get("nota_soma", 0.0) / n, 2)
+
+
+def registro_partida(G: Mundo, r: Dict[str, Any]) -> Dict[str, Any]:
+    """A partida em formato de guardar: so listas e nomes, nada de dict com id.
+
+    O retorno de simular tem notas e xi com o id do jogador como chave; o JSON
+    transforma essa chave em texto e o id deixa de achar o jogador. Aqui cada
+    jogador ja vai com o nome, entao o registro sobrevive ao save, a venda e a
+    aposentadoria de quem jogou.
+    """
+    casa, fora = G["clubes"][r["casa"]], G["clubes"][r["fora"]]
+
+    def nome(pid):
+        j = G["jogadores"].get(pid) if pid is not None else None
+        return j["nome"] if j else ""
+
+    gols, cartoes, subs, lesoes = [], [], [], []
+    for minuto, lado, tipo, pid, extra in r.get("eventos", []):
+        if tipo == "gol":
+            gols.append([minuto, lado, nome(pid), nome(extra)])
+        elif tipo in ("amarelo", "vermelho"):
+            cartoes.append([minuto, lado, tipo, nome(pid)])
+        elif tipo == "substituicao":
+            subs.append([minuto, lado, nome(pid), nome(extra)])
+        elif tipo == "lesao":
+            lesoes.append([minuto, lado, nome(pid)])
+    notas = r.get("notas") or {}
+    linhas = []
+    for lado, chave in ((0, "casa"), (1, "fora")):
+        for pid, vaga in ((r.get("xi") or {}).get(chave) or {}).items():
+            linhas.append([lado, pid, nome(pid), vaga, notas.get(pid, 6.0)])
+    melhor = max(linhas, key=lambda x: x[4]) if linhas else None
+    if G.get("fase") == "estadual":
+        rodada = "Estadual, rodada %d" % max(1, int(G.get("semana_est", 1)))
+    else:
+        rodada = "Semana %02d" % max(1, int(G.get("semana", 1)))
+    reg = {
+        "temporada": G["temporada"], "semana_abs": semana_absoluta(G), "rodada": rodada,
+        "comp": r.get("comp"), "comp_nome": nome_competicao(G, r.get("comp"), casa),
+        "casa": casa["id"], "fora": fora["id"], "casa_nome": casa["nome"], "fora_nome": fora["nome"],
+        "eu": 0 if casa["id"] == G["clube"] else 1,
+        "gc": r["gc"], "gf": r["gf"], "pub": r.get("pub", 0), "renda": r.get("renda", 0),
+        "stats": {k: list(v) for k, v in (r.get("stats") or {}).items()},
+        "gols": gols, "cartoes": cartoes, "subs": subs, "lesoes": lesoes,
+        # [minuto, lado, mentalidade nova, motivo]: a instrucao condicional em campo
+        "instrucoes": [list(x) for x in r.get("instrucoes", [])],
+        # notas: [lado, id, nome, vaga, nota] por jogador que entrou em campo
+        "notas": linhas,
+        "melhor": dict(zip(("lado", "id", "nome", "vaga", "nota"), melhor)) if melhor else None,
+    }
+    if "agregado" in r:
+        a, ga, b, gb = r["agregado"]
+        reg["agregado"] = [G["clubes"][a]["nome"], ga, gb, G["clubes"][b]["nome"]]
+    if "penaltis" in r:
+        reg["penaltis"] = G["clubes"][r["penaltis"]]["nome"]
+    return reg
+
+
+def guardar_historico(G: Mundo, meus: List[Dict[str, Any]]) -> None:
+    """Empilha as partidas da semana; fica so com as HISTORICO_PARTIDAS ultimas."""
+    if not meus:
+        return
+    hist = G.setdefault("historico_meus", [])
+    hist.extend(registro_partida(G, r) for r in meus)
+    del hist[:-HISTORICO_PARTIDAS]
+
+
+def _normalizar_partida(r: Dict[str, Any]) -> None:
+    """Partida crua que passou pelo JSON: id volta a ser int nas chaves."""
+    if isinstance(r.get("notas"), dict):
+        r["notas"] = {int(k): v for k, v in r["notas"].items()}
+    xi = r.get("xi")
+    if isinstance(xi, dict):
+        for lado in ("casa", "fora"):
+            if isinstance(xi.get(lado), dict):
+                xi[lado] = {int(k): v for k, v in xi[lado].items()}
+
+
 # ----------------------------------------------------------------------------
 # RESUMO DA TEMPORADA
 #
@@ -7637,7 +8129,7 @@ def apurar_temporada(G: Mundo) -> Dict[str, Any]:
     comprado = sum(v[2] for v in st.get("compras", []))
     return {
         "temporada": int(G["temporada"]), "clube": c["nome"], "divisao": div,
-        "posicao": pos, "total": len(ordem), "objetivo": G.get("objetivo", ""),
+        "liga": nome_da_liga(G, div), "posicao": pos, "total": len(ordem), "objetivo": G.get("objetivo", ""),
         "alvo": alvo, "objetivo_ok": bool(pos and pos <= alvo),
         "campeao": G["clubes"][ordem[0]]["nome"] if ordem else "",
         "copas": copas, "titulos": titulos_meus,
@@ -7689,6 +8181,7 @@ def encerrar_temporada(G: Mundo, resumo: Dict[str, Any]) -> Tuple[bool, Dict[str
     resumo["financas"]["premios"] = int(c["dinheiro"] - caixa_antes)
     resumo["financas"]["caixa_fim"] = int(c["dinheiro"])
     investimentos_ia(G)
+    ia_demite_tecnicos(G, fim_de_ano=True)
 
     ok, msg = avaliar_diretoria(G, pos_final)
     resumo["diretoria"], resumo["diretoria_ok"] = msg, bool(ok)
@@ -7756,6 +8249,9 @@ def encerrar_temporada(G: Mundo, resumo: Dict[str, Any]) -> Tuple[bool, Dict[str
     for j in G["jogadores"].values():
         j["ovr_ini"] = j["ovr"]
     definir_objetivo(G)
+    # ano novo, meta nova: a confianca anda metade do caminho de volta aos 60
+    anterior = confianca(G)["valor"]
+    reiniciar_confianca(G, round(CONFIANCA_INICIAL + (anterior - CONFIANCA_INICIAL) / 2))
     novo_ano_stats(G)
     # a pre-temporada ja e janela aberta: o que ficou acertado entra agora
     for recado in executar_agendadas(G):
@@ -7769,18 +8265,27 @@ def encerrar_temporada(G: Mundo, resumo: Dict[str, Any]) -> Tuple[bool, Dict[str
     return bool(ok), resumo
 
 
+def liga_do_resumo(r: Dict[str, Any]) -> str:
+    """Nome da liga do resumo. Resumo gravado antes do campo "liga" so tem a
+    divisao, e "Serie ENG" nao existe."""
+    if r.get("liga"):
+        return r["liga"]
+    div = r.get("divisao", "")
+    return "Serie %s" % div if div in DIVISOES_BR else div
+
+
 def texto_resumo(G: Mundo, r: Dict[str, Any]) -> List[str]:
     """O resumo em linhas de texto. Serve ao terminal e ao log da janela."""
     cam = r["campanha"]
     fin = r["financas"]
     saldo = fin["caixa_fim"] - fin["caixa_ini"]
     linhas = [
-        "TEMPORADA %d - %s, Serie %s" % (r["temporada"], r["clube"], r["divisao"]),
+        "TEMPORADA %d - %s, %s" % (r["temporada"], r["clube"], liga_do_resumo(r)),
         "Posicao final: %do de %d   (meta era top %d: %s)"
         % (r["posicao"], r["total"], r["alvo"], "cumprida" if r["objetivo_ok"] else "nao cumprida"),
         "Campanha: %d jogos, %dV %dE %dD, %d gols pro e %d contra, %d pontos"
         % (cam["j"], cam["v"], cam["e"], cam["d"], cam["gp"], cam["gc"], cam["p"]),
-        "Campeao da Serie %s: %s" % (r["divisao"], r["campeao"]),
+        "Campeao da %s: %s" % (liga_do_resumo(r), r["campeao"]),
     ]
     for nome, dono in r["copas"]:
         linhas.append("%s: %s" % (nome, dono))
@@ -7789,15 +8294,17 @@ def texto_resumo(G: Mundo, r: Dict[str, Any]) -> List[str]:
     else:
         linhas.append("Sem titulos nesta temporada.")
     if r["artilheiro"]:
-        linhas.append("Artilheiro do clube: %s, %d gol(s) em %d jogo(s)" % tuple(r["artilheiro"]))
+        nome, g, jj = r["artilheiro"]
+        linhas.append("Artilheiro do clube: %s, %s em %s" % (nome, plural(g, "gol"), plural(jj, "jogo")))
     if r["garcom"]:
-        linhas.append("Mais assistencias: %s, %d em %d jogo(s)" % tuple(r["garcom"]))
+        nome, a, jj = r["garcom"]
+        linhas.append("Mais assistencias: %s, %d em %s" % (nome, a, plural(jj, "jogo")))
     linhas.append("Caixa: %s -> %s   (%s no ano)"
                   % (din(fin["caixa_ini"]), din(fin["caixa_fim"]),
                      ("+" if saldo >= 0 else "") + din(saldo)))
-    linhas.append("Vendas %s em %d negocio(s)   Compras %s em %d negocio(s)   Premiacao %s"
-                  % (din(fin["vendido"]), len(r["vendas"]), din(fin["comprado"]),
-                     len(r["compras"]), din(fin["premios"])))
+    linhas.append("Vendas %s em %s   Compras %s em %s   Premiacao %s"
+                  % (din(fin["vendido"]), plural(len(r["vendas"]), "negocio"), din(fin["comprado"]),
+                     plural(len(r["compras"]), "negocio"), din(fin["premios"])))
     if r["evolucao"]:
         linhas.append("Quem mais cresceu: "
                       + ", ".join("%s +%d (%d)" % tuple(e) for e in r["evolucao"][:4]))
@@ -7933,6 +8440,31 @@ def corrigir_inflacao(G):
     return mexidos
 
 
+def migrar_prazos(G):
+    """Save de antes do contador absoluto: o contador nasce de temporada e
+    semana (so precisa crescer daqui para a frente), e proposta e candidato
+    ganham o prazo absoluto com o que ainda lhes restava na conta antiga."""
+    if "semana_abs" not in G:
+        G["semana_abs"] = (max(0, int(G.get("temporada", 2026)) - 2026) * 60
+                           + int(G.get("semana_est", 0)) + int(G.get("semana", 0)))
+    agora = semana_absoluta(G)
+
+    def converter(item, teto):
+        if "vence" in item:
+            return
+        resta = 0
+        if item.get("temporada") == G.get("temporada"):
+            resta = int(item.get("expira", 0)) - int(G.get("semana", 0)) + 1
+        item["vence"] = agora + int(clamp(resta, 0, teto))
+        item.pop("expira", None)
+
+    for o in G.get("propostas_emprego") or []:
+        converter(o, PROPOSTA_VALIDADE)
+    for c in G.get("clubes", {}).values():
+        for k in c.get("base_candidatos") or []:
+            converter(k, CANDIDATO_VALE)
+
+
 def migrar(G):
     ja = {c["nome"] for c in G["clubes"].values() if c["divisao"] == "EX"}
     faltam = [d for d in CLUBES_LIB + CLUBES_SUL if d[0] not in ja]
@@ -8008,8 +8540,16 @@ def migrar(G):
     G.setdefault("ofertas", {"stamp": "", "itens": []})
     G.setdefault("placar_hist", [])
     G.setdefault("ultimos_meus", [])
+    for r in G["ultimos_meus"]:
+        _normalizar_partida(r)
+    G.setdefault("historico_meus", [])
+    for j in G["jogadores"].values():
+        if "nota_j" not in j:
+            # save antigo nunca somou nota: comeca a media do zero, sem inventar
+            j["nota_soma"], j["nota_j"] = 0.0, 0
     G.setdefault("agendadas", [])
     G.setdefault("semana_est", 0)
+    migrar_prazos(G)
     if not isinstance(G.get("emp_ofertas"), dict):
         G["emp_ofertas"] = {"stamp": "", "itens": []}
     if not isinstance(G.get("estaduais"), dict):

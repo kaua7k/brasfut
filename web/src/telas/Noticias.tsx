@@ -12,7 +12,7 @@ export function Noticias({ tela }: { tela: TelaNoticias }) {
     <div className="tela">
       <CabecalhoTela titulo={tela.titulo} sub={tela.subtitulo} />
 
-      <div className="alavanca" role="tablist" style={{ marginBottom: 12 }}>
+      <div className="alavanca mb-3" role="tablist">
         <button type="button" role="tab" aria-selected={aba === 'clube'} className={aba === 'clube' ? 'ativo' : ''} onClick={() => setAba('clube')}>
           Meu clube
         </button>
@@ -21,7 +21,7 @@ export function Noticias({ tela }: { tela: TelaNoticias }) {
         </button>
       </div>
 
-      <section className="painel" style={{ overflow: 'hidden' }}>
+      <section className="painel corte">
         {aba === 'mundo' ? (
           <FeedMundo mundo={tela.mundo} vazio="O futebol ainda nao comecou. Avance a semana." />
         ) : tela.itens.length === 0 ? (
@@ -29,7 +29,7 @@ export function Noticias({ tela }: { tela: TelaNoticias }) {
         ) : (
           tela.itens.map((n, i) => (
             <div className="noticia-simples" key={i}>
-              <i className="bolinha" style={{ marginTop: 7 }} />
+              <i className="bolinha mt-2" />
               <span>{n.texto}</span>
             </div>
           ))

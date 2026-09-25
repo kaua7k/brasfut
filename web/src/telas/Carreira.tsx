@@ -5,6 +5,7 @@
 // embora. Daqui tambem se pede demissao - uma acao que troca de clube, entao
 // ela pede um segundo clique antes de valer.
 
+import { porque, AGUARDE } from '../motivo'
 import { useState } from 'react'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
 import type { PassagemCarreira, PropostaEmprego, TelaCarreira } from '../tipos'
@@ -54,8 +55,8 @@ export function Carreira({ tela, ocupado, aoPedirDemissao, aoResponderProposta }
       </section>
 
       {tela.propostas.length > 0 && (
-        <section className="painel" style={{ padding: '14px 18px' }}>
-          <div className="painel-titulo" style={{ marginBottom: 8 }}>
+        <section className="painel enxuto">
+          <div className="painel-titulo mb-2">
             Propostas de emprego
           </div>
           {tela.propostas.map((o) => (
@@ -64,12 +65,12 @@ export function Carreira({ tela, ocupado, aoPedirDemissao, aoResponderProposta }
         </section>
       )}
 
-      <section className="painel" style={{ padding: '14px 18px' }}>
-        <div className="painel-titulo" style={{ marginBottom: 10 }}>
+      <section className="painel enxuto">
+        <div className="painel-titulo mb-3">
           Sala de trofeus
         </div>
         {trofeus.length === 0 ? (
-          <div className="vazio" style={{ padding: 0 }}>
+          <div className="vazio justo">
             Nenhuma taca ainda. Estadual, Copa, Serie, continental: tudo que voce ganhar fica aqui para sempre.
           </div>
         ) : (
@@ -85,8 +86,8 @@ export function Carreira({ tela, ocupado, aoPedirDemissao, aoResponderProposta }
         )}
       </section>
 
-      <section className="painel" style={{ padding: '14px 18px' }}>
-        <div className="painel-titulo" style={{ marginBottom: 10 }}>
+      <section className="painel enxuto">
+        <div className="painel-titulo mb-3">
           Clubes dirigidos
         </div>
         {passagens.map((p, i) => (
@@ -105,7 +106,7 @@ function Passagem({ p }: { p: PassagemCarreira }) {
       <div className="passagem-cab">
         <strong>{p.clube}</strong>
         <span className="tag-fraco">
-          Serie {p.divisao} · {p.periodo}
+          {p.liga} · {p.periodo}
           {p.saida && ` · saiu: ${p.saida}`}
         </span>
       </div>
@@ -143,7 +144,8 @@ function LinhaProposta({
       <span>
         <strong>{proposta.clube}</strong>{' '}
         <span className="tag-fraco">
-          Serie {proposta.divisao}, REP {proposta.reputacao} · vale ate a semana {proposta.expira}
+          {proposta.liga}, REP {proposta.reputacao} ·{' '}
+          {proposta.semanas > 1 ? `vale por mais ${proposta.semanas} semanas` : 'vence ao avancar esta semana'}
         </span>
       </span>
       <span className="modal-acoes">
@@ -152,13 +154,15 @@ function LinhaProposta({
             <button type="button" className="bt-fantasma" onClick={() => setCerteza(false)}>
               Cancelar
             </button>
-            <button type="button" className="bt-acao" disabled={ocupado} onClick={() => aoResponder(proposta.id, true)}>
+            <button type="button" className="bt-acao" title={porque([[ocupado, AGUARDE]])}
+            disabled={ocupado} onClick={() => aoResponder(proposta.id, true)}>
               Confirmar troca
             </button>
           </>
         ) : (
           <>
-            <button type="button" className="bt-fantasma" disabled={ocupado} onClick={() => aoResponder(proposta.id, false)}>
+            <button type="button" className="bt-fantasma" title={porque([[ocupado, AGUARDE]])}
+            disabled={ocupado} onClick={() => aoResponder(proposta.id, false)}>
               Recusar
             </button>
             <button type="button" className="bt-fantasma" onClick={() => setCerteza(true)}>
@@ -184,8 +188,8 @@ function SairDoClube({
 }) {
   const [certeza, setCerteza] = useState(false)
   return (
-    <section className="painel faixa critico" style={{ marginTop: 4 }}>
-      <div style={{ minWidth: 0 }}>
+    <section className="painel faixa critico mt-1">
+      <div className="encolhe">
         <div className="faixa-titulo">Pedir demissao</div>
         <div className="faixa-detalhe">
           {certeza
@@ -199,12 +203,14 @@ function SairDoClube({
           <button type="button" className="bt-fantasma" onClick={() => setCerteza(false)}>
             Ficar
           </button>
-          <button type="button" className="bt-acao" disabled={ocupado || !pode} onClick={aoSair}>
+          <button type="button" className="bt-acao" title={porque([[ocupado, AGUARDE], [!pode, 'Nao da para pedir demissao agora']])}
+          disabled={ocupado || !pode} onClick={aoSair}>
             Confirmar demissao
           </button>
         </>
       ) : (
-        <button type="button" className="bt-fantasma" disabled={!pode} onClick={() => setCerteza(true)}>
+        <button type="button" className="bt-fantasma" title={porque([[!pode, 'Nao da para pedir demissao agora']])}
+        disabled={!pode} onClick={() => setCerteza(true)}>
           Pedir demissao
         </button>
       )}

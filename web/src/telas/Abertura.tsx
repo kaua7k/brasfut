@@ -5,6 +5,7 @@
 // que valem pelo save inteiro (dificuldade, sem demissao, investidor) antes de
 // criar o mundo. So depois vem a escolha do clube, e so ela grava o save.
 
+import { porque, AGUARDE } from '../motivo'
 import { useEffect, useState } from 'react'
 import { api } from '../api'
 import { Estrela } from '../icones'
@@ -70,12 +71,12 @@ export function Abertura(props: Props) {
   return (
     <div className="centro-tela">
       <div className="cartao-centro abertura">
-        <div className="escudo gg" style={{ margin: '0 auto 18px' }}>
+        <div className="escudo gg centralizado">
           <Estrela tamanho={26} />
         </div>
         <h1>BRASFUT</h1>
         {corpo}
-        {erro && <p className="erro" style={{ marginTop: 16 }}>{erro}</p>}
+        {erro && <p className="erro mt-4">{erro}</p>}
       </div>
     </div>
   )
@@ -101,7 +102,8 @@ function Iniciar({ situacao, save, ocupado, aoAbrir, aoNova, aoVoltar }: Props &
           Voltar
         </button>
         {temSave && (
-          <button type="button" className="bt-acao" disabled={ocupado} onClick={aoAbrir}>
+          <button type="button" className="bt-acao" title={porque([[ocupado, AGUARDE]])}
+          disabled={ocupado} onClick={aoAbrir}>
             {ocupado ? 'Abrindo…' : 'Continuar carreira'}
           </button>
         )}
@@ -198,7 +200,8 @@ function NovaCarreira({ situacao, config, ocupado, dificuldades, aoCriar, aoVolt
         <button type="button" className="bt-fantasma" onClick={aoVoltar}>
           Voltar
         </button>
-        <button type="submit" className="bt-acao" disabled={ocupado || !nomeLimpo}>
+        <button type="submit" className="bt-acao" title={porque([[ocupado, AGUARDE], [!nomeLimpo, 'Escreva o nome do treinador']])}
+        disabled={ocupado || !nomeLimpo}>
           {ocupado ? 'Criando mundo…' : 'Criar mundo e escolher clube'}
         </button>
       </div>
@@ -323,10 +326,10 @@ function EscolherClube({ clubes, erro, ocupado, aoEscolher }: Props) {
   }
   return (
     <div className="centro-tela">
-      <div className="modal" style={{ maxWidth: 820 }}>
+      <div className="modal largo">
         <h2>Escolha o clube que voce vai treinar</h2>
         <p>O mundo foi criado. A carreira so e salva depois desta escolha.</p>
-        <div className="alavanca abas-ligas" style={{ marginBottom: 14 }}>
+        <div className="alavanca abas-ligas mb-3">
           {ligas.map((l) => (
             <button
               key={l.id}
@@ -345,6 +348,7 @@ function EscolherClube({ clubes, erro, ocupado, aoEscolher }: Props) {
               type="button"
               className="clube-opcao"
               key={c.id}
+              title={porque([[ocupado, AGUARDE]])}
               disabled={ocupado}
               onClick={() => aoEscolher(c.id)}
             >

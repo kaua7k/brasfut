@@ -3,9 +3,12 @@
 // que a base ja formou. O teto de cada garoto e uma faixa que estreita com os
 // meses de observacao: subir cedo e apostar.
 
+import { porque, AGUARDE, MARQUE } from '../motivo'
 import { useEffect, useState } from 'react'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
 import { alternarMarca, Grade, type Coluna } from '../componentes/Grade'
+import { plural } from '../formato'
+import { LegendaCores } from '../componentes/LegendaCores'
 import type { Garoto, TelaBase } from '../tipos'
 
 export type AcaoBase = 'subir' | 'liberar'
@@ -39,7 +42,7 @@ const COLUNAS: Coluna<Garoto>[] = [
     largura: '96px',
     classe: 'centro',
     render: (j) => (
-      <span title={`${j.obs} mes(es) de observacao: a faixa estreita com o tempo`}>{j.teto}</span>
+      <span title={`${plural(j.obs, 'mes', 'meses')} de observacao: a faixa estreita com o tempo`}>{j.teto}</span>
     ),
   },
   {
@@ -74,7 +77,7 @@ export function Base(props: Props) {
   return (
     <div className="tela">
       <CabecalhoTela titulo={tela.titulo} sub={tela.subtitulo} metricas={tela.metricas} />
-      <div className="alavanca" role="tablist" style={{ marginBottom: 12 }}>
+      <div className="alavanca mb-3" role="tablist">
         {abas.map(([id, rotulo]) => (
           <button
             key={id}
@@ -123,20 +126,22 @@ function Garotos({ tela, ocupado, aoAbrirFicha, aoAgir, aoAlternarFoco }: Props)
           'durante o ano. Suba o nivel da base na Infraestrutura para ter mais vagas.'
         }
       />
+      <LegendaCores />
 
       <div className="barra-acoes barra-presa">
         <span className="resumo">
           elenco profissional: {tela.elenco_profissional}/{tela.teto_profissional}
           {lotado && ' — sem vaga para subir ninguem agora'}
         </span>
-        <button type="button" className="bt-fantasma" disabled={nenhum} onClick={() => aoAbrirFicha(ids[0])}>
+        <button type="button" className="bt-fantasma" title={porque([[nenhum, MARQUE]])}
+        disabled={nenhum} onClick={() => aoAbrirFicha(ids[0])}>
           Ver ficha
         </button>
         <button
           type="button"
           className="bt-fantasma"
+          title={porque([[nenhum, MARQUE], [ocupado, AGUARDE]], 'Liga ou desliga o treino individual dos marcados')}
           disabled={nenhum || ocupado}
-          title="Liga ou desliga o treino individual dos marcados"
           onClick={() => {
             aoAlternarFoco(ids)
             setMarcados(new Set())
@@ -146,8 +151,8 @@ function Garotos({ tela, ocupado, aoAbrirFicha, aoAgir, aoAlternarFoco }: Props)
         </button>
         <button
           type="button"
-          className="bt-acao"
-          style={{ height: 36, borderRadius: 'var(--raio-p)', padding: '0 16px' }}
+          className="bt-acao medio"
+          title={porque([[nenhum, MARQUE], [ocupado, AGUARDE]])}
           disabled={nenhum || ocupado}
           onClick={() => aoAgir('subir', ids)}
         >
@@ -156,6 +161,7 @@ function Garotos({ tela, ocupado, aoAbrirFicha, aoAgir, aoAlternarFoco }: Props)
         <button
           type="button"
           className="bt-fantasma bt-perigo"
+          title={porque([[nenhum, MARQUE], [ocupado, AGUARDE]])}
           disabled={nenhum || ocupado}
           onClick={() => aoAgir('liberar', ids)}
         >
@@ -172,15 +178,15 @@ function Peneira({ tela, ocupado, aoPeneira, aoCandidato }: Props) {
   const [regiao, setRegiao] = useState(pen.atual?.regiao ?? pen.regioes[0]?.id ?? '')
   const [foco, setFoco] = useState<string>(pen.atual?.foco ?? '')
   const estado = pen.atual
-    ? `Ligada no ${pen.atual.nome}${pen.atual.foco ? ` (${pen.atual.foco})` : ''}, ${pen.atual.custo} por semana. Proxima leva em ${pen.atual.proxima} semana(s).`
+    ? `Ligada no ${pen.atual.nome}${pen.atual.foco ? ` (${pen.atual.foco})` : ''}, ${pen.atual.custo} por semana. Proxima leva em ${plural(pen.atual.proxima, 'semana')}.`
     : `Desligada. Escolha onde procurar: a cada ${pen.a_cada} semanas chegam candidatos, e cada um espera ${pen.vale} semanas pela sua resposta.`
   return (
     <>
-      <section className="painel" style={{ padding: '14px 18px' }}>
-        <div className="painel-titulo" style={{ marginBottom: 6 }}>
+      <section className="painel enxuto">
+        <div className="painel-titulo mb-2">
           Peneira
         </div>
-        <p className="tag-fraco" style={{ margin: '0 0 12px' }}>
+        <p className="tag-fraco m-0 mb-3">
           {estado}
         </p>
         <div className="regioes-peneira" role="radiogroup" aria-label="Regiao da peneira">
@@ -209,14 +215,15 @@ function Peneira({ tela, ocupado, aoPeneira, aoCandidato }: Props) {
           </label>
           <div className="espaco" />
           {pen.atual && (
-            <button type="button" className="bt-fantasma" disabled={ocupado} onClick={() => aoPeneira(null, null)}>
+            <button type="button" className="bt-fantasma" title={porque([[ocupado, AGUARDE]])}
+            disabled={ocupado} onClick={() => aoPeneira(null, null)}>
               Desligar
             </button>
           )}
           <button
             type="button"
-            className="bt-acao"
-            style={{ height: 36, borderRadius: 'var(--raio-p)' }}
+            className="bt-acao medio"
+            title={porque([[ocupado, AGUARDE], [!regiao, 'Escolha uma regiao']])}
             disabled={ocupado || !regiao}
             onClick={() => aoPeneira(regiao, foco || null)}
           >
@@ -225,12 +232,12 @@ function Peneira({ tela, ocupado, aoPeneira, aoCandidato }: Props) {
         </div>
       </section>
 
-      <section className="painel" style={{ padding: '14px 18px' }}>
-        <div className="painel-titulo" style={{ marginBottom: 8 }}>
-          Candidatos · {tela.vagas_livres} vaga(s) livre(s) na base
+      <section className="painel enxuto">
+        <div className="painel-titulo mb-2">
+          Candidatos · {tela.vagas_livres === 1 ? '1 vaga livre' : `${tela.vagas_livres} vagas livres`} na base
         </div>
         {tela.candidatos.length === 0 ? (
-          <div className="vazio" style={{ padding: 0 }}>
+          <div className="vazio justo">
             Nenhum candidato esperando. Com a peneira ligada, eles chegam a cada {pen.a_cada} semanas.
           </div>
         ) : (
@@ -239,19 +246,19 @@ function Peneira({ tela, ocupado, aoPeneira, aoCandidato }: Props) {
               <span>
                 <strong>{k.nome}</strong>{' '}
                 <span className="tag-fraco">
-                  {k.pos} · {k.idade} anos · overall {k.ovr} · teto {k.faixa} · {k.regiao} · decide em {k.semanas}{' '}
-                  semana(s)
+                  {k.pos} · {k.idade} anos · overall {k.ovr} · teto {k.faixa} · {k.regiao} · decide em {plural(k.semanas, 'semana')}
                 </span>
               </span>
               <span className="modal-acoes">
-                <button type="button" className="bt-fantasma" disabled={ocupado} onClick={() => aoCandidato(k.cid, false)}>
+                <button type="button" className="bt-fantasma" title={porque([[ocupado, AGUARDE]])}
+                disabled={ocupado} onClick={() => aoCandidato(k.cid, false)}>
                   Dispensar
                 </button>
                 <button
                   type="button"
                   className="bt-fantasma"
+                  title={porque([[ocupado, AGUARDE], [tela.vagas_livres === 0, 'A base esta cheia: libere alguem ou amplie a academia']], tela.vagas_livres === 0 ? 'Base cheia: libere alguem antes' : undefined)}
                   disabled={ocupado || tela.vagas_livres === 0}
-                  title={tela.vagas_livres === 0 ? 'Base cheia: libere alguem antes' : undefined}
                   onClick={() => aoCandidato(k.cid, true)}
                 >
                   Trazer para a base
@@ -268,12 +275,12 @@ function Peneira({ tela, ocupado, aoPeneira, aoCandidato }: Props) {
 // ---------------------------------------------------------------- revelados
 function Revelados({ tela }: { tela: TelaBase }) {
   return (
-    <section className="painel" style={{ padding: '14px 18px' }}>
-      <div className="painel-titulo" style={{ marginBottom: 8 }}>
+    <section className="painel enxuto">
+      <div className="painel-titulo mb-2">
         Revelacoes da academia
       </div>
       {tela.revelados.length === 0 ? (
-        <div className="vazio" style={{ padding: 0 }}>
+        <div className="vazio justo">
           Ninguem subiu da base ainda. Quem subir ao profissional fica registrado aqui.
         </div>
       ) : (

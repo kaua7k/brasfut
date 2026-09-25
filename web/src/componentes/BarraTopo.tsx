@@ -3,6 +3,7 @@
 // A mesma regra da janela tkinter: com Salvar, Ajuda e Resumo aqui em cima a
 // barra estourava e o caixa saia da tela. Salvar desceu para o pe do menu.
 
+import { porque, AGUARDE } from '../motivo'
 import { Estrela, IconeSeta } from '../icones'
 import type { Cabecalho } from '../tipos'
 
@@ -28,7 +29,7 @@ export function BarraTopo({ cabecalho, aoAvancar, aoSimular, avancando }: Props)
       <div className="espaco" />
 
       {cabecalho.chips.map((chip) => (
-        <div className="chip" key={chip.label}>
+        <div className={`chip chip-${chip.label.toLowerCase()}`} key={chip.label}>
           <span className="rotulo">{chip.label}</span>
           <span className={`valor${chip.estado === 'critico' ? ' critico' : ''}`}>{chip.valor}</span>
         </div>
@@ -40,12 +41,13 @@ export function BarraTopo({ cabecalho, aoAvancar, aoSimular, avancando }: Props)
         type="button"
         className="bt-fantasma bt-simular"
         onClick={aoSimular}
+        title={porque([[avancando, AGUARDE]], 'Jogo a jogo, 1 mes, ate a janela ou a temporada toda')}
         disabled={avancando}
-        title="Jogo a jogo, 1 mes, ate a janela ou a temporada toda"
       >
         Simular…
       </button>
-      <button type="button" className="bt-acao" onClick={aoAvancar} disabled={avancando}>
+      <button type="button" className="bt-acao" onClick={aoAvancar} title={porque([[avancando, AGUARDE]])}
+      disabled={avancando}>
         {avancando ? 'Processando…' : cabecalho.acao}
         <IconeSeta />
       </button>

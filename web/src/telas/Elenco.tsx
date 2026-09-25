@@ -4,9 +4,12 @@
 // Por a venda, ceder e renovar abrem os dialogos do Mercado (vitrine em lote,
 // cessao e a mesa de renovacao); o resto e acao direta com confirmacao.
 
+import { porque, AGUARDE, MARQUE } from '../motivo'
 import { useEffect, useMemo, useState } from 'react'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
 import { alternarMarca, Grade, type Coluna } from '../componentes/Grade'
+import { dinheiro, plural } from '../formato'
+import { LegendaCores } from '../componentes/LegendaCores'
 import type { Cedido, JogadorElenco, TelaElenco } from '../tipos'
 
 export type AcaoElenco = 'tirar' | 'rescindir' | 'opcao' | 'chamar' | 'vender' | 'ceder' | 'renovar'
@@ -50,7 +53,7 @@ const COLUNAS: Coluna<JogadorElenco>[] = [
     // o ! avisa o ultimo ano: sem renovar ele sai de graca
     render: (j) => (
       <span className={j.ultimo_ano ? 'linha-critica' : undefined}>
-        {j.contrato} ano(s){j.ultimo_ano ? ' !' : ''}
+        {plural(j.contrato, 'ano')}{j.ultimo_ano ? ' !' : ''}
       </span>
     ),
   },
@@ -96,9 +99,7 @@ export function Elenco({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
     if (js.length === 0) return 'nenhum jogador marcado'
     const folha = js.reduce((s, j) => s + j.salario_num, 0)
     const valor = js.reduce((s, j) => s + j.valor_num, 0)
-    const fmt = (v: number) =>
-      v >= 1e6 ? `R$ ${(v / 1e6).toFixed(2)} mi` : `R$ ${Math.round(v / 1000)} mil`
-    return `${js.length} marcado(s) · folha ${fmt(folha)} por mes · valor somado ${fmt(valor)}`
+    return `${plural(js.length, 'marcado')} · folha ${dinheiro(folha)} por mes · valor somado ${dinheiro(valor)}`
   }, [tela.jogadores, marcados])
 
   const ids = [...marcados]
@@ -124,6 +125,7 @@ export function Elenco({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
           memoria="elenco"
           vazio="Elenco vazio. Contrate no Mercado."
         />
+        <LegendaCores critico="machucado ou suspenso" />
 
         <div className="barra-acoes barra-presa">
           <span className="resumo">{resumo}</span>
@@ -131,8 +133,8 @@ export function Elenco({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
           <button
             type="button"
             className="bt-fantasma"
+            title={porque([[acabando.length === 0, 'Ninguem no ultimo ano de contrato']], 'Marca quem esta no ultimo ano de contrato (ou ja venceu) e nao e emprestado')}
             disabled={acabando.length === 0}
-            title="Marca quem esta no ultimo ano de contrato (ou ja venceu) e nao e emprestado"
             onClick={() => setMarcados(new Set(acabando))}
           >
             Contrato acabando ({acabando.length})
@@ -141,6 +143,7 @@ export function Elenco({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
           <button
             type="button"
             className="bt-fantasma"
+            title={porque([[nenhum, MARQUE]])}
             disabled={nenhum}
             onClick={() => aoAbrirFicha(ids[0])}
           >
@@ -149,6 +152,7 @@ export function Elenco({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
           <button
             type="button"
             className="bt-fantasma"
+            title={porque([[nenhum, MARQUE], [ocupado, AGUARDE]])}
             disabled={nenhum || ocupado}
             onClick={() => aoAgir('vender', ids)}
           >
@@ -157,6 +161,7 @@ export function Elenco({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
           <button
             type="button"
             className="bt-fantasma"
+            title={porque([[nenhum, MARQUE], [ocupado, AGUARDE]])}
             disabled={nenhum || ocupado}
             onClick={() => aoAgir('tirar', ids)}
           >
@@ -165,6 +170,7 @@ export function Elenco({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
           <button
             type="button"
             className="bt-fantasma"
+            title={porque([[nenhum, MARQUE], [ocupado, AGUARDE]])}
             disabled={nenhum || ocupado}
             onClick={() => aoAgir('ceder', ids)}
           >
@@ -173,8 +179,8 @@ export function Elenco({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
           <button
             type="button"
             className="bt-fantasma"
+            title={porque([[nenhum, MARQUE], [ocupado, AGUARDE]], 'Abre a mesa de renovacao de cada marcado, um de cada vez')}
             disabled={nenhum || ocupado}
-            title="Abre a mesa de renovacao de cada marcado, um de cada vez"
             onClick={() => aoAgir('renovar', ids)}
           >
             Renovar
@@ -182,6 +188,7 @@ export function Elenco({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
           <button
             type="button"
             className="bt-fantasma"
+            title={porque([[nenhum, MARQUE], [ocupado, AGUARDE]])}
             disabled={nenhum || ocupado}
             onClick={() => aoAgir('opcao', ids)}
           >
@@ -190,6 +197,7 @@ export function Elenco({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
           <button
             type="button"
             className="bt-fantasma bt-perigo"
+            title={porque([[nenhum, MARQUE], [ocupado, AGUARDE]])}
             disabled={nenhum || ocupado}
             onClick={() => aoAgir('rescindir', ids)}
           >
@@ -198,7 +206,7 @@ export function Elenco({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
         </div>
 
         {!tela.mercado_aberto && (
-          <div className="barra-acoes" style={{ paddingTop: 0 }}>
+          <div className="barra-acoes colada">
             <span className="aviso">
               Janela fechada: da para renovar e rescindir, nao para vender ou emprestar.
             </span>
@@ -231,6 +239,7 @@ export function Elenco({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
               <button
                 type="button"
                 className="bt-fantasma"
+                title={porque([[marcadosCedidos.size === 0, 'Marque quem voce quer de volta'], [ocupado, AGUARDE], [!tela.mercado_aberto, 'So com a janela aberta']])}
                 disabled={marcadosCedidos.size === 0 || ocupado || !tela.mercado_aberto}
                 onClick={() => aoAgir('chamar', [...marcadosCedidos])}
               >

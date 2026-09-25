@@ -4,11 +4,16 @@
 // campo) e o maior bloco da tela, e o resto e contexto da aposta e memoria.
 // E a mesma hierarquia da janela tkinter, redesenhada.
 
+import { porque, AGUARDE } from '../motivo'
 import { useState } from 'react'
 import { Campo } from '../componentes/Campo'
+import { ResumoPartida } from '../componentes/Partida'
+import { plural } from '../formato'
+import { LegendaZonas, MarcaZona } from '../componentes/Zona'
 import { Estrela, EscudoRival, iconeDeEstado } from '../icones'
 import type {
   AvisoContratos,
+  Confianca,
   DadosPainel,
   Destaque,
   Escalacao,
@@ -43,7 +48,11 @@ export function Painel({ dados, aoDefinirAuto, mudandoAuto, aoIr, aoRenovar, aoR
         {dados.propostas_emprego.map((o) => (
           <FaixaProposta key={o.id} proposta={o} aoResponder={aoResponderProposta} />
         ))}
-        <FaixaResultados resultados={dados.resultados} />
+        {dados.resultados.partidas.length > 0 ? (
+          <ResumoPartida partidas={dados.resultados.partidas} alerta={dados.resultados.alerta} />
+        ) : (
+          <FaixaResultados resultados={dados.resultados} />
+        )}
         <CardProximo proximo={dados.proximo} meuClube={dados.cabecalho.clube} />
         <CardEscalacao
           escalacao={dados.escalacao}
@@ -79,7 +88,7 @@ function FaixaProntidao({
   return (
     <section className={`painel faixa ${prontidao.estado}`}>
       <div className="faixa-icone">{iconeDeEstado(prontidao.estado)}</div>
-      <div style={{ minWidth: 0 }}>
+      <div className="encolhe">
         <div className="faixa-titulo">{prontidao.titulo}</div>
         <div className="faixa-detalhe">{prontidao.detalhe}</div>
       </div>
@@ -111,7 +120,7 @@ function FaixaContratos({
   return (
     <section className={`painel faixa ${aviso.estado}`}>
       <div className="faixa-icone">{iconeDeEstado(aviso.estado)}</div>
-      <div style={{ minWidth: 0 }}>
+      <div className="encolhe">
         <div className="faixa-titulo">{aviso.texto}</div>
         <div className="faixa-detalhe">
           {nomes}
@@ -139,16 +148,16 @@ function FaixaProposta({
   return (
     <section className="painel faixa atencao">
       <div className="faixa-icone">{iconeDeEstado('atencao')}</div>
-      <div style={{ minWidth: 0 }}>
+      <div className="encolhe">
         <div className="faixa-titulo">
-          O {proposta.clube} (Serie {proposta.divisao}, REP {proposta.reputacao}) quer voce como tecnico
+          O {proposta.clube} ({proposta.liga}, REP {proposta.reputacao}) quer voce como tecnico
         </div>
         <div className="faixa-detalhe">
           {certeza
             ? 'Aceitar deixa o clube atual agora, no meio da temporada. Confirma?'
-            : proposta.semanas > 0
-              ? `A proposta vale ate a semana ${proposta.expira} (${proposta.semanas} semana(s)).`
-              : 'A proposta vence nesta semana: responda antes de avancar.'}
+            : proposta.semanas > 1
+              ? `A proposta vale por mais ${proposta.semanas} semanas.`
+              : 'A proposta vence ao avancar esta semana: responda antes.'}
         </div>
       </div>
       <div className="espaco" />
@@ -201,9 +210,14 @@ function FaixaResultados({ resultados }: { resultados: Resultados }) {
 
         <div className="espaco" />
 
-        <div style={{ textAlign: 'right' }}>
-          <div className="painel-titulo" style={{ marginBottom: 4 }}>Ultimos 5</div>
-          <div className="forma">
+        <div className="a-direita">
+          {/* a contagem e a real (no comeco do ano sao menos de 5) e a seta diz
+              o sentido: o mais antigo a esquerda, o ultimo jogo a direita */}
+          <div className="painel-titulo mb-1">
+            {forma.length === 1 ? 'Ultimo jogo' : `Ultimos ${forma.length || 5}`}
+            {forma.length > 1 && <span className="tag-fraco"> · antigo → recente</span>}
+          </div>
+          <div className="forma" aria-label={forma.map((f) => f.descricao).join(', ')}>
             {forma.length === 0 && <span className="placar-onde">sem historico ainda</span>}
             {forma.map((f, i) => (
               <span className={`forma-badge ${f.letra}`} key={i} title={f.descricao}>
@@ -230,10 +244,10 @@ function FaixaResultados({ resultados }: { resultados: Resultados }) {
 function CardProximo({ proximo, meuClube }: { proximo: Proximo; meuClube: string }) {
   const temAdversario = proximo.tipo === 'jogo'
   return (
-    <section className="painel" style={{ padding: '16px 22px' }}>
-      <div className="painel-cab" style={{ marginBottom: 14 }}>
+    <section className="painel folgado">
+      <div className="painel-cab mb-3">
         <span className="painel-titulo">Proximo jogo</span>
-        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--acento)' }}>
+        <span className="txt-mini negrito txt-acao">
           {proximo.legenda}
         </span>
       </div>
@@ -264,14 +278,23 @@ function CardProximo({ proximo, meuClube }: { proximo: Proximo; meuClube: string
       </div>
 
       {proximo.extras > 0 && (
-        <div style={{ fontSize: 11, color: 'var(--atencao)', marginTop: 10, textAlign: 'center' }}>
-          +{proximo.extras} jogo(s) nesta semana
+        <div className="txt-mini txt-atencao mt-3 a-centro">
+          +{plural(proximo.extras, 'jogo')} nesta semana
         </div>
       )}
 
       <div className="forcas">
-        <Forca nome="Ataque" meu={proximo.ataque.meu} dele={proximo.ataque.dele} />
-        <Forca nome="Defesa" meu={proximo.defesa.meu} dele={proximo.defesa.dele} />
+        {/* a partida cruza ataque com defesa: e esse duelo que a barra mostra */}
+        <Forca
+          nome={proximo.ataque.dele === null ? 'Ataque' : 'Seu ataque x defesa dele'}
+          meu={proximo.ataque.meu}
+          dele={proximo.ataque.dele}
+        />
+        <Forca
+          nome={proximo.defesa.dele === null ? 'Defesa' : 'Sua defesa x ataque dele'}
+          meu={proximo.defesa.meu}
+          dele={proximo.defesa.dele}
+        />
       </div>
     </section>
   )
@@ -312,10 +335,9 @@ function CardEscalacao({
   const ressalvas = escalacao.jogadores.filter((j) => j.estado !== 'ok')
   return (
     <section
-      className="painel"
-      style={{ padding: '16px 22px', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+      className="painel folgado estica"
     >
-      <div className="painel-cab" style={{ marginBottom: 12 }}>
+      <div className="painel-cab mb-3">
         <span className="painel-titulo">
           Escalacao · {escalacao.formacao} · {escalacao.tatica}
         </span>
@@ -323,18 +345,18 @@ function CardEscalacao({
           <button
             type="button"
             className={escalacao.auto ? 'ativo' : ''}
+            title={porque([[mudandoAuto, AGUARDE]], 'O time se monta sozinho antes de cada jogo')}
             disabled={mudandoAuto}
             onClick={() => aoDefinirAuto(true)}
-            title="O time se monta sozinho antes de cada jogo"
           >
             Automatico
           </button>
           <button
             type="button"
             className={!escalacao.auto ? 'ativo' : ''}
+            title={porque([[mudandoAuto, AGUARDE]], 'O seu XI e soberano, so repomos quem nao pode jogar')}
             disabled={mudandoAuto}
             onClick={() => aoDefinirAuto(false)}
-            title="O seu XI e soberano, so repomos quem nao pode jogar"
           >
             Manual
           </button>
@@ -344,9 +366,9 @@ function CardEscalacao({
       <Campo jogadores={escalacao.jogadores} vagasAbertas={escalacao.vagas_abertas} />
 
       <div className="legenda-campo">
-        <span><i className="ponto" style={{ color: 'var(--txt)' }} /> em ordem</span>
-        <span style={{ color: 'var(--atencao)' }}><i className="ponto" /> custa rendimento</span>
-        <span style={{ color: 'var(--critico)' }}><i className="ponto" /> cobra caro</span>
+        <span><i className="ponto txt-normal" /> em ordem</span>
+        <span className="txt-atencao"><i className="ponto" /> custa rendimento</span>
+        <span className="txt-critico"><i className="ponto" /> cobra caro</span>
       </div>
 
       {/* o campo mostra a forma; a lista mostra o preco. So aparece quem tem
@@ -358,7 +380,7 @@ function CardEscalacao({
           Ninguem improvisado, desgastado ou pendurado no XI.
         </div>
       ) : (
-        <div className="xi-lista" style={{ marginTop: 10 }}>
+        <div className="xi-lista mt-3">
           {ressalvas.map((j) => (
             <div className="xi-linha" key={j.id}>
               <span className={`xi-vaga ${j.improvisado ? j.estado : ''}`}>
@@ -375,8 +397,8 @@ function CardEscalacao({
           {escalacao.vagas_abertas > 0 && (
             <div className="xi-linha">
               <span className="xi-vaga critico">---</span>
-              <span className="xi-nome" style={{ color: 'var(--critico)' }}>
-                {escalacao.vagas_abertas} vaga(s) sem jogador apto
+              <span className="xi-nome txt-critico">
+                {plural(escalacao.vagas_abertas, 'vaga')} sem jogador apto
               </span>
               <span className="xi-num">--</span>
               <span className="xi-fis">--</span>
@@ -392,9 +414,9 @@ function CardEscalacao({
 // ------------------------------------------------------------------- objetivo
 function CardObjetivo({ objetivo }: { objetivo: Objetivo }) {
   return (
-    <section className="painel" style={{ padding: '14px 18px' }}>
+    <section className="painel enxuto">
       <div className="painel-titulo">Objetivo da temporada</div>
-      <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4 }}>{objetivo.texto}</div>
+      <div className="txt-m seminegrito mt-1">{objetivo.texto}</div>
 
       <div className="objetivo-barra">
         <div className={`cheio ${objetivo.estado}`} style={{ width: `${objetivo.progresso}%` }} />
@@ -411,22 +433,63 @@ function CardObjetivo({ objetivo }: { objetivo: Objetivo }) {
             (objetivo.folga >= 0 ? ` · ${objetivo.folga} de folga` : ` · faltam ${-objetivo.folga}`)}
         </span>
       </div>
-      <div className="diretoria">Diretoria: {objetivo.diretoria}</div>
+      <ConfiancaDiretoria c={objetivo.confianca} fala={objetivo.diretoria} />
     </section>
+  )
+}
+
+function ConfiancaDiretoria({ c, fala }: { c: Confianca; fala: string }) {
+  const seta = c.tendencia > 0 ? '▲' : c.tendencia < 0 ? '▼' : '='
+  return (
+    <div className="confianca">
+      <div className="confianca-cab">
+        <span className="painel-titulo">Confianca da diretoria</span>
+        <span className={`confianca-valor ${c.estado}`}>{c.valor}</span>
+        <span className={`confianca-tendencia ${c.tendencia > 0 ? 'ok' : c.tendencia < 0 ? 'critico' : ''}`}>
+          {seta} {c.tendencia > 0 ? `+${c.tendencia}` : c.tendencia} em 4 semanas
+        </span>
+      </div>
+      <div
+        className="confianca-barra"
+        role="meter"
+        aria-label="Confianca da diretoria"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={c.valor}
+      >
+        <div className={`cheio ${c.estado}`} style={{ width: `${c.valor}%` }} />
+        <div className="confianca-marca" style={{ left: `${c.limite_aviso}%` }} title={`aviso abaixo de ${c.limite_aviso}`} />
+        <div
+          className="confianca-marca critico"
+          style={{ left: `${c.limite_demissao}%` }}
+          title={`demissao abaixo de ${c.limite_demissao}, depois do aviso`}
+        />
+      </div>
+      {c.causas.length > 0 && (
+        <ul className="confianca-causas" aria-label="Por que mudou na ultima semana">
+          {c.causas.map((x, i) => (
+            <li key={i} className={`txt-${x.estado}`}>
+              {x.texto}
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className={`diretoria${c.aviso ? ' txt-critico negrito' : ''}`}>Diretoria: {fala}</div>
+    </div>
   )
 }
 
 // --------------------------------------------------------------------- tabela
 function CardTabela({ tabela }: { tabela: Tabela }) {
   return (
-    <section className="painel" style={{ padding: '16px 0 4px' }}>
-      <div className="painel-titulo" style={{ padding: '0 18px 12px' }}>{tabela.titulo}</div>
+    <section className="painel em-lista">
+      <div className="painel-titulo cab-lista">{tabela.titulo}</div>
       {tabela.vazio ? (
         <div className="vazio">{tabela.vazio}</div>
       ) : (
         <>
           <div className="tablerow cab">
-            <span>P</span>
+            <span>Pos</span>
             <span>Clube</span>
             <span className="num">J</span>
             <span className="num">SG</span>
@@ -437,7 +500,7 @@ function CardTabela({ tabela }: { tabela: Tabela }) {
             <div className={`tablerow ${l.zona}${l.eu ? ' eu' : ''}`} key={l.pos}>
               <span className="pos">{l.pos}</span>
               <span className="clube">
-                <i className="marcador" />
+                <MarcaZona zona={l.zona} texto={l.zona_texto} />
                 {l.clube}
               </span>
               <span className="num">{l.j}</span>
@@ -446,6 +509,7 @@ function CardTabela({ tabela }: { tabela: Tabela }) {
               <span className="num">{l.pts}</span>
             </div>
           ))}
+          <LegendaZonas linhas={tabela.linhas} />
         </>
       )}
     </section>
@@ -455,15 +519,15 @@ function CardTabela({ tabela }: { tabela: Tabela }) {
 // ------------------------------------------------------------------ destaques
 function CardDestaques({ destaques }: { destaques: Destaque[] }) {
   return (
-    <section className="painel" style={{ padding: '16px 18px' }}>
-      <div className="painel-titulo" style={{ marginBottom: 12 }}>Destaques do elenco</div>
+    <section className="painel enxuto">
+      <div className="painel-titulo mb-3">Destaques do elenco</div>
       <div className="destaques">
         {destaques.map((d) => (
           <div className="destaque" key={d.id}>
             <div className="avatar">{d.iniciais}</div>
             <div className="nome" title={d.nome}>{d.nome}</div>
             <div className="linha2">{d.pos} · overall {d.ovr}</div>
-            <div className="linha2">{d.g} gol(s) · {d.a} assist.</div>
+            <div className="linha2">{plural(d.g, 'gol')} · {d.a} assist.</div>
           </div>
         ))}
       </div>
@@ -475,10 +539,9 @@ function CardDestaques({ destaques }: { destaques: Destaque[] }) {
 function CardNoticias({ noticias }: { noticias: Noticia[] }) {
   return (
     <section
-      className="painel"
-      style={{ padding: '16px 0', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+      className="painel em-lista estica"
     >
-      <div className="painel-cab" style={{ padding: '0 18px 10px' }}>
+      <div className="painel-cab cab-lista">
         <span className="painel-titulo">Noticias do clube</span>
       </div>
       <div className="noticias">
@@ -503,8 +566,8 @@ function CardNoticias({ noticias }: { noticias: Noticia[] }) {
 // ------------------------------------------------------------- pelo mundo
 function CardMundo({ mundo, aoIr }: { mundo: Manchete[]; aoIr: (destino: string) => void }) {
   return (
-    <section className="painel" style={{ padding: '16px 0' }}>
-      <div className="painel-cab" style={{ padding: '0 18px 10px' }}>
+    <section className="painel em-lista">
+      <div className="painel-cab cab-lista">
         <span className="painel-titulo">Pelo mundo</span>
         <div className="espaco" />
         <button type="button" className="bt-link" onClick={() => aoIr('noticias')}>

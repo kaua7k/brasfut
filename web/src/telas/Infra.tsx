@@ -3,6 +3,7 @@
 // O preco vem calculado do servidor, e e la que ele e cobrado: a tela nunca
 // manda o valor a pagar, senao daria para comprar o nivel 10 pelo preco do 1.
 
+import { porque, AGUARDE } from '../motivo'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
 import type { TelaInfra } from '../tipos'
 
@@ -32,13 +33,13 @@ export function Infra({ tela, ocupado, aoInvestir }: Props) {
             </div>
 
             {it.custo === null ? (
-              <div style={{ fontSize: 12.5, fontWeight: 700, color: '#a78bfa' }}>nivel maximo</div>
+              <div className="txt-p negrito txt-titular">nivel maximo</div>
             ) : (
               <button
                 type="button"
                 className="bt-fantasma"
+                title={porque([[ocupado, AGUARDE], [!it.pode_pagar, 'Caixa insuficiente para este nivel']], it.pode_pagar ? undefined : 'caixa insuficiente')}
                 disabled={ocupado || !it.pode_pagar}
-                title={it.pode_pagar ? undefined : 'caixa insuficiente'}
                 onClick={() => aoInvestir(it.id)}
               >
                 Subir para o nivel {it.nivel + 1} por {it.custo}

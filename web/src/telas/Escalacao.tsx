@@ -19,6 +19,7 @@
 // Automatico remonta. Toda troca de formacao pode ser desfeita por alguns
 // segundos - o botao aparece no recado, la em cima.
 
+import { porque, AGUARDE } from '../motivo'
 import { useRef, useState } from 'react'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
 import { Campo } from '../componentes/Campo'
@@ -35,6 +36,7 @@ export type AcaoEscalacao =
   | { tipo: 'inverter'; a: number; b: number }
   | { tipo: 'plano'; eixo: string; valor: string }
   | { tipo: 'plano-padrao' }
+  | { tipo: 'condicional'; condicao: string; minuto: number | null; tatica: string | null }
 
 interface Props {
   tela: TelaEscalacao
@@ -230,7 +232,7 @@ export function Escalacao({ tela, ocupado, mercadoPronto, aoAbrirFicha, aoAgir, 
         aria-live="polite"
       >
         <div className="faixa-icone">{iconeDeEstado(tela.prontidao.estado)}</div>
-        <div style={{ minWidth: 0 }}>
+        <div className="encolhe">
           <div className="faixa-titulo">{tela.prontidao.titulo}</div>
           <div className="faixa-detalhe">{tela.prontidao.detalhe}</div>
           {saida && !saida.alternativa && (
@@ -242,6 +244,7 @@ export function Escalacao({ tela, ocupado, mercadoPronto, aoAbrirFicha, aoAgir, 
           <button
             type="button"
             className="bt-fantasma"
+            title={porque([[ocupado, AGUARDE]])}
             disabled={ocupado}
             onClick={() => aoAgir({ tipo: 'esquema', formacao: saida.alternativa!.formacao })}
           >
@@ -276,8 +279,8 @@ export function Escalacao({ tela, ocupado, mercadoPronto, aoAbrirFicha, aoAgir, 
               type="button"
               className={tela.auto ? 'ativo' : ''}
               aria-pressed={tela.auto}
+              title={porque([[ocupado, AGUARDE]], 'A maquina monta o melhor time toda semana')}
               disabled={ocupado}
-              title="A maquina monta o melhor time toda semana"
               onClick={() => aoAgir({ tipo: 'auto', ligada: true })}
             >
               Automatico
@@ -286,8 +289,8 @@ export function Escalacao({ tela, ocupado, mercadoPronto, aoAbrirFicha, aoAgir, 
               type="button"
               className={!tela.auto ? 'ativo' : ''}
               aria-pressed={!tela.auto}
+              title={porque([[ocupado, AGUARDE]], 'O time e seu: so repomos quem nao pode jogar')}
               disabled={ocupado}
-              title="O time e seu: so repomos quem nao pode jogar"
               onClick={() => aoAgir({ tipo: 'auto', ligada: false })}
             >
               Manual
@@ -320,6 +323,7 @@ export function Escalacao({ tela, ocupado, mercadoPronto, aoAbrirFicha, aoAgir, 
             ref={botaoEditar}
             className="bt-fantasma"
             aria-pressed={editando}
+            title={porque([[ocupado && !editando, AGUARDE]])}
             disabled={ocupado && !editando}
             onClick={() => (editando ? sairDoEditor() : setEditando(true))}
           >
@@ -344,8 +348,8 @@ export function Escalacao({ tela, ocupado, mercadoPronto, aoAbrirFicha, aoAgir, 
           <button
             type="button"
             className="bt-fantasma"
+            title={porque([[ocupado, AGUARDE]], 'Monta o melhor XI disponivel para a formacao atual')}
             disabled={ocupado}
-            title="Monta o melhor XI disponivel para a formacao atual"
             onClick={() => aoAgir({ tipo: 'montar' })}
           >
             Montar melhor time
@@ -365,6 +369,7 @@ export function Escalacao({ tela, ocupado, mercadoPronto, aoAbrirFicha, aoAgir, 
             <button
               type="button"
               className="bt-fantasma bt-mini"
+              title={porque([[ocupado, AGUARDE], [tela.plano.padrao, 'O plano ja esta neutro']])}
               disabled={ocupado || tela.plano.padrao}
               onClick={() => aoAgir({ tipo: 'plano-padrao' })}
             >
@@ -408,11 +413,59 @@ export function Escalacao({ tela, ocupado, mercadoPronto, aoAbrirFicha, aoAgir, 
               )
             })}
           </div>
+
+          {/* instrucao pre-jogo: o jogo nao pausa, a regra decide no intervalo e aos 71' */}
+          <div className="condicionais" role="group" aria-labelledby="condicionais-titulo">
+            <div className="tatica-cab">
+              <span className="painel-titulo" id="condicionais-titulo">
+                Se o jogo apertar
+              </span>
+              <span className="tag-fraco">vale enquanto o placar pedir; virou, volta a mentalidade de antes</span>
+            </div>
+            {tela.condicionais.regras.map((r) => (
+              <div className="condicional" key={r.condicao}>
+                <span className="plano-nome">{r.rotulo}</span>
+                <select
+                  className="seletor"
+                  aria-label={`${r.rotulo}: a partir de`}
+                  value={r.minuto ?? ''}
+                  disabled={ocupado}
+                  onChange={(e) => {
+                    const minuto = e.target.value ? Number(e.target.value) : null
+                    const tatica = r.tatica ?? (r.condicao === 'perdendo' ? 'Ofensivo' : 'Contra-ataque')
+                    aoAgir({ tipo: 'condicional', condicao: r.condicao, minuto, tatica: minuto ? tatica : null })
+                  }}
+                >
+                  <option value="">sem instrucao</option>
+                  {tela.condicionais.minutos.map((m) => (
+                    <option key={m} value={m}>
+                      a partir dos {m}'
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="seletor"
+                  aria-label={`${r.rotulo}: mentalidade`}
+                  value={r.tatica ?? ''}
+                  title={porque([[r.minuto === null, 'Escolha antes a partir de quando']])}
+                  disabled={ocupado || r.minuto === null}
+                  onChange={(e) =>
+                    aoAgir({ tipo: 'condicional', condicao: r.condicao, minuto: r.minuto, tatica: e.target.value })
+                  }
+                >
+                  {r.minuto === null && <option value="">mentalidade</option>}
+                  {tela.taticas.map((t) => (
+                    <option key={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       {editando && (
-        <section className="painel" style={{ padding: 14 }} aria-label="Editar formacao">
+        <section className="painel compacto" aria-label="Editar formacao">
           <EditorFormacao
             inicial={tela.contagem}
             limites={tela.limites}
@@ -449,13 +502,13 @@ export function Escalacao({ tela, ocupado, mercadoPronto, aoAbrirFicha, aoAgir, 
             <span>
               <i className="disco-mini">77</i> overall
             </span>
-            <span style={{ color: 'var(--atencao)' }}>
+            <span className="txt-atencao">
               <i className="ponto" /> custa rendimento
             </span>
-            <span style={{ color: 'var(--critico)' }}>
+            <span className="txt-critico">
               <i className="ponto" /> cobra caro
             </span>
-            <span style={{ color: 'var(--acento)' }}>
+            <span className="txt-acao">
               <i className="ponto cheio" /> marcado
             </span>
           </div>
@@ -507,12 +560,14 @@ export function Escalacao({ tela, ocupado, mercadoPronto, aoAbrirFicha, aoAgir, 
         <button
           type="button"
           className="bt-fantasma"
+          title={porque([[validos.length === 0, 'Nada marcado para limpar']])}
           disabled={validos.length === 0}
           onClick={() => setMarcados([])}
         >
           Limpar
         </button>
-        <button type="button" className="bt-acao bt-media" disabled={!troca.acao || ocupado} onClick={trocar}>
+        <button type="button" className="bt-acao bt-media" title={porque([[!troca.acao, 'Marque dois jogadores para trocar'], [ocupado, AGUARDE]])}
+        disabled={!troca.acao || ocupado} onClick={trocar}>
           Trocar
         </button>
       </div>

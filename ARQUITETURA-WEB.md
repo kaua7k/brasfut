@@ -444,6 +444,171 @@ ação em lote apontar para quem já saiu. `[hidden]` ganhou `display:none
 !important` e `.tela > *` não encolhe — era isso que cortava a lista do Elenco
 sem dar scroll.
 
+## Rodada de melhorias (Onda 1)
+
+Decisões em `docs/three-amigos/2026-09-24-rodada-de-melhorias.md`.
+
+**Regras que o jogo desobedecia.**
+- **Agente livre assina na hora**, com a janela aberta ou fechada, para quem
+  fechar primeiro — técnico ou IA (`assina_na_hora`). Antes o acerto do técnico
+  ficava agendado e a IA levava o jogador na semana seguinte. Quem tem acerto
+  agendado (`presos_em_acerto`) não é contratado por ninguém; acerto com livre
+  de save antigo se cumpre na próxima semana (`executar_agendadas`).
+- **Guard de posse na API** (`_exigir_posse` em `api/rotas.py`): rescindir,
+  tirar da vitrine, subir e liberar da base, chamar de volta e treino
+  individual só aceitam jogador do meu clube; um id alheio devolve 400 com o
+  nome e nada muda. Dava para rescindir jogador de rival descontando a multa
+  do caixa dele.
+- **Troca de clube limpa o clube antigo** (`largar_clube`, chamada por
+  `assumir_clube`): vagas fixadas, treino individual, peneira e candidatos.
+- **Prazo em semanas absolutas** (`G["semana_abs"]`, `semana_absoluta`):
+  `G["semana"]` fica em 0 o estadual inteiro, e a proposta de 6 semanas feita
+  na virada durava ~20. Proposta de emprego e candidato da peneira guardam
+  `vence`; `migrar_prazos` converte save antigo.
+- **Barra de forças** compara o duelo que a partida joga: meu ataque x defesa
+  dele e minha defesa x ataque dele, os dois com o XI da competição do jogo.
+- **Textos**: nome da liga em vez de "Serie ENG" (`liga_do_resumo`); a Série D
+  não rebaixa (`tem_rebaixamento`, e a diretoria deixou de somar risco de
+  queda na D); `scout` devolve "~75" (a tela já escreve "teto"); "nas
+  quartas"; empréstimo de livre diz o motivo; corpo que não é objeto JSON,
+  `alvo`, `contagem` e id de ficha malformados viram 400.
+
+`testes/test_regras.py` tem um teste por critério de aceite.
+
+**Desempenho sem mudar o jogo.** `atribuir_vagas` ganhou um memo exato
+(`_MEMO_VAGAS`): a chave leva formação, vagas fixadas e, de cada titular na
+ordem do XI, posição, overall, condição, forma e moral — tudo o que
+`rendimento()` lê. Acerta quando o mesmo XI é medido de novo no mesmo estado
+(posse, forças do primeiro tempo, diagnóstico). `montar_escalacao` e
+`atribuir_vagas` calculam a linha de notas uma vez por posição, não uma vez
+por vaga repetida. Um memo de `forcas_de` foi testado e saiu: a fadiga muda a
+condição a cada período e ele quase nunca acertava. Ficou de fora de
+propósito: tirar a semana do `esc_stamp` (muda a regra do rodízio) e gravar o
+save em thread (mais lento e com risco de corromper).
+
+`testes/desempenho.py` é o gate: 3 seeds x 20 semanas pelo mesmo caminho da
+tela, sha256 do mundo inteiro, do log e dos jogos a cada semana (`--gravar`
+na versão de referência, `--comparar` depois). Rode com `PYTHONHASHSEED=0` e
+intercale referência e versão nova: o tempo entre execuções varia ~20% na
+mesma máquina. Medido nesta leva: motor −25% (39,3 s → 29,6 s nas 60
+semanas), pedido inteiro −19%, saída idêntica.
+
+**Interface: layout, acessibilidade e linguagem.**
+- *Topo*: os chips somem por classe (`chip-elenco` em 1440px, `chip-folha`
+  em 1320px), nunca o Caixa nem a Verba. O `nth-of-type` contava escudo e
+  título e escondia justamente o CAIXA em 1320px. O subtítulo (com a semana)
+  quebra em duas linhas antes de cortar.
+- *Uma rolagem por página*: o Painel tem altura natural (`.corpo` rola, as
+  colunas não); acabou o cartão rolando por dentro e as Notícias vazando por
+  cima do Pelo mundo. `.tela` perdeu o padding de baixo (o sticky conta a
+  partir dele e a barra de ações presa ficava 24px acima do rodapé, com linhas
+  passando por baixo); o respiro veio para o `::after`.
+- *Grade*: largura mínima somada das colunas; abaixo dela a grade rola de lado
+  dentro dela. Linha que abre ficha é focável e abre com Enter, e o texto diz
+  "duplo clique (ou Enter)", que é o gesto de verdade.
+- *Finanças*: `.linha-valor` em grade de duas colunas; a linha do saldo usa
+  `total`, não `destaque` (que é o cartão do Painel e entortava a linha).
+- *Acessibilidade*: zona da tabela com forma e texto (`componentes/Zona.tsx`,
+  `zona_texto` vindo de `dto.rotulo_zona`) e legenda; legenda das cores de
+  nome (`LegendaCores`); menu só de ícones com `aria-label`/`title`; todo
+  botão desabilitado diz o motivo (`porque()` em `web/src/motivo.ts`); borda
+  de controle `--borda-controle` (3,3:1); `prefers-reduced-motion` vale para
+  tudo, não só para o disco da Escalação.
+- *Linguagem*: menu "Classificacao" igual ao título; "Pos" e "Pts", nunca
+  "P"; `eng.din` em pt-BR ("R$ 37,6 mi", "R$ 764 mil", "R$ 3.500" abaixo de
+  cem mil) com espelho em `web/src/formato.ts`; `eng.plural`/`plural()` no
+  lugar de todo "(s)"; o Mercado não repete caixa, verba e folha do topo e o
+  "time pronto" não repete ataque e defesa da barra; `eng.nome_clube` põe a
+  liga ao lado de nome repetido ("Athletic (La Liga)").
+- `testes/test_textos.py` é o lint: zero "(s)" e zero "mi" com ponto nas
+  fontes e nas telas, zero "Serie ENG", menu e título com o mesmo nome.
+
+## Onda 2
+
+Escopo, ordem e decisões: `docs/three-amigos/2026-09-25-onda-2-decisoes.md`.
+
+**Tokens de CSS.** Todo valor visual mora no `:root` de
+`web/src/estilo/base.css`; fora dele o CSS e o TSX só usam `var(--...)`.
+- *Três cores, três sentidos*: **azul** (`--acao`, fundo com texto branco,
+  5,2:1; `--acao-linha`, texto/borda/traço, 7,2:1) é você e o que você faz:
+  botão principal, aba e alavanca ativas, foco, link, caixa marcada, seu
+  clube na tabela, barra de progresso. **Dourado** (`--conquista`) é marca e
+  conquista: escudo, troféu, título, reputação, overall da ficha. **Âmbar**
+  (`--atencao`) é só atenção. O antigo `--acento` fazia os três papéis e
+  saiu.
+- *Fonte*: seis degraus (`--fs-mini` 11, `--fs-p` 12, `--fs-m` 13,
+  `--fs-base` 14, `--fs-g` 17, `--fs-gg` 22). Eram 18 tamanhos; o menor
+  rótulo subiu de 10 para 11px.
+- *Inline*: `style={{}}` só para valor que vem do dado (posição no campo,
+  largura de barra). O resto virou classe, e as utilitárias (`.mt-*`,
+  `.mb-*`, `.txt-*`, `.painel.enxuto`...) ficam no fim do `base.css` para
+  vencer a classe base de mesma especificidade.
+- `testes/test_tokens.py` é o lint: zero hex, rgba ou `font-size` em px fora
+  do `:root`, no máximo seis degraus de fonte, todo `var()` usado existe,
+  nenhum `--acento`, nenhum inline fixo no TSX.
+
+**Partida guardada.** `simular` devolve `notas` e `xi` com o id do jogador
+como chave; o JSON vira essa chave em texto e, depois de carregar, o id não
+achava mais ninguém (o melhor em campo sumia). Em memória a chave segue int:
+`migrar` chama `_normalizar_partida` em `ultimos_meus`. Para guardar,
+`eng.registro_partida` monta um registro só de listas e nomes (gols e
+cartões com minuto, substituições, lesões, stats, `[lado, id, nome, vaga,
+nota]` de quem entrou, melhor em campo) e `guardar_historico` mantém os
+`HISTORICO_PARTIDAS` (10) últimos em `G["historico_meus"]`. `nota_soma` e o
+novo `nota_j` somam a nota de cada jogo (`eng.media_nota`); save antigo
+começa a média do zero, sem inventar nota. Nada disso usa o `rng`: o harness
+com `--ignorar historico_meus,nota_soma,nota_j` dá saída idêntica.
+
+**Resumo da partida.** `dto.partida` põe o registro no formato do cartão
+(mandante primeiro, `eu` diz o lado). O Painel recebe as 10 em
+`resultados.partidas` e `componentes/Partida.tsx` desenha: `ResumoPartida`
+(gols e cartões com minuto, posse, chutes, melhor em campo; as bolinhas V/E/D
+viram botões que trocam o jogo mostrado) e `DetalhePartida` (notas por time,
+estatísticas, substituições, lesões). `/api/avancar` devolve `partidas` da
+semana: o fim do Simular mostra o resumo sem outro pedido. Save sem histórico
+cai na faixa antiga (`FaixaResultados`).
+
+**Instrução condicional.** No lugar do intervalo interativo (Onda 3): "se
+perdendo a partir dos 71', Ofensivo". `simular` confere a regra nas paradas
+que já tinha (46' e 71') e troca só a mentalidade (`c["tatica"]`), que já pesa
+em ataque, defesa, cansaço e cartão. Vale enquanto o placar pedir; o laço dos
+períodos roda num `try/finally` que devolve a mentalidade original no fim,
+então nada vaza para o save. As trocas saem em `r["instrucoes"]` (lista à
+parte: `eventos` não ganhou tipo novo, e nenhum leitor antigo quebra) e
+aparecem no cartão da partida. A máquina tem regra fixa aos 71': perdendo
+sobe um degrau de `ESCADA_TATICA`, vencendo desce um (decisão do usuário em
+2026-09-25). Regras em `c["condicionais"]`, validadas por
+`eng.condicionais_de`; rota `POST /api/escalacao/condicional`; bloco "Se o
+jogo apertar" no painel de tática da Escalação. `testes/balanceamento.py` é
+a suíte lenta que mede a distribuição antes e depois.
+
+**Confiança da diretoria.** `G["confianca"]` = `{valor, hist, aviso}`,
+atualizada por `eng.atualizar_confianca` no fim de toda semana (os dois
+caminhos de `avancar_semana`). Causas: resultado contra o esperado
+(`resultado_esperado`, curva medida no próprio motor: escala 24, casa vale
+4 de overall; clássico vale o dobro), posição puxando para um patamar
+(`PATAMAR_CONFIANCA`, 12% da distância por semana: sozinha leva no máximo ao
+aviso) e caixa no vermelho. A dificuldade multiplica só as quedas. Abaixo de
+30 avisa; avisado, abaixo de 15 na semana seguinte chama `trocar_de_clube`,
+que a web troca por `Sessao._demitido` (pendência, com
+`G["motivo_demissao"]` como motivo). A avaliação de fim de ano multiplica o
+risco antigo por `(70 - confiança) / 40` (0,25 a 1,5), com o mesmo número de
+sorteios. Clube novo recomeça em 60; ano novo anda metade do caminho de
+volta. A máquina demite em `ia_demite_tecnicos` (fim do turno de cada liga e
+fim do ano), sem sorteio: 6 posições abaixo do tamanho e no terço de baixo,
+no máximo 2 por liga. A vaga (`vagas_tecnico`, 10 semanas) passa na frente
+em `sondar_treinador` sem mudar o sorteio de antes. Nada disso usa o `rng`.
+O Painel mostra número, tendência de 4 semanas, marcas de 30 e 15 e as
+causas da última semana (`dto._confianca`).
+
+**Capturas.** `ferramentas/capturas.py` sobe uma cópia isolada do jogo
+(motor, api, `web/dist` e cópia do save) na porta 8791, abre o save e
+fotografa as 13 telas (`--avancar N` joga N semanas na cópia antes) em 1280x720, 1366x768, 1440x900, 1920x1080 e
+2560x1440 com o Edge headless (`--timeout` porque a Escalação tem animação
+infinita e segurava o Edge). `comparar <antes> <depois>` dá a porcentagem de
+pixels diferentes por captura, lendo o PNG só com `zlib`. Rode `npm run
+build` antes: a captura usa `web/dist`.
+
 ## Receita para migrar a próxima tela
 
 Exemplo com `tela_elenco` (brasfut_app.py:1744):
@@ -510,16 +675,25 @@ velha para apagar na mão. `--sim` não trava, porque não grava no save.
 - **`test_balanco.py`** teto sem catraca, joia com teto, base sem revisão,
   correção de save inflado, IA contratando livre bom.
 - **`test_base.py`** peneira do começo ao fim, faixa que estreita, revelações.
+- **`test_textos.py`** lint de textos: plural, dinheiro, nome de liga, menu.
+- **`test_regras.py`** livre com a janela fechada, posse na API, troca de
+  clube, prazo absoluto, barra de forças e os textos corrigidos.
 - **`test_continentais.py`** grupos da Libertadores e da Sul-Americana até o
   playoff e as oitavas, e save antigo ganhando os clubes que faltam.
+- **`test_partida.py`** histórico das 10 últimas, notas depois de salvar e
+  carregar, média do ano, cartão do Painel e resumo no retorno do avanço.
+- **`test_condicional.py`** regra do meu clube, regra fixa da máquina,
+  validação, mentalidade devolvida no fim do jogo e a rota.
+- **`test_confianca.py`** esperado contra resultado, dificuldade, aviso antes
+  da demissão, modo sem demissão, recuperação, máquina demitindo no turno,
+  clube novo e o Painel.
+- **`test_tokens.py`** lint visual: cor e fonte só por token, escala de
+  seis degraus, sem `--acento`, sem inline fixo no TSX.
 
 Nenhum teste grava no save real: `apoio.py` intercepta `eng.salvar` e falha na hora se alguém tentar (a comparação por hash dava alarme falso com o jogo aberto).
-A interface (React) ainda é conferida à mão. Roteiro que funciona: copiar
-`api/`, `brasfut.py`, `server.py`, `web/dist` e uma cópia do save para uma pasta
-temporária, subir com `BRASFUT_PORTA=8791 python server.py --sem-abrir`,
-preparar o estado por `curl` na API e fotografar com
-`msedge --headless=new --user-data-dir=<pasta nova> --screenshot=... URL/#tela`
-(o arquivo aparece alguns segundos depois de o processo sair).
+A interface (React) ainda é conferida à mão, com `ferramentas/capturas.py`
+(ver *Onda 2*): `tirar` antes e depois da mudança, `comparar` para achar as
+telas que mexeram, e olhar essas.
 
 ## Pontas soltas conhecidas
 

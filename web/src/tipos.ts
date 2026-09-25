@@ -47,7 +47,9 @@ export interface Proximo {
   em_casa: boolean | null
   forte?: boolean
   extras: number
+  /** meu ataque x defesa do adversario (dele = defesa dele) */
   ataque: Forca
+  /** minha defesa x ataque do adversario (dele = ataque dele) */
   defesa: Forca
 }
 
@@ -89,6 +91,19 @@ export interface Objetivo {
   folga: number | null
   progresso: number
   marca: number
+  confianca: Confianca
+}
+
+export interface Confianca {
+  valor: number
+  estado: Estado
+  fala: string
+  aviso: boolean
+  /** soma das ultimas 4 semanas */
+  tendencia: number
+  limite_aviso: number
+  limite_demissao: number
+  causas: { texto: string; estado: Estado }[]
 }
 
 export interface LinhaTabela {
@@ -100,6 +115,8 @@ export interface LinhaTabela {
   pts: number
   eu: boolean
   zona: 'alta' | 'baixa' | ''
+  /** a zona em palavras: "G4", "acesso", "rebaixamento", "vai ao mata-mata" */
+  zona_texto?: string | null
 }
 
 export interface Tabela {
@@ -130,6 +147,44 @@ export interface Resultados {
   placares: Placar[]
   forma: { letra: 'V' | 'E' | 'D'; descricao: string }[]
   alerta: { texto: string; estado: Estado } | null
+  /** as ultimas partidas guardadas (dto.partida), da mais antiga a mais nova */
+  partidas: Partida[]
+}
+
+/** lado 0 e o mandante, 1 o visitante */
+export type Lado = 0 | 1
+
+export interface LinhaNota {
+  vaga: string
+  nome: string
+  nota: number
+}
+
+export interface Partida {
+  chave: string
+  comp: string
+  rodada: string
+  resultado: 'V' | 'E' | 'D'
+  estado: Estado
+  eu: Lado
+  times: [string, string]
+  placar: [number, number]
+  gols: { minuto: number; lado: Lado; autor: string; assist: string }[]
+  cartoes: { minuto: number; lado: Lado; tipo: 'amarelo' | 'vermelho'; nome: string }[]
+  /** trocas de mentalidade em campo (instrucao condicional ou a regra da maquina) */
+  instrucoes: { minuto: number; lado: Lado; tatica: string; motivo: string }[]
+  posse: [number, number]
+  chutes: [number, number]
+  no_gol: [number, number]
+  melhor: { nome: string; vaga: string; nota: number; time: string } | null
+  detalhes: {
+    notas: [LinhaNota[], LinhaNota[]]
+    subs: { minuto: number; lado: Lado; entra: string; sai: string }[]
+    lesoes: { minuto: number; lado: Lado; nome: string }[]
+    estatisticas: { rotulo: string; valores: [number, number] }[]
+    publico: string | null
+    decisao: string | null
+  }
 }
 
 export interface Noticia {
@@ -160,8 +215,8 @@ export interface PropostaEmprego {
   id: number
   clube: string
   divisao: string
+  liga: string
   reputacao: number
-  expira: number
   semanas: number
 }
 
@@ -175,6 +230,7 @@ export interface Manchete {
 export interface PassagemCarreira {
   clube: string
   divisao: string
+  liga: string
   periodo: string
   atual: boolean
   saida: string | null
@@ -281,6 +337,8 @@ export interface RespostaAvanco {
   // avanco em ritmos
   linhas?: LinhaRelato[]
   jogou?: boolean
+  /** as partidas desta semana (dto.partida), para o resumo no fim do Simular */
+  partidas?: Partida[]
   parar?: string
   opcoes?: OpcaoAvanco[]
   cabecalho?: Cabecalho
@@ -470,6 +528,7 @@ export interface LinhaClassificacao {
   sg: number
   eu: boolean
   zona: 'alta' | 'baixa' | 'media' | ''
+  zona_texto?: string | null
   /** so no estadual com grupos: "Grupo A"... (a posicao conta dentro dele) */
   grupo?: string | null
 }
@@ -650,9 +709,21 @@ export interface TelaEscalacao {
     padrao: boolean
     efeitos: { nome: string; valor: string }[]
   }
+  condicionais: {
+    minutos: number[]
+    regras: RegraCondicional[]
+  }
   titulares: JogadorEmCampo[]
   vagas_abertas: number
   banco: JogadorBanco[]
+}
+
+export interface RegraCondicional {
+  condicao: 'perdendo' | 'vencendo'
+  rotulo: string
+  /** null = sem instrucao para essa condicao */
+  minuto: number | null
+  tatica: string | null
 }
 
 export interface Regime {

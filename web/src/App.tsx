@@ -5,6 +5,7 @@
 // nunca tenta adivinhar sozinha o que mudou. Foi assim que a janela tkinter
 // manteve cinco pontos da interface dando o mesmo veredito.
 
+import { porque, AGUARDE } from './motivo'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, ErroDaApi } from './api'
 import { BarraTopo } from './componentes/BarraTopo'
@@ -425,6 +426,8 @@ export function App() {
           return api.mudarPlano(acao.eixo, acao.valor)
         case 'plano-padrao':
           return api.planoPadrao()
+        case 'condicional':
+          return api.mudarCondicional(acao.condicao, acao.minuto, acao.tatica)
         case 'montar':
           return api.montarMelhor()
       }
@@ -610,16 +613,7 @@ export function App() {
         />
 
         {(erro || recado) && (
-          <div
-            role="status"
-            style={{
-              padding: '8px 26px',
-              fontSize: 12.5,
-              fontWeight: 600,
-              color: erro ? 'var(--critico)' : 'var(--ok)',
-              borderBottom: '1px solid var(--borda-lateral)',
-            }}
-          >
+          <div role="status" className={erro ? 'recado-app erro' : 'recado-app'}>
             {erro ?? recado}
             {!erro && desfazer && (
               <button type="button" className="bt-fantasma bt-mini bt-desfazer" onClick={desfazer}>
@@ -803,6 +797,7 @@ export function App() {
               <button
                 type="button"
                 className={`bt-acao${pergunta.confirmar.perigo ? ' bt-perigo' : ''}`}
+                title={porque([[ocupado, AGUARDE]])}
                 disabled={ocupado}
                 onClick={() => pergunta.aoConfirmar()}
               >

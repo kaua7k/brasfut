@@ -8,9 +8,11 @@
 // O seletor separa os torneios do meu clube dos outros: sao ate trinta
 // estaduais no ano, e botao para cada um afogaria os quatro que importam.
 
+import { porque, AGUARDE } from '../motivo'
 import { useEffect, useState } from 'react'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
 import { Grade, type Coluna } from '../componentes/Grade'
+import { LegendaZonas, MarcaZona } from '../componentes/Zona'
 import { iconeDeEstado } from '../icones'
 import type {
   DetalheCopa,
@@ -31,18 +33,18 @@ interface Props {
 const COLUNAS: Coluna<LinhaClassificacao>[] = [
   {
     chave: 'pos',
-    rotulo: '#',
-    largura: '44px',
+    rotulo: 'Pos',
+    largura: '52px',
     classe: 'num',
     render: (l) => (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-        <i className="marcador-zona" />
+      <span className="linha-inline">
+        <MarcaZona zona={l.zona} texto={l.zona_texto} />
         {l.pos}
       </span>
     ),
   },
   { chave: 'clube', rotulo: 'Clube', largura: 'minmax(110px, 1fr)', classe: 'corta', render: (l) => l.clube },
-  { chave: 'p', rotulo: 'P', largura: '34px', classe: 'num', render: (l) => <strong>{l.p}</strong> },
+  { chave: 'p', rotulo: 'Pts', largura: '38px', classe: 'num', render: (l) => <strong>{l.p}</strong> },
   { chave: 'j', rotulo: 'J', largura: '30px', classe: 'num', render: (l) => l.j },
   { chave: 'v', rotulo: 'V', largura: '30px', classe: 'num', render: (l) => l.v },
   { chave: 'e', rotulo: 'E', largura: '30px', classe: 'num', render: (l) => l.e },
@@ -103,11 +105,11 @@ function Pontos({ d }: { d: DetalhePontos }) {
           {d.grupos ? (
             d.grupos.map((g, i) => (
               <section className="painel painel-lista" key={g.nome}>
-                <div className="painel-cab" style={{ padding: '12px 16px 4px' }}>
+                <div className="painel-cab cab-tabela">
                   <span className="painel-titulo">
                     {d.fase1} · {g.nome}
                   </span>
-                  {i === 0 && <span className="tag-fraco" style={{ fontSize: 12 }}>{d.legenda}</span>}
+                  {i === 0 && <span className="tag-fraco txt-p">{d.legenda}</span>}
                 </div>
                 <Grade
                   colunas={COLUNAS}
@@ -115,13 +117,14 @@ function Pontos({ d }: { d: DetalhePontos }) {
                   idDe={(l) => l.pos}
                   classeDe={(l) => `${l.zona}${l.eu ? ' eu' : ''}`}
                 />
+                <LegendaZonas linhas={g.linhas} />
               </section>
             ))
           ) : (
             <section className="painel painel-lista">
-              <div className="painel-cab" style={{ padding: '12px 16px 4px' }}>
+              <div className="painel-cab cab-tabela">
                 <span className="painel-titulo">{d.fase1 ?? 'Classificacao'}</span>
-                <span className="tag-fraco" style={{ fontSize: 12 }}>{d.legenda}</span>
+                <span className="tag-fraco txt-p">{d.legenda}</span>
               </div>
               <Grade
                 colunas={COLUNAS}
@@ -130,6 +133,7 @@ function Pontos({ d }: { d: DetalhePontos }) {
                 classeDe={(l) => `${l.zona}${l.eu ? ' eu' : ''}`}
                 vazio={d.vazio ?? undefined}
               />
+              <LegendaZonas linhas={d.linhas} />
             </section>
           )}
         </div>
@@ -139,6 +143,7 @@ function Pontos({ d }: { d: DetalhePontos }) {
             <button
               type="button"
               className="bt-fantasma bt-mini"
+              title={porque([[rodada <= 0, 'Esta e a primeira rodada']])}
               disabled={rodada <= 0}
               aria-label="Rodada anterior"
               onClick={() => setRodada(rodada - 1)}
@@ -153,6 +158,7 @@ function Pontos({ d }: { d: DetalhePontos }) {
             <button
               type="button"
               className="bt-fantasma bt-mini"
+              title={porque([[rodada >= d.rodadas.length - 1, 'Esta e a ultima rodada']])}
               disabled={rodada >= d.rodadas.length - 1}
               aria-label="Proxima rodada"
               onClick={() => setRodada(rodada + 1)}
@@ -209,7 +215,7 @@ function Fase({ f }: { f: FaseCopa }) {
   const visiveis = aberta ? f.jogos : meus
   return (
     <section className={`painel copa-fase ${f.estado}`}>
-      <div className="painel-cab" style={{ padding: '12px 16px 6px' }}>
+      <div className="painel-cab cab-tabela">
         <span className="painel-titulo">
           {f.nome} · semana {f.semana}
           {f.nota
@@ -240,7 +246,7 @@ function Situacao({ s, campeao }: { s: NonNullable<DetalheCopa['situacao']>; cam
       {campeao && (
         <>
           <div className="espaco" />
-          <span className="tag-top" style={{ fontWeight: 700 }}>Campeao: {campeao}</span>
+          <span className="tag-top negrito">Campeao: {campeao}</span>
         </>
       )}
     </section>
@@ -273,7 +279,7 @@ function Grupos({ grupos, titulo, nota }: { grupos: GrupoCopa[]; titulo: string;
   const visiveis = todos || !meu ? grupos : [meu]
   return (
     <section className="painel copa-grupos">
-      <div className="painel-cab" style={{ padding: '12px 16px 6px' }}>
+      <div className="painel-cab cab-tabela">
         <span className="painel-titulo">{titulo}</span>
         {meu && (
           <button type="button" className="bt-fantasma bt-mini" aria-expanded={todos} onClick={() => setTodos(!todos)}>
@@ -285,7 +291,7 @@ function Grupos({ grupos, titulo, nota }: { grupos: GrupoCopa[]; titulo: string;
         {visiveis.map((g) => (
           <div key={g.nome} className="grupo-copa">
             {grupos.length > 1 && (
-              <div className="painel-titulo" style={{ padding: '4px 16px' }}>{g.nome}</div>
+              <div className="painel-titulo cab-grupo">{g.nome}</div>
             )}
             <Grade
               colunas={COLUNAS}
@@ -294,6 +300,7 @@ function Grupos({ grupos, titulo, nota }: { grupos: GrupoCopa[]; titulo: string;
               classeDe={(l) => `${l.zona}${l.eu ? ' eu' : ''}`}
               ordenavel={false}
             />
+            <LegendaZonas linhas={g.linhas} />
             {g.meu && (
               <ul className="jogos-grupo">
                 {g.jogos.filter((j) => j.meu).map((j, i) => (
@@ -311,7 +318,7 @@ function Grupos({ grupos, titulo, nota }: { grupos: GrupoCopa[]; titulo: string;
         ))}
       </div>
       {nota && (
-        <div className="tag-fraco" style={{ padding: '6px 16px 12px' }}>
+        <div className="tag-fraco rodape-tabela">
           {nota}
         </div>
       )}
@@ -337,6 +344,7 @@ export function Competicoes({ tela, ocupado, aoTrocar }: Props) {
             role="tab"
             aria-selected={c.id === tela.alvo}
             className={`aba aba-comp${c.id === tela.alvo ? ' ativa' : ''}`}
+            title={porque([[ocupado, AGUARDE]])}
             disabled={ocupado}
             onClick={() => c.id !== tela.alvo && aoTrocar(c.id)}
           >
@@ -344,7 +352,7 @@ export function Competicoes({ tela, ocupado, aoTrocar }: Props) {
             <span className={`aba-estado${c.vivo ? '' : ' fora'}`}>{c.estado}</span>
           </button>
         ))}
-        <label className="campo-rotulo" style={{ marginLeft: 'auto' }}>
+        <label className="campo-rotulo empurra">
           Outros torneios
           <select
             className="seletor"
