@@ -81,37 +81,69 @@ def foto(G):
     }
 
 
+def decisao(G, r, meu):
+    """O que o jogo decidiu no mata-mata, do ponto de vista do meu clube.
+
+    None quando o jogo nao decide nada (pontos corridos, grupo, ida). O jogo
+    de volta carrega o agregado e, no empate, quem passou nos penaltis - antes
+    o relato mostrava so o placar e o empate ficava sem dono.
+    """
+    venc = r.get("venc")
+    if venc is None or r.get("perna") == "ida":
+        return None
+    passou = venc == meu
+    cp = G["copas"].get(r.get("comp"))
+    final = bool(cp and cp.get("campeao") == venc and "agregado" not in r)
+    if final:
+        texto = "Campeao" if passou else "Vice-campeao"
+    else:
+        texto = "Classificado" if passou else "Eliminado"
+    if r.get("penaltis"):
+        texto += " nos penaltis"
+    if r.get("agregado"):
+        a, ga, _b, gb = r["agregado"]
+        mg, sg = (ga, gb) if a == meu else (gb, ga)
+        texto += " · agregado %d x %d" % (mg, sg)
+    return {"texto": texto, "estado": "ok" if passou else "critico"}
+
+
 def relato(G, antes):
-    """Uma linha por jogo do meu clube, mais lesao e proposta nova."""
+    """A semana que acabou: os jogos do meu clube e o que mudou no elenco.
+
+    Mandante primeiro no placar, como no cartao da partida; `eu` diz o lado.
+    """
     c = G["clubes"][G["clube"]]
     if G["fase"] == "estadual":
-        cabeca = "Estadual, rodada %d" % max(1, int(G.get("semana_est", 1)) - 1)
+        titulo = "Estadual, rodada %d" % max(1, int(G.get("semana_est", 1)) - 1)
     elif G["temporada"] != antes["temporada"]:
-        cabeca = "Temporada %d encerrada" % antes["temporada"]
+        titulo = "Temporada %d encerrada" % antes["temporada"]
     else:
-        cabeca = "Semana %02d" % max(1, G["semana"] - 1)
-    linhas = []
-    jogos = eng.resultados_da_semana(G)
-    if not jogos:
-        linhas.append({"texto": "%s · sem jogo" % cabeca, "estado": "neutro"})
-    for r in jogos:
+        titulo = "Semana %02d" % max(1, G["semana"] - 1)
+    jogos = []
+    for r in eng.resultados_da_semana(G):
         em_casa = r["casa"] == c["id"]
         gm, gs = (r["gc"], r["gf"]) if em_casa else (r["gf"], r["gc"])
-        adv = G["clubes"].get(r["fora"] if em_casa else r["casa"])
-        comp = G["copas"][r["comp"]]["nome"] if r.get("comp") in G["copas"] else ""
-        linhas.append({"texto": "%s · %d x %d %s (%s)%s" % (
-            cabeca, gm, gs, adv["nome"] if adv else "-", "casa" if em_casa else "fora",
-            " · " + comp if comp else ""),
-            "estado": "ok" if gm > gs else ("atencao" if gm == gs else "critico")})
+        resultado = "V" if gm > gs else ("E" if gm == gs else "D")
+        casa, fora = G["clubes"].get(r["casa"]), G["clubes"].get(r["fora"])
+        jogos.append({
+            "resultado": resultado,
+            "estado": {"V": "ok", "E": "atencao", "D": "critico"}[resultado],
+            "times": [casa["nome"] if casa else "-", fora["nome"] if fora else "-"],
+            "placar": [r["gc"], r["gf"]], "eu": 0 if em_casa else 1,
+            "comp": eng.nome_competicao(G, r.get("comp"), casa),
+            "decisao": decisao(G, r, c["id"]),
+        })
+    avisos = []
     novas = len(eng.propostas_recebidas(G))
     if novas > antes["propostas"]:
-        linhas.append({"texto": "   %s na mesa" % eng.plural(novas, "proposta"), "estado": "atencao"})
+        avisos.append({"texto": "%s por jogador seu na mesa" % eng.plural(novas, "proposta"),
+                       "estado": "atencao"})
     for p in c["elenco"]:
         j = G["jogadores"][p]
         if j["lesao"] > 0 and p not in antes["lesionados"]:
-            linhas.append({"texto": "   lesao: %s, %s fora" % (j["nome"], eng.plural(j["lesao"], "semana")),
+            avisos.append({"texto": "Lesao: %s, %s fora" % (j["nome"], eng.plural(j["lesao"], "semana")),
                            "estado": "critico"})
-    return linhas, bool(jogos)
+    return {"titulo": titulo, "jogos": jogos, "avisos": avisos}, bool(jogos)
 
 
 def motivo_de_parar(G, antes, paradas, encerrada, pendencia):

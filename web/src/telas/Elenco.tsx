@@ -179,7 +179,7 @@ export function Elenco({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
           <button
             type="button"
             className="bt-fantasma"
-            title={porque([[nenhum, MARQUE], [ocupado, AGUARDE]], 'Abre a mesa de renovacao de cada marcado, um de cada vez')}
+            title={porque([[nenhum, MARQUE], [ocupado, AGUARDE]], 'Um marcado abre a mesa para negociar; varios renovam em lote, com um prazo para todos')}
             disabled={nenhum || ocupado}
             onClick={() => aoAgir('renovar', ids)}
           >

@@ -32,7 +32,7 @@ interface Props {
   aoDefinirAuto: (ligada: boolean) => void
   mudandoAuto: boolean
   aoIr: (destino: string) => void
-  /** abre a fila de mesas de renovacao para esses jogadores */
+  /** renova esses jogadores (varios: renovacao em lote; um: a mesa) */
   aoRenovar: (ids: number[]) => void
   aoResponderProposta: (id: number, aceitar: boolean) => void
 }

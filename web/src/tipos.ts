@@ -326,6 +326,24 @@ export interface LinhaRelato {
   estado: Estado
 }
 
+/** Um jogo do meu clube no relato do Simular (mandante primeiro) */
+export interface JogoRelato {
+  resultado: 'V' | 'E' | 'D'
+  estado: Estado
+  times: [string, string]
+  placar: [number, number]
+  eu: 0 | 1
+  comp: string
+  /** mata-mata que se decidiu nesta semana: classificado, eliminado, campeao... */
+  decisao: LinhaRelato | null
+}
+
+export interface RelatoSemana {
+  titulo: string
+  jogos: JogoRelato[]
+  avisos: LinhaRelato[]
+}
+
 export interface RespostaAvanco {
   encerrada?: boolean
   log?: string
@@ -335,7 +353,7 @@ export interface RespostaAvanco {
   pendencia?: Pendencia | null
   confirmar?: Confirmacao
   // avanco em ritmos
-  linhas?: LinhaRelato[]
+  semana?: RelatoSemana
   jogou?: boolean
   /** as partidas desta semana (dto.partida), para o resumo no fim do Simular */
   partidas?: Partida[]
@@ -981,6 +999,30 @@ export interface Mesa {
   atalhos_opcao?: Atalho[]
   // renovacao
   acabando?: boolean
+}
+
+export interface LinhaRenovacao {
+  id: number
+  nome: string
+  pos: string
+  ovr: number
+  idade: number
+  contrato: number
+  tag: string
+  salario: string
+  pede: string
+  /** "+R$ 120 mil" ou "-R$ 20 mil" em relacao ao salario de hoje */
+  diferenca: string
+  /** por que nao da para renovar (emprestado, de outro clube); null = pode */
+  motivo: string | null
+}
+
+export interface PreviaRenovacao {
+  anos: number
+  linhas: LinhaRenovacao[]
+  folha_mes: string
+  folha_mes_depois: string
+  diferenca_mes: string
 }
 
 export interface LinhaPrecoVitrine {

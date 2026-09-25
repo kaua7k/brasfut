@@ -505,6 +505,70 @@ def linhas_vitrine(ids):
     return fora
 
 
+ANOS_RENOVACAO_LOTE = 5     # o padrao da renovacao em lote: o prazo mais longo sai mais barato
+
+
+def _motivo_sem_renovacao(G, c, j):
+    if j["clube"] != c["id"]:
+        return "nao e do seu clube"
+    if j.get("dono"):
+        return "emprestado: o contrato e do dono do passe"
+    return None
+
+
+def linhas_renovacao(ids, anos):
+    """Renovar varios de uma vez: o que cada um pede nesse prazo e a folha.
+
+    Uma mesa por jogador (tres tentativas, contraproposta) fica para quem quer
+    pechinchar um nome. Aqui cada um renova pelo que pediu - pagar o pedido e
+    aceito sempre -, com um prazo so para todos.
+    """
+    G = SESSAO.exigir()
+    c = G["clubes"][G["clube"]]
+    anos = int(eng.clamp(int(anos or ANOS_RENOVACAO_LOTE), 1, 5))
+    linhas, soma = [], 0
+    for pid in ids:
+        j = G["jogadores"].get(pid)
+        if not j:
+            continue
+        motivo = _motivo_sem_renovacao(G, c, j)
+        pede = 0 if motivo else eng.exigencia_renovacao(G, j, anos)
+        if not motivo:
+            soma += pede - j["salario"]
+        linhas.append({"id": j["id"], "nome": j["nome"], "pos": j["pos"], "ovr": j["ovr"],
+                       "idade": j["idade"], "contrato": j["contrato"], "tag": dto._tag_ovr(j["ovr"]),
+                       "salario": eng.din(j["salario"]), "pede": eng.din(pede) if pede else "-",
+                       "diferenca": ("%s%s" % ("+" if pede >= j["salario"] else "-",
+                                               eng.din(abs(pede - j["salario"])))) if pede else "-",
+                       "motivo": motivo})
+    folha = eng.folha_semanal(G, c)
+    return {"anos": anos, "linhas": linhas,
+            "folha_mes": eng.din(folha * 4), "folha_mes_depois": eng.din(folha * 4 + soma),
+            "diferenca_mes": "%s%s" % ("+" if soma >= 0 else "-", eng.din(abs(soma)))}
+
+
+def renovar_lote(ids, anos):
+    """Fecha a renovacao de todos os validos pelo que pediram, no mesmo prazo."""
+    G = SESSAO.exigir()
+    c = G["clubes"][G["clube"]]
+    anos = int(eng.clamp(int(anos or ANOS_RENOVACAO_LOTE), 1, 5))
+    feitos, pulados = [], []
+    for pid in ids:
+        j = G["jogadores"].get(pid)
+        if not j:
+            continue
+        motivo = _motivo_sem_renovacao(G, c, j)
+        if motivo:
+            pulados.append("%s (%s)" % (j["nome"], motivo))
+            continue
+        prop = eng.Proposta(jogador=j["id"], comprador=c["id"], anos=anos, tipo=eng.TIPO_RENOVACAO,
+                            salario=eng.exigencia_renovacao(G, j, anos))
+        if eng.avaliar_renovacao(G, prop).aceita:
+            eng.fechar_renovacao(G, prop)
+            feitos.append(j["nome"])
+    return feitos, pulados, anos
+
+
 def ofertas_cessao(ids):
     """Toda proposta de emprestimo pelos marcados: uma linha por par jogador/clube."""
     G = SESSAO.exigir()
