@@ -385,6 +385,8 @@ def partida(reg):
         "gols": [{"minuto": m, "lado": l, "autor": autor, "assist": ass}
                  for m, l, autor, ass in reg["gols"]],
         "cartoes": [{"minuto": m, "lado": l, "tipo": t, "nome": n} for m, l, t, n in reg["cartoes"]],
+        "instrucoes": [{"minuto": m, "lado": l, "tatica": t, "motivo": mot}
+                       for m, l, t, mot in reg.get("instrucoes", [])],
         "posse": st.get("posse", [50, 50]), "chutes": st.get("chutes", [0, 0]),
         "no_gol": st.get("no_gol", [0, 0]),
         "melhor": melhor,
@@ -1178,6 +1180,12 @@ def escalacao():
                 {"nome": "entrega", "valor": "x%.2f" % ef["concede"]},
                 {"nome": "fadiga", "valor": "%+.0f" % ef["fadiga"]},
             ],
+        },
+        "condicionais": {
+            "minutos": list(eng.MINUTOS_CONDICIONAL),
+            "regras": [{"condicao": cond, "rotulo": "Se estiver %s" % cond,
+                        "minuto": r["minuto"] if r else None, "tatica": r["tatica"] if r else None}
+                       for cond, r in eng.condicionais_de(c).items()],
         },
         "titulares": xi,
         "nova_vaga": SESSAO.nova_vaga,

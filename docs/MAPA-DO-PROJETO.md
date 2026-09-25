@@ -43,7 +43,7 @@ Atas de decisão de roadmap: `docs/three-amigos/`.
 | `web/src/telas/*.tsx` | 14 arquivos | Uma tela por arquivo (Painel, Elenco, Escalação, Mercado, Financas, etc.) | Ao mexer numa tela específica |
 | `web/src/componentes/*.tsx` | 17 arquivos (`Partida.tsx`: resumo e detalhe da partida) | Diálogos e peças reusáveis (Mesa, Grade, Campo, Ficha...) | Componente compartilhado entre telas |
 | `web/src/api.ts`, `tipos.ts`, `formato.ts` | — | Cliente HTTP, tipos TS espelhando os DTOs, formatação (dinheiro, número) | Contrato front↔back |
-| `testes/*.py` | 16 arquivos | `unittest` da stdlib, sem dependência externa. `cd testes && python -m unittest -v` (~20s) | Rodar antes de qualquer PR |
+| `testes/*.py` | 18 arquivos (`desempenho.py` e `balanceamento.py` são harness lentos, fora da suíte) | `unittest` da stdlib, sem dependência externa. `cd testes && python -m unittest -v` (~20s) | Rodar antes de qualquer PR |
 | `ferramentas/capturas.py` | — | Capturas das 13 telas em 5 resoluções (Edge headless, cópia isolada) e comparação por pixel | Antes/depois de mexer em CSS ou tela |
 | `ferramentas/importar_elencos.py` | — | Importa elencos reais (football-data.org / API-Football) | Atualização de temporada real |
 | `.backup-pre-patch/` | — | Snapshots do motor pré-patch (histórico, não código ativo) | Raramente |
@@ -100,8 +100,9 @@ decisões em `docs/three-amigos/2026-09-25-onda-2-decisoes.md`):
 - Prêmios do ano e seleção do campeonato (`nota_soma` já é somado).
 - Confiança da diretoria semanal com causa/tendência; IA também demite
   técnico.
-- Instruções condicionais pré-jogo (substitui o intervalo interativo por
-  ora).
+- ~~Instruções condicionais pré-jogo~~ — feito: 46'/71', só a mentalidade,
+  máquina sobe/desce um degrau aos 71' (`test_condicional.py`,
+  `testes/balanceamento.py`).
 
 **Onda 3 — depois** (precisa de spike):
 - Intervalo interativo (spike de arquitetura: `simular` viraria máquina de

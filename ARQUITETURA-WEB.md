@@ -568,6 +568,20 @@ estatísticas, substituições, lesões). `/api/avancar` devolve `partidas` da
 semana: o fim do Simular mostra o resumo sem outro pedido. Save sem histórico
 cai na faixa antiga (`FaixaResultados`).
 
+**Instrução condicional.** No lugar do intervalo interativo (Onda 3): "se
+perdendo a partir dos 71', Ofensivo". `simular` confere a regra nas paradas
+que já tinha (46' e 71') e troca só a mentalidade (`c["tatica"]`), que já pesa
+em ataque, defesa, cansaço e cartão. Vale enquanto o placar pedir; o laço dos
+períodos roda num `try/finally` que devolve a mentalidade original no fim,
+então nada vaza para o save. As trocas saem em `r["instrucoes"]` (lista à
+parte: `eventos` não ganhou tipo novo, e nenhum leitor antigo quebra) e
+aparecem no cartão da partida. A máquina tem regra fixa aos 71': perdendo
+sobe um degrau de `ESCADA_TATICA`, vencendo desce um (decisão do usuário em
+2026-09-25). Regras em `c["condicionais"]`, validadas por
+`eng.condicionais_de`; rota `POST /api/escalacao/condicional`; bloco "Se o
+jogo apertar" no painel de tática da Escalação. `testes/balanceamento.py` é
+a suíte lenta que mede a distribuição antes e depois.
+
 **Capturas.** `ferramentas/capturas.py` sobe uma cópia isolada do jogo
 (motor, api, `web/dist` e cópia do save) na porta 8791, abre o save e
 fotografa as 13 telas (`--avancar N` joga N semanas na cópia antes) em 1280x720, 1366x768, 1440x900, 1920x1080 e
@@ -649,6 +663,8 @@ velha para apagar na mão. `--sim` não trava, porque não grava no save.
   playoff e as oitavas, e save antigo ganhando os clubes que faltam.
 - **`test_partida.py`** histórico das 10 últimas, notas depois de salvar e
   carregar, média do ano, cartão do Painel e resumo no retorno do avanço.
+- **`test_condicional.py`** regra do meu clube, regra fixa da máquina,
+  validação, mentalidade devolvida no fim do jogo e a rota.
 - **`test_tokens.py`** lint visual: cor e fonte só por token, escala de
   seis degraus, sem `--acento`, sem inline fixo no TSX.
 

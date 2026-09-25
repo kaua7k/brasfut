@@ -862,6 +862,22 @@ def mudar_plano(corpo):
         return {"recado": recado, "tela": dto.escalacao()}
 
 
+@rota("POST", "/api/escalacao/condicional")
+def mudar_condicional(corpo):
+    """Instrucao pre-jogo: se perdendo/vencendo a partir de 46' ou 71', mentalidade."""
+    with SESSAO.cadeado:
+        G = SESSAO.exigir()
+        c = G["clubes"][G["clube"]]
+        minuto = corpo.get("minuto")
+        if minuto is not None and not isinstance(minuto, int):
+            raise ErroDeUso("Minuto invalido.")
+        feito, recado = eng.definir_condicional(G, c, corpo.get("condicao"), minuto, corpo.get("tatica"))
+        if not feito:
+            raise ErroDeUso(recado)
+        eng.salvar_auto(G, forcar=True)
+        return {"recado": recado, "tela": dto.escalacao()}
+
+
 # ---------------------------------------------------------------------- treino
 @rota("GET", "/api/treino")
 def ver_treino(_corpo):

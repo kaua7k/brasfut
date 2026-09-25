@@ -2302,6 +2302,68 @@ def definir_plano(G: Mundo, c: Clube, eixo: str, valor: str) -> Tuple[bool, str]
     return True, "%s: %s - %s" % (eixo.capitalize(), valor, tabela[valor]["desc"])
 
 
+# Instrucao condicional pre-jogo: "se perdendo a partir do 71', Ofensivo". A
+# partida ja para no intervalo (46') e na janela dos 70 (71'); e ali que a
+# regra e conferida. Vale enquanto a condicao durar: virou o placar, volta a
+# mentalidade de antes. Troca so a mentalidade (c["tatica"]), que ja pesa no
+# ataque, na defesa, no cansaco e no cartao - custo O(1), sem pausar o jogo.
+ESCADA_TATICA = ["Retranca", "Contra-ataque", "Equilibrado", "Ofensivo", "Pressao total"]
+MINUTOS_CONDICIONAL = (46, 71)
+CONDICOES = ("perdendo", "vencendo")
+
+
+def condicionais_de(c: Optional[Clube]) -> Dict[str, Optional[Dict[str, Any]]]:
+    """As regras do clube, so as validas. Save antigo nao tem nenhuma."""
+    out: Dict[str, Optional[Dict[str, Any]]] = {k: None for k in CONDICOES}
+    guardado = (c or {}).get("condicionais") or {}
+    for cond in CONDICOES:
+        r = guardado.get(cond)
+        if (isinstance(r, dict) and r.get("minuto") in MINUTOS_CONDICIONAL
+                and r.get("tatica") in TATICAS):
+            out[cond] = {"minuto": r["minuto"], "tatica": r["tatica"]}
+    return out
+
+
+def definir_condicional(G: Mundo, c: Clube, condicao: str, minuto: Optional[int],
+                        tatica: Optional[str]) -> Tuple[bool, str]:
+    """minuto vazio (ou 0) apaga a regra daquela condicao."""
+    if condicao not in CONDICOES:
+        return False, "Condicao desconhecida."
+    regras = {k: v for k, v in condicionais_de(c).items() if v}
+    if not minuto:
+        regras.pop(condicao, None)
+        c["condicionais"] = regras
+        return True, "Sem instrucao se estiver %s." % condicao
+    if minuto not in MINUTOS_CONDICIONAL:
+        return False, "A instrucao so vale no intervalo (46') ou aos 71'."
+    if tatica not in TATICAS:
+        return False, "Mentalidade desconhecida."
+    regras[condicao] = {"minuto": int(minuto), "tatica": tatica}
+    c["condicionais"] = regras
+    return True, "Se estiver %s a partir dos %d': %s." % (condicao, minuto, tatica)
+
+
+def tatica_condicional(G: Mundo, c: Clube, original: str, pro: int, contra: int,
+                       minuto: int) -> str:
+    """A mentalidade que o clube usa a partir deste minuto, pelo placar.
+
+    O meu clube segue as regras que eu deixei. A maquina tem regra fixa na
+    janela dos 70: perdendo sobe um degrau na escada, vencendo desce um.
+    """
+    if pro == contra:
+        return original
+    condicao = "perdendo" if pro < contra else "vencendo"
+    if c["id"] == G.get("clube"):
+        regra = condicionais_de(c)[condicao]
+        if regra and regra["minuto"] <= minuto:
+            return regra["tatica"]
+        return original
+    if minuto < MINUTOS_CONDICIONAL[-1] or original not in ESCADA_TATICA:
+        return original
+    i = ESCADA_TATICA.index(original) + (1 if condicao == "perdendo" else -1)
+    return ESCADA_TATICA[max(0, min(len(ESCADA_TATICA) - 1, i))]
+
+
 def _efeitos(plano: Dict[str, str]) -> Dict[str, float]:
     """Soma os cinco botoes nos numeros que a partida sabe usar."""
     out = {"posse": 0.0, "volume": 1.0, "qualidade": 1.0, "concede": 1.0,
@@ -2466,126 +2528,142 @@ def simular(G, casa_id, fora_id, comp="liga", neutro=False):
     # e o mesmo que comecou, nem em pernas nem em nomes.
     europeu = comp in COMPS_EUROPA or (comp == "liga" and G["clubes"][casa_id]["divisao"] not in DIVISOES_BR)
     expoente = EXP_FORCA_EUROPA if europeu else EXP_FORCA
-    for ini, fim, minutos in ((1, 45, 45), (46, 70, 25), (71, 92, 20)):
-        at_c, de_c = forcas_de(G, casa, esc_c)
-        at_f, de_f = forcas_de(G, fora, esc_f)
-        xg_c = 1.22 * ((at_c / max(25.0, de_f)) ** expoente) * fator_casa
-        xg_f = 1.10 * ((at_f / max(25.0, de_c)) ** expoente)
-        # concede > 1 quer dizer "este time entrega mais chance": ele MULTIPLICA
-        # o xG de quem esta atacando. Dividir fazia linha alta defender melhor.
-        xg_c *= ef_c["qualidade"] * ef_c["volume"] * ef_f["concede"]
-        xg_f *= ef_f["qualidade"] * ef_f["volume"] * ef_c["concede"]
-        # transicao: quem espera atras castiga quem sobe demais a linha
-        xg_c *= 1.0 + ef_c["contra"] * max(0.0, ef_f["expoe"])
-        xg_f *= 1.0 + ef_f["contra"] * max(0.0, ef_c["expoe"])
-        xg_c *= rng.uniform(0.82, 1.20) * (minutos / 90.0)
-        xg_f *= rng.uniform(0.82, 1.20) * (minutos / 90.0)
+    # a mentalidade pode mudar no meio (instrucao condicional); o clube sai do
+    # jogo com a que entrou, ate se a partida estourar no meio
+    originais = (casa["tatica"], fora["tatica"])
+    instrucoes = []
+    try:
+        for ini, fim, minutos in ((1, 45, 45), (46, 70, 25), (71, 92, 20)):
+            if ini > 1:
+                for lado, clube, antes in ((0, casa, originais[0]), (1, fora, originais[1])):
+                    pro, contra = (gc, gf) if lado == 0 else (gf, gc)
+                    nova = tatica_condicional(G, clube, antes, pro, contra, ini)
+                    if nova != clube["tatica"]:
+                        clube["tatica"] = nova
+                        motivo = ("perdendo" if pro < contra else
+                                  "vencendo" if pro > contra else "empatado")
+                        instrucoes.append([ini, lado, nova, motivo])
+            at_c, de_c = forcas_de(G, casa, esc_c)
+            at_f, de_f = forcas_de(G, fora, esc_f)
+            xg_c = 1.22 * ((at_c / max(25.0, de_f)) ** expoente) * fator_casa
+            xg_f = 1.10 * ((at_f / max(25.0, de_c)) ** expoente)
+            # concede > 1 quer dizer "este time entrega mais chance": ele MULTIPLICA
+            # o xG de quem esta atacando. Dividir fazia linha alta defender melhor.
+            xg_c *= ef_c["qualidade"] * ef_c["volume"] * ef_f["concede"]
+            xg_f *= ef_f["qualidade"] * ef_f["volume"] * ef_c["concede"]
+            # transicao: quem espera atras castiga quem sobe demais a linha
+            xg_c *= 1.0 + ef_c["contra"] * max(0.0, ef_f["expoe"])
+            xg_f *= 1.0 + ef_f["contra"] * max(0.0, ef_c["expoe"])
+            xg_c *= rng.uniform(0.82, 1.20) * (minutos / 90.0)
+            xg_f *= rng.uniform(0.82, 1.20) * (minutos / 90.0)
 
-        for lado, xg, esc, adv_vagas, ef in ((0, xg_c, esc_c, vagas_f, ef_c),
-                                             (1, xg_f, esc_f, vagas_c, ef_f)):
-            if not esc:
-                continue
-            fatia = posse if lado == 0 else (1.0 - posse)
-            chances = CHANCES_BASE * (0.55 + 0.9 * fatia) * ef["volume"] * (minutos / 90.0)
-            chances = max(1, int(round(chances * rng.uniform(0.8, 1.2))))
-            conversao = clamp(xg / chances, 0.005, 0.60)
-            vagas = vagas_c if lado == 0 else vagas_f
-            for _ in range(chances):
-                stats["chutes"][lado] += 1
-                minuto = rng.randint(ini, fim)
-                sorte = rng.random()
-                if sorte < conversao:
-                    stats["no_gol"][lado] += 1
-                    autor = sorteia_autor(G, esc, GOL_W, vagas)
-                    assist = sorteia_autor(G, esc, ASS_W, vagas)
-                    if assist == autor:
-                        assist = None
-                    if autor:
-                        ja = G["jogadores"][autor]
-                        ja["g"] += 1
-                        ja["car_g"] += 1
-                        ja["g_mes"] = ja.get("g_mes", 0) + 1
-                        notas[autor] = notas.get(autor, 6.0) + 1.0
-                    if assist:
-                        js = G["jogadores"][assist]
-                        js["a"] += 1
-                        js["a_mes"] = js.get("a_mes", 0) + 1
-                        notas[assist] = notas.get(assist, 6.0) + 0.5
-                    eventos.append((minuto, lado, "gol", autor, assist))
-                    if lado == 0:
-                        gc += 1
-                    else:
-                        gf += 1
-                elif sorte < conversao + 0.30:
-                    stats["no_gol"][lado] += 1
-                    stats["defesas"][1 - lado] += 1
-                    goleiro = next((p for p, v in adv_vagas.items() if v == "GOL"), None)
-                    if goleiro:
-                        notas[goleiro] = notas.get(goleiro, 6.0) + 0.10
-                elif sorte < conversao + 0.55:
-                    stats["escanteios"][lado] += 1
-
-        # cartoes, faltas e lesoes do periodo
-        for lado, esc, dono, ef in ((0, esc_c, casa, ef_c), (1, esc_f, fora, ef_f)):
-            vagas = vagas_c if lado == 0 else vagas_f
-            jogaram = jogaram_c if lado == 0 else jogaram_f
-            banco = banco_c if lado == 0 else banco_f
-            _, _, mult_cartao = CUSTO_TATICA.get(dono["tatica"], (9, 20, 1.0))
-            mult_cartao *= ef["cartao"]
-            for pid in list(esc):
-                j = G["jogadores"][pid]
-                peso = RISCO_CARTAO[vagas.get(pid, j["pos"])] * mult_cartao * (minutos / 90.0)
-                if rng.random() < 0.55 * peso:
-                    stats["faltas"][lado] += 1
-                if rng.random() < 0.214 * peso:
-                    j["ca"] += 1
-                    j["amar"][comp] = j["amar"].get(comp, 0) + 1
-                    notas[pid] = notas.get(pid, 6.0) - 0.25
-                    eventos.append((rng.randint(ini, fim), lado, "amarelo", pid, None))
-                    if j["amar"][comp] >= 3:
-                        j["amar"][comp] = 0
-                        j["susp"][comp] = j["susp"].get(comp, 0) + 1
-                        sincronizar_suspensao(j)
-                if rng.random() < 0.013 * peso:
-                    j["cv"] += 1
-                    j["susp"][comp] = j["susp"].get(comp, 0) + 1 + rng.randint(0, 2)
-                    sincronizar_suspensao(j)
-                    notas[pid] = notas.get(pid, 6.0) - 1.5
-                    eventos.append((rng.randint(ini, fim), lado, "vermelho", pid, None))
-                    esc.remove(pid)              # expulso sai de campo de verdade
+            for lado, xg, esc, adv_vagas, ef in ((0, xg_c, esc_c, vagas_f, ef_c),
+                                                 (1, xg_f, esc_f, vagas_c, ef_f)):
+                if not esc:
                     continue
-                risco = RISCO_LESAO_JOGO * (1.0 - 0.05 * dono["medico"]) * (minutos / 90.0)
-                risco *= risco_lesao_treino(G, dono)
-                risco *= 1.0 + 1.6 * max(0.0, (55 - j["cond"]) / 55.0)
-                if rng.random() < risco:
-                    j["lesao"] = rng.choice(SEMANAS_LESAO) + 1
-                    if j["ovr"] >= CRAQUE_OVR and j["lesao"] >= LESAO_MANCHETE:
-                        manchete(G, "lesao", "%s, do %s, se machuca e fica %d semanas fora." % (
-                            j["nome"], dono["nome"], j["lesao"]))
-                    eventos.append((rng.randint(ini, fim), lado, "lesao", pid, None))
-                    usou = _trocar(G, dono, esc, banco, vagas, jogaram,
-                                   rng.randint(ini, fim), lado, eventos, subs,
-                                   forcado=pid,
-                                   usadas=usadas_c if lado == 0 else usadas_f)
-                    if lado == 0:
-                        usadas_c += usou
-                    else:
-                        usadas_f += usou
+                fatia = posse if lado == 0 else (1.0 - posse)
+                chances = CHANCES_BASE * (0.55 + 0.9 * fatia) * ef["volume"] * (minutos / 90.0)
+                chances = max(1, int(round(chances * rng.uniform(0.8, 1.2))))
+                conversao = clamp(xg / chances, 0.005, 0.60)
+                vagas = vagas_c if lado == 0 else vagas_f
+                for _ in range(chances):
+                    stats["chutes"][lado] += 1
+                    minuto = rng.randint(ini, fim)
+                    sorte = rng.random()
+                    if sorte < conversao:
+                        stats["no_gol"][lado] += 1
+                        autor = sorteia_autor(G, esc, GOL_W, vagas)
+                        assist = sorteia_autor(G, esc, ASS_W, vagas)
+                        if assist == autor:
+                            assist = None
+                        if autor:
+                            ja = G["jogadores"][autor]
+                            ja["g"] += 1
+                            ja["car_g"] += 1
+                            ja["g_mes"] = ja.get("g_mes", 0) + 1
+                            notas[autor] = notas.get(autor, 6.0) + 1.0
+                        if assist:
+                            js = G["jogadores"][assist]
+                            js["a"] += 1
+                            js["a_mes"] = js.get("a_mes", 0) + 1
+                            notas[assist] = notas.get(assist, 6.0) + 0.5
+                        eventos.append((minuto, lado, "gol", autor, assist))
+                        if lado == 0:
+                            gc += 1
+                        else:
+                            gf += 1
+                    elif sorte < conversao + 0.30:
+                        stats["no_gol"][lado] += 1
+                        stats["defesas"][1 - lado] += 1
+                        goleiro = next((p for p, v in adv_vagas.items() if v == "GOL"), None)
+                        if goleiro:
+                            notas[goleiro] = notas.get(goleiro, 6.0) + 0.10
+                    elif sorte < conversao + 0.55:
+                        stats["escanteios"][lado] += 1
 
-        _fadigar(G, esc_c, minutos, casa, ef_c)
-        _fadigar(G, esc_f, minutos, fora, ef_f)
+            # cartoes, faltas e lesoes do periodo
+            for lado, esc, dono, ef in ((0, esc_c, casa, ef_c), (1, esc_f, fora, ef_f)):
+                vagas = vagas_c if lado == 0 else vagas_f
+                jogaram = jogaram_c if lado == 0 else jogaram_f
+                banco = banco_c if lado == 0 else banco_f
+                _, _, mult_cartao = CUSTO_TATICA.get(dono["tatica"], (9, 20, 1.0))
+                mult_cartao *= ef["cartao"]
+                for pid in list(esc):
+                    j = G["jogadores"][pid]
+                    peso = RISCO_CARTAO[vagas.get(pid, j["pos"])] * mult_cartao * (minutos / 90.0)
+                    if rng.random() < 0.55 * peso:
+                        stats["faltas"][lado] += 1
+                    if rng.random() < 0.214 * peso:
+                        j["ca"] += 1
+                        j["amar"][comp] = j["amar"].get(comp, 0) + 1
+                        notas[pid] = notas.get(pid, 6.0) - 0.25
+                        eventos.append((rng.randint(ini, fim), lado, "amarelo", pid, None))
+                        if j["amar"][comp] >= 3:
+                            j["amar"][comp] = 0
+                            j["susp"][comp] = j["susp"].get(comp, 0) + 1
+                            sincronizar_suspensao(j)
+                    if rng.random() < 0.013 * peso:
+                        j["cv"] += 1
+                        j["susp"][comp] = j["susp"].get(comp, 0) + 1 + rng.randint(0, 2)
+                        sincronizar_suspensao(j)
+                        notas[pid] = notas.get(pid, 6.0) - 1.5
+                        eventos.append((rng.randint(ini, fim), lado, "vermelho", pid, None))
+                        esc.remove(pid)              # expulso sai de campo de verdade
+                        continue
+                    risco = RISCO_LESAO_JOGO * (1.0 - 0.05 * dono["medico"]) * (minutos / 90.0)
+                    risco *= risco_lesao_treino(G, dono)
+                    risco *= 1.0 + 1.6 * max(0.0, (55 - j["cond"]) / 55.0)
+                    if rng.random() < risco:
+                        j["lesao"] = rng.choice(SEMANAS_LESAO) + 1
+                        if j["ovr"] >= CRAQUE_OVR and j["lesao"] >= LESAO_MANCHETE:
+                            manchete(G, "lesao", "%s, do %s, se machuca e fica %d semanas fora." % (
+                                j["nome"], dono["nome"], j["lesao"]))
+                        eventos.append((rng.randint(ini, fim), lado, "lesao", pid, None))
+                        usou = _trocar(G, dono, esc, banco, vagas, jogaram,
+                                       rng.randint(ini, fim), lado, eventos, subs,
+                                       forcado=pid,
+                                       usadas=usadas_c if lado == 0 else usadas_f)
+                        if lado == 0:
+                            usadas_c += usou
+                        else:
+                            usadas_f += usou
 
-        if fim < 90:
-            # janela de substituicao. O limite sobe a cada parada: no intervalo
-            # so sai quem ja esta ruim, no fim do jogo troca-se perna cansada.
-            limite = 70 if fim <= 45 else 84
-            for _ in range(3):
-                usadas_c += _trocar(G, casa, esc_c, banco_c, vagas_c, jogaram_c,
-                                    fim + 1, 0, eventos, subs, usadas=usadas_c,
-                                    limite_cond=limite)
-                usadas_f += _trocar(G, fora, esc_f, banco_f, vagas_f, jogaram_f,
-                                    fim + 1, 1, eventos, subs, usadas=usadas_f,
-                                    limite_cond=limite)
+            _fadigar(G, esc_c, minutos, casa, ef_c)
+            _fadigar(G, esc_f, minutos, fora, ef_f)
+
+            if fim < 90:
+                # janela de substituicao. O limite sobe a cada parada: no intervalo
+                # so sai quem ja esta ruim, no fim do jogo troca-se perna cansada.
+                limite = 70 if fim <= 45 else 84
+                for _ in range(3):
+                    usadas_c += _trocar(G, casa, esc_c, banco_c, vagas_c, jogaram_c,
+                                        fim + 1, 0, eventos, subs, usadas=usadas_c,
+                                        limite_cond=limite)
+                    usadas_f += _trocar(G, fora, esc_f, banco_f, vagas_f, jogaram_f,
+                                        fim + 1, 1, eventos, subs, usadas=usadas_f,
+                                        limite_cond=limite)
+    finally:
+        casa["tatica"], fora["tatica"] = originais
 
     # partida disputada conta para todo mundo que entrou em campo, titular ou nao
     for jogaram in (jogaram_c, jogaram_f):
@@ -2619,7 +2697,7 @@ def simular(G, casa_id, fora_id, comp="liga", neutro=False):
     eventos.sort(key=lambda e: e[0])
     return {"casa": casa_id, "fora": fora_id, "gc": gc, "gf": gf,
             "pub": pub, "renda": renda, "eventos": eventos, "comp": comp,
-            "stats": stats, "notas": notas, "subs": subs,
+            "stats": stats, "notas": notas, "subs": subs, "instrucoes": instrucoes,
             "xi": {"casa": jogaram_c, "fora": jogaram_f}}
 
 
@@ -7792,6 +7870,8 @@ def registro_partida(G: Mundo, r: Dict[str, Any]) -> Dict[str, Any]:
         "gc": r["gc"], "gf": r["gf"], "pub": r.get("pub", 0), "renda": r.get("renda", 0),
         "stats": {k: list(v) for k, v in (r.get("stats") or {}).items()},
         "gols": gols, "cartoes": cartoes, "subs": subs, "lesoes": lesoes,
+        # [minuto, lado, mentalidade nova, motivo]: a instrucao condicional em campo
+        "instrucoes": [list(x) for x in r.get("instrucoes", [])],
         # notas: [lado, id, nome, vaga, nota] por jogador que entrou em campo
         "notas": linhas,
         "melhor": dict(zip(("lado", "id", "nome", "vaga", "nota"), melhor)) if melhor else None,

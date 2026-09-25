@@ -36,6 +36,7 @@ export type AcaoEscalacao =
   | { tipo: 'inverter'; a: number; b: number }
   | { tipo: 'plano'; eixo: string; valor: string }
   | { tipo: 'plano-padrao' }
+  | { tipo: 'condicional'; condicao: string; minuto: number | null; tatica: string | null }
 
 interface Props {
   tela: TelaEscalacao
@@ -411,6 +412,54 @@ export function Escalacao({ tela, ocupado, mercadoPronto, aoAbrirFicha, aoAgir, 
                 </label>
               )
             })}
+          </div>
+
+          {/* instrucao pre-jogo: o jogo nao pausa, a regra decide no intervalo e aos 71' */}
+          <div className="condicionais" role="group" aria-labelledby="condicionais-titulo">
+            <div className="tatica-cab">
+              <span className="painel-titulo" id="condicionais-titulo">
+                Se o jogo apertar
+              </span>
+              <span className="tag-fraco">vale enquanto o placar pedir; virou, volta a mentalidade de antes</span>
+            </div>
+            {tela.condicionais.regras.map((r) => (
+              <div className="condicional" key={r.condicao}>
+                <span className="plano-nome">{r.rotulo}</span>
+                <select
+                  className="seletor"
+                  aria-label={`${r.rotulo}: a partir de`}
+                  value={r.minuto ?? ''}
+                  disabled={ocupado}
+                  onChange={(e) => {
+                    const minuto = e.target.value ? Number(e.target.value) : null
+                    const tatica = r.tatica ?? (r.condicao === 'perdendo' ? 'Ofensivo' : 'Contra-ataque')
+                    aoAgir({ tipo: 'condicional', condicao: r.condicao, minuto, tatica: minuto ? tatica : null })
+                  }}
+                >
+                  <option value="">sem instrucao</option>
+                  {tela.condicionais.minutos.map((m) => (
+                    <option key={m} value={m}>
+                      a partir dos {m}'
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="seletor"
+                  aria-label={`${r.rotulo}: mentalidade`}
+                  value={r.tatica ?? ''}
+                  title={porque([[r.minuto === null, 'Escolha antes a partir de quando']])}
+                  disabled={ocupado || r.minuto === null}
+                  onChange={(e) =>
+                    aoAgir({ tipo: 'condicional', condicao: r.condicao, minuto: r.minuto, tatica: e.target.value })
+                  }
+                >
+                  {r.minuto === null && <option value="">mentalidade</option>}
+                  {tela.taticas.map((t) => (
+                    <option key={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+            ))}
           </div>
         </div>
       </section>

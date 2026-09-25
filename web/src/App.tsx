@@ -426,6 +426,8 @@ export function App() {
           return api.mudarPlano(acao.eixo, acao.valor)
         case 'plano-padrao':
           return api.planoPadrao()
+        case 'condicional':
+          return api.mudarCondicional(acao.condicao, acao.minuto, acao.tatica)
         case 'montar':
           return api.montarMelhor()
       }

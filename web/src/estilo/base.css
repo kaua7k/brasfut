@@ -1637,6 +1637,9 @@ button.forma-badge { border: 0; padding: 0; cursor: pointer; }
 .lance-marca.amarelo { width: 7px; height: 10px; border-radius: 1px; background: var(--atencao); }
 .lance-marca.vermelho { width: 7px; height: 10px; border-radius: 1px; background: var(--critico); }
 .lance-texto { min-width: 0; }
+.lance-marca.instrucao { width: 10px; height: 2px; border-radius: 1px; background: var(--acao-linha); }
+.condicionais { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--divisor); }
+.condicional { display: grid; grid-template-columns: 150px minmax(0, 180px) minmax(0, 180px); gap: 10px; align-items: center; margin-top: 8px; }
 .partida-numeros {
   display: flex;
   align-items: center;

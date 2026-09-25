@@ -117,6 +117,9 @@ function Lances({ p, lado }: { p: Partida; lado: Lado }) {
     ...p.cartoes
       .filter((c) => c.lado === lado)
       .map((c) => ({ minuto: c.minuto, tipo: c.tipo, texto: c.nome, extra: '' })),
+    ...p.instrucoes
+      .filter((x) => x.lado === lado)
+      .map((x) => ({ minuto: x.minuto, tipo: 'instrucao' as const, texto: `vira ${x.tatica}`, extra: x.motivo })),
   ].sort((a, b) => a.minuto - b.minuto)
   return (
     <ul className={`partida-lista${lado === 1 ? ' fora' : ''}`} aria-label={`Lances do ${p.times[lado]}`}>
@@ -127,8 +130,14 @@ function Lances({ p, lado }: { p: Partida; lado: Lado }) {
           <span className={`lance-marca ${l.tipo}`} aria-hidden="true" />
           <span className="lance-texto">
             {l.texto}
-            <span className="so-leitor"> ({l.tipo === 'gol' ? 'gol' : `cartao ${l.tipo}`})</span>
-            {l.extra && <span className="tag-fraco"> · assist. {l.extra}</span>}
+            {l.tipo === 'instrucao' ? (
+              <span className="tag-fraco"> · {l.extra}</span>
+            ) : (
+              <>
+                <span className="so-leitor"> ({l.tipo === 'gol' ? 'gol' : `cartao ${l.tipo}`})</span>
+                {l.extra && <span className="tag-fraco"> · assist. {l.extra}</span>}
+              </>
+            )}
           </span>
         </li>
       ))}

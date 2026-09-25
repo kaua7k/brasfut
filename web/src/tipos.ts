@@ -158,6 +158,8 @@ export interface Partida {
   placar: [number, number]
   gols: { minuto: number; lado: Lado; autor: string; assist: string }[]
   cartoes: { minuto: number; lado: Lado; tipo: 'amarelo' | 'vermelho'; nome: string }[]
+  /** trocas de mentalidade em campo (instrucao condicional ou a regra da maquina) */
+  instrucoes: { minuto: number; lado: Lado; tatica: string; motivo: string }[]
   posse: [number, number]
   chutes: [number, number]
   no_gol: [number, number]
@@ -694,9 +696,21 @@ export interface TelaEscalacao {
     padrao: boolean
     efeitos: { nome: string; valor: string }[]
   }
+  condicionais: {
+    minutos: number[]
+    regras: RegraCondicional[]
+  }
   titulares: JogadorEmCampo[]
   vagas_abertas: number
   banco: JogadorBanco[]
+}
+
+export interface RegraCondicional {
+  condicao: 'perdendo' | 'vencendo'
+  rotulo: string
+  /** null = sem instrucao para essa condicao */
+  minuto: number | null
+  tatica: string | null
 }
 
 export interface Regime {
