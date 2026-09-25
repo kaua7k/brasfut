@@ -3494,6 +3494,7 @@ def _semana_estadual(G: Mundo) -> List[Dict[str, Any]]:
     atualizar_confianca(G, meus)
     recuperacao(G)
     mercado_ia(G)
+    carimbar_livres(G)
     contratar_livres_ia(G)
     rodar_peneira(G)
     G["semana_est"] = int(G.get("semana_est", 1)) + 1
@@ -4122,6 +4123,7 @@ def avancar_semana(G):
     atualizar_confianca(G, meus)
     recuperacao(G)
     mercado_ia(G)
+    carimbar_livres(G)
     contratar_livres_ia(G)
     rodar_peneira(G)
     saneamento_ia(G)
@@ -4193,6 +4195,7 @@ def transferir(G, pid, destino_id, valor):
     j["dono"] = None
     j["emp_pct"] = 100
     j["emp_opcao"] = 0
+    j.pop("livre_desde", None)
     j["entros"] = ENTROS_CHEGADA
     mexer_moral(G, j, 8, "chegou ao clube")
 
@@ -4451,21 +4454,69 @@ def pedido_efetivo(G: Mundo, j: Jogador) -> Tuple[int, bool]:
     return pedido, intocavel
 
 
+def fator_idade_salario(idade: int) -> float:
+    """O mercado paga menos pelo veterano: o mesmo overall aos 35 vale um
+    contrato bem menor que aos 27 (decidido em 2026-09-25)."""
+    if idade >= 35:
+        return 0.55
+    if idade >= 33:
+        return 0.70
+    if idade >= 31:
+        return 0.85
+    return 1.0
+
+
+LIVRE_DESCONTO_INI = 0.15    # livre recem-saido ja pede 15% abaixo do mercado
+LIVRE_DESCONTO_MAX = 0.40    # e encalhado chega a 40% abaixo
+LIVRE_SEMANAS_MAX = 10       # semanas sem clube ate o desconto maximo
+LIVRE_TETO_DEGRAU = 1.30     # livre desce de patamar cobrando no maximo 30% a mais
+
+
+def semanas_sem_clube(G: Mundo, j: Jogador) -> int:
+    """Ha quanto tempo o livre esta parado. O carimbo e posto toda semana em
+    carimbar_livres; sem carimbo ainda (acabou de sair), conta zero."""
+    if j["clube"] is not None:
+        return 0
+    return max(0, semana_absoluta(G) - int(j.get("livre_desde", semana_absoluta(G))))
+
+
+def desconto_livre(G: Mundo, j: Jogador) -> float:
+    frac = min(1.0, semanas_sem_clube(G, j) / float(LIVRE_SEMANAS_MAX))
+    return LIVRE_DESCONTO_INI + (LIVRE_DESCONTO_MAX - LIVRE_DESCONTO_INI) * frac
+
+
+def carimbar_livres(G: Mundo) -> None:
+    """Marca a semana em que cada livre ficou sem clube (uma vez)."""
+    agora = semana_absoluta(G)
+    for pid in G["livres"]:
+        j = G["jogadores"].get(pid)
+        if j is not None and "livre_desde" not in j:
+            j["livre_desde"] = agora
+
+
 def salario_referencia(j: Jogador) -> int:
-    """De onde parte o que o jogador pede: o mercado do overall de hoje, e
-    nunca menos que 85% do que ja ganha. Quem evoluiu com contrato barato pede
-    aumento; o veterano em queda aceita corte de ate 15%."""
-    return max(salario_de(j["ovr"]), int(j["salario"] * 0.85))
+    """De onde parte o que o jogador pede: o mercado do overall e da idade de
+    hoje. Quem tem clube nunca pede menos que 85% do que ja ganha (quem evoluiu
+    com contrato barato pede aumento; o veterano em queda aceita corte de ate
+    15%). O livre nao tem contrato a defender: parte so do mercado."""
+    mercado = int(salario_de(j["ovr"]) * fator_idade_salario(j["idade"]))
+    if j["clube"] is None:
+        return mercado
+    return max(mercado, int(j["salario"] * 0.85))
 
 
 def exigencia_salarial(G: Mundo, j: Jogador, destino: Clube, anos: int = 3) -> int:
     """Quanto o jogador quer por mes para assinar com este clube."""
     base = salario_referencia(j) * 1.12
+    livre = j["clube"] is None
+    if livre:
+        base *= 1.0 - desconto_livre(G, j)
     rep_origem = G["clubes"][j["clube"]]["reputacao"] if j["clube"] else 42
     gap = destino["reputacao"] - rep_origem
     if gap < -8:
         # quanto mais fundo o degrau, mais caro. Curva continua, sem salto.
-        base *= min(2.60, 1.0 + (-gap - 8) * 0.032)
+        # O livre nao tem clube para comparar: desce cobrando pouco a mais.
+        base *= min(LIVRE_TETO_DEGRAU if livre else 2.60, 1.0 + (-gap - 8) * 0.032)
     elif gap > 8:
         base *= 1.0 - min(0.16, (gap - 8) * 0.007)
     if j["idade"] <= 23 and j["pot"] - j["ovr"] >= 8:
@@ -6274,6 +6325,7 @@ def contratar_livres_ia(G):
             continue
         cands.sort(key=lambda c: -c["reputacao"])
         c = cands[0] if rng.random() < 0.6 else rng.choice(cands[:5])
+        j["salario"] = exigencia_salarial(G, j, c)
         transferir(G, j["id"], c["id"], 0)
         j["contrato"] = rng.randint(1, 3)
         feito = c.get("livres_sem") or [None, 0]
@@ -6295,6 +6347,7 @@ def contratar_livre_ia(G, c, pos, nivel_alvo):
     cands.sort(key=lambda j: -j["ovr"])
     faixa = [j for j in cands if j["ovr"] <= nivel_alvo + 6]
     alvo = (faixa or cands)[0]
+    alvo["salario"] = exigencia_salarial(G, alvo, c)
     transferir(G, alvo["id"], c["id"], 0)
     alvo["contrato"] = rng.randint(1, 3)
     return True

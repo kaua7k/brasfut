@@ -367,6 +367,15 @@ conversa*. Junto vêm o caixa que sobra depois do passe e a folha antes e depois
 salário. Os anos de contrato mexem no que o empresário pede: um ano custa mais, cinco
 custa menos. Três tentativas por mesa.
 
+**Quanto o jogador pede.** O ponto de partida é o salário de mercado do overall dele,
+descontado pela idade: aos 31-32 anos o mercado paga 15% menos, aos 33-34, 30% menos, e
+dos 35 em diante, 45% menos. Quem tem clube nunca pede menos que 85% do que já ganha.
+**O agente livre** não tem contrato a defender: parte só do mercado e ainda dá desconto
+por estar parado, 15% logo que sai e até 40% depois de dez semanas sem clube. Para descer
+de patamar (ir para um clube bem menor), o livre cobra no máximo 30% a mais. Na lista do
+Mercado, a coluna de salário do livre já mostra o que ele pede ao seu clube, não o
+contrato antigo. A IA paga ao livre a mesma pedida.
+
 Nos campos de dinheiro dá para escrever do jeito que se fala: `12 mi`, `12,5 mi`,
 `800 mil`, `90k` ou `12000000` — todos chegam no mesmo número, e o campo formata sozinho.
 

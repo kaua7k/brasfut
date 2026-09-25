@@ -78,7 +78,9 @@ def _linha_busca(G, c, j, aba, pendentes=None):
         pct = eng.exigencia_emprestimo(G, j, c)
         linha.update(pct=pct, fatia=eng.din(j["salario"] * pct // 100))
     elif j["clube"] is None:
-        linha.update(pedido="livre", marca="", emprestimo=False)
+        # o livre nao tem salario em vigor: a coluna mostra o que ele pede aqui
+        linha.update(pedido="livre", marca="", emprestimo=False,
+                     salario=eng.din(eng.exigencia_salarial(G, j, c)))
     else:
         valor, intocavel = eng.pedido_efetivo(G, j)
         # a marca e regra, nao enfeite: a legenda da tela explica cada uma
