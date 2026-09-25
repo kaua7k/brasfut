@@ -13,6 +13,7 @@ import { LegendaZonas, MarcaZona } from '../componentes/Zona'
 import { Estrela, EscudoRival, iconeDeEstado } from '../icones'
 import type {
   AvisoContratos,
+  Confianca,
   DadosPainel,
   Destaque,
   Escalacao,
@@ -432,8 +433,49 @@ function CardObjetivo({ objetivo }: { objetivo: Objetivo }) {
             (objetivo.folga >= 0 ? ` · ${objetivo.folga} de folga` : ` · faltam ${-objetivo.folga}`)}
         </span>
       </div>
-      <div className="diretoria">Diretoria: {objetivo.diretoria}</div>
+      <ConfiancaDiretoria c={objetivo.confianca} fala={objetivo.diretoria} />
     </section>
+  )
+}
+
+function ConfiancaDiretoria({ c, fala }: { c: Confianca; fala: string }) {
+  const seta = c.tendencia > 0 ? '▲' : c.tendencia < 0 ? '▼' : '='
+  return (
+    <div className="confianca">
+      <div className="confianca-cab">
+        <span className="painel-titulo">Confianca da diretoria</span>
+        <span className={`confianca-valor ${c.estado}`}>{c.valor}</span>
+        <span className={`confianca-tendencia ${c.tendencia > 0 ? 'ok' : c.tendencia < 0 ? 'critico' : ''}`}>
+          {seta} {c.tendencia > 0 ? `+${c.tendencia}` : c.tendencia} em 4 semanas
+        </span>
+      </div>
+      <div
+        className="confianca-barra"
+        role="meter"
+        aria-label="Confianca da diretoria"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={c.valor}
+      >
+        <div className={`cheio ${c.estado}`} style={{ width: `${c.valor}%` }} />
+        <div className="confianca-marca" style={{ left: `${c.limite_aviso}%` }} title={`aviso abaixo de ${c.limite_aviso}`} />
+        <div
+          className="confianca-marca critico"
+          style={{ left: `${c.limite_demissao}%` }}
+          title={`demissao abaixo de ${c.limite_demissao}, depois do aviso`}
+        />
+      </div>
+      {c.causas.length > 0 && (
+        <ul className="confianca-causas" aria-label="Por que mudou na ultima semana">
+          {c.causas.map((x, i) => (
+            <li key={i} className={`txt-${x.estado}`}>
+              {x.texto}
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className={`diretoria${c.aviso ? ' txt-critico negrito' : ''}`}>Diretoria: {fala}</div>
+    </div>
   )
 }
 

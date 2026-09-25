@@ -129,6 +129,37 @@ por jogo de 2,75 para 2,77, empates de 24,2% para 23,4%, e quem perde aos 70 esc
 derrota um pouco menos (11,9% → 10,7%): segurar o resultado rende mais do que ir para o
 tudo ou nada.
 
+## A diretoria
+
+A diretoria não espera o fim do ano para ter opinião. No cartão **Objetivo da temporada**,
+no Painel, fica a **confiança da diretoria**: um número de 0 a 100, a tendência das últimas
+4 semanas e, logo abaixo, por que ele mudou na última semana ("-8 derrota para o Espanyol",
+"+1 dentro da meta").
+
+- **Resultado contra o esperado.** Ganhar de quem é mais forte vale muito; perder para quem
+  é mais fraco custa caro. O esperado vem do tamanho dos dois elencos e do mando de campo.
+  Clássico vale o dobro, para o bem e para o mal.
+- **Posição contra a meta.** No Brasileirão (da 6ª rodada em diante), a posição puxa a
+  confiança aos poucos para um patamar: alto dentro da meta, baixo longe dela, mais baixo
+  ainda na zona de rebaixamento. Sozinha, a tabela leva no máximo ao aviso.
+- **Caixa no vermelho** também pesa.
+- A **dificuldade** da carreira multiplica só as quedas.
+
+Abaixo de **30** a diretoria avisa. Depois do aviso, se a confiança cair abaixo de **15**, a
+demissão pode vir já na semana seguinte, no meio do ano. Voltar acima de 40 derruba o aviso.
+No fim da temporada a avaliação de sempre continua, mas pesa a confiança: quem chega com a
+diretoria do lado quase não cai, quem chega avisado cai muito mais. Clube novo começa em 60;
+ano novo anda metade do caminho de volta aos 60. No modo sem demissão a diretoria só fala.
+
+Medido em seis carreiras de 50 semanas (Séries A a D): a confiança andou entre 37 e 82 em
+cinco delas; o Flamengo com meta de título caiu até 19, levou o aviso e se recuperou.
+Ninguém foi demitido.
+
+**Os outros clubes também demitem.** No fim do turno e no fim do ano, clube que despencou
+seis posições abaixo do próprio tamanho e está no terço de baixo manda o treinador embora
+(sai no feed do mundo). A vaga fica aberta dez semanas, e é esse clube que liga primeiro
+quando você está indo bem.
+
 ## O que a varredura encontrou e o que mudou
 
 - **Empréstimo era porta dos fundos.** A exigência passava de 100% para jogador bom, mas o

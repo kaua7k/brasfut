@@ -243,11 +243,40 @@ def _objetivo(G):
     else:
         estado, fala = "critico", "risco real de demissao"
 
+    conf = _confianca(G)
+    if conf["aviso"] or conf["valor"] < 50:
+        fala = conf["fala"]
     return {"texto": G["objetivo"], "pos": pos if comecou else None, "total": total,
             "alvo": alvo, "comecou": comecou, "estado": estado, "diretoria": fala,
+            "confianca": conf,
             "folga": (alvo - pos) if comecou else None,
             "progresso": round(100.0 * (total - pos + 1) / total, 1) if comecou else 0,
             "marca": round(100.0 * (total - alvo + 1) / total, 1)}
+
+
+def _confianca(G):
+    """O numero da diretoria, a tendencia de 4 semanas e as causas da ultima."""
+    conf = eng.confianca(G)
+    valor = conf["valor"]
+    aviso = conf["aviso"] is not None
+    if aviso:
+        estado, fala = "critico", "ultimato: abaixo de %d voce e demitido" % eng.CONFIANCA_DEMISSAO
+    elif valor < eng.CONFIANCA_AVISO:
+        estado, fala = "critico", "a paciencia acabou"
+    elif valor < 50:
+        estado, fala = "atencao", "cobrando resultado"
+    elif valor < 75:
+        estado, fala = "ok", "tranquila"
+    else:
+        estado, fala = "ok", "confiante no trabalho"
+    ultima = conf["hist"][-1][2] if conf["hist"] else []
+    return {
+        "valor": valor, "estado": estado, "fala": fala, "aviso": aviso,
+        "tendencia": eng.tendencia_confianca(G),
+        "limite_aviso": eng.CONFIANCA_AVISO, "limite_demissao": eng.CONFIANCA_DEMISSAO,
+        "causas": [{"texto": "%+d %s" % (d, txt), "estado": "ok" if d > 0 else "critico"}
+                   for d, txt in ultima],
+    }
 
 
 def rotulo_zona(zona, div=None, estadual=False):
@@ -470,7 +499,7 @@ def _propostas_emprego(G):
 
 ROTULO_FEED = {"resultado": "Resultado", "tabela": "Classificacao", "copa": "Copa",
                "titulo": "Titulo", "mercado": "Mercado", "lesao": "Lesao",
-               "abertura": "Brasileirao"}
+               "abertura": "Brasileirao", "tecnico": "Treinador"}
 
 
 def _mundo(G, quantas):

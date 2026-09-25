@@ -582,6 +582,25 @@ sobe um degrau de `ESCADA_TATICA`, vencendo desce um (decisão do usuário em
 jogo apertar" no painel de tática da Escalação. `testes/balanceamento.py` é
 a suíte lenta que mede a distribuição antes e depois.
 
+**Confiança da diretoria.** `G["confianca"]` = `{valor, hist, aviso}`,
+atualizada por `eng.atualizar_confianca` no fim de toda semana (os dois
+caminhos de `avancar_semana`). Causas: resultado contra o esperado
+(`resultado_esperado`, curva medida no próprio motor: escala 24, casa vale
+4 de overall; clássico vale o dobro), posição puxando para um patamar
+(`PATAMAR_CONFIANCA`, 12% da distância por semana: sozinha leva no máximo ao
+aviso) e caixa no vermelho. A dificuldade multiplica só as quedas. Abaixo de
+30 avisa; avisado, abaixo de 15 na semana seguinte chama `trocar_de_clube`,
+que a web troca por `Sessao._demitido` (pendência, com
+`G["motivo_demissao"]` como motivo). A avaliação de fim de ano multiplica o
+risco antigo por `(70 - confiança) / 40` (0,25 a 1,5), com o mesmo número de
+sorteios. Clube novo recomeça em 60; ano novo anda metade do caminho de
+volta. A máquina demite em `ia_demite_tecnicos` (fim do turno de cada liga e
+fim do ano), sem sorteio: 6 posições abaixo do tamanho e no terço de baixo,
+no máximo 2 por liga. A vaga (`vagas_tecnico`, 10 semanas) passa na frente
+em `sondar_treinador` sem mudar o sorteio de antes. Nada disso usa o `rng`.
+O Painel mostra número, tendência de 4 semanas, marcas de 30 e 15 e as
+causas da última semana (`dto._confianca`).
+
 **Capturas.** `ferramentas/capturas.py` sobe uma cópia isolada do jogo
 (motor, api, `web/dist` e cópia do save) na porta 8791, abre o save e
 fotografa as 13 telas (`--avancar N` joga N semanas na cópia antes) em 1280x720, 1366x768, 1440x900, 1920x1080 e
@@ -665,6 +684,9 @@ velha para apagar na mão. `--sim` não trava, porque não grava no save.
   carregar, média do ano, cartão do Painel e resumo no retorno do avanço.
 - **`test_condicional.py`** regra do meu clube, regra fixa da máquina,
   validação, mentalidade devolvida no fim do jogo e a rota.
+- **`test_confianca.py`** esperado contra resultado, dificuldade, aviso antes
+  da demissão, modo sem demissão, recuperação, máquina demitindo no turno,
+  clube novo e o Painel.
 - **`test_tokens.py`** lint visual: cor e fonte só por token, escala de
   seis degraus, sem `--acento`, sem inline fixo no TSX.
 

@@ -67,7 +67,7 @@ achar o nome exato, ou abra só a faixa abaixo:
 | 5000–5320 | Evolução de jogador (potencial, declínio, treino) |
 | 5320–5630 | Base: categoria de base, peneira regional, candidatos, promoção |
 | 5630–6090 | Teto de potencial, IA (contratar livres, investimentos, rebaixamento, premiação) |
-| 6090–6400 | Carreira do técnico (propostas de emprego, reputação, marcos) |
+| 6090–6600 | Diretoria (`avaliar_diretoria`, **confiança semanal**, `ia_demite_tecnicos`), opções e carreira do técnico (propostas de emprego, reputação, marcos) |
 | 6373–7500 | **Interface de terminal original** (`tela_elenco`, `tela_mercado`, `main()` do modo texto — não confundir com `brasfut_app.py`, que é a janela tkinter) |
 | 7500–8000 | Relatório de temporada, resumo, estatísticas do ano |
 | 8000–8497 | Save/load (`salvar`, `carregar`, `migrar`), trava de save, `loop()` principal, `main()` |
@@ -98,8 +98,9 @@ decisões em `docs/three-amigos/2026-09-25-onda-2-decisoes.md`):
 - ~~Tokens de CSS~~ — feito: azul = ação, dourado = conquista, âmbar =
   atenção; 6 degraus de fonte; inline só dinâmico (`test_tokens.py`).
 - Prêmios do ano e seleção do campeonato (`nota_soma` já é somado).
-- Confiança da diretoria semanal com causa/tendência; IA também demite
-  técnico.
+- ~~Confiança da diretoria~~ — feito: semanal com causa e tendência, aviso
+  em 30, demissão em 15 depois do aviso, máquina demite nos marcos e a vaga
+  alimenta as propostas (`test_confianca.py`).
 - ~~Instruções condicionais pré-jogo~~ — feito: 46'/71', só a mentalidade,
   máquina sobe/desce um degrau aos 71' (`test_condicional.py`,
   `testes/balanceamento.py`).

@@ -174,7 +174,9 @@ class Sessao(object):
         self.pendencia = {
             "tipo": "novo_clube",
             "titulo": "Voce foi demitido",
-            "motivo": resumo.get("diretoria") or "A diretoria encerrou o seu ciclo.",
+            # demissao no meio do ano (confianca) deixa o motivo; na virada vem do resumo
+            "motivo": (G.pop("motivo_demissao", None) or resumo.get("diretoria")
+                       or "A diretoria encerrou o seu ciclo."),
             "de": G["clubes"][atual]["nome"],
             "saida": "demitido",
             "opcoes": [{"id": cl["id"], "nome": cl["nome"], "divisao": cl["divisao"],

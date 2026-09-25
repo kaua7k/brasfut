@@ -3403,6 +3403,7 @@ def _semana_estadual(G: Mundo) -> List[Dict[str, Any]]:
     for r in meus:
         registrar_placar(G, r)
     economia_semanal(G)
+    atualizar_confianca(G, meus)
     recuperacao(G)
     mercado_ia(G)
     contratar_livres_ia(G)
@@ -3845,12 +3846,14 @@ def avancar_semana(G):
                 if G["clube"] in (r["casa"], r["fora"]):
                     meus.append(r)
     fechar_grupos(G)
+    ia_demite_tecnicos(G)
     manchetes_da_semana(G, todos, antes)
     G["ultimos_meus"] = [dict(r) for r in meus]
     guardar_historico(G, meus)
     for r in meus:
         registrar_placar(G, r)
     economia_semanal(G)
+    atualizar_confianca(G, meus)
     recuperacao(G)
     mercado_ia(G)
     contratar_livres_ia(G)
@@ -6143,11 +6146,182 @@ def avaliar_diretoria(G, posicao_final):
         return True, "A diretoria cobrou resultados, mas o seu cargo e intocavel (modo sem demissao)."
     margem = posicao_final - alvo
     risco = (0.25 + margem * 0.14) * dificuldade(G)["diretoria"]
+    # a confianca do ano pesa: quem chegou com a diretoria do lado quase nao cai
+    # (60 da x0,25), quem ja estava avisado cai muito mais (10 da x1,5)
+    risco *= clamp((70 - confianca(G)["valor"]) / 40.0, 0.25, 1.5)
     if tem_rebaixamento(G["clubes"][G["clube"]]["divisao"]) and posicao_final > 16:
         risco += 0.30 * dificuldade(G)["diretoria"]
     if rng.random() < risco:
         return False, "A diretoria decidiu encerrar seu ciclo no %s." % G["clubes"][G["clube"]]["nome"]
     return True, "A diretoria cobrou resultados, mas manteve voce no cargo."
+
+
+# ----------------------------------------------------------------------------
+# CONFIANCA DA DIRETORIA
+#
+# Um numero de 0 a 100 que anda toda semana e diz por que andou. Resultado
+# contra o esperado pela forca dos elencos (classico vale o dobro), posicao
+# contra a meta e caixa no vermelho. Abaixo de CONFIANCA_AVISO a diretoria
+# avisa; avisado, abaixo de CONFIANCA_DEMISSAO a demissao pode vir na semana
+# seguinte, no meio do ano (decisao do usuario em 2026-09-25). A dificuldade
+# multiplica so as quedas. Nada aqui sorteia: e conta sobre o que ja aconteceu.
+# ----------------------------------------------------------------------------
+
+CONFIANCA_INICIAL = 60
+CONFIANCA_AVISO = 30
+CONFIANCA_DEMISSAO = 15
+CONFIANCA_RECUPERA = 40     # voltou acima disto, o aviso cai
+CONFIANCA_HIST = 12         # semanas guardadas (a tendencia usa as 4 ultimas)
+PATAMAR_CONFIANCA = {"meta": 75, "perto": 55, "longe": 35, "rebaixamento": 22}
+
+
+def confianca(G: Mundo) -> Dict[str, Any]:
+    return G.setdefault("confianca", {"valor": CONFIANCA_INICIAL, "hist": [], "aviso": None})
+
+
+def reiniciar_confianca(G: Mundo, valor: int = CONFIANCA_INICIAL) -> None:
+    G["confianca"] = {"valor": int(valor), "hist": [], "aviso": None}
+
+
+def tendencia_confianca(G: Mundo, semanas: int = 4) -> int:
+    return sum(h[1] for h in confianca(G)["hist"][-semanas:])
+
+
+def forca_elenco(G: Mundo, c: Clube) -> float:
+    """Media de overall dos 11 melhores: o tamanho do time, sem cansaco do dia."""
+    ovrs = sorted((G["jogadores"][p]["ovr"] for p in c["elenco"] if p in G["jogadores"]), reverse=True)
+    top = ovrs[:11]
+    return sum(top) / len(top) if top else 40.0
+
+
+# curva medida no proprio motor (9 mil jogos, forca_elenco do mandante menos a
+# do visitante contra os pontos do mandante): escala 24 e casa valendo 4 de
+# overall. Com a curva mais inclinada o favorito "devia" ganhar mais do que o
+# motor deixa e a confianca escorria ate de quem jogava o esperado.
+ESCALA_ESPERADO = 24.0
+CASA_ESPERADO = 4.0
+
+
+def resultado_esperado(G: Mundo, meu: Clube, adv: Clube, em_casa: Optional[bool]) -> float:
+    """0 a 1: quanto o meu time devia tirar do jogo (vitoria 1, empate 0,5)."""
+    diff = forca_elenco(G, meu) - forca_elenco(G, adv)
+    if em_casa is not None:
+        diff += CASA_ESPERADO if em_casa else -CASA_ESPERADO
+    return clamp(1.0 / (1.0 + 10 ** (-diff / ESCALA_ESPERADO)), 0.1, 0.9)
+
+
+def atualizar_confianca(G: Mundo, meus: List[Dict[str, Any]]) -> None:
+    """A semana da diretoria: soma as causas, avisa e, se for o caso, demite."""
+    conf = confianca(G)
+    c = G["clubes"][G["clube"]]
+    causas: List[List[Any]] = []
+    for r in meus:
+        em_casa = r["casa"] == c["id"]
+        adv = G["clubes"].get(r["fora"] if em_casa else r["casa"])
+        if not adv:
+            continue
+        gm, gs = (r["gc"], r["gf"]) if em_casa else (r["gf"], r["gc"])
+        pontos = 1.0 if gm > gs else (0.5 if gm == gs else 0.0)
+        neutro = r.get("pub", 0) == 0 and r.get("comp") not in ("liga", "estadual")
+        esperado = resultado_esperado(G, c, adv, None if neutro else em_casa)
+        classico = eh_classico(G, r["casa"], r["fora"])
+        delta = int(round((pontos - esperado) * 8 * (2 if classico else 1)))
+        if delta:
+            quem = "vitoria sobre" if gm > gs else ("empate com" if gm == gs else "derrota para")
+            causas.append([delta, "%s o %s%s" % (quem, adv["nome"], " no classico" if classico else "")])
+    # a posicao nao soma sem fim: puxa a confianca para um patamar (12% da
+    # distancia por semana). Sozinha ela leva no maximo ao aviso; demissao
+    # pede resultado abaixo do esperado em cima
+    liga = G["ligas"].get(c["divisao"])
+    if G.get("fase") == "liga" and liga and liga["rodada"] >= 6:
+        pos = posicao_na_liga(G, c["id"])
+        total = len(liga["times"])
+        alvo = int(G.get("objetivo_alvo", 16))
+        if tem_rebaixamento(c["divisao"]) and pos > total - 4:
+            patamar, txt = PATAMAR_CONFIANCA["rebaixamento"], "zona de rebaixamento (%do)" % pos
+        elif pos <= alvo:
+            patamar, txt = PATAMAR_CONFIANCA["meta"], "dentro da meta (%do)" % pos
+        elif pos <= alvo + 3:
+            patamar, txt = PATAMAR_CONFIANCA["perto"], "perto da meta (%do, meta top %d)" % (pos, alvo)
+        else:
+            patamar, txt = PATAMAR_CONFIANCA["longe"], "abaixo da meta (%do, meta top %d)" % (pos, alvo)
+        puxao = int(round((patamar - conf["valor"]) * 0.12))
+        if puxao:
+            causas.append([puxao, txt])
+    if c["dinheiro"] < 0:
+        causas.append([-1, "caixa no vermelho"])
+    mult = dificuldade(G)["diretoria"]
+    for x in causas:
+        if x[0] < 0:
+            x[0] = int(round(x[0] * mult)) or -1
+    total_semana = sum(x[0] for x in causas)
+    conf["valor"] = int(clamp(conf["valor"] + total_semana, 0, 100))
+    if causas:
+        conf["hist"].append([semana_absoluta(G), total_semana, causas])
+        del conf["hist"][:-CONFIANCA_HIST]
+    agora = semana_absoluta(G)
+    if conf["aviso"] is None and conf["valor"] < CONFIANCA_AVISO:
+        conf["aviso"] = agora
+        noticia(G, "A diretoria perdeu a paciencia: se a confianca cair abaixo de %d, voce esta fora."
+                % CONFIANCA_DEMISSAO)
+    elif conf["aviso"] is not None and conf["valor"] >= CONFIANCA_RECUPERA:
+        conf["aviso"] = None
+        noticia(G, "A diretoria voltou a confiar no trabalho.")
+    elif (conf["aviso"] is not None and conf["aviso"] < agora
+          and conf["valor"] < CONFIANCA_DEMISSAO and not opcoes_carreira(G)["sem_demissao"]):
+        G["motivo_demissao"] = ("Depois do aviso, a confianca da diretoria caiu para %d. "
+                                "O %s encerrou o seu ciclo no meio da temporada." % (conf["valor"], c["nome"]))
+        noticia(G, "Demitido: o %s perdeu a confianca no treinador." % c["nome"])
+        trocar_de_clube(G)
+
+
+# a maquina demite tambem, nos marcos: fim do turno e fim da temporada. Sem
+# sorteio: clube que despencou 6 posicoes abaixo do tamanho (ordem de
+# reputacao na liga) e esta no terco de baixo manda o treinador embora. A vaga
+# fica aberta VAGA_TECNICO_SEMANAS e e ela que liga para o treinador que vai bem.
+VAGA_TECNICO_SEMANAS = 10
+DEMISSOES_POR_MARCO = 2
+
+
+def ia_demite_tecnicos(G: Mundo, fim_de_ano: bool = False) -> List[int]:
+    demitiu = []
+    for liga in G["ligas"].values():
+        rodadas = len(liga.get("rodadas") or [])
+        if not rodadas or not liga["times"]:
+            continue
+        if fim_de_ano:
+            if liga["rodada"] < rodadas:
+                continue
+        elif liga["rodada"] != rodadas // 2 or liga.get("turno_avaliado") == G["temporada"]:
+            continue
+        liga["turno_avaliado"] = G["temporada"]
+        ordem = classificacao(G, liga)
+        tamanho = sorted(ordem, key=lambda cid: -G["clubes"][cid]["reputacao"])
+        total = len(ordem)
+        caidos = []
+        for pos, cid in enumerate(ordem, 1):
+            if cid == G.get("clube"):
+                continue
+            queda = pos - (tamanho.index(cid) + 1)
+            if queda >= 6 and pos > round(total * 0.6):
+                caidos.append((-queda, pos, cid))
+        for _q, pos, cid in sorted(caidos)[:DEMISSOES_POR_MARCO]:
+            cl = G["clubes"][cid]
+            manchete(G, "tecnico", "%s demite o treinador depois de %s em %do." % (
+                cl["nome"], "fechar o ano" if fim_de_ano else "fechar o turno", pos))
+            G.setdefault("vagas_tecnico", []).append(
+                {"id": cid, "vence": semana_absoluta(G) + VAGA_TECNICO_SEMANAS})
+            demitiu.append(cid)
+    return demitiu
+
+
+def vagas_tecnico(G: Mundo) -> List[int]:
+    """Clubes com o cargo vago (as vencidas e a do meu clube saem aqui)."""
+    agora = semana_absoluta(G)
+    vivas = [v for v in G.get("vagas_tecnico", [])
+             if v["vence"] > agora and v["id"] in G["clubes"] and v["id"] != G.get("clube")]
+    G["vagas_tecnico"] = vivas
+    return [v["id"] for v in vivas]
 
 
 # ----------------------------------------------------------------------------
@@ -6322,6 +6496,7 @@ def assumir_clube(G: Mundo, cid: int, saida: str) -> None:
     G["clube"] = cid
     herdar_preferencias(G, antigo)
     definir_objetivo(G)
+    reiniciar_confianca(G)
     G["propostas_emprego"] = []
     carreira(G).append(_passagem(G, cid))
     noticia(G, "%s deixa o %s (%s) e assume o %s." %
@@ -6403,6 +6578,12 @@ def sondar_treinador(G: Mundo, ano_bom: Optional[bool] = None) -> Optional[Dict[
     if not cands:
         return None
     cl = cands[0] if rng.random() < 0.5 else rng.choice(cands)
+    # clube que acabou de demitir o treinador liga antes (mesmo sorteio de
+    # antes: a vaga so muda quem, nunca se)
+    vagas = set(vagas_tecnico(G))
+    com_vaga = [x for x in cands if x["id"] in vagas]
+    if com_vaga:
+        cl = com_vaga[0]
     oferta = {"id": cl["id"], "clube": cl["nome"], "divisao": cl["divisao"],
               "reputacao": cl["reputacao"], "temporada": int(G["temporada"]),
               "vence": semana_absoluta(G) + PROPOSTA_VALIDADE}
@@ -8000,6 +8181,7 @@ def encerrar_temporada(G: Mundo, resumo: Dict[str, Any]) -> Tuple[bool, Dict[str
     resumo["financas"]["premios"] = int(c["dinheiro"] - caixa_antes)
     resumo["financas"]["caixa_fim"] = int(c["dinheiro"])
     investimentos_ia(G)
+    ia_demite_tecnicos(G, fim_de_ano=True)
 
     ok, msg = avaliar_diretoria(G, pos_final)
     resumo["diretoria"], resumo["diretoria_ok"] = msg, bool(ok)
@@ -8067,6 +8249,9 @@ def encerrar_temporada(G: Mundo, resumo: Dict[str, Any]) -> Tuple[bool, Dict[str
     for j in G["jogadores"].values():
         j["ovr_ini"] = j["ovr"]
     definir_objetivo(G)
+    # ano novo, meta nova: a confianca anda metade do caminho de volta aos 60
+    anterior = confianca(G)["valor"]
+    reiniciar_confianca(G, round(CONFIANCA_INICIAL + (anterior - CONFIANCA_INICIAL) / 2))
     novo_ano_stats(G)
     # a pre-temporada ja e janela aberta: o que ficou acertado entra agora
     for recado in executar_agendadas(G):

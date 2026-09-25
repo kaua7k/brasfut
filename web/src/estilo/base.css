@@ -1661,6 +1661,25 @@ button.forma-badge { border: 0; padding: 0; cursor: pointer; }
 .partida-estat td { padding: 3px 0; width: 30%; }
 .modal-largo { overflow-y: auto; }
 
+/* -------------------------------------------------------- confianca da diretoria */
+.confianca { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--divisor); }
+.confianca-cab { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.confianca-valor { font-family: var(--titulo); font-size: var(--fs-g); font-weight: 700; }
+.confianca-valor.ok { color: var(--ok); }
+.confianca-valor.atencao { color: var(--atencao); }
+.confianca-valor.critico { color: var(--critico); }
+.confianca-tendencia { font-size: var(--fs-p); color: var(--fraco); margin-left: auto; }
+.confianca-tendencia.ok { color: var(--ok); }
+.confianca-tendencia.critico { color: var(--critico); }
+.confianca-barra { position: relative; height: 6px; border-radius: 4px; background: var(--borda-forte); margin: 8px 0; }
+.confianca-barra .cheio { height: 100%; border-radius: 4px; background: var(--neutro); }
+.confianca-barra .cheio.ok { background: var(--ok); }
+.confianca-barra .cheio.atencao { background: var(--atencao); }
+.confianca-barra .cheio.critico { background: var(--critico); }
+.confianca-marca { position: absolute; top: -3px; width: 2px; height: 12px; background: var(--atencao); }
+.confianca-marca.critico { background: var(--critico); }
+.confianca-causas { list-style: none; margin: 0 0 6px; padding: 0; font-size: var(--fs-p); display: flex; flex-direction: column; gap: 2px; }
+
 /* ------------------------------------------------------------ utilitarios
  * O que era style={{}} solto no TSX. Ficam no fim do arquivo para vencer a
  * classe base de mesma especificidade. Inline so sobra para valor que vem do

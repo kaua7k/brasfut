@@ -91,6 +91,19 @@ export interface Objetivo {
   folga: number | null
   progresso: number
   marca: number
+  confianca: Confianca
+}
+
+export interface Confianca {
+  valor: number
+  estado: Estado
+  fala: string
+  aviso: boolean
+  /** soma das ultimas 4 semanas */
+  tendencia: number
+  limite_aviso: number
+  limite_demissao: number
+  causas: { texto: string; estado: Estado }[]
 }
 
 export interface LinhaTabela {

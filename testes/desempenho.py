@@ -10,7 +10,7 @@ o jogo continuar exatamente o mesmo.
     python desempenho.py --comparar antes.json   # depois da mudanca
 
 Campo novo que so guarda (nao sorteia, nao muda jogo) mexe no hash do mundo
-sem mudar o jogo. --ignorar tira do hash chaves do mundo e do jogador, e vale
+sem mudar o jogo. --ignorar tira do hash chaves do mundo, da liga e do jogador, e vale
 nas duas pontas (rode a referencia com o mesmo --ignorar):
 
     python desempenho.py --gravar antes.json --ignorar historico_meus,nota_soma,nota_j
@@ -66,7 +66,9 @@ def mundo_sem_ignorados(G):
     jogadores = {str(k): {c: v for c, v in j.items() if c not in IGNORAR}
                  for k, j in G["jogadores"].items()}
     mundo = {c: v for c, v in G.items() if c not in IGNORAR}
-    return dict(mundo, clubes={str(k): v for k, v in G["clubes"].items()}, jogadores=jogadores)
+    ligas = {k: {c: v for c, v in liga.items() if c not in IGNORAR} for k, liga in G["ligas"].items()}
+    return dict(mundo, clubes={str(k): v for k, v in G["clubes"].items()}, jogadores=jogadores,
+                ligas=ligas)
 
 
 def rodar(seed, semanas):
