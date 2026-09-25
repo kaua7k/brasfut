@@ -382,8 +382,9 @@ def mesa(tipo, pid, proposta=None):
         exig = eng.exigencia_renovacao(G, j, anos)
         salario = _inteiro(p.get("salario"), exig) if "salario" in p else exig
         base.update(
-            contexto="Contrato atual: %s a %s por mes. Moral %d. Ele e %s."
-                     % (eng.plural(j["contrato"], "ano"), eng.din(j["salario"]), j["moral"], _peso(G, j)),
+            contexto="Contrato atual: %s a %s por mes; o mercado paga %s para o overall dele. Moral %d. Ele e %s."
+                     % (eng.plural(j["contrato"], "ano"), eng.din(j["salario"]),
+                        eng.din(eng.salario_de(j["ovr"])), j["moral"], _peso(G, j)),
             acabando=j["contrato"] <= 1,
             exigencia=eng.din(exig), exigencia_num=int(exig), salario=salario,
             leitura_salario=_leitura(salario, exig),
