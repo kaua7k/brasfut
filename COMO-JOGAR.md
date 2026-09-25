@@ -217,6 +217,24 @@ seis posições abaixo do próprio tamanho e está no terço de baixo manda o tr
 (sai no feed do mundo). A vaga fica aberta dez semanas, e é esse clube que liga primeiro
 quando você está indo bem.
 
+## O elenco por dentro: moral, entrosamento e prêmios
+
+- **Moral com causa.** A ficha do jogador mostra por que a moral dele está onde está: as
+  cinco últimas mudanças, com o motivo ("+4: vitoria sobre o Palmeiras (2 x 0)", "-8: a
+  renovacao nao saiu", "+14: subiu da base ao profissional") e há quantas semanas foi.
+- **Clássico mexe o dobro.** Ganhar ou perder um clássico pesa o dobro na moral de quem
+  jogou (empate não). Na confiança da diretoria o clássico já valia o dobro.
+- **Entrosamento.** Cada jogador tem de 0 a 100 de entrosamento com o time. Quem chega
+  (compra, livre ou empréstimo) começa em 35; quem volta de empréstimo ou sobe da base, em
+  60; o elenco de um mundo novo, em 80. Cada jogo pelo clube soma 5. Pesa pouco: um
+  recém-chegado rende uns 4% abaixo do mesmo jogador entrosado. Um time que troca meio
+  elenco na janela sente por algumas rodadas. A média do XI aparece na Escalação, ao lado
+  de ataque e defesa, e cada jogador tem a sua barra na ficha.
+- **Prêmios do ano.** Na virada, cada série premia o melhor jogador (média de nota, com
+  pelo menos metade das rodadas jogadas), o artilheiro, a revelação (até 21 anos) e a
+  seleção do campeonato (4-3-3). Contam jogos de todas as competições. O prêmio fica na
+  ficha do jogador e valoriza o passe até a virada seguinte.
+
 ## O que a varredura encontrou e o que mudou
 
 - **Empréstimo era porta dos fundos.** A exigência passava de 100% para jogador bom, mas o

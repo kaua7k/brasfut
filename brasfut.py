@@ -1495,6 +1495,18 @@ PESO_ESCOLHA_MORAL = 0.06
 PESO_JOGO_COND = 0.28
 PESO_JOGO_FORMA = 0.10
 PESO_JOGO_MORAL = 0.05
+# Entrosamento (0-100): o quanto o jogador conhece o time. Quem chega comeca
+# baixo e ganha a cada jogo pelo clube; quem ja estava no mundo novo comeca
+# em ENTROS_PADRAO (sem campo no save, vale o padrao: save antigo carrega igual).
+PESO_JOGO_ENTROS = 0.06
+ENTROS_PADRAO = 80
+ENTROS_CHEGADA = 35       # contratado ou emprestado: time novo, esquema novo
+ENTROS_VOLTA = 60         # voltou de emprestimo ou subiu da base: ja conhecia a casa
+ENTROS_POR_JOGO = 5
+
+
+def entrosamento(j: Jogador) -> int:
+    return int(j.get("entros", ENTROS_PADRAO))
 
 
 def sincronizar_suspensao(j: Jogador) -> None:
@@ -1528,6 +1540,7 @@ def rendimento(j: Jogador, afinidade: float = 1.0) -> float:
     base *= (1.0 - PESO_JOGO_COND) + PESO_JOGO_COND * (j["cond"] / 100.0)
     base *= (1.0 - PESO_JOGO_FORMA) + PESO_JOGO_FORMA * (j["forma"] / 100.0)
     base *= (1.0 - PESO_JOGO_MORAL) + PESO_JOGO_MORAL * (j["moral"] / 100.0)
+    base *= (1.0 - PESO_JOGO_ENTROS) + PESO_JOGO_ENTROS * (entrosamento(j) / 100.0)
     return base
 
 
@@ -1868,7 +1881,7 @@ def vagas_manuais(c: Optional[Clube]) -> Dict[int, str]:
 
 # Memo exato do laco de simulacao. atribuir_vagas e funcao pura de (formacao,
 # vagas fixadas e, de cada titular na ordem do XI: posicao, overall, condicao,
-# forma e moral) - rendimento() nao le mais nada. A chave leva tudo isso, entao
+# forma, moral e entrosamento) - rendimento() nao le mais nada. A chave leva tudo isso, entao
 # o memo nunca devolve conta velha: jogador que cansou no intervalo ou mudou de
 # moral e outra chave. Acerta quando o mesmo XI e medido de novo no mesmo
 # estado (posse, forcas do primeiro tempo, diagnostico, painel). Vive fora do
@@ -1881,7 +1894,7 @@ def _chave_xi(G: Mundo, esc: List[int], form: Dict[str, int],
               fixas: Optional[Dict[int, str]]) -> Any:
     js = G["jogadores"]
     jogadores = tuple((pid, js[pid]["pos"], js[pid]["ovr"], js[pid]["cond"],
-                       js[pid]["forma"], js[pid]["moral"]) for pid in esc)
+                       js[pid]["forma"], js[pid]["moral"], entrosamento(js[pid])) for pid in esc)
     return (tuple(sorted(form.items())), tuple(sorted((fixas or {}).items())), jogadores)
 
 
@@ -2717,6 +2730,8 @@ def simular(G, casa_id, fora_id, comp="liga", neutro=False):
             j["j"] += 1
             j["car_j"] += 1
             j["j_mes"] = j.get("j_mes", 0) + 1
+            if entrosamento(j) < 100:
+                j["entros"] = min(100, entrosamento(j) + ENTROS_POR_JOGO)
 
     for lado, jogaram in ((0, jogaram_c), (1, jogaram_f)):
         pro, contra = (gc, gf) if lado == 0 else (gf, gc)
@@ -4178,6 +4193,7 @@ def transferir(G, pid, destino_id, valor):
     j["dono"] = None
     j["emp_pct"] = 100
     j["emp_opcao"] = 0
+    j["entros"] = ENTROS_CHEGADA
     mexer_moral(G, j, 8, "chegou ao clube")
 
 
@@ -4196,6 +4212,7 @@ def emprestar(G, pid, destino_id, pct):
     j["emp_pct"] = int(clamp(pct, 0, 100))
     j["listado"] = 0
     j["emp_listado"] = 0
+    j["entros"] = ENTROS_CHEGADA
     mexer_moral(G, j, 6, "chegou por emprestimo")
 
 
@@ -4214,6 +4231,7 @@ def devolver_emprestimo(G, pid):
             dono["emprestados"].remove(pid)
         dono["elenco"].append(pid)
         j["clube"] = dono["id"]
+        j["entros"] = ENTROS_VOLTA
     j["dono"] = None
     j["emp_pct"] = 100
     j["emp_opcao"] = 0
@@ -5770,6 +5788,7 @@ def promover_da_base(G: Mundo, pid: int, anos: int = 3) -> Tuple[bool, str]:
     j["contrato"] = int(clamp(anos, 1, 5))
     j["salario"] = salario_devido(j)
     j["desde"] = G["temporada"] * 100 + G["semana"]
+    j["entros"] = ENTROS_VOLTA
     mexer_moral(G, j, 14, "subiu da base ao profissional")
     c.setdefault("revelados", []).append({"id": pid, "nome": j["nome"], "pos": j["pos"],
                                          "temporada": int(G["temporada"]), "ovr": int(j["ovr"])})

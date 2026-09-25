@@ -43,7 +43,7 @@ Atas de decisão de roadmap: `docs/three-amigos/`.
 | `web/src/telas/*.tsx` | 14 arquivos | Uma tela por arquivo (Painel, Elenco, Escalação, Mercado, Financas, etc.) | Ao mexer numa tela específica |
 | `web/src/componentes/*.tsx` | 19 arquivos (`Ajuda.tsx`: ajuda e boas-vindas; `Partida.tsx`: resumo e detalhe da partida; `DialogoRenovar.tsx`: renovação em lote) | Diálogos e peças reusáveis (Mesa, Grade, Campo, Ficha...) | Componente compartilhado entre telas |
 | `web/src/api.ts`, `tipos.ts`, `formato.ts` | — | Cliente HTTP, tipos TS espelhando os DTOs, formatação (dinheiro, número) | Contrato front↔back |
-| `testes/*.py` | 26 arquivos (`desempenho.py` e `balanceamento.py` são harness lentos, fora da suíte) | `unittest` da stdlib, sem dependência externa. `cd testes && python -m unittest -v` (~90s, 122 testes) | Rodar antes de qualquer PR |
+| `testes/*.py` | 28 arquivos (`desempenho.py` e `balanceamento.py` são harness lentos, fora da suíte) | `unittest` da stdlib, sem dependência externa. `cd testes && python -m unittest -v` (~90s, 131 testes) | Rodar antes de qualquer PR |
 | `ferramentas/capturas.py` | — | Capturas das 13 telas em 5 resoluções (Edge headless, cópia isolada) e comparação por pixel | Antes/depois de mexer em CSS ou tela |
 | `ferramentas/importar_elencos.py` | — | Importa elencos reais (football-data.org / API-Football) | Atualização de temporada real |
 | `.backup-pre-patch/` | — | Snapshots do motor pré-patch (histórico, não código ativo) | Raramente |
@@ -108,13 +108,18 @@ decisões em `docs/three-amigos/2026-09-25-onda-2-decisoes.md`):
   máquina sobe/desce um degrau aos 71' (`test_condicional.py`,
   `testes/balanceamento.py`).
 
-**Onda 3 — depois** (precisa de spike):
+**Onda 3 — em andamento** (os dois primeiros itens precisam de spike):
 - Intervalo interativo (spike de arquitetura: `simular` viraria máquina de
   estados).
 - IA com identidade tática e rebalanceamento (Retranca hoje domina
   matematicamente sobre Pressão — decisão foi **não mexer agora**).
-- Moral com causa, clássico com peso, economia com escolhas, entrosamento,
-  mercado disputado, olheiros, Copinha, história do clube.
+- ~~Moral com causa e clássico com peso~~ — feito: `mexer_moral`/`anotar_moral`
+  guardam `j["moral_hist"]` (5, só do meu clube), clássico dobra a moral de
+  resultado (`test_moral.py`).
+- ~~Entrosamento~~ — feito: `j["entros"]` (padrão 80, chegada 35, volta 60,
+  +5 por jogo), `PESO_JOGO_ENTROS` em `rendimento`, entra na chave do memo do
+  XI (`test_entrosamento.py`).
+- Economia com escolhas, mercado disputado, olheiros, Copinha, história do clube.
 
 **Economia — concluída** (PRs #3–#6, `docs/three-amigos/2026-09-25-economia-decisoes.md`):
 extrato e informação, salário fixo pelo contrato, patrocínio como contrato e

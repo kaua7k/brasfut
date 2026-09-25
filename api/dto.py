@@ -1162,6 +1162,7 @@ def ficha(pid):
             {"nome": "Condicao", "valor": j["cond"]},
             {"nome": "Forma", "valor": j["forma"]},
             {"nome": "Moral", "valor": j["moral"]},
+            {"nome": "Entrosamento", "valor": eng.entrosamento(j)},
         ],
         "temporada": {"j": j["j"], "g": j["g"], "a": j["a"], "ca": j["ca"], "cv": j["cv"]},
         "carreira": {"j": j["car_j"], "g": j["car_g"], "tit": j["car_tit"]},
@@ -1314,6 +1315,9 @@ def escalacao():
         "metricas": [
             {"valor": "%.1f" % d["ataque"], "nome": "ataque"},
             {"valor": "%.1f" % d["defesa"], "nome": "defesa"},
+            # media do XI: quem acabou de chegar ainda nao conhece o time
+            {"valor": "%d" % round(sum(eng.entrosamento(jogs[p]) for p in d["escalacao"])
+                                   / max(1, len(d["escalacao"]))), "nome": "entrosamento"},
         ],
         "prontidao": {"estado": d["estado"], "titulo": d["titulo"], "detalhe": d["detalhe"],
                       "estrutural": _saida_estrutural(G, c, d)},
