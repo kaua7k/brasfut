@@ -1346,7 +1346,7 @@ def jogar_rodada_grupos(G, chave):
             if r["gc"] != r["gf"]:
                 venc = G["clubes"][casa if r["gc"] > r["gf"] else fora]
                 if venc["divisao"] != "EX":
-                    venc["dinheiro"] += PREMIO_VITORIA_GRUPO.get(chave, 0)
+                    lancar(G, venc, PREMIO_VITORIA_GRUPO.get(chave, 0), "premio_grupo")
         g["resultados"].append(placares)
         g["rodada"] += 1
     cp["rodada_grupo"] += 1
@@ -2198,13 +2198,23 @@ def sorteia_autor(G, esc, pesos, vagas=None):
     return rng.choices(cand, weights=w)[0]
 
 
+def preco_referencia(c: Clube) -> float:
+    """O ingresso que a torcida deste tamanho paga sem esvaziar o estadio."""
+    return clamp(c["reputacao"] * 0.9, 12, 95)
+
+
+def manutencao_por_lugar(c: Clube) -> float:
+    """Quanto cada lugar do estadio custa por semana (entra em custo_estrutura)."""
+    return 0.2 + 0.015 * c["reputacao"]
+
+
 def publico_e_renda(G, casa, fora, comp):
     cap = casa["capacidade"]
     rel = fora["reputacao"] / max(30.0, casa["reputacao"])
     atrat = 0.30 + 0.22 * min(1.6, rel) + 0.0035 * casa["reputacao"]
     if comp != "liga":
         atrat += 0.06
-    preco_ref = clamp(casa["reputacao"] * 0.9, 12, 95)
+    preco_ref = preco_referencia(casa)
     elast = clamp(1.35 - 0.55 * (casa["preco"] / max(8.0, preco_ref)), 0.15, 1.35)
     taxa = clamp(atrat * elast * rng.uniform(0.82, 1.18), 0.05, 0.99)
     pub = int(cap * taxa)
@@ -2510,7 +2520,7 @@ def simular(G, casa_id, fora_id, comp="liga", neutro=False):
     if not neutro:
         pub, renda = publico_e_renda(G, casa, fora, comp)
         fator_casa = 1.10 + 0.10 * (pub / max(1, casa["capacidade"]))
-        casa["dinheiro"] += renda
+        lancar(G, casa, renda, "bilheteria")
 
     posse = posse_de(G, casa, fora, esc_c, esc_f)
     eventos, subs = [], []
@@ -3367,7 +3377,7 @@ def encerrar_estaduais(G: Mundo) -> List[str]:
         cl = G["clubes"][campeao]
         dar_titulo(G, cl, est["nome"])
         premio = int(premio_estadual(est) + cl["reputacao"] * 22_000)
-        cl["dinheiro"] += premio
+        lancar(G, cl, premio, "premio_estadual")
         if campeao == G.get("clube"):
             st = stats_ano(G)
             st["premios"] = int(st.get("premios", 0)) + premio
@@ -3474,7 +3484,7 @@ def folha_semanal(G, c):
 def custo_estrutura(c):
     """Estrutura, comissao, viagens, impostos e manutencao."""
     fixo = (c["ct"] + c["base"] + c["medico"]) * (1_800 + 200 * c["reputacao"])
-    fixo += c["capacidade"] * (0.2 + 0.015 * c["reputacao"])
+    fixo += c["capacidade"] * manutencao_por_lugar(c)
     operacional = receita_semanal(None, c) * 0.45
     return int(fixo + operacional) + custo_treino(c)
 
@@ -3582,9 +3592,12 @@ def economia_semanal(G):
             st = stats_ano(G)
             st["receita"] = int(st.get("receita", 0)) + int(rec)
             st["gasto"] = int(st.get("gasto", 0)) + int(folha + est)
-        c["dinheiro"] += rec
-        c["dinheiro"] -= folha
-        c["dinheiro"] -= est
+        treino = custo_treino(c)
+        lancar(G, c, rec, "tv")
+        lancar(G, c, -folha, "folha")
+        lancar(G, c, -(est - treino), "estrutura")
+        if treino:
+            lancar(G, c, -treino, "treino")
         if c["obra_semanas"] > 0:
             c["obra_semanas"] -= 1
             if c["obra_semanas"] == 0:
@@ -3800,10 +3813,9 @@ def jogar_fase_copa(G, chave):
         cp["campeao"] = prox[0]
         c = G["clubes"][prox[0]]
         dar_titulo(G, c, cp["nome"])
-        premio = {"copa": 78_000_000, "lib": 130_000_000, "sul": 30_000_000,
-                  "ucl": 350_000_000, "uel": 90_000_000}.get(chave, 0)
+        premio = PREMIO_COPA.get(chave, 0)
         if c["divisao"] != "EX":
-            c["dinheiro"] += premio
+            lancar(G, c, premio, "premio_copa")
             c["reputacao"] = clamp(c["reputacao"] + 2, 10, 99)
         noticia(G, "%s: %s e campeao." % (cp["nome"], c["nome"]))
     return res
@@ -3911,10 +3923,10 @@ def transferir(G, pid, destino_id, valor):
             origem["elenco"].remove(pid)
         if pid in origem.get("escalacao", []):
             origem["escalacao"].remove(pid)
-        origem["dinheiro"] += valor
+        lancar(G, origem, valor, "vendas")
     elif pid in G["livres"]:
         G["livres"].remove(pid)
-    destino["dinheiro"] -= valor
+    lancar(G, destino, -valor, "compras")
     destino["elenco"].append(pid)
     j["clube"] = destino_id
     j["obs"] = 0
@@ -4365,8 +4377,8 @@ def fechar_emprestimo(G: Mundo, prop: Proposta) -> str:
     dono = G["clubes"][j["clube"]]
     taxa = int(prop.valor or 0)
     if taxa:
-        destino["dinheiro"] -= taxa
-        dono["dinheiro"] += taxa
+        lancar(G, destino, -taxa, "emprestimos")
+        lancar(G, dono, taxa, "emprestimos")
     emprestar(G, prop.jogador, prop.comprador, prop.pct_salario)
     j["emp_opcao"] = int(prop.opcao_compra)
     noticia(G, "%s pegou %s emprestado do %s." % (destino["nome"], j["nome"], dono["nome"]))
@@ -4578,7 +4590,7 @@ def rescindir_contrato(G: Mundo, pid: int) -> Tuple[bool, str]:
     multa = multa_rescisao(G, j)
     if multa > c["dinheiro"]:
         return False, "Caixa insuficiente: a multa de %s custa %s." % (j["nome"], din(multa))
-    c["dinheiro"] -= multa
+    lancar(G, c, -multa, "rescisoes")
     if pid in c["elenco"]:
         c["elenco"].remove(pid)
     if pid in c.get("escalacao", []):
@@ -5609,7 +5621,7 @@ def rodar_peneira(G: Mundo) -> List[Dict[str, Any]]:
     if not pen:
         return []
     r = REGIOES_PENEIRA[pen["regiao"]]
-    c["dinheiro"] -= r["custo"]
+    lancar(G, c, -r["custo"], "peneira")
     pen["semanas"] = int(pen.get("semanas", 0)) + 1
     if pen["semanas"] % PENEIRA_A_CADA:
         return []
@@ -6048,12 +6060,12 @@ def investimentos_ia(G):
                 continue
             custo = int((c[k] + 1) ** 2 * 900_000)
             if custo < c["dinheiro"] * 0.35:
-                c["dinheiro"] -= custo
+                lancar(G, c, -custo, "infra")
                 c[k] += 1
         if c["dinheiro"] > 90_000_000 and c["obra_semanas"] == 0 and rng.random() < 0.5:
             lugares = min(15000, int(c["dinheiro"] * 0.30 / 3500))
             if lugares >= 1000:
-                c["dinheiro"] -= lugares * 3500
+                lancar(G, c, -lugares * 3500, "obras")
                 c["obra_lugares"] = lugares
                 c["obra_semanas"] = max(2, lugares // 1500)
         # sobra vira reforco pontual
@@ -6067,16 +6079,22 @@ def investimentos_ia(G):
                 transferir(G, alvo["id"], c["id"], alvo["listado"])
 
 
+def premio_liga(div: str, posicao: int) -> int:
+    """O que a liga paga a quem termina nesta posicao (1 = campeao)."""
+    total = PREMIO.get(div) or perfil_liga(div)["premio"]
+    return int(total * (0.55 ** ((posicao - 1) * 0.30)))
+
+
+PREMIO_COPA = {"copa": 78_000_000, "lib": 130_000_000, "sul": 30_000_000,
+               "ucl": 350_000_000, "uel": 90_000_000}
+
+
 def premiacao(G):
     for div, liga in G["ligas"].items():
         if liga["rodada"] < len(liga["rodadas"]) and div not in DIVISOES_BR:
             continue                     # liga de fora que nao terminou nao paga
-        ordem = classificacao(G, liga)
-        total = PREMIO.get(div) or perfil_liga(div)["premio"]
-        for i, cid in enumerate(ordem):
-            c = G["clubes"][cid]
-            fatia = total * (0.55 ** (i * 0.30))
-            c["dinheiro"] += int(fatia)
+        for i, cid in enumerate(classificacao(G, liga)):
+            lancar(G, G["clubes"][cid], premio_liga(div, i + 1), "premio_liga")
 
 
 def acesso_rebaixamento(G):
@@ -6386,6 +6404,7 @@ def comecar_no_clube(G: Mundo, c: Clube) -> List[str]:
         recados.append("Investidor compra o %s e injeta %s no caixa." % (c["nome"], din(aporte)))
     G["tecnico_rep"] = REP_TECNICO_INICIAL
     G["carreira"] = [_passagem(G, c["id"])]
+    novo_ano_stats(G)   # o caixa do comeco ja com dificuldade e aporte
     G["propostas_emprego"] = []
     for r in recados:
         noticia(G, r)
@@ -6498,6 +6517,7 @@ def assumir_clube(G: Mundo, cid: int, saida: str) -> None:
     herdar_preferencias(G, antigo)
     definir_objetivo(G)
     reiniciar_confianca(G)
+    novo_ano_stats(G)   # o extrato e do clube de agora: misturar dois caixas nao fecha
     G["propostas_emprego"] = []
     carreira(G).append(_passagem(G, cid))
     noticia(G, "%s deixa o %s (%s) e assume o %s." %
@@ -7304,7 +7324,7 @@ def tela_estadio(G):
             if custo > c["dinheiro"]:
                 print(cor("Caixa insuficiente. Custaria %s." % din(custo), "ruim"))
                 continue
-            c["dinheiro"] -= custo
+            lancar(G, c, -custo, "obras")
             c["obra_lugares"] = v
             c["obra_semanas"] = max(2, v // 1500)
             print(cor("Obra contratada: %s, pronta em %d semanas." % (din(custo), c["obra_semanas"]), "ok"))
@@ -7336,7 +7356,7 @@ def tela_infra(G):
             if custo > c["dinheiro"]:
                 print(cor("Caixa insuficiente.", "ruim"))
             else:
-                c["dinheiro"] -= custo
+                lancar(G, c, -custo, "infra")
                 c[k] += 1
                 print(cor("Investimento feito.", "ok"))
 
@@ -7928,9 +7948,34 @@ def novo_ano_stats(G: Mundo) -> Dict[str, Any]:
         "temporada": int(G.get("temporada", 0)),
         "caixa_ini": int(c["dinheiro"]) if c else 0,
         "receita": 0, "gasto": 0, "premios": 0, "renda_jogos": 0,
-        "vendas": [], "compras": [],
+        "vendas": [], "compras": [], "extrato": {}, "jogos_casa": [],
     }
     return G["temporada_stats"]
+
+
+# O extrato do ano: toda entrada e saida de dinheiro do meu clube, por
+# categoria. Soma das categorias = caixa no fim - caixa no comeco (o teste
+# test_extrato confere numa temporada inteira). Ordem = ordem da tela.
+EXTRATO = (
+    ("tv", "Cotas de TV e patrocinio"), ("bilheteria", "Bilheteria"),
+    ("premio_liga", "Premiacao da liga"), ("premio_estadual", "Premio do estadual"),
+    ("premio_copa", "Premio de copa"), ("premio_grupo", "Vitorias na fase de grupos"),
+    ("vendas", "Venda de jogadores"), ("emprestimos", "Taxas de emprestimo"),
+    ("folha", "Folha salarial"), ("estrutura", "Estrutura e operacao"),
+    ("treino", "Treino individual"), ("peneira", "Peneira da base"),
+    ("compras", "Compra de jogadores"), ("rescisoes", "Rescisoes"),
+    ("obras", "Obras no estadio"), ("infra", "Infraestrutura"),
+)
+
+
+def lancar(G: Mundo, c: Clube, valor: int, categoria: str) -> None:
+    """Todo dinheiro que entra ou sai de um clube passa aqui; o do meu clube
+    fica no extrato do ano. O caderno e aberto ANTES de mexer no caixa: aberto
+    depois, o caixa do comeco ja teria o lancamento e ele contaria duas vezes."""
+    if c["id"] == G.get("clube"):
+        ex = stats_ano(G).setdefault("extrato", {})
+        ex[categoria] = int(ex.get(categoria, 0)) + int(valor)
+    c["dinheiro"] += int(valor)
 
 
 def stats_ano(G: Mundo) -> Dict[str, Any]:
@@ -7975,6 +8020,11 @@ def registrar_placar(G: Mundo, r: Dict[str, Any]) -> None:
         st = stats_ano(G)
         st["renda_jogos"] = int(st.get("renda_jogos", 0)) + int(r["renda"])
         st["receita"] = int(st.get("receita", 0)) + int(r["renda"])
+        # publico, renda, capacidade e preco de cada jogo em casa: a tela do
+        # estadio tira media, ocupacao e o quanto o ingresso esta rendendo
+        c = G["clubes"][meu]
+        st.setdefault("jogos_casa", []).append(
+            [int(r.get("pub", 0)), int(r["renda"]), int(c["capacidade"]), int(c["preco"])])
 
 
 def placares_da_temporada(G: Mundo, temporada: Optional[int] = None) -> List[List[Any]]:
@@ -8148,6 +8198,8 @@ def apurar_temporada(G: Mundo) -> Dict[str, Any]:
                      "vendido": int(vendido), "comprado": int(comprado)},
         "vendas": [list(v) for v in st.get("vendas", [])],
         "compras": [list(v) for v in st.get("compras", [])],
+        # o extrato por categoria (a virada completa com a premiacao da liga)
+        "extrato": dict(st.get("extrato", {})),
         # completados por encerrar_temporada
         "diretoria": "", "diretoria_ok": True, "movimento": None,
         "tetos": [], "safra": [], "base_subiu": [], "base_saiu": [],
@@ -8181,6 +8233,7 @@ def encerrar_temporada(G: Mundo, resumo: Dict[str, Any]) -> Tuple[bool, Dict[str
     premiacao(G)
     resumo["financas"]["premios"] = int(c["dinheiro"] - caixa_antes)
     resumo["financas"]["caixa_fim"] = int(c["dinheiro"])
+    resumo["extrato"] = dict(stats_ano(G).get("extrato", {}))
     investimentos_ia(G)
     ia_demite_tecnicos(G, fim_de_ano=True)
 

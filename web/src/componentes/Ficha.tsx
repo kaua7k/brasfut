@@ -82,7 +82,7 @@ export function Ficha({ ficha, aoFechar, acoes }: Props) {
           <div className="cx"><div className="n">{ficha.carreira.j}</div><div className="r">jogos</div></div>
           <div className="cx"><div className="n">{ficha.carreira.g}</div><div className="r">gols</div></div>
           <div className="cx"><div className="n">{ficha.contrato.anos}</div><div className="r">anos de contrato</div></div>
-          <div className="cx"><div className="n menor">{ficha.contrato.salario}</div><div className="r">salario</div></div>
+          <div className="cx"><div className="n menor">{ficha.contrato.salario}</div><div className="r">salario/mes</div></div>
           <div className="cx"><div className="n menor">{ficha.contrato.valor}</div><div className="r">valor</div></div>
         </div>
 

@@ -617,6 +617,24 @@ cada um pede nesse prazo e a folha antes e depois
 (`/api/mercado/renovar-lote`), que é sempre aceito. Antes eram N mesas em
 fila.
 
+**Extrato do clube** (economia, entrega 1 de
+`docs/three-amigos/2026-09-25-economia-decisoes.md`). Todo movimento de caixa
+passa por `eng.lancar(G, clube, valor, categoria)`; o do meu clube vai para
+`temporada_stats["extrato"]` nas categorias de `eng.EXTRATO` (TV, bilheteria,
+prêmios de liga, estadual, copa e grupo, vendas, compras, taxas de
+empréstimo, folha, estrutura, treino, peneira, rescisões, obras, infra). O
+caderno abre antes de mexer no caixa, e recomeça no começo da carreira e na
+troca de clube. `test_extrato` joga uma temporada inteira e exige, semana a
+semana, soma do extrato = caixa agora - caixa do começo do ano. Finanças
+mostra o ano por categoria (com dica de cada linha), a semana fixa, a
+premiação em jogo (`eng.premio_liga`, a mesma conta de `premiacao`) e o
+valor do elenco; save de versão anterior mostra a diferença como "Antes do
+extrato". O resumo do ano usa o mesmo extrato. Estádio mostra público médio,
+ocupação e renda dos jogos em casa (`temporada_stats["jogos_casa"]`), o
+ingresso de referência (`eng.preco_referencia`) e a manutenção por lugar.
+Mercado e mesa de compra mostram o valor de mercado ao lado do pedido e o
+porquê do pedido.
+
 **Capturas.** `ferramentas/capturas.py` sobe uma cópia isolada do jogo
 (motor, api, `web/dist` e cópia do save) na porta 8791, abre o save e
 fotografa as 13 telas (`--avancar N` joga N semanas na cópia antes; `--query` põe parâmetro na URL, para build de teste) em 1280x720, 1366x768, 1440x900, 1920x1080 e
@@ -706,6 +724,8 @@ velha para apagar na mão. `--sim` não trava, porque não grava no save.
 - **`test_simular_renovar.py`** decisão do mata-mata no relato (pênaltis,
   agregado do meu lado, ida que não decide), semana estruturada e renovação
   em lote.
+- **`test_extrato.py`** o extrato fecha com o caixa numa temporada inteira,
+  compra, venda, obra e infra entram, premiação prevista = paga, telas.
 - **`test_tokens.py`** lint visual: cor e fonte só por token, escala de
   seis degraus, sem `--acento`, sem inline fixo no TSX.
 

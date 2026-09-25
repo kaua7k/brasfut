@@ -930,6 +930,15 @@ button.jogador:hover .disco, button.jogador:focus-visible .disco { transform: sc
 /* "total", nao "destaque": .destaque e o cartao do Painel (centralizado, com
    padding), e a linha do saldo herdava isso e saia torta */
 .linha-valor.total { background: var(--painel-alto); }
+.linha-dica { display: block; font-size: var(--fs-mini); color: var(--fraco); font-weight: 400; margin-top: 1px; }
+.financas-colunas { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
+.financas-colunas .linha-valor { grid-template-columns: minmax(0, 1fr) auto; }
+.financas-colunas .linha-valor .rot { color: var(--txt-2); }
+.financas-colunas .linha-valor .val { text-align: right; }
+.financas-colunas-unica .linha-valor { grid-template-columns: minmax(0, 1fr) auto; }
+.financas-colunas-unica .linha-valor .rot { color: var(--txt-2); }
+.financas-colunas-unica .linha-valor .val { text-align: right; }
+.linha-valor .val.atencao { color: var(--atencao); }
 .linha-valor.total .rot { color: var(--txt-2); font-weight: 700; }
 
 /* barra de nivel da infraestrutura */
