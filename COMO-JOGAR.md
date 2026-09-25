@@ -144,6 +144,24 @@ padrão; prazo longo sai um pouco mais barato por mês), e a folha antes e depoi
 renova todos pelo que pediram. Quer pechinchar? Marque só aquele jogador: abre a mesa de
 negociação, com três tentativas.
 
+## Patrocínio
+
+O clube tem dois contratos de patrocínio: o **master** e o **fornecedor de uniforme**. Cada
+um paga um valor por semana, dura algumas temporadas e pode ter um bônus por meta, pago
+na virada do ano. Quando um espaço fica vago (contrato vencido, começo de carreira), a
+pré-temporada traz três propostas, e o Painel avisa:
+
+- **Fixo alto** — o maior valor por semana, só por uma temporada, bônus pequeno.
+- **Equilibrado** — um pouco menos por semana, duas temporadas, bônus médio por cumprir o
+  objetivo.
+- **Aposta** — o menor fixo, três temporadas, e um bônus grande se for campeão da liga
+  (nas Séries B a D, se subir de divisão).
+
+A campanha do ano anterior pesa: objetivo cumprido ou título deixam as empresas mais
+generosas. Se você não escolher, a equilibrada é assinada quando a bola rolar. Em
+Finanças, a TV e o patrocínio aparecem separados, e cada contrato mostra quanto rende no
+ano.
+
 ## A diretoria
 
 A diretoria não espera o fim do ano para ter opinião. No cartão **Objetivo da temporada**,

@@ -936,6 +936,13 @@ button.jogador:hover .disco, button.jogador:focus-visible .disco { transform: sc
 .financas-colunas .linha-valor .rot { color: var(--txt-2); }
 .financas-colunas .linha-valor .val { text-align: right; }
 .financas-colunas-unica .linha-valor { grid-template-columns: minmax(0, 1fr) auto; }
+.patrocinio-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.patrocinio-cartao { display: flex; flex-direction: column; gap: 3px; padding: 12px 14px; border: 1px solid var(--borda-controle); border-radius: var(--raio-m); background: var(--linha); font-size: var(--fs-p); }
+.patrocinio-empresa { font-family: var(--titulo); font-weight: 700; font-size: var(--fs-base); color: var(--txt); }
+.patrocinio-perfil { font-size: var(--fs-mini); text-transform: uppercase; letter-spacing: 0.05em; color: var(--acao-linha); font-weight: 700; }
+.patrocinio-valor { font-family: var(--titulo); font-weight: 700; font-size: var(--fs-g); color: var(--txt); margin-top: 4px; }
+.patrocinio-bonus { color: var(--ok); font-weight: 600; }
+.patrocinio-valor .tag-fraco { font-family: var(--corpo); font-size: var(--fs-p); font-weight: 400; }
 .financas-colunas-unica .linha-valor .rot { color: var(--txt-2); }
 .financas-colunas-unica .linha-valor .val { text-align: right; }
 .linha-valor .val.atencao { color: var(--atencao); }

@@ -663,7 +663,24 @@ export function App() {
         {conteudo.tipo === 'copas' && (
           <Competicoes tela={conteudo.dados} ocupado={ocupado} aoTrocar={(alvo) => irPara('copas', alvo)} />
         )}
-        {conteudo.tipo === 'financas' && <Financas tela={conteudo.dados} />}
+        {conteudo.tipo === 'financas' && (
+          <Financas
+            tela={conteudo.dados}
+            ocupado={ocupado}
+            aoAssinarPatrocinio={(espaco, indice) =>
+              comErro(async () => {
+                setOcupado(true)
+                try {
+                  const r = await api.assinarPatrocinio(espaco, indice)
+                  setConteudo({ tipo: 'financas', dados: r.tela })
+                  setRecado(r.recado)
+                } finally {
+                  setOcupado(false)
+                }
+              })
+            }
+          />
+        )}
         {conteudo.tipo === 'infra' && (
           <Infra tela={conteudo.dados} ocupado={ocupado} aoInvestir={investir} />
         )}

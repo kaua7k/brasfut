@@ -645,6 +645,21 @@ evoluiu barato pede aumento, veterano aceita até 15% de corte. Em três
 temporadas: salário/mercado vai de p10 0,48 a p90 1,16, folha BR cerca de 12%
 menor.
 
+**Patrocínio** (economia, entrega 3). A régua antiga de "TV e patrocínio"
+(`_receita_base`) virou 60% cota de TV (`tv_semanal`) e 40% patrocínio
+(`FATIA_PATROCINIO`: master 28%, uniforme 12%). O meu clube tem contratos em
+`c["patrocinios"]` (empresa, semanal, temporadas, meta, bônus); a máquina
+recebe o valor base sem contrato guardado. Espaço vago recebe três propostas
+de `PERFIS_PATROCINIO` (fixo alto 1 temporada, equilibrado 2, aposta 3 com
+bônus de título, ou de acesso nas Séries B-D), estáveis por clube e ano
+(`_ruido`, sem sorteio). O ano anterior pesa (`fator_campanha`). Sem escolha,
+a equilibrada assina na primeira semana (`assinar_vagos_automatico`). A
+virada paga o bônus de quem bateu a meta e desconta um ano
+(`fechar_ano_patrocinio`). Troca de clube e save antigo herdam contratos
+base de uma temporada. Extrato ganha "Patrocínio" e "Bônus de patrocínio";
+Finanças mostra contratos e propostas (no topo quando há espaço vago) e o
+Painel avisa. Rota `POST /api/patrocinio/assinar`.
+
 **Capturas.** `ferramentas/capturas.py` sobe uma cópia isolada do jogo
 (motor, api, `web/dist` e cópia do save) na porta 8791, abre o save e
 fotografa as 13 telas (`--avancar N` joga N semanas na cópia antes; `--query` põe parâmetro na URL, para build de teste) em 1280x720, 1366x768, 1440x900, 1920x1080 e
@@ -738,6 +753,9 @@ velha para apagar na mão. `--sim` não trava, porque não grava no save.
   compra, venda, obra e infra entram, premiação prevista = paga, telas.
 - **`test_salario_contrato.py`** evolução e virada não apagam o salário,
   bolsa segue a tabela, pedido parte do mercado, máquina renova no mercado.
+- **`test_patrocinio.py`** propostas estáveis, acesso na Série B, assinar e
+  assinatura automática, bônus e vencimento na virada, herança na troca de
+  clube e no save antigo.
 - **`test_tokens.py`** lint visual: cor e fonte só por token, escala de
   seis degraus, sem `--acento`, sem inline fixo no TSX.
 

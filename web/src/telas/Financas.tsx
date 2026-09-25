@@ -8,7 +8,8 @@
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
 import { Grade, type Coluna } from '../componentes/Grade'
 import { iconeDeEstado } from '../icones'
-import type { LinhaDinheiro, TelaFinancas } from '../tipos'
+import { porque, AGUARDE } from '../motivo'
+import type { ContratoPatrocinio, LinhaDinheiro, TelaFinancas } from '../tipos'
 
 type Maior = TelaFinancas['maiores'][number]
 
@@ -36,11 +37,82 @@ function Linhas({ linhas }: { linhas: LinhaDinheiro[] }) {
   )
 }
 
-export function Financas({ tela }: { tela: TelaFinancas }) {
+function CartaoPatrocinio({ k, titulo, acao }: { k: ContratoPatrocinio; titulo?: string; acao?: React.ReactNode }) {
+  return (
+    <div className="patrocinio-cartao">
+      {titulo && <div className="painel-titulo">{titulo}</div>}
+      <div className="patrocinio-empresa">{k.empresa}</div>
+      <div className="patrocinio-perfil">{k.perfil}</div>
+      <div className="patrocinio-valor">
+        {k.semanal} <span className="tag-fraco">por semana · {k.temporadas}</span>
+      </div>
+      <div className="tag-fraco">cerca de {k.ano} no ano</div>
+      {k.bonus ? (
+        <div className="patrocinio-bonus">
+          + bonus de {k.bonus} pela meta: {k.meta}
+        </div>
+      ) : (
+        <div className="tag-fraco">sem bonus</div>
+      )}
+      {acao}
+    </div>
+  )
+}
+
+interface Props {
+  tela: TelaFinancas
+  ocupado: boolean
+  aoAssinarPatrocinio: (espaco: string, indice: number) => void
+}
+
+export function Financas({ tela, ocupado, aoAssinarPatrocinio }: Props) {
   const ex = tela.extrato
+  const pat = tela.patrocinio
+  const blocoPatrocinio = (
+    <>
+      <div className="painel-titulo">Patrocinio</div>
+        <section className="painel enxuto">
+          <p className="tag-fraco m-0 mb-3">{pat.explica}</p>
+          {pat.contratos.length > 0 && (
+            <div className="patrocinio-grade">
+              {pat.contratos.map((k) => (
+                <CartaoPatrocinio key={k.espaco} k={k} titulo={k.nome} />
+              ))}
+            </div>
+          )}
+          {pat.vagos.map((v) => (
+            <div key={v.espaco} className="mt-3">
+              <div className="painel-titulo mb-2">{v.nome}: escolha uma proposta</div>
+              <div className="patrocinio-grade">
+                {v.ofertas.map((o) => (
+                  <CartaoPatrocinio
+                    key={o.indice}
+                    k={o}
+                    acao={
+                      <button
+                        type="button"
+                        className="bt-acao medio mt-2"
+                        title={porque([[ocupado, AGUARDE]])}
+                        disabled={ocupado}
+                        onClick={() => aoAssinarPatrocinio(v.espaco, o.indice)}
+                      >
+                        Assinar
+                      </button>
+                    }
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </section>
+    </>
+  )
   return (
     <div className="tela">
       <CabecalhoTela titulo={tela.titulo} sub={`temporada ${ex.temporada}: de onde veio e para onde foi o dinheiro`} />
+
+      {/* espaco vago: a escolha e a primeira coisa da tela */}
+      {pat.vagos.length > 0 && blocoPatrocinio}
 
       <section className={`painel faixa ${ex.estado}`}>
         <div className="faixa-icone">{iconeDeEstado(ex.estado)}</div>
@@ -77,6 +149,8 @@ export function Financas({ tela }: { tela: TelaFinancas }) {
           )}
         </section>
       </div>
+
+      {pat.vagos.length === 0 && blocoPatrocinio}
 
       <div className="painel-titulo">O mes e a verba para contratar</div>
       <section className={`painel faixa ${tela.mensal.estado}`}>
