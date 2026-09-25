@@ -86,6 +86,17 @@ export function Ficha({ ficha, aoFechar, acoes }: Props) {
           <div className="cx"><div className="n menor">{ficha.contrato.valor}</div><div className="r">valor</div></div>
         </div>
 
+        {ficha.premios.length > 0 && (
+          <>
+            <div className="painel-titulo mt-3 mb-2">Premios</div>
+            <ul className="mb-0 txt-p">
+              {ficha.premios.map((p) => (
+                <li key={p}>{p}</li>
+              ))}
+            </ul>
+          </>
+        )}
+
         {ficha.contrato.emprestado_aqui && (
           <p className="mt-3 mb-0 txt-atencao txt-p">
             Esta emprestado aqui: pagamos {ficha.contrato.emp_pct}% do salario e o passe nao e nosso.

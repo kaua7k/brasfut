@@ -686,6 +686,8 @@ export interface FichaJogador {
   barras: { nome: string; valor: number }[]
   temporada: { j: number; g: number; a: number; ca: number; cv: number }
   carreira: { j: number; g: number; tit: number }
+  /** premios do ano que o jogador ganhou, do mais novo para o mais velho */
+  premios: string[]
   contrato: {
     anos: number
     salario: string

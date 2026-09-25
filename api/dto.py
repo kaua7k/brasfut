@@ -501,7 +501,8 @@ def _propostas_emprego(G):
 
 ROTULO_FEED = {"resultado": "Resultado", "tabela": "Classificacao", "copa": "Copa",
                "titulo": "Titulo", "mercado": "Mercado", "lesao": "Lesao",
-               "abertura": "Brasileirao", "tecnico": "Treinador"}
+               "abertura": "Brasileirao", "tecnico": "Treinador",
+               "premio": "Premio"}
 
 
 def _mundo(G, quantas):
@@ -1164,6 +1165,7 @@ def ficha(pid):
         ],
         "temporada": {"j": j["j"], "g": j["g"], "a": j["a"], "ca": j["ca"], "cv": j["cv"]},
         "carreira": {"j": j["car_j"], "g": j["car_g"], "tit": j["car_tit"]},
+        "premios": ["%s %d" % (p["nome"], p["temporada"]) for p in reversed(j.get("premios", []))],
         "contrato": {"anos": j["contrato"], "salario": eng.din(j["salario"]),
                      "valor": eng.din(j["valor"]),
                      "emprestado_aqui": bool(j.get("dono")),
@@ -1564,6 +1566,34 @@ def resumo(r, previa=False):
     for nome, pos, j, g, a in r.get("destaques", []):
         destaques.append(item("%s (%s): %d jogos, %d gols, %d assistencias" % (nome, pos, j, g, a)))
     secao("Seus destaques", destaques or [item("Ninguem marcou nesta temporada.")])
+    pr = r.get("premios_ano")
+    if pr:
+        # os premios da liga do clube; na previa ja estao decididos, so nao
+        # foram entregues (historico e valor mudam na virada)
+        meu = r.get("clube")
+
+        def estado(g):
+            return "ok" if g["clube"] == meu else "neutro"
+
+        linhas = []
+        for chave, rotulo in (("melhor", "Melhor jogador"), ("artilheiro", "Artilheiro"),
+                              ("revelacao", "Revelacao (ate 21 anos)")):
+            g = pr.get(chave)
+            if not g:
+                continue
+            numero = (eng.plural(g["gols"], "gol") if chave == "artilheiro"
+                      else "media %.2f" % g["media"])
+            linhas.append(item("%s: %s (%s, %s), %s em %s" % (
+                rotulo, g["nome"], g["pos"], g["clube"], numero, eng.plural(g["jogos"], "jogo")), estado(g)))
+        if pr.get("selecao"):
+            linhas.append(item("Selecao do campeonato: " + ", ".join(
+                "%s %s (%s)" % (g["pos"], g["nome"], g["clube"]) for g in pr["selecao"])))
+            nossos = [g["nome"] for g in pr["selecao"] if g["clube"] == meu]
+            if nossos:
+                linhas.append(item("Seus na selecao: " + ", ".join(nossos), "ok"))
+        linhas.append(item("Contam jogos de todas as competicoes; media de nota exige %s."
+                           % eng.plural(pr.get("minimo", 0), "jogo com nota")))
+        secao("Premios da %s" % pr["liga"], linhas)
     if "extrato" in r:
         # o extrato do ano: uma linha por categoria, e a soma fecha com o caixa
         resultado = fin["caixa_fim"] - fin["caixa_ini"]
