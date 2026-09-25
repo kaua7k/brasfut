@@ -103,6 +103,29 @@ class TestPartida(unittest.TestCase):
         finally:
             j["nota_soma"], j["nota_j"] = guardado
 
+    def test_painel_traz_o_cartao_da_partida(self):
+        painel = apoio.chamar("GET", "/api/painel")
+        partidas = painel["painel"]["resultados"]["partidas"]
+        self.assertEqual(len(partidas), len(self.G["historico_meus"]))
+        p = partidas[-1]
+        self.assertIn(p["resultado"], ("V", "E", "D"))
+        self.assertEqual(len(p["gols"]), sum(p["placar"]))
+        self.assertEqual(len(p["detalhes"]["notas"][0]) >= 11, True)
+        self.assertEqual(sum(p["posse"]), 100)
+        self.assertTrue(p["melhor"]["nome"] and p["melhor"]["time"] in p["times"])
+        self.assertEqual(len({x["chave"] for x in partidas}), len(partidas))
+
+    def test_avanco_com_jogo_devolve_o_resumo_sem_outro_pedido(self):
+        for _ in range(10):
+            r = apoio.avancar({"leve": True})
+            if r["jogou"]:
+                break
+        else:
+            self.fail("10 semanas sem jogo")
+        self.assertTrue(r["partidas"])
+        self.assertEqual(r["partidas"][-1]["chave"],
+                         apoio.chamar("GET", "/api/painel")["painel"]["resultados"]["partidas"][-1]["chave"])
+
     def test_liga_de_fora_nao_se_chama_brasileirao(self):
         G = self.G
         div = next(d for d in G["ligas"] if d not in eng.DIVISOES_BR)

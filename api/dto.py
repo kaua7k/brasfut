@@ -345,7 +345,59 @@ def _resultados(G):
                          "adversario": _corta(adv["nome"] if adv else "-", 20),
                          "estado": "ok" if gm > gs else ("atencao" if gm == gs else "critico")})
     forma = [{"letra": l, "descricao": t} for l, t in eng.forma_recente(G, 5)]
-    return {"placares": placares, "forma": forma, "alerta": _alerta_de_fase(G)}
+    return {"placares": placares, "forma": forma, "alerta": _alerta_de_fase(G),
+            "partidas": [partida(reg) for reg in G.get("historico_meus", [])]}
+
+
+ESTATISTICAS = (("chutes", "Chutes"), ("no_gol", "No gol"), ("posse", "Posse (%)"),
+                ("escanteios", "Escanteios"), ("faltas", "Faltas"), ("defesas", "Defesas"))
+
+
+def partida(reg):
+    """Um registro de eng.historico_meus no formato do cartao e do detalhe.
+
+    Mandante sempre primeiro (lado 0); `eu` diz de que lado o meu clube esta.
+    """
+    eu = reg["eu"]
+    gm, gs = (reg["gc"], reg["gf"]) if eu == 0 else (reg["gf"], reg["gc"])
+    resultado = "V" if gm > gs else ("E" if gm == gs else "D")
+    times = [reg["casa_nome"], reg["fora_nome"]]
+    st = reg.get("stats") or {}
+    notas = [[], []]
+    for lado, _pid, nome, vaga, nota in reg["notas"]:
+        notas[lado].append({"vaga": vaga, "nome": nome, "nota": nota})
+    melhor = None
+    if reg.get("melhor"):
+        m = reg["melhor"]
+        melhor = {"nome": m["nome"], "vaga": m["vaga"], "nota": m["nota"], "time": times[m["lado"]]}
+    decisao = None
+    if reg.get("agregado"):
+        a, ga, gb, b = reg["agregado"]
+        decisao = "Agregado: %s %d x %d %s" % (a, ga, gb, b)
+    if reg.get("penaltis"):
+        decisao = (decisao + " · " if decisao else "") + "nos penaltis avanca o %s" % reg["penaltis"]
+    return {
+        "chave": "%d-%s-%d-%d" % (reg["semana_abs"], reg["comp"], reg["casa"], reg["fora"]),
+        "comp": reg["comp_nome"], "rodada": reg["rodada"],
+        "resultado": resultado,
+        "estado": {"V": "ok", "E": "atencao", "D": "critico"}[resultado],
+        "eu": eu, "times": times, "placar": [reg["gc"], reg["gf"]],
+        "gols": [{"minuto": m, "lado": l, "autor": autor, "assist": ass}
+                 for m, l, autor, ass in reg["gols"]],
+        "cartoes": [{"minuto": m, "lado": l, "tipo": t, "nome": n} for m, l, t, n in reg["cartoes"]],
+        "posse": st.get("posse", [50, 50]), "chutes": st.get("chutes", [0, 0]),
+        "no_gol": st.get("no_gol", [0, 0]),
+        "melhor": melhor,
+        "detalhes": {
+            "notas": notas,
+            "subs": [{"minuto": m, "lado": l, "entra": e, "sai": sai} for m, l, e, sai in reg["subs"]],
+            "lesoes": [{"minuto": m, "lado": l, "nome": n} for m, l, n in reg["lesoes"]],
+            "estatisticas": [{"rotulo": rot, "valores": st[k]} for k, rot in ESTATISTICAS if k in st],
+            "publico": ("publico %s, renda %s" % (milhar(reg["pub"]), eng.din(reg["renda"]))
+                        if reg.get("pub") else None),
+            "decisao": decisao,
+        },
+    }
 
 
 def _noticias(G, quantas=6):

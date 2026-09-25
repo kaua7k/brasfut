@@ -6,11 +6,13 @@ headless. Nada toca o save de verdade nem o servidor que estiver aberto.
 
     python ferramentas/capturas.py tirar  <pasta>            # 13 telas x 5 resolucoes
     python ferramentas/capturas.py tirar  <pasta> --telas painel,elenco --res 1280x720
+    python ferramentas/capturas.py tirar  <pasta> --avancar 6  # joga 6 semanas na copia antes
     python ferramentas/capturas.py comparar <antes> <depois>  # % de pixels diferentes
 
 So stdlib: o PNG do Edge e lido com zlib (8 bits, RGB/RGBA, sem entrelacamento).
 """
 
+import json
 import os
 import shutil
 import struct
@@ -60,7 +62,13 @@ def _esperar_servidor(url, limite=30.0):
     sys.exit("o servidor da copia nao subiu em %.0fs" % limite)
 
 
-def tirar(destino, telas, resolucoes):
+def _post(url, caminho, corpo):
+    pedido = urllib.request.Request(url + caminho, data=json.dumps(corpo).encode("utf-8"),
+                                    method="POST", headers={"Content-Type": "application/json"})
+    return json.loads(urllib.request.urlopen(pedido, timeout=300).read() or b"{}")
+
+
+def tirar(destino, telas, resolucoes, avancar=0):
     os.makedirs(destino, exist_ok=True)
     edge = _edge()
     pasta = _copia_isolada()
@@ -71,9 +79,13 @@ def tirar(destino, telas, resolucoes):
     try:
         _esperar_servidor(url)
         # sem isto toda captura para no menu principal: abrir e decisao do usuario
-        pedido = urllib.request.Request(url + "api/abrir", data=b"{}", method="POST",
-                                        headers={"Content-Type": "application/json"})
-        urllib.request.urlopen(pedido, timeout=60).read()
+        _post(url, "api/abrir", {})
+        # a copia joga semanas antes da foto (cartao da partida, historico...);
+        # confirmar pula aviso de virada e de time quebrado
+        for _ in range(avancar):
+            r = _post(url, "api/avancar", {"confirmar": True, "leve": True})
+            if r.get("pendencia"):
+                break
         for res in resolucoes:
             w, h = res.split("x")
             for tela in telas:
@@ -181,7 +193,8 @@ def main(args):
             telas = args[args.index("--telas") + 1].split(",")
         if "--res" in args:
             res = args[args.index("--res") + 1].split(",")
-        tirar(args[1], telas, res)
+        avancar = int(args[args.index("--avancar") + 1]) if "--avancar" in args else 0
+        tirar(args[1], telas, res, avancar)
     elif len(args) == 3 and args[0] == "comparar":
         comparar(args[1], args[2])
     else:

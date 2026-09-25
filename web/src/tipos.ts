@@ -134,6 +134,42 @@ export interface Resultados {
   placares: Placar[]
   forma: { letra: 'V' | 'E' | 'D'; descricao: string }[]
   alerta: { texto: string; estado: Estado } | null
+  /** as ultimas partidas guardadas (dto.partida), da mais antiga a mais nova */
+  partidas: Partida[]
+}
+
+/** lado 0 e o mandante, 1 o visitante */
+export type Lado = 0 | 1
+
+export interface LinhaNota {
+  vaga: string
+  nome: string
+  nota: number
+}
+
+export interface Partida {
+  chave: string
+  comp: string
+  rodada: string
+  resultado: 'V' | 'E' | 'D'
+  estado: Estado
+  eu: Lado
+  times: [string, string]
+  placar: [number, number]
+  gols: { minuto: number; lado: Lado; autor: string; assist: string }[]
+  cartoes: { minuto: number; lado: Lado; tipo: 'amarelo' | 'vermelho'; nome: string }[]
+  posse: [number, number]
+  chutes: [number, number]
+  no_gol: [number, number]
+  melhor: { nome: string; vaga: string; nota: number; time: string } | null
+  detalhes: {
+    notas: [LinhaNota[], LinhaNota[]]
+    subs: { minuto: number; lado: Lado; entra: string; sai: string }[]
+    lesoes: { minuto: number; lado: Lado; nome: string }[]
+    estatisticas: { rotulo: string; valores: [number, number] }[]
+    publico: string | null
+    decisao: string | null
+  }
 }
 
 export interface Noticia {
@@ -286,6 +322,8 @@ export interface RespostaAvanco {
   // avanco em ritmos
   linhas?: LinhaRelato[]
   jogou?: boolean
+  /** as partidas desta semana (dto.partida), para o resumo no fim do Simular */
+  partidas?: Partida[]
   parar?: string
   opcoes?: OpcaoAvanco[]
   cabecalho?: Cabecalho

@@ -7,6 +7,7 @@
 import { porque, AGUARDE } from '../motivo'
 import { useState } from 'react'
 import { Campo } from '../componentes/Campo'
+import { ResumoPartida } from '../componentes/Partida'
 import { plural } from '../formato'
 import { LegendaZonas, MarcaZona } from '../componentes/Zona'
 import { Estrela, EscudoRival, iconeDeEstado } from '../icones'
@@ -46,7 +47,11 @@ export function Painel({ dados, aoDefinirAuto, mudandoAuto, aoIr, aoRenovar, aoR
         {dados.propostas_emprego.map((o) => (
           <FaixaProposta key={o.id} proposta={o} aoResponder={aoResponderProposta} />
         ))}
-        <FaixaResultados resultados={dados.resultados} />
+        {dados.resultados.partidas.length > 0 ? (
+          <ResumoPartida partidas={dados.resultados.partidas} alerta={dados.resultados.alerta} />
+        ) : (
+          <FaixaResultados resultados={dados.resultados} />
+        )}
         <CardProximo proximo={dados.proximo} meuClube={dados.cabecalho.clube} />
         <CardEscalacao
           escalacao={dados.escalacao}

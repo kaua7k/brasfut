@@ -173,6 +173,10 @@ def avancar(corpo):
         # janela, temporada): o navegador roda o laco semana a semana e para
         # quando o servidor disser por que
         fora["linhas"], fora["jogou"] = avanco.relato(G, antes)
+        # as partidas desta semana, ja no formato do cartao: o fim do Simular
+        # mostra o resumo sem pedir nada de novo
+        n = len(eng.resultados_da_semana(G)) if fora["jogou"] else 0
+        fora["partidas"] = [dto.partida(r) for r in G.get("historico_meus", [])[-n:]] if n else []
         fora["parar"] = avanco.motivo_de_parar(G, antes, corpo.get("paradas"),
                                               fora["encerrada"], SESSAO.pendencia)
         fora["opcoes"] = avanco.opcoes(G)

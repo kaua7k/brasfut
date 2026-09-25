@@ -1609,6 +1609,55 @@ button.jogador:hover .disco, button.jogador:focus-visible .disco { transform: sc
   }
 }
 
+/* ------------------------------------------------------------------ partida
+ * Resumo da ultima partida (Painel, fim do Simular) e o modal de detalhes. */
+.partida { padding: 14px 20px 12px; }
+.partida-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.partida-historico { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+button.forma-badge { border: 0; padding: 0; cursor: pointer; }
+.forma-badge.ativa { outline: 2px solid var(--acao-linha); outline-offset: 2px; }
+.partida-placar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  margin: 10px 0 8px;
+}
+.partida-time { font-family: var(--titulo); font-size: var(--fs-base); font-weight: 700; color: var(--txt-2); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.partida-time:first-child { text-align: right; }
+.partida-time.eu { color: var(--txt); }
+.partida-lances { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.partida-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; font-size: var(--fs-p); }
+.partida-lances .partida-lista:first-child { align-items: flex-end; text-align: right; }
+.partida-lances .partida-lista:first-child li { flex-direction: row-reverse; }
+.partida-lista li { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.lance-minuto { color: var(--fraco); font-variant-numeric: tabular-nums; min-width: 26px; }
+.lance-marca { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.lance-marca.gol { background: var(--txt); }
+.lance-marca.amarelo { width: 7px; height: 10px; border-radius: 1px; background: var(--atencao); }
+.lance-marca.vermelho { width: 7px; height: 10px; border-radius: 1px; background: var(--critico); }
+.lance-texto { min-width: 0; }
+.partida-numeros {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--divisor);
+  font-size: var(--fs-p);
+  color: var(--txt-2);
+}
+.partida-numeros :where(strong) { color: var(--txt); }
+.partida-detalhe { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+.partida-notas, .partida-estat { width: 100%; border-collapse: collapse; font-size: var(--fs-p); }
+.partida-notas caption { text-align: left; margin-bottom: 6px; }
+.partida-notas th { text-align: left; color: var(--fraco); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--divisor); }
+.partida-notas td { padding: 4px 6px; border-bottom: 1px solid var(--divisor); }
+.partida-estat th { font-weight: 500; color: var(--fraco); text-align: center; padding: 3px 10px; }
+.partida-estat td { padding: 3px 0; width: 30%; }
+.modal-largo { overflow-y: auto; }
+
 /* ------------------------------------------------------------ utilitarios
  * O que era style={{}} solto no TSX. Ficam no fim do arquivo para vencer a
  * classe base de mesma especificidade. Inline so sobra para valor que vem do
@@ -1634,6 +1683,9 @@ button.jogador:hover .disco, button.jogador:focus-visible .disco { transform: sc
 .txt-atencao { color: var(--atencao); }
 .txt-critico { color: var(--critico); }
 .txt-titular { color: var(--titular); }
+.txt-ok { color: var(--ok); }
+/* texto que so o leitor de tela le (a marca de cor ja diz para quem ve) */
+.so-leitor { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 .m-0 { margin: 0; }
 .mt-1 { margin-top: 4px; }

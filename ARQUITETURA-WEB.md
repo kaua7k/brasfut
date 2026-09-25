@@ -547,9 +547,30 @@ Escopo, ordem e decisões: `docs/three-amigos/2026-09-25-onda-2-decisoes.md`.
   do `:root`, no máximo seis degraus de fonte, todo `var()` usado existe,
   nenhum `--acento`, nenhum inline fixo no TSX.
 
+**Partida guardada.** `simular` devolve `notas` e `xi` com o id do jogador
+como chave; o JSON vira essa chave em texto e, depois de carregar, o id não
+achava mais ninguém (o melhor em campo sumia). Em memória a chave segue int:
+`migrar` chama `_normalizar_partida` em `ultimos_meus`. Para guardar,
+`eng.registro_partida` monta um registro só de listas e nomes (gols e
+cartões com minuto, substituições, lesões, stats, `[lado, id, nome, vaga,
+nota]` de quem entrou, melhor em campo) e `guardar_historico` mantém os
+`HISTORICO_PARTIDAS` (10) últimos em `G["historico_meus"]`. `nota_soma` e o
+novo `nota_j` somam a nota de cada jogo (`eng.media_nota`); save antigo
+começa a média do zero, sem inventar nota. Nada disso usa o `rng`: o harness
+com `--ignorar historico_meus,nota_soma,nota_j` dá saída idêntica.
+
+**Resumo da partida.** `dto.partida` põe o registro no formato do cartão
+(mandante primeiro, `eu` diz o lado). O Painel recebe as 10 em
+`resultados.partidas` e `componentes/Partida.tsx` desenha: `ResumoPartida`
+(gols e cartões com minuto, posse, chutes, melhor em campo; as bolinhas V/E/D
+viram botões que trocam o jogo mostrado) e `DetalhePartida` (notas por time,
+estatísticas, substituições, lesões). `/api/avancar` devolve `partidas` da
+semana: o fim do Simular mostra o resumo sem outro pedido. Save sem histórico
+cai na faixa antiga (`FaixaResultados`).
+
 **Capturas.** `ferramentas/capturas.py` sobe uma cópia isolada do jogo
 (motor, api, `web/dist` e cópia do save) na porta 8791, abre o save e
-fotografa as 13 telas em 1280x720, 1366x768, 1440x900, 1920x1080 e
+fotografa as 13 telas (`--avancar N` joga N semanas na cópia antes) em 1280x720, 1366x768, 1440x900, 1920x1080 e
 2560x1440 com o Edge headless (`--timeout` porque a Escalação tem animação
 infinita e segurava o Edge). `comparar <antes> <depois>` dá a porcentagem de
 pixels diferentes por captura, lendo o PNG só com `zlib`. Rode `npm run
@@ -626,6 +647,8 @@ velha para apagar na mão. `--sim` não trava, porque não grava no save.
   clube, prazo absoluto, barra de forças e os textos corrigidos.
 - **`test_continentais.py`** grupos da Libertadores e da Sul-Americana até o
   playoff e as oitavas, e save antigo ganhando os clubes que faltam.
+- **`test_partida.py`** histórico das 10 últimas, notas depois de salvar e
+  carregar, média do ano, cartão do Painel e resumo no retorno do avanço.
 - **`test_tokens.py`** lint visual: cor e fonte só por token, escala de
   seis degraus, sem `--acento`, sem inline fixo no TSX.
 

@@ -11,7 +11,8 @@
 import { porque } from '../motivo'
 import { useEffect, useRef, useState } from 'react'
 import { api, ErroDaApi } from '../api'
-import type { LinhaRelato, OpcaoAvanco, Paradas, Pendencia } from '../tipos'
+import type { LinhaRelato, OpcaoAvanco, Paradas, Partida, Pendencia } from '../tipos'
+import { ResumoPartida } from './Partida'
 
 interface Props {
   /** houve = pelo menos uma semana andou; a tela de tras precisa se refazer. */
@@ -52,6 +53,7 @@ export function DialogoAvanco({ aoFechar, aoAbrirEscalacao }: Props) {
   const [feitas, setFeitas] = useState(0)
   const [total, setTotal] = useState(0)
   const [linhas, setLinhas] = useState<LinhaRelato[]>([])
+  const [partidas, setPartidas] = useState<Partida[]>([])
   const [motivo, setMotivo] = useState<string | null>(null)
   const [quebrado, setQuebrado] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
@@ -93,6 +95,7 @@ export function DialogoAvanco({ aoFechar, aoAbrirEscalacao }: Props) {
     pedirParada.current = false
     setTotal(opcao.semanas)
     setFeitas(0)
+    setPartidas([])
     let confirmar = confirmarQuebrado
     let fim = ''
     try {
@@ -118,6 +121,7 @@ export function DialogoAvanco({ aoFechar, aoAbrirEscalacao }: Props) {
         houve.current = true
         setFeitas(i + 1)
         setLinhas((l) => [...l, ...(r.linhas ?? [])])
+        if (r.partidas?.length) setPartidas((p) => [...p, ...r.partidas!].slice(-5))
         if (r.opcoes) setOpcoes(r.opcoes)
         if (r.pendencia) pendencia.current = r.pendencia
         if (r.parar) {
@@ -226,6 +230,9 @@ export function DialogoAvanco({ aoFechar, aoAbrirEscalacao }: Props) {
           </div>
         )}
         {erro && <div className="mesa-linha linha-critica">{erro}</div>}
+
+        {/* terminou com jogo: o resumo da ultima partida, sem clique a mais */}
+        {!rodando && partidas.length > 0 && <ResumoPartida key={partidas[partidas.length - 1].chave} partidas={partidas} />}
 
         <div className="modal-acoes">
           <button type="button" className="bt-fantasma" title={porque([[rodando, 'Espere a simulacao parar']])}
