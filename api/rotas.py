@@ -118,6 +118,15 @@ def escolher_clube(corpo):
                 "pendencia": SESSAO.pendencia}
 
 
+@rota("GET", "/api/ajuda")
+def ver_ajuda(_corpo):
+    """A ajuda do jogo e, com carreira em andamento, a apresentacao do clube."""
+    with SESSAO.cadeado:
+        G = SESSAO.G
+        return {"ajuda": dto.ajuda(),
+                "boas_vindas": dto.boas_vindas(G) if G and G.get("clube") else None}
+
+
 @rota("GET", "/api/resumo")
 def ver_resumo(_corpo):
     """O resumo do ano: o ultimo que virou, ou a previa se a temporada acabou

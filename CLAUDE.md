@@ -21,4 +21,4 @@ nada estrutural mudou (um bugfix pontual, um ajuste de texto), não precisa
 tocar no mapa.
 
 Rodar os testes antes de considerar algo pronto:
-`cd testes && python -m unittest -v` (unittest da stdlib, sem pip, ~20s).
+`cd testes && python -m unittest -v` (unittest da stdlib, sem pip, ~90s).

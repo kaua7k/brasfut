@@ -1818,3 +1818,12 @@ button.forma-badge { border: 0; padding: 0; cursor: pointer; }
   border-bottom: 1px solid var(--borda-lateral);
 }
 .recado-app.erro { color: var(--critico); }
+
+/* ==========================================================================
+   AJUDA E BOAS-VINDAS
+   ========================================================================== */
+
+.ajuda-lista { margin: 0; padding: 0; display: grid; gap: 10px; max-height: 55vh; overflow-y: auto; }
+ol.ajuda-lista { padding-left: 20px; max-height: none; }
+.ajuda-lista dt { font-weight: 700; }
+.ajuda-lista dd { margin: 2px 0 0; color: var(--fraco); font-size: var(--fs-p); }

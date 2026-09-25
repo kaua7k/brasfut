@@ -5,6 +5,8 @@
 // tela mostra essa frase em vez de um "algo deu errado" que nao ajuda ninguem.
 
 import type {
+  Ajuda,
+  BoasVindas,
   ResumoTemporada,
   TelaCarreira,
   Config,
@@ -90,6 +92,7 @@ export const api = {
   escolherClube: (id: number) => pedir<RespostaEstado>('/api/clube', { id }),
   encerrarCarreira: () => pedir<RespostaEstado>('/api/clube', { encerrar: true }),
   resumo: () => pedir<{ resumo: ResumoTemporada }>('/api/resumo'),
+  ajuda: () => pedir<{ ajuda: Ajuda; boas_vindas: BoasVindas | null }>('/api/ajuda'),
 
   // ------------------------------------------------------------------ painel
   painel: () => pedir<{ painel: DadosPainel }>('/api/painel'),

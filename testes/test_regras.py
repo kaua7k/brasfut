@@ -86,6 +86,21 @@ class TestRegras(unittest.TestCase):
         finally:
             G["fase"], G["semana"] = guardado
 
+    def test_ia_assina_um_livre_por_clube_na_semana(self):
+        """Decidido em 2026-09-25: cada clube da IA leva no maximo um livre
+        por semana, mesmo com varios livres bons na fila."""
+        G = self.G
+        antes = {c["id"]: len(c["elenco"]) for c in G["clubes"].values()}
+        # fila cheia de livres que seriam titulares em qualquer clube
+        for pid in list(G["livres"])[:30]:
+            G["jogadores"][pid]["ovr"] = 88
+        eng.contratar_livres_ia(G)
+        eng.contratar_livres_ia(G)      # a segunda chamada na mesma semana nao repete clube
+        cresceram = {c["nome"]: len(c["elenco"]) - antes[c["id"]] for c in G["clubes"].values()
+                     if len(c["elenco"]) > antes[c["id"]]}
+        self.assertTrue(cresceram, "ninguem assinou livre")
+        self.assertEqual(set(cresceram.values()), {1}, cresceram)
+
     def test_emprestimo_de_livre_diz_o_motivo(self):
         pid = self.G["livres"][0]
         r = apoio.chamar("POST", "/api/mercado/propor",

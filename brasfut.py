@@ -707,6 +707,14 @@ def valor_de(ovr, idade, pot):
     return int(base / 1000) * 1000
 
 
+def valor_jogador(j) -> int:
+    """valor_de mais a vitrine do ultimo premio do ano (premio_valor, que
+    dura ate a proxima virada)."""
+    v = valor_de(j["ovr"], j["idade"], j["pot"])
+    bonus = float(j.get("premio_valor", 0.0))
+    return int(v * (1.0 + bonus) / 1000) * 1000 if bonus else v
+
+
 # ----------------------------------------------------------------------------
 # CRIACAO DO MUNDO
 # ----------------------------------------------------------------------------
@@ -792,7 +800,7 @@ def trocar_elenco(G, c, lista, usados):
             j["ovr"] = clamp(int(item["ovr"]), 20, 95)
             j["pot"] = clamp(int(item.get("pot", j["ovr"] + 4)), j["ovr"], 95)
             j["salario"] = salario_de(j["ovr"])
-            j["valor"] = valor_de(j["ovr"], j["idade"], j["pot"])
+            j["valor"] = valor_jogador(j)
         j["clube"] = c["id"]
         c["elenco"].append(j["id"])
     return completar_minimo(G, c, usados, nivel)
@@ -875,7 +883,7 @@ def recalibrar_gerados(G, importados):
             j["ovr"] = int(clamp(j["ovr"] + delta, 20, 95))
             j["pot"] = int(clamp(max(j["pot"] + delta, j["ovr"]), j["ovr"], 95))
             j["salario"] = salario_de(j["ovr"])
-            j["valor"] = valor_de(j["ovr"], j["idade"], j["pot"])
+            j["valor"] = valor_jogador(j)
         ajustados += 1
     return ajustados
 
@@ -5426,7 +5434,7 @@ def aplicar_evolucao(G: Mundo, j: Jogador, meses: float = 1.0) -> int:
         # de overall e a renovacao durava ate o proximo treino.
         if da_base(j):
             j["salario"] = salario_devido(j)
-        j["valor"] = valor_de(j["ovr"], j["idade"], j["pot"])
+        j["valor"] = valor_jogador(j)
     return mudou
 
 
@@ -5684,7 +5692,7 @@ def gerar_cria(G: Mundo, c: Clube, usados: set, idade: Optional[int] = None) -> 
     j["clube"] = c["id"]
     j["contrato"] = 3
     j["salario"] = salario_devido(j)
-    j["valor"] = valor_de(j["ovr"], j["idade"], j["pot"])
+    j["valor"] = valor_jogador(j)
     j["ovr_ini"] = j["ovr"]
     c.setdefault("base_elenco", []).append(j["id"])
     return j
@@ -5860,7 +5868,7 @@ def aceitar_candidato(G: Mundo, c: Clube, cid: int) -> Tuple[bool, str]:
     j["clube"] = c["id"]
     j["contrato"] = 3
     j["salario"] = salario_devido(j)
-    j["valor"] = valor_de(j["ovr"], j["idade"], j["pot"])
+    j["valor"] = valor_jogador(j)
     j["ovr_ini"] = j["ovr"]
     c.setdefault("base_elenco", []).append(j["id"])
     c["base_candidatos"] = [x for x in c["base_candidatos"] if x["cid"] != cid]
@@ -6033,7 +6041,7 @@ def estourar_teto(G: Mundo, j: Jogador) -> int:
         return 0
     j["pot"] = int(min(POT_MAX, j["pot"] + 1))
     j["pot_rev"] = int(j.get("pot_rev", 0)) + 1
-    j["valor"] = valor_de(j["ovr"], j["idade"], j["pot"])
+    j["valor"] = valor_jogador(j)
     return 1
 
 
@@ -6067,7 +6075,7 @@ def revisar_potencial(G: Mundo, j: Jogador) -> int:
         return 0
     j["pot"] = novo
     j["pot_rev"] = int(j.get("pot_rev", 0)) + delta
-    j["valor"] = valor_de(j["ovr"], j["idade"], j["pot"])
+    j["valor"] = valor_jogador(j)
     return delta
 
 
@@ -6114,7 +6122,7 @@ def evoluir_jogadores(G: Mundo) -> None:
         aplicar_evolucao(G, j, meses=1.5)      # janela sem jogos, ritmo reduzido
         if da_base(j):
             j["salario"] = salario_devido(j)      # bolsa; o profissional tem contrato
-        j["valor"] = valor_de(j["ovr"], j["idade"], j["pot"])
+        j["valor"] = valor_jogador(j)
         j["j"] = j["g"] = j["a"] = j["ca"] = j["cv"] = 0
         j["nota_soma"], j["nota_j"] = 0.0, 0
         j["j_mes"] = 0
@@ -6174,6 +6182,9 @@ def fim_de_contrato(G):
 
 
 LIVRES_POR_SEMANA = 10
+# cada clube da IA assina no maximo um livre por semana: sem isto o clube
+# rico do topo da fila levava os melhores livres todos de uma vez
+LIVRES_POR_CLUBE = 1
 
 
 def contratar_livres_ia(G):
@@ -6185,8 +6196,14 @@ def contratar_livres_ia(G):
     livres = sorted((G["jogadores"][p] for p in G["livres"]
                      if p in G["jogadores"] and p not in presos),
                     key=lambda j: -j["ovr"])
+    agora = semana_absoluta(G)
+
+    def pode(c):
+        feito = c.get("livres_sem") or [None, 0]
+        return len(c["elenco"]) < 30 and not (feito[0] == agora and feito[1] >= LIVRES_POR_CLUBE)
+
     clubes = [c for c in G["clubes"].values()
-              if c["divisao"] != "EX" and c["id"] != G.get("clube") and len(c["elenco"]) < 30]
+              if c["divisao"] != "EX" and c["id"] != G.get("clube") and pode(c)]
     feitos = 0
     for j in livres[:40]:
         if feitos >= LIVRES_POR_SEMANA:
@@ -6208,7 +6225,9 @@ def contratar_livres_ia(G):
         c = cands[0] if rng.random() < 0.6 else rng.choice(cands[:5])
         transferir(G, j["id"], c["id"], 0)
         j["contrato"] = rng.randint(1, 3)
-        clubes = [x for x in clubes if len(x["elenco"]) < 30]
+        feito = c.get("livres_sem") or [None, 0]
+        c["livres_sem"] = [agora, (feito[1] if feito[0] == agora else 0) + 1]
+        clubes = [x for x in clubes if pode(x)]
         feitos += 1
         if j["ovr"] >= 78:
             manchete(G, "mercado", "%s, sem clube, assina com o %s." % (j["nome"], c["nome"]))
@@ -8378,6 +8397,115 @@ def _normalizar_partida(r: Dict[str, Any]) -> None:
 #   fim_temporada      - o fluxo do terminal: apura, encerra e imprime
 # ----------------------------------------------------------------------------
 
+# a selecao do campeonato sai num 4-3-3: goleiro, dois zagueiros, dois
+# laterais, um volante, dois meias e tres atacantes
+SELECAO_VAGAS = (("GOL", 1), ("ZAG", 2), ("LAT", 2), ("VOL", 1), ("MEI", 2), ("ATA", 3))
+REVELACAO_IDADE = 21
+# ganho de valor de mercado de quem foi premiado, ate a proxima virada
+PREMIO_VALOR = {"melhor": 0.12, "artilheiro": 0.08, "revelacao": 0.10, "selecao": 0.04}
+
+
+def premios_do_ano(G: Mundo, div: str) -> Optional[Dict[str, Any]]:
+    """Melhor jogador, artilheiro, revelacao e selecao de uma divisao.
+
+    Conta quem esta no elenco dos clubes da divisao, com os numeros do ano
+    inteiro (liga, estadual e copas). Para melhor, revelacao e selecao vale a
+    media de nota, e so entra quem jogou metade das rodadas da liga. Nao muda
+    nada no mundo e nao usa o rng: quem aplica e premiar_ano.
+    """
+    liga = G["ligas"].get(div)
+    if not liga or not liga.get("times"):
+        return None
+    rodadas = max((int(t.get("j", 0)) for t in liga["tabela"].values()), default=0)
+    minimo = max(5, (rodadas + 1) // 2)
+    todos = []
+    for cid in liga["times"]:
+        cl = G["clubes"][cid]
+        for pid in cl["elenco"]:
+            j = G["jogadores"].get(pid)
+            if j and not da_base(j) and j.get("j", 0) > 0:
+                todos.append((j, cl))
+    if not todos:
+        return None
+
+    def media(j):
+        return media_nota(j) or 0.0
+
+    def melhor_media(j_cl):
+        j = j_cl[0]
+        return (-media(j), -int(j.get("nota_j", 0)), -j["ovr"], j["id"])
+
+    aptos = sorted((x for x in todos if int(x[0].get("nota_j", 0)) >= minimo), key=melhor_media)
+
+    def linha(j, cl, premio):
+        return {"id": j["id"], "nome": j["nome"], "pos": j["pos"], "idade": j["idade"],
+                "clube": cl["nome"], "clube_id": cl["id"], "media": media(j),
+                "jogos": int(j["j"]), "gols": int(j["g"]), "premio": premio}
+
+    out: Dict[str, Any] = {"divisao": div, "liga": nome_da_liga(G, div), "minimo": minimo,
+                           "melhor": None, "artilheiro": None, "revelacao": None, "selecao": []}
+    if aptos:
+        out["melhor"] = linha(*aptos[0], "melhor")
+    art = min(todos, key=lambda x: (-x[0]["g"], x[0]["j"], -media(x[0]), x[0]["id"]))
+    if art[0]["g"] > 0:
+        out["artilheiro"] = linha(*art, "artilheiro")
+    jovens = [x for x in aptos if x[0]["idade"] <= REVELACAO_IDADE]
+    if jovens:
+        out["revelacao"] = linha(*jovens[0], "revelacao")
+    for pos, n in SELECAO_VAGAS:
+        da_pos = [x for x in aptos if x[0]["pos"] == pos][:n]
+        out["selecao"] += [linha(j, cl, "selecao") for j, cl in da_pos]
+    return out
+
+
+def _rotulo_premio(premio: str, liga: str) -> str:
+    return {"melhor": "Melhor jogador da %s", "artilheiro": "Artilheiro da %s",
+            "revelacao": "Revelacao da %s", "selecao": "Selecao da %s"}[premio] % liga
+
+
+def premiar_ano(G: Mundo) -> List[Dict[str, Any]]:
+    """Aplica os premios das quatro series (e da liga do meu clube, se for de
+    fora): historico no jogador, vitrine no valor e manchete. Tem de rodar
+    antes de evoluir_jogadores, que zera os numeros do ano."""
+    for j in G["jogadores"].values():
+        j.pop("premio_valor", None)
+    divs = list(DIVISOES_BR)
+    meu = G["clubes"][G["clube"]]["divisao"]
+    if meu not in divs:
+        divs.append(meu)
+    todos = []
+    for d in divs:
+        p = premios_do_ano(G, d)
+        if not p:
+            continue
+        todos.append(p)
+        ganhos = [p[k] for k in ("melhor", "artilheiro", "revelacao") if p[k]] + p["selecao"]
+        for g in ganhos:
+            j = G["jogadores"][g["id"]]
+            j.setdefault("premios", []).append(
+                {"temporada": int(G["temporada"]), "nome": _rotulo_premio(g["premio"], p["liga"])})
+            j["premio_valor"] = max(float(j.get("premio_valor", 0.0)), PREMIO_VALOR[g["premio"]])
+            j["valor"] = valor_jogador(j)
+        if d == "A" or d == meu:
+            m = p["melhor"]
+            if m:
+                manchete(G, "premio", "%s, do %s, e o melhor jogador da %s %d (media %.2f)."
+                         % (m["nome"], m["clube"], p["liga"], int(G["temporada"]), m["media"]))
+            a = p["artilheiro"]
+            if a:
+                manchete(G, "premio", "%s, do %s, e o artilheiro da %s %d com %s."
+                         % (a["nome"], a["clube"], p["liga"], int(G["temporada"]), plural(a["gols"], "gol")))
+        if d == meu:
+            nossos = [g for g in ganhos if g["clube_id"] == G["clube"]]
+            for g in nossos:
+                if g["premio"] != "selecao":
+                    noticia(G, "%s: %s." % (_rotulo_premio(g["premio"], p["liga"]), g["nome"]))
+            na_selecao = [g["nome"] for g in p["selecao"] if g["clube_id"] == G["clube"]]
+            if na_selecao:
+                noticia(G, "Na selecao da %s: %s." % (p["liga"], ", ".join(na_selecao)))
+    return todos
+
+
 def apurar_temporada(G: Mundo) -> Dict[str, Any]:
     """Fecha a conta do ano que acabou. Nao muda nada no mundo."""
     c = G["clubes"][G["clube"]]
@@ -8430,6 +8558,7 @@ def apurar_temporada(G: Mundo) -> Dict[str, Any]:
                      "vendido": int(vendido), "comprado": int(comprado)},
         "vendas": [list(v) for v in st.get("vendas", [])],
         "compras": [list(v) for v in st.get("compras", [])],
+        "premios_ano": premios_do_ano(G, div),
         # o extrato por categoria (a virada completa com a premiacao da liga)
         "extrato": dict(st.get("extrato", {})),
         # completados por encerrar_temporada
@@ -8487,6 +8616,10 @@ def encerrar_temporada(G: Mundo, resumo: Dict[str, Any]) -> Tuple[bool, Dict[str
         marco(G, ("Acesso da Serie %s para a %s" if tipo == "acesso"
                   else "Rebaixamento da Serie %s para a %s") % (de, para))
         mexer_rep_tecnico(G, 5 if tipo == "acesso" else -6)
+
+    # antes de devolver os emprestados: o premio e de quem jogou por aqui
+    premios = premiar_ano(G)
+    resumo["premios_ano"] = next((p for p in premios if p["divisao"] == div_antes), None)
 
     resumo["voltando"] = [G["jogadores"][p]["nome"] for p in c.get("emprestados", [])
                           if p in G["jogadores"]]
@@ -8586,6 +8719,16 @@ def texto_resumo(G: Mundo, r: Dict[str, Any]) -> List[str]:
     if r["garcom"]:
         nome, a, jj = r["garcom"]
         linhas.append("Mais assistencias: %s, %d em %s" % (nome, a, plural(jj, "jogo")))
+    pr = r.get("premios_ano")
+    if pr:
+        for chave, rotulo in (("melhor", "Melhor da liga"), ("artilheiro", "Artilheiro da liga"),
+                              ("revelacao", "Revelacao")):
+            g = pr.get(chave)
+            if g:
+                linhas.append("%s: %s (%s)" % (rotulo, g["nome"], g["clube"]))
+        nossos = [g["nome"] for g in pr.get("selecao", []) if g["clube"] == r["clube"]]
+        if nossos:
+            linhas.append("Na selecao do campeonato: " + ", ".join(nossos))
     linhas.append("Caixa: %s -> %s   (%s no ano)"
                   % (din(fin["caixa_ini"]), din(fin["caixa_fim"]),
                      ("+" if saldo >= 0 else "") + din(saldo)))
@@ -8718,7 +8861,7 @@ def corrigir_inflacao(G):
         j["ovr"] = alvo
         j["pot"] = int(min(TETO_REVISAO + 3, alvo + folga))
         j["salario"] = salario_devido(j)
-        j["valor"] = valor_de(j["ovr"], j["idade"], j["pot"])
+        j["valor"] = valor_jogador(j)
         mexidos += 1
     for j in G["jogadores"].values():
         if da_base(j) and j["pot"] > 88:

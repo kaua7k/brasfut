@@ -501,7 +501,8 @@ def _propostas_emprego(G):
 
 ROTULO_FEED = {"resultado": "Resultado", "tabela": "Classificacao", "copa": "Copa",
                "titulo": "Titulo", "mercado": "Mercado", "lesao": "Lesao",
-               "abertura": "Brasileirao", "tecnico": "Treinador"}
+               "abertura": "Brasileirao", "tecnico": "Treinador",
+               "premio": "Premio"}
 
 
 def _mundo(G, quantas):
@@ -1164,6 +1165,7 @@ def ficha(pid):
         ],
         "temporada": {"j": j["j"], "g": j["g"], "a": j["a"], "ca": j["ca"], "cv": j["cv"]},
         "carreira": {"j": j["car_j"], "g": j["car_g"], "tit": j["car_tit"]},
+        "premios": ["%s %d" % (p["nome"], p["temporada"]) for p in reversed(j.get("premios", []))],
         "contrato": {"anos": j["contrato"], "salario": eng.din(j["salario"]),
                      "valor": eng.din(j["valor"]),
                      "emprestado_aqui": bool(j.get("dono")),
@@ -1564,6 +1566,34 @@ def resumo(r, previa=False):
     for nome, pos, j, g, a in r.get("destaques", []):
         destaques.append(item("%s (%s): %d jogos, %d gols, %d assistencias" % (nome, pos, j, g, a)))
     secao("Seus destaques", destaques or [item("Ninguem marcou nesta temporada.")])
+    pr = r.get("premios_ano")
+    if pr:
+        # os premios da liga do clube; na previa ja estao decididos, so nao
+        # foram entregues (historico e valor mudam na virada)
+        meu = r.get("clube")
+
+        def estado(g):
+            return "ok" if g["clube"] == meu else "neutro"
+
+        linhas = []
+        for chave, rotulo in (("melhor", "Melhor jogador"), ("artilheiro", "Artilheiro"),
+                              ("revelacao", "Revelacao (ate 21 anos)")):
+            g = pr.get(chave)
+            if not g:
+                continue
+            numero = (eng.plural(g["gols"], "gol") if chave == "artilheiro"
+                      else "media %.2f" % g["media"])
+            linhas.append(item("%s: %s (%s, %s), %s em %s" % (
+                rotulo, g["nome"], g["pos"], g["clube"], numero, eng.plural(g["jogos"], "jogo")), estado(g)))
+        if pr.get("selecao"):
+            linhas.append(item("Selecao do campeonato: " + ", ".join(
+                "%s %s (%s)" % (g["pos"], g["nome"], g["clube"]) for g in pr["selecao"])))
+            nossos = [g["nome"] for g in pr["selecao"] if g["clube"] == meu]
+            if nossos:
+                linhas.append(item("Seus na selecao: " + ", ".join(nossos), "ok"))
+        linhas.append(item("Contam jogos de todas as competicoes; media de nota exige %s."
+                           % eng.plural(pr.get("minimo", 0), "jogo com nota")))
+        secao("Premios da %s" % pr["liga"], linhas)
     if "extrato" in r:
         # o extrato do ano: uma linha por categoria, e a soma fecha com o caixa
         resultado = fin["caixa_fim"] - fin["caixa_ini"]
@@ -1640,4 +1670,89 @@ def resumo(r, previa=False):
         "nota": ("Diretoria, acesso e rebaixamento, fim de contratos, base e premiacao se "
                  "decidem na virada: clique em Comecar o ano %d." % (r["temporada"] + 1)) if previa else
                 "O mercado ja esta aberto e o estadual so comeca quando voce mandar.",
+    }
+
+
+# ------------------------------------------------------------ ajuda e boas-vindas
+def _janelas():
+    """As semanas de janela, em faixas: 'semanas 1 a 4 e 19 a 22'."""
+    sem = sorted(eng.JANELAS)
+    faixas, ini = [], None
+    for i, s in enumerate(sem):
+        if ini is None:
+            ini = s
+        if i + 1 == len(sem) or sem[i + 1] != s + 1:
+            faixas.append("%d a %d" % (ini, s) if s != ini else str(s))
+            ini = None
+    return " e ".join(faixas)
+
+
+def ajuda():
+    """O que cada tela faz e o que os termos querem dizer. Os numeros saem do
+    motor, para a ajuda nao mentir quando uma regra mudar."""
+    nomes = {k: n for k, n, _ in MENU}
+    telas = {
+        "painel": "O veredito da semana: se o time tem condicao de entrar em campo, a ultima "
+                  "partida (com notas e lances) e o proximo adversario.",
+        "elenco": "Todos os seus jogadores. Marque varios para vender, renovar ou emprestar de uma vez.",
+        "base": "Os garotos da academia. Nao jogam ate subir ao profissional; ao passar da idade, "
+                "sobem ou sao liberados.",
+        "treino": "Como o elenco evolui. O regime da semana vale para todos; o trabalho "
+                  "individual acelera quem voce escolher.",
+        "escalacao": "O time que entra em campo, a formacao, a tatica, o plano de jogo e as "
+                     "instrucoes para quando estiver perdendo ou vencendo.",
+        "tabela": "Classificacao das quatro series e dos estaduais do ano.",
+        "copas": "Estaduais, series e copas: Copa do Brasil, Libertadores e Sul-Americana.",
+        "mercado": "Comprar, vender, pegar e ceder por emprestimo. Negociar pode sempre; o "
+                   "jogador so troca de clube com a janela aberta.",
+        "financas": "Caixa, extrato do ano, patrocinio e folha salarial.",
+        "estadio": "Preco do ingresso e obras de ampliacao.",
+        "infra": "CT, departamento medico e academia de base: o que faz o elenco evoluir e "
+                 "se machucar menos.",
+        "noticias": "O que aconteceu no clube e no resto do futebol.",
+        "carreira": "Sua trajetoria de treinador: clubes, titulos, marcos e propostas de emprego.",
+    }
+    termos = [
+        ("OVR", "Overall: o nivel do jogador hoje, de 1 a 99."),
+        ("Teto", "Ate onde o olheiro acha que ele pode chegar. E uma previsao, e se corrige "
+                 "com o que ele render em campo."),
+        ("Condicao", "O fisico. Abaixo de 60 o jogador rende bem menos."),
+        ("Forma e moral", "Como ele vem jogando e como esta se sentindo no clube."),
+        ("Nota", "Na partida: 6.0 e jogo correto; gol, assistencia e vitoria sobem, derrota desce."),
+        ("Janela", "As semanas em que jogador pode entrar e sair: %s, mais a pre-temporada "
+                   "e o estadual inteiros." % _janelas()),
+        ("Intocavel", "No Mercado: o clube depende dele e o preco pedido sobe 55%."),
+        ("Confianca", "O humor da diretoria, de 0 a 100, andando toda semana. Abaixo de %d vem o "
+                      "aviso; depois do aviso, abaixo de %d, a demissao."
+                      % (eng.CONFIANCA_AVISO, eng.CONFIANCA_DEMISSAO)),
+        ("Premios do ano", "Na virada: melhor jogador (media de nota), artilheiro, revelacao "
+                           "(ate %d anos) e a selecao de cada serie." % eng.REVELACAO_IDADE),
+    ]
+    return {
+        "telas": [{"nome": nomes[k], "texto": telas[k]} for k, _, _ in MENU if k in telas],
+        "termos": [{"nome": n, "texto": t} for n, t in termos],
+    }
+
+
+def boas_vindas(G):
+    """A apresentacao da carreira nova, como a janela tkinter mostrava."""
+    c = G["clubes"][G["clube"]]
+    return {
+        "clube": c["nome"],
+        "linha": "%s · %s · caixa de %s · elenco de %s" % (
+            eng.nome_da_liga(G, c["divisao"]), c["estadio"], eng.din(c["dinheiro"]),
+            eng.plural(len(c["elenco"]), "jogador")),
+        "objetivo": G["objetivo"],
+        "aviso": "A diretoria avalia toda semana: abaixo de %d de confianca vem o aviso, e "
+                 "depois dele, abaixo de %d, a demissao." % (eng.CONFIANCA_AVISO, eng.CONFIANCA_DEMISSAO),
+        "passos": [
+            {"nome": "Olhe o Painel", "texto": "Ele responde uma pergunta so: da para avancar a "
+                                               "semana agora? A faixa colorida no alto e o veredito."},
+            {"nome": "Confira a Escalacao", "texto": "O time se monta sozinho, mas e ali que ficam a "
+                                                     "formacao, a tatica e o plano de jogo."},
+            {"nome": "Avance a semana", "texto": "O botao azul no alto, a direita. Na volta aparece "
+                                                 "a partida, com placar, lances e notas."},
+        ],
+        "sem_pressa": "Nada acontece enquanto voce nao avancar. Pode abrir todas as telas e "
+                      "mexer no elenco antes de rolar a bola.",
     }
