@@ -326,8 +326,8 @@ ASS_W = {"GOL": 0.0, "ZAG": 4, "LAT": 16, "VOL": 10, "MEI": 40, "ATA": 30}
 ELENCO_PADRAO = {"GOL": 3, "ZAG": 5, "LAT": 4, "VOL": 4, "MEI": 5, "ATA": 5}
 
 # receita semanal de TV/patrocinio por divisao: (base, por ponto de reputacao)
-TV = {"A": (420_000, 15_000), "B": (250_000, 6_000),
-      "C": (120_000, 2_500), "D": (60_000, 1_500), "EX": (0, 0)}
+TV = {"A": (320_000, 11_500), "B": (170_000, 4_500),
+      "C": (120_000, 2_500), "D": (105_000, 1_800), "EX": (0, 0)}
 
 DIVISOES_BR = ("A", "B", "C", "D")
 
@@ -2208,16 +2208,40 @@ def manutencao_por_lugar(c: Clube) -> float:
     return 0.2 + 0.015 * c["reputacao"]
 
 
+# Torcida que vai ao estadio num jogo comum, com ingresso de referencia:
+# constante da divisao x (reputacao/50)^2. Antes o publico era uma fracao da
+# CAPACIDADE, e estadio grande enchia sozinho (Serie D com 8,6 mil por jogo,
+# ampliar sempre compensava). Agora o estadio so limita: lugar sobrando e
+# manutencao. Medias por divisao perto de A 27 mil, B 11 mil, C 5 mil, D 2,5 mil.
+DEMANDA_DIVISAO = {"A": 12_000, "B": 9_000, "C": 7_000, "D": 6_000,
+                   "ENG": 15_000, "ESP": 12_000, "GER": 16_000, "ITA": 11_000,
+                   "FRA": 10_000, "POR": 7_000, "NED": 8_000, "USA": 8_000, "SAU": 5_000}
+DEMANDA_PADRAO = 8_000
+
+
+def demanda_torcida(c: Clube) -> float:
+    k = DEMANDA_DIVISAO.get(c["divisao"], DEMANDA_PADRAO)
+    return k * (c["reputacao"] / 50.0) ** 2
+
+
+def publico_esperado(c: Clube) -> int:
+    """Publico de um jogo comum com o ingresso atual (sem sorteio)."""
+    elast = clamp(1.35 - 0.55 * (c["preco"] / max(8.0, preco_referencia(c))), 0.15, 1.35) / 0.80
+    return int(min(c["capacidade"] * 0.99, demanda_torcida(c) * elast))
+
+
 def publico_e_renda(G, casa, fora, comp):
     cap = casa["capacidade"]
     rel = fora["reputacao"] / max(30.0, casa["reputacao"])
-    atrat = 0.30 + 0.22 * min(1.6, rel) + 0.0035 * casa["reputacao"]
+    # adversario grande e copa enchem mais; 1,0 = jogo comum contra um igual
+    jogo = 0.30 + 0.22 * min(1.6, rel)
     if comp != "liga":
-        atrat += 0.06
+        jogo += 0.06
+    jogo /= 0.52
     preco_ref = preco_referencia(casa)
-    elast = clamp(1.35 - 0.55 * (casa["preco"] / max(8.0, preco_ref)), 0.15, 1.35)
-    taxa = clamp(atrat * elast * rng.uniform(0.82, 1.18), 0.05, 0.99)
-    pub = int(cap * taxa)
+    elast = clamp(1.35 - 0.55 * (casa["preco"] / max(8.0, preco_ref)), 0.15, 1.35) / 0.80
+    pub = int(min(cap * 0.99, demanda_torcida(casa) * jogo * elast * rng.uniform(0.82, 1.18)))
+    pub = max(pub, int(cap * 0.02))
     renda = int(pub * casa["preco"])
     return pub, renda
 
@@ -2521,6 +2545,7 @@ def simular(G, casa_id, fora_id, comp="liga", neutro=False):
         pub, renda = publico_e_renda(G, casa, fora, comp)
         fator_casa = 1.10 + 0.10 * (pub / max(1, casa["capacidade"]))
         lancar(G, casa, renda, "bilheteria")
+        lancar(G, casa, -int(renda * CUSTO_JOGO_CASA), "operacao_jogo")
 
     posse = posse_de(G, casa, fora, esc_c, esc_f)
     eventos, subs = [], []
@@ -3633,11 +3658,24 @@ def folha_semanal(G, c):
     return int(total / 4.0) + custo_base(G, c)
 
 
+# Custos calibrados em 2026-09-25 (economia, entrega 4) com a temporada
+# inteira de todos os clubes brasileiros medida por divisao.
+# - cada nivel de CT, base e medico custa uma fracao da receita fixa: antes era
+#   quase fixo por nivel e comia 16% da receita de um grande e 45% da de um
+#   clube da Serie D (custo regressivo que esmagava o pequeno);
+# - operacional (comissao, viagens, impostos) sobe de 45% para 60%;
+# - cada jogo em casa custa 45% da renda (seguranca, staff, arbitragem).
+CUSTO_NIVEL = 0.011
+CUSTO_OPERACIONAL = 0.60
+CUSTO_JOGO_CASA = 0.45
+
+
 def custo_estrutura(c):
     """Estrutura, comissao, viagens, impostos e manutencao."""
-    fixo = (c["ct"] + c["base"] + c["medico"]) * (1_800 + 200 * c["reputacao"])
+    base = _receita_base(c)
+    fixo = (c["ct"] + c["base"] + c["medico"]) * base * CUSTO_NIVEL
     fixo += c["capacidade"] * manutencao_por_lugar(c)
-    operacional = _receita_base(c) * 0.45
+    operacional = base * CUSTO_OPERACIONAL
     return int(fixo + operacional) + custo_treino(c)
 
 
@@ -3656,7 +3694,7 @@ RESERVA_MESES = 3
 
 def bilheteria_mensal_estimada(c: Clube) -> int:
     """Mesma estimativa que sob_pressao usa: dois jogos em casa por mes, em media."""
-    return int(c["capacidade"] * c["preco"] * 0.22 * 4)
+    return int(publico_esperado(c) * c["preco"] * 2)       # dois jogos em casa por mes
 
 
 def orcamento_mensal(G: Mundo, c: Clube) -> Dict[str, int]:
@@ -3690,7 +3728,7 @@ def sob_pressao(G, c):
     a liga inteira quebra depois de uma decada. O clube reage antes de furar o
     caixa, como um clube de verdade faria.
     """
-    receita_mes = (receita_semanal(G, c) + c["capacidade"] * c["preco"] * 0.22) * 4
+    receita_mes = receita_semanal(G, c) * 4 + bilheteria_mensal_estimada(c)
     return folha_semanal(G, c) * 4 > receita_mes * 0.82
 
 
@@ -3951,6 +3989,12 @@ def jogar_fase_copa(G, chave):
                                       "penaltis": r2.get("penaltis"), "venc": venc})
         prox.append(venc)
         perd = G["clubes"][b if venc == a else a]
+        # premio por fase: quem passa ganha uma fatia; na final, o vice leva 40%
+        if final:
+            if perd["divisao"] != "EX":
+                lancar(G, perd, int(PREMIO_COPA.get(chave, 0) * FRACAO_VICE), "premio_copa")
+        elif G["clubes"][venc]["divisao"] != "EX":
+            lancar(G, G["clubes"][venc], premio_fase_copa(chave, len(vivos)), "premio_copa")
         if perd["reputacao"] >= GRANDE_REP and perd["divisao"] != "EX" and not final:
             manchete(G, "copa", "%s elimina %s na %s (%s)." % (
                 G["clubes"][venc]["nome"], perd["nome"], cp["nome"], registro["fase"].lower()))
@@ -6260,6 +6304,17 @@ def premio_liga(div: str, posicao: int) -> int:
 
 PREMIO_COPA = {"copa": 78_000_000, "lib": 130_000_000, "sul": 30_000_000,
                "ucl": 350_000_000, "uel": 90_000_000}
+# passar de fase paga uma fracao do premio do campeao (pelo numero de clubes
+# vivos na rodada); o vice leva 40%. Antes so o campeao recebia.
+FRACAO_FASE = ((32, 0.01), (16, 0.02), (8, 0.04), (4, 0.07))
+FRACAO_VICE = 0.40
+
+
+def premio_fase_copa(chave: str, vivos: int) -> int:
+    """O que ganha quem passa de uma rodada com `vivos` clubes (final fora)."""
+    total = PREMIO_COPA.get(chave, 0)
+    frac = next((f for minimo, f in FRACAO_FASE if vivos >= minimo), 0.0)
+    return int(total * frac)
 
 
 def premiacao(G):
@@ -8138,6 +8193,7 @@ EXTRATO = (
     ("premio_copa", "Premio de copa"), ("premio_grupo", "Vitorias na fase de grupos"),
     ("vendas", "Venda de jogadores"), ("emprestimos", "Taxas de emprestimo"),
     ("folha", "Folha salarial"), ("estrutura", "Estrutura e operacao"),
+    ("operacao_jogo", "Operacao dos jogos em casa"),
     ("treino", "Treino individual"), ("peneira", "Peneira da base"),
     ("compras", "Compra de jogadores"), ("rescisoes", "Rescisoes"),
     ("obras", "Obras no estadio"), ("infra", "Infraestrutura"),

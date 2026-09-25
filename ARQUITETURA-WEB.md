@@ -660,6 +660,22 @@ base de uma temporada. Extrato ganha "Patrocínio" e "Bônus de patrocínio";
 Finanças mostra contratos e propostas (no topo quando há espaço vago) e o
 Painel avisa. Rota `POST /api/patrocinio/assinar`.
 
+**Rebalanceamento** (economia, entrega 4). Público vem da torcida:
+`demanda_torcida` = `DEMANDA_DIVISAO[div]` × (reputação/50)², vezes o peso
+do jogo (adversário, copa) e a elasticidade do preço; a capacidade só limita
+(antes o público era fração da capacidade e estádio grande enchia sozinho).
+Custos: cada nível de CT/base/médico custa `CUSTO_NIVEL` (1,1%) da receita
+fixa (antes era quase fixo por nível: 16% da receita de um grande, 45% da de
+um clube da Série D); operacional `CUSTO_OPERACIONAL` 60%; cada jogo em casa
+paga `CUSTO_JOGO_CASA` (45%) da renda em operação. Cotas de TV por série
+recalibradas (A 320 mil + 11,5 mil/rep, B 170 mil + 4,5 mil, C igual, D 105
+mil + 1,8 mil, por semana). Copas pagam por fase (`premio_fase_copa`, fração
+do prêmio do campeão pelo número de vivos) e 40% ao vice. Medido em duas
+temporadas, todos os clubes brasileiros: margem mediana A +9%, B +7%, C +3%,
+D -2% (14 de 20 no vermelho); caixa BR cresce cerca de 35% ao ano, puxado
+por vendas (antes quase triplicava num ano); público médio A 27,8 mil, D 2
+mil.
+
 **Capturas.** `ferramentas/capturas.py` sobe uma cópia isolada do jogo
 (motor, api, `web/dist` e cópia do save) na porta 8791, abre o save e
 fotografa as 13 telas (`--avancar N` joga N semanas na cópia antes; `--query` põe parâmetro na URL, para build de teste) em 1280x720, 1366x768, 1440x900, 1920x1080 e
@@ -756,6 +772,8 @@ velha para apagar na mão. `--sim` não trava, porque não grava no save.
 - **`test_patrocinio.py`** propostas estáveis, acesso na Série B, assinar e
   assinatura automática, bônus e vencimento na virada, herança na troca de
   clube e no save antigo.
+- **`test_rebalanceamento.py`** público pela torcida, ampliar sem torcida só
+  custa, infra proporcional ao porte, operação de jogo, prêmio por fase.
 - **`test_tokens.py`** lint visual: cor e fonte só por token, escala de
   seis degraus, sem `--acento`, sem inline fixo no TSX.
 

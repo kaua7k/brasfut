@@ -144,6 +144,30 @@ padrão; prazo longo sai um pouco mais barato por mês), e a folha antes e depoi
 renova todos pelo que pediram. Quer pechinchar? Marque só aquele jogador: abre a mesa de
 negociação, com três tentativas.
 
+## Dinheiro do clube
+
+O clube vive de quatro receitas: **cotas de TV** (fixas por semana, pela série e pela
+reputação), **patrocínio** (os contratos, abaixo), **bilheteria** e **premiação**. Os custos
+são a folha, a estrutura (comissão, viagens, impostos e a manutenção do CT, da base, do
+departamento médico e de cada lugar do estádio) e a operação de cada jogo em casa, que
+leva 45% da renda.
+
+- **O público é a torcida, não o estádio.** Cada clube tem uma torcida do tamanho da sua
+  reputação e da sua série: um grande da Série A leva uns 40 mil num jogo comum; um clube
+  da Série D, 2 mil. Adversário grande e jogo de copa enchem mais; ingresso caro esvazia.
+  O estádio só limita: ampliar além da torcida é custo de manutenção sem retorno. A tela
+  Estádio compara a torcida com a capacidade.
+- **Manutenção proporcional ao porte.** Cada nível de CT, base e médico custa uma fração
+  da receita do próprio clube, então o pequeno não é esmagado por ter estrutura.
+- **Copas pagam por fase.** Passar de fase rende uma parte do prêmio do campeão (mais
+  perto do título, mais dinheiro), e o vice leva 40%.
+
+Medido em duas temporadas com todos os clubes brasileiros: o grande da Série A lucra
+pouco (margem mediana de 9% da receita), Séries B e C ficam perto do empate, e a maioria
+da Série D vive no limite, levemente no vermelho. Quem gasta em salário além da receita
+fecha o ano no prejuízo. A venda de jogadores continua sendo o melhor dinheiro que um
+clube brasileiro faz.
+
 ## Patrocínio
 
 O clube tem dois contratos de patrocínio: o **master** e o **fornecedor de uniforme**. Cada
