@@ -826,7 +826,8 @@ DICA_EXTRATO = {
     "bilheteria": "jogos em casa: publico vezes ingresso (veja Estadio)",
     "premio_liga": "paga na virada do ano, pela posicao final",
     "premio_estadual": "so o campeao recebe",
-    "premio_copa": "so o campeao recebe",
+    "premio_copa": "passar de fase, vice e campeao das copas",
+    "operacao_jogo": "parte da renda de cada jogo em casa: seguranca, staff e arbitragem",
     "premio_grupo": "cada vitoria na fase de grupos do continental",
     "vendas": "passes vendidos",
     "emprestimos": "taxas de emprestimo pagas e recebidas",
@@ -911,9 +912,13 @@ def _premiacao_em_jogo(G, c):
                       "dica": "a liga ainda nao comecou; paga pela posicao final"})
     for chave, cp in G["copas"].items():
         if cp.get("campeao") is None and c["id"] in cp.get("vivos", []) and eng.PREMIO_COPA.get(chave):
+            vivos = len(cp.get("vivos", []))
+            fase = eng.premio_fase_copa(chave, vivos) if vivos > 2 else 0
             itens.append({"nome": "%s, se for campeao" % cp["nome"],
                           "valor": eng.din(eng.PREMIO_COPA[chave]),
-                          "dica": "so o campeao recebe"})
+                          "dica": ("passar desta fase paga %s; o vice leva %s"
+                                   % (eng.din(fase), eng.din(eng.PREMIO_COPA[chave] * eng.FRACAO_VICE)))
+                                  if fase else "o vice leva %s" % eng.din(eng.PREMIO_COPA[chave] * eng.FRACAO_VICE)})
     est = eng.meu_estadual(G)
     if est and G.get("fase") == "estadual" and not est.get("campeao"):
         itens.append({"nome": "%s, se for campeao" % est["nome"],
@@ -1469,7 +1474,15 @@ def _rendimento_estadio(G, c):
         ]
     else:
         linhas.append({"nome": "Jogos em casa no ano", "valor": "nenhum ainda"})
+    demanda = eng.demanda_torcida(c)
     linhas += [
+        {"nome": "Torcida num jogo comum", "valor": "%s pessoas" % milhar(demanda),
+         "dica": ("com ingresso de referencia; o estadio tem %s lugares%s"
+                  % (milhar(c["capacidade"]),
+                     " - lugar sobrando so custa manutencao" if c["capacidade"] > demanda * 1.3 else "")),
+         "estado": "atencao" if c["capacidade"] > demanda * 1.3 else None},
+        {"nome": "Operacao de cada jogo em casa", "valor": "%d%% da renda" % round(eng.CUSTO_JOGO_CASA * 100),
+         "dica": "seguranca, staff e arbitragem saem da bilheteria"},
         {"nome": "Ingresso de referencia da sua torcida", "valor": "R$ %d" % round(ref),
          "dica": "acima disso o publico cai rapido; adversario grande e copa enchem mais"},
         {"nome": "Manutencao de cada 1.000 lugares", "valor": eng.din(1000 * eng.manutencao_por_lugar(c)) + " por semana",

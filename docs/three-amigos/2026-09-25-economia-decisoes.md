@@ -40,3 +40,15 @@
 ## 4. Guardas
 - Entrega 1: harness `desempenho.py` com saida identica (so registra).
 - Entregas 2 a 4: `testes/balanceamento.py` e a medicao de temporada por clube (receita, bilheteria, premio, folha, estrutura, saldo) antes e depois.
+
+## 5. Resultado (entrega 4, medido em 2 temporadas, todos os clubes brasileiros)
+
+| Divisao | Margem mediana | No vermelho | Publico medio |
+|---|---|---|---|
+| A | +9% | 2 de 20 | 27,8 mil |
+| B | +7% | 2 de 20 | 11,1 mil |
+| C | +3% | 6 de 20 | 4,7 mil |
+| D | -2% | 14 de 20 | 2,0 mil |
+
+Antes: margens de +21% a +34% em todas as divisoes, publico da Serie D de 8,6 mil e caixa
+BR quase triplicando num ano. Depois: caixa BR cresce ~35% ao ano, puxado por vendas.
