@@ -435,6 +435,18 @@ SUPERCOPAS_NACIONAIS = {
     "COL": "Superliga Colombiana", "EQU": "Supercopa do Equador", "PER": "Supercopa Peruana",
     "BOL": "Supercopa Boliviana", "VEN": "Supercopa Venezuelana",
 }
+# Copa Intercontinental, todo ano, logo depois das finais: o campeao da
+# Libertadores pega o melhor da MLS (Derby das Americas) e quem passa decide com
+# o campeao da Champions. Campo neutro, jogo unico.
+SEMANAS_INTERCONTINENTAL = [37, 38]
+FASES_INTERCONTINENTAL = ["Derby das Americas", "FINAL"]
+# Mundial de Clubes de 32, a cada 4 anos (o de 2025 ja foi): 8 grupos de 4 em
+# turno unico e mata-mata em jogo unico, tudo em campo neutro, nas semanas
+# livres das copas continentais.
+ANO_MUNDIAL = 2029
+SEMANAS_MUNDIAL_GRUPOS = [18, 19, 24]
+SEMANAS_MUNDIAL = [25, 30, 31, 34]
+VAGAS_MUNDIAL = (("europeu", 14), ("conmebol", 8), ("USA", 5), ("SAU", 5))
 SEMANAS_COPA_NAC = {
     16: {"ENG": _CN16["A"], "ESP": _CN16["A"], "GER": _CN16["A"], "ITA": _CN16["A"],
          "FRA": _CN16["B"], "POR": _CN16["B"], "NED": _CN16["B"],
@@ -450,7 +462,8 @@ def semanas_copa_nac(codigo: str, n: int) -> List[int]:
 ORDEM_LIGAS_EXT = ["ENG", "ESP", "GER", "ITA", "FRA", "POR", "NED"]
 VAGAS_CHAMPIONS = {"ENG": 4, "ESP": 4, "GER": 4, "ITA": 4, "FRA": 3, "POR": 2, "NED": 2}
 # o que cada vitoria na fase de grupos paga a um clube brasileiro
-PREMIO_VITORIA_GRUPO = {"lib": 1_800_000, "sul": 900_000, "ucl": 12_000_000, "uel": 4_000_000}
+PREMIO_VITORIA_GRUPO = {"lib": 1_800_000, "sul": 900_000, "ucl": 12_000_000, "uel": 4_000_000,
+                        "mundial": 6_000_000}
 JANELAS = list(range(1, 5)) + list(range(19, 23))   # semanas com mercado aberto
 
 # ----------------------------------------------------------------------------
@@ -1380,6 +1393,92 @@ def montar_copas(G, primeira=False):
     montar_copas_nacionais(G)
     for chave, cp in supercopas:
         G["copas"][chave] = cp
+    # depois da Champions no dicionario: na semana 37 a final dela ja saiu
+    G["copas"]["intercontinental"] = nova_intercontinental()
+    if ano_de_mundial(int(G["temporada"])) and not primeira:
+        mundial = montar_mundial(G)
+        if mundial:
+            G["copas"]["mundial"] = mundial
+
+
+def nova_intercontinental():
+    return {"nome": "Copa Intercontinental", "vivos": [], "fase": 0,
+            "semanas": list(SEMANAS_INTERCONTINENTAL), "fases": list(FASES_INTERCONTINENTAL),
+            "campeao": None, "historico": [], "sorteio": [], "espera": [],
+            "jogo_unico": True, "neutro": True, "intercontinental": True}
+
+
+def _lider(G, codigo):
+    liga = G["ligas"].get(codigo)
+    return classificacao(G, liga)[0] if liga and liga["times"] else None
+
+
+def preparar_intercontinental(G):
+    """Assim que a Libertadores tem campeao, o Derby das Americas ganha os dois
+    lados (o melhor da MLS agora; sem MLS, o da Arabia)."""
+    cp = G["copas"].get("intercontinental")
+    if not cp or cp["vivos"] or cp["campeao"] or cp["fase"]:
+        return
+    lib = (G["copas"].get("lib") or {}).get("campeao")
+    if lib is None:
+        return
+    rival = _lider(G, "USA") or _lider(G, "SAU")
+    if rival is None or rival == lib:
+        return
+    cp["vivos"] = [lib, rival]
+    cp["sorteio"] = [[rival, lib]]
+
+
+def entrar_campeao_europeu(G, cp):
+    """Na hora do Derby: o campeao da Champions (final na mesma semana, antes
+    no calendario) espera na final."""
+    ucl = (G["copas"].get("ucl") or {}).get("campeao")
+    if cp["fase"] == 0 and ucl is not None and ucl not in cp["vivos"] and not cp["espera"]:
+        cp["espera"] = [ucl]
+
+
+def ano_de_mundial(temporada: int) -> bool:
+    return temporada >= ANO_MUNDIAL and (temporada - ANO_MUNDIAL) % 4 == 0
+
+
+def montar_mundial(G):
+    """Os 32: campeoes da Champions e da Libertadores do ano que acabou, e o
+    resto por reputacao em cada bloco (Europa, America do Sul com os
+    brasileiros, MLS e Arabia). Bloco que nao fecha e completado pela Europa."""
+    anteriores = G.get("copas") or {}
+    clubes = G["clubes"].values()
+    blocos = {
+        "europeu": [c for c in clubes if c.get("europeu")],
+        "conmebol": [c for c in clubes if c["divisao"] in DIVISOES_BR or c["divisao"] in CODIGOS_SUL],
+        "USA": [c for c in clubes if c["divisao"] == "USA"],
+        "SAU": [c for c in clubes if c["divisao"] == "SAU"],
+    }
+    campeoes = {"europeu": (anteriores.get("ucl") or {}).get("campeao"),
+                "conmebol": (anteriores.get("lib") or {}).get("campeao")}
+    times, falta = [], 0
+    for bloco, n in VAGAS_MUNDIAL:
+        ordem = sorted((c["id"] for c in blocos[bloco]), key=lambda i: -G["clubes"][i]["reputacao"])
+        primeiro = campeoes.get(bloco)
+        if primeiro in G["clubes"]:
+            ordem = [primeiro] + [i for i in ordem if i != primeiro]
+        escolhidos = ordem[:n]
+        falta += n - len(escolhidos)
+        times += escolhidos
+    if falta:
+        resto = sorted((c["id"] for c in blocos["europeu"] if c["id"] not in times),
+                       key=lambda i: -G["clubes"][i]["reputacao"])
+        times += resto[:falta]
+    if len(times) < 32:
+        return None
+    grupos = sortear_grupos_continentais(G, times)
+    for g in grupos:
+        a, b, c, d = g["times"]
+        g["rodadas"] = [[[a, b], [c, d]], [[a, c], [d, b]], [[d, a], [b, c]]]
+    return {"nome": "Mundial de Clubes", "vivos": list(times), "fase": 0,
+            "semanas": list(SEMANAS_MUNDIAL), "fases": list(FASES_LIB), "campeao": None,
+            "historico": [], "sorteio": [], "espera": [], "grupos": grupos,
+            "semanas_grupos": list(SEMANAS_MUNDIAL_GRUPOS), "rodada_grupo": 0,
+            "formato": "grupos_top2", "jogo_unico": True, "neutro": True}
 
 
 def _decisao(nome, a, b, **extra):
@@ -1637,7 +1736,7 @@ def jogar_rodada_grupos(G, chave):
             continue
         placares = []
         for casa, fora in g["rodadas"][g["rodada"]]:
-            r = simular(G, casa, fora, chave)
+            r = simular(G, casa, fora, chave, neutro=bool(cp.get("neutro")))
             registrar(g, casa, fora, r["gc"], r["gf"])
             placares.append([casa, fora, r["gc"], r["gf"]])
             res.append(r)
@@ -1674,6 +1773,16 @@ def fechar_grupos(G):
         cp["sorteio"] = cruzar(G, ordem[8:16], ordem[16:24])
         manchete(G, "copa", "%s: %s termina a fase de liga em primeiro." %
                  (cp["nome"], G["clubes"][ordem[0]]["nome"]))
+    for chave, cp in G["copas"].items():
+        if cp.get("formato") != "grupos_top2" or cp.get("grupos_fechados") or em_grupos(cp):
+            continue
+        ordens = [classificacao(G, g) for g in cp["grupos"]]
+        primeiros, segundos = [o[0] for o in ordens], [o[1] for o in ordens]
+        cp["grupos_fechados"] = True
+        cp["vivos"] = primeiros + segundos
+        cp["sorteio"] = cruzar(G, primeiros, segundos)
+        if meu in cp["vivos"]:
+            noticia(G, "%s: classificado para o mata-mata." % cp["nome"])
     for chave in ("lib", "sul"):
         cp = G["copas"].get(chave)
         if not cp or not cp.get("grupos") or cp.get("grupos_fechados") or em_grupos(cp):
@@ -4310,7 +4419,8 @@ def jogar_fase_copa(G, chave):
         return []
     pares = [tuple(par) for par in sorteio_da_copa(G, chave)]
     # a Recopa decide em ida e volta: a "final" dela nao e jogo unico
-    final = len(vivos) == 2 and not cp.get("final_ida_volta")
+    # com clube esperando (o campeao europeu na Intercontinental) ainda nao e a final
+    final = len(vivos) == 2 and not cp.get("final_ida_volta") and not cp.get("espera")
     res, prox = [], []
     # o que a fase deixou: vai para o historico, que a tela de competicoes le
     registro = {"fase": fase_da_copa(cp), "semana": int(G["semana"]),
@@ -4319,7 +4429,7 @@ def jogar_fase_copa(G, chave):
     fundo = cp.get("fundo")
     for a, b in pares:
         if unico:
-            r = simular(G, a, b, chave, neutro=final)
+            r = simular(G, a, b, chave, neutro=final or bool(cp.get("neutro")))
             if r["gc"] > r["gf"]:
                 venc = a
             elif r["gf"] > r["gc"]:
@@ -4372,9 +4482,9 @@ def jogar_fase_copa(G, chave):
         cp["espera"] = []
     else:
         cp["sorteio"] = sortear_confrontos(G, prox) if len(prox) >= 2 else []
-    if len(prox) == 1:
-        cp["campeao"] = prox[0]
-        c = G["clubes"][prox[0]]
+    if len(cp["vivos"]) == 1:
+        cp["campeao"] = cp["vivos"][0]
+        c = G["clubes"][cp["campeao"]]
         dar_titulo(G, c, cp["nome"])
         premio = PREMIO_COPA.get(chave, 0)
         if c["divisao"] != "EX":
@@ -4420,12 +4530,15 @@ def avancar_semana(G):
             jogar = jogar_fase_copa         # o estadual acabou antes dela: joga agora
         else:
             jogar = None
+        if jogar and cp.get("intercontinental"):
+            entrar_campeao_europeu(G, cp)
         if jogar:
             for r in jogar(G, chave):
                 todos.append(r)
                 if G["clube"] in (r["casa"], r["fora"]):
                     meus.append(r)
     fechar_grupos(G)
+    preparar_intercontinental(G)
     ia_demite_tecnicos(G)
     manchetes_da_semana(G, todos, antes)
     G["ultimos_meus"] = [dict(r) for r in meus]
@@ -6740,7 +6853,8 @@ def premio_liga(div: str, posicao: int) -> int:
 
 PREMIO_COPA = {"copa": 78_000_000, "lib": 130_000_000, "sul": 30_000_000,
                "ucl": 350_000_000, "uel": 90_000_000,
-               "supercopa": 10_000_000, "recopa": 9_000_000}
+               "supercopa": 10_000_000, "recopa": 9_000_000,
+               "intercontinental": 25_000_000, "mundial": 180_000_000}
 # passar de fase paga uma fracao do premio do campeao (pelo numero de clubes
 # vivos na rodada); o vice leva 40%. Antes so o campeao recebia.
 FRACAO_FASE = ((32, 0.01), (16, 0.02), (8, 0.04), (4, 0.07))
@@ -9345,6 +9459,9 @@ def migrar(G):
         montar_ligas_sul(G, {j["nome"] for j in G["jogadores"].values()})
     if G.get("copas") and any(chave_copa_nac(k) not in G["copas"] for k in COPAS_NACIONAIS if k in G["ligas"]):
         montar_copas_nacionais(G, so_faltam=True)
+    if G.get("copas") and "intercontinental" not in G["copas"] and \
+            not (G.get("fase") == "liga" and G.get("semana", 0) >= SEMANAS_INTERCONTINENTAL[0]):
+        G["copas"]["intercontinental"] = nova_intercontinental()
     for j in G["jogadores"].values():
         j.setdefault("dono", None)
         j.setdefault("emp_pct", 100)
