@@ -421,6 +421,20 @@ COPAS_NACIONAIS = {
 # semana (80 jogos a mais numa semana so passava do limite de tempo)
 _CN16 = {"A": [9, 18, 25, 34], "B": [2, 19, 30, 38], "C": [4, 14, 24, 31]}
 _CN8 = {"A": [1, 18, 30], "B": [14, 25, 34]}
+# Supercopas: campeao contra campeao, com os titulos do ano anterior. A do
+# Brasil e a Recopa caem no estadual (rodada do estadual, semana_est); a da
+# UEFA e as nacionais de fora, na primeira semana da liga.
+SUPERCOPA_BR_EST = 2          # rodada do estadual da Supercopa do Brasil
+RECOPA_EST = 3                # e da Recopa (ida e volta na mesma semana)
+SEMANA_SUPERCOPAS = 1
+SUPERCOPAS_NACIONAIS = {
+    "ENG": "Community Shield", "ESP": "Supercopa da Espanha", "GER": "DFL-Supercup",
+    "ITA": "Supercoppa Italiana", "FRA": "Trophee des Champions", "POR": "Supertaca Candido de Oliveira",
+    "NED": "Johan Cruijff Schaal", "SAU": "Supercopa Saudita", "ARG": "Supercopa Argentina",
+    "URU": "Supercopa Uruguaya", "PAR": "Supercopa Paraguay", "CHI": "Supercopa de Chile",
+    "COL": "Superliga Colombiana", "EQU": "Supercopa do Equador", "PER": "Supercopa Peruana",
+    "BOL": "Supercopa Boliviana", "VEN": "Supercopa Venezuelana",
+}
 SEMANAS_COPA_NAC = {
     16: {"ENG": _CN16["A"], "ESP": _CN16["A"], "GER": _CN16["A"], "ITA": _CN16["A"],
          "FRA": _CN16["B"], "POR": _CN16["B"], "NED": _CN16["B"],
@@ -1332,6 +1346,7 @@ def montar_copas(G, primeira=False):
         ordem = ordem + faltam
 
     campeao_ucl = (G.get("copas") or {}).get("ucl", {}).get("campeao")
+    supercopas = [] if primeira else montar_supercopas(G, G.get("copas") or {})
     ex = sorted((c["id"] for c in G["clubes"].values()
                  if c["divisao"] == "EX" and not c.get("liga_ext") and not c.get("europeu")),
                 key=lambda i: -G["clubes"][i]["reputacao"])
@@ -1363,6 +1378,65 @@ def montar_copas(G, primeira=False):
     G["copas"]["copa"]["sorteio"] = sortear_confrontos(G, G["copas"]["copa"]["vivos"])
     montar_copas_europeias(G, primeira, campeao_ucl)
     montar_copas_nacionais(G)
+    for chave, cp in supercopas:
+        G["copas"][chave] = cp
+
+
+def _decisao(nome, a, b, **extra):
+    """Uma supercopa: dois clubes, uma fase so."""
+    cp = {"nome": nome, "vivos": [a, b], "fase": 0, "semanas": [], "campeao": None,
+          "historico": [], "sorteio": [[a, b]], "supercopa": True}
+    cp.update(extra)
+    return cp
+
+
+def _campeao_liga(G, codigo):
+    if codigo == "A":
+        ordem = G.get("class_A_anterior") or []
+    else:
+        ordem = G.get("class_ext_anterior", {}).get(codigo) or []
+    return [i for i in ordem if i in G["clubes"]]
+
+
+def montar_supercopas(G, anteriores):
+    """As supercopas do ano que comeca, com os campeoes do ano que acabou.
+    Quando o mesmo clube ganhou as duas coisas, o outro lado e o vice da liga."""
+    out = []
+
+    def par(liga_ordem, copa):
+        if not liga_ordem:
+            return None
+        a = liga_ordem[0]
+        b = (anteriores.get(copa) or {}).get("campeao")
+        if b is None or b == a or b not in G["clubes"]:
+            b = liga_ordem[1] if len(liga_ordem) > 1 else None
+        return (a, b) if b is not None else None
+
+    ab = par(_campeao_liga(G, "A"), "copa")
+    if ab:
+        out.append(("supercopa", _decisao("Supercopa do Brasil", *ab, semanas_est=[SUPERCOPA_BR_EST])))
+    lib = (anteriores.get("lib") or {}).get("campeao")
+    sula = (anteriores.get("sul") or {}).get("campeao")
+    if lib in G["clubes"] and sula in G["clubes"] and lib != sula:
+        out.append(("recopa", _decisao("Recopa Sul-Americana", lib, sula, semanas_est=[RECOPA_EST],
+                                       final_ida_volta=True)))
+    ucl = (anteriores.get("ucl") or {}).get("campeao")
+    uel = (anteriores.get("uel") or {}).get("campeao")
+    if ucl in G["clubes"] and uel in G["clubes"] and ucl != uel:
+        out.append(("supercopa_uefa", _decisao("Supercopa da UEFA", ucl, uel,
+                                               semanas=[SEMANA_SUPERCOPAS], fundo=True)))
+    for codigo, nome in SUPERCOPAS_NACIONAIS.items():
+        ab = par(_campeao_liga(G, codigo), chave_copa_nac(codigo))
+        if ab:
+            out.append(("sc_" + codigo, _decisao(nome, *ab, semanas=[SEMANA_SUPERCOPAS],
+                                                 fundo=True, pais=codigo)))
+    return out
+
+
+def copa_do_estadual_na_semana(cp, semana_est):
+    """Copa que se joga numa rodada do estadual (Supercopa, Recopa)."""
+    se = cp.get("semanas_est") or []
+    return not cp["campeao"] and cp["fase"] < len(se) and se[cp["fase"]] == semana_est
 
 
 def chave_copa_nac(codigo: str) -> str:
@@ -3703,6 +3777,12 @@ def _semana_estadual(G: Mundo) -> List[Dict[str, Any]]:
         for r in jogar_rodada_estadual(G, chave):
             if G["clube"] in (r["casa"], r["fora"]):
                 meus.append(r)
+    rodada = int(G.get("semana_est", 1))
+    for chave, cp in list(G["copas"].items()):
+        if copa_do_estadual_na_semana(cp, rodada):
+            for r in jogar_fase_copa(G, chave):
+                if G["clube"] in (r["casa"], r["fora"]):
+                    meus.append(r)
     G["ultimos_meus"] = [dict(r) for r in meus]
     guardar_historico(G, meus)
     for r in meus:
@@ -3735,7 +3815,12 @@ def _semana_estadual(G: Mundo) -> List[Dict[str, Any]]:
 def jogos_da_semana(G, cid):
     """Lista de (comp, casa, fora) do clube na semana atual."""
     if G.get("fase") == "estadual":
-        return jogos_estaduais_da_semana(G, cid)
+        out = jogos_estaduais_da_semana(G, cid)
+        rodada = int(G.get("semana_est", 1))
+        for k, cp in G["copas"].items():
+            if cid in cp["vivos"] and copa_do_estadual_na_semana(cp, rodada):
+                out.append((k, None, None))
+        return out
     out = []
     sem = G["semana"]
     c = G["clubes"][cid]
@@ -3754,6 +3839,8 @@ def jogos_da_semana(G, cid):
                 out.append((k, jogo[0], jogo[1]))
             continue
         if cp["fase"] < len(cp["semanas"]) and cp["semanas"][cp["fase"]] == sem:
+            out.append((k, None, None))
+        elif cp.get("semanas_est") and cp["fase"] < len(cp["semanas_est"]):
             out.append((k, None, None))
     return out
 
@@ -4137,6 +4224,9 @@ def _onde(G: Mundo, r: Dict[str, Any]) -> str:
     comp = NOME_COMP.get(r.get("comp"))
     if comp:
         return comp
+    cp = G.get("copas", {}).get(r.get("comp"))
+    if cp:
+        return cp["nome"]           # copas nacionais de fora, supercopas, Mundial
     div = G["clubes"][r["casa"]]["divisao"]
     return nome_da_liga(G, div)
 
@@ -4219,7 +4309,8 @@ def jogar_fase_copa(G, chave):
     if len(vivos) < 2:
         return []
     pares = [tuple(par) for par in sorteio_da_copa(G, chave)]
-    final = len(vivos) == 2
+    # a Recopa decide em ida e volta: a "final" dela nao e jogo unico
+    final = len(vivos) == 2 and not cp.get("final_ida_volta")
     res, prox = [], []
     # o que a fase deixou: vai para o historico, que a tela de competicoes le
     registro = {"fase": fase_da_copa(cp), "semana": int(G["semana"]),
@@ -4325,6 +4416,8 @@ def avancar_semana(G):
             jogar = jogar_rodada_grupos if cp["semanas_grupos"][cp["rodada_grupo"]] == sem else None
         elif cp["fase"] < len(cp["semanas"]) and cp["semanas"][cp["fase"]] == sem:
             jogar = jogar_fase_copa
+        elif cp.get("semanas_est") and cp["fase"] < len(cp["semanas_est"]):
+            jogar = jogar_fase_copa         # o estadual acabou antes dela: joga agora
         else:
             jogar = None
         if jogar:
@@ -6646,7 +6739,8 @@ def premio_liga(div: str, posicao: int) -> int:
 
 
 PREMIO_COPA = {"copa": 78_000_000, "lib": 130_000_000, "sul": 30_000_000,
-               "ucl": 350_000_000, "uel": 90_000_000}
+               "ucl": 350_000_000, "uel": 90_000_000,
+               "supercopa": 10_000_000, "recopa": 9_000_000}
 # passar de fase paga uma fracao do premio do campeao (pelo numero de clubes
 # vivos na rodada); o vice leva 40%. Antes so o campeao recebia.
 FRACAO_FASE = ((32, 0.01), (16, 0.02), (8, 0.04), (4, 0.07))
