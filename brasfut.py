@@ -7037,6 +7037,7 @@ CONFIANCA_DEMISSAO = 15
 CONFIANCA_RECUPERA = 40     # voltou acima disto, o aviso cai
 CONFIANCA_HIST = 12         # semanas guardadas (a tendencia usa as 4 ultimas)
 PATAMAR_CONFIANCA = {"meta": 75, "perto": 55, "longe": 35, "rebaixamento": 22}
+PATAMAR_TOPO = 95            # patamar do 1o colocado, com a meta cumprida com folga
 
 
 def confianca(G: Mundo) -> Dict[str, Any]:
@@ -7104,12 +7105,19 @@ def atualizar_confianca(G: Mundo, meus: List[Dict[str, Any]]) -> None:
         if tem_rebaixamento(c["divisao"]) and pos > total - 4:
             patamar, txt = PATAMAR_CONFIANCA["rebaixamento"], "zona de rebaixamento (%do)" % pos
         elif pos <= alvo:
-            patamar, txt = PATAMAR_CONFIANCA["meta"], "dentro da meta (%do)" % pos
+            # quanto mais folga sobre a meta, mais alto o patamar: 75 no limite,
+            # ate PATAMAR_TOPO em 1o. Antes era 75 para todos, e o lider com 83
+            # de confianca perdia ponto "dentro da meta"
+            folga = (alvo - pos) / float(max(1, alvo - 1))
+            patamar = PATAMAR_CONFIANCA["meta"] + (PATAMAR_TOPO - PATAMAR_CONFIANCA["meta"]) * folga
+            txt = "dentro da meta (%do)" % pos
         elif pos <= alvo + 3:
             patamar, txt = PATAMAR_CONFIANCA["perto"], "perto da meta (%do, meta top %d)" % (pos, alvo)
         else:
             patamar, txt = PATAMAR_CONFIANCA["longe"], "abaixo da meta (%do, meta top %d)" % (pos, alvo)
         puxao = int(round((patamar - conf["valor"]) * 0.12))
+        if pos <= alvo and not (tem_rebaixamento(c["divisao"]) and pos > total - 4):
+            puxao = max(0, puxao)       # dentro da meta a tabela so ajuda; quem tira e o resultado
         if puxao:
             causas.append([puxao, txt])
     if c["dinheiro"] < 0:

@@ -197,8 +197,10 @@ no Painel, fica a **confiança da diretoria**: um número de 0 a 100, a tendênc
   é mais fraco custa caro. O esperado vem do tamanho dos dois elencos e do mando de campo.
   Clássico vale o dobro, para o bem e para o mal.
 - **Posição contra a meta.** No Brasileirão (da 6ª rodada em diante), a posição puxa a
-  confiança aos poucos para um patamar: alto dentro da meta, baixo longe dela, mais baixo
-  ainda na zona de rebaixamento. Sozinha, a tabela leva no máximo ao aviso.
+  confiança aos poucos para um patamar: alto dentro da meta (e mais alto quanto maior a
+  folga, até 95 em 1º), baixo longe dela, mais baixo ainda na zona de rebaixamento. Dentro
+  da meta a tabela só soma: quem tira ponto ali é o resultado. Sozinha, a tabela leva no
+  máximo ao aviso.
 - **Caixa no vermelho** também pesa.
 - A **dificuldade** da carreira multiplica só as quedas.
 
