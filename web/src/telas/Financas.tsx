@@ -85,7 +85,8 @@ function BlocoCredito({ cr, ocupado, aoTomar, aoQuitar }: {
           </div>
           <div className="faixa-detalhe">
             tomou {a.valor} a {cr.juros} · saldo devedor {a.saldo}
-            {a.atrasos > 0 && ` · ${a.atrasos} parcela(s) atrasada(s): juro e multa entraram no saldo`}
+            {a.atrasos > 0 &&
+              ` · ${a.atrasos} ${a.atrasos === 1 ? 'parcela atrasada' : 'parcelas atrasadas'}: juro e multa entraram no saldo`}
           </div>
         </div>
         <div className="espaco" />
