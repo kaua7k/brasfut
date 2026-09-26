@@ -44,6 +44,7 @@ Atas de decisão de roadmap: `docs/three-amigos/`.
 | `web/src/componentes/*.tsx` | 19 arquivos (`Ajuda.tsx`: ajuda e boas-vindas; `Partida.tsx`: resumo e detalhe da partida; `DialogoRenovar.tsx`: renovação em lote) | Diálogos e peças reusáveis (Mesa, Grade, Campo, Ficha...) | Componente compartilhado entre telas |
 | `web/src/api.ts`, `tipos.ts`, `formato.ts` | — | Cliente HTTP, tipos TS espelhando os DTOs, formatação (dinheiro, número) | Contrato front↔back |
 | `testes/*.py` | 34 arquivos (`desempenho.py` e `balanceamento.py` são harness lentos, fora da suíte) | `unittest` da stdlib, sem dependência externa. `cd testes && python -m unittest -v` (~120s, 158 testes) | Rodar antes de qualquer PR |
+| `.github/workflows/testes.yml` | — | CI (GitHub Actions): a cada push na `main` e em toda PR roda a suíte `unittest` e o `npm run build` da web; avisa se `web/dist` ficou velho | Ao mudar o que a suíte ou o build precisam |
 | `ferramentas/capturas.py` | — | Capturas das 13 telas em 5 resoluções (Edge headless, cópia isolada) e comparação por pixel | Antes/depois de mexer em CSS ou tela |
 | `ferramentas/importar_elencos.py` | — | Importa elencos reais (football-data.org / API-Football) | Atualização de temporada real |
 | `.backup-pre-patch/` | — | Snapshots do motor pré-patch (histórico, não código ativo) | Raramente |
@@ -159,6 +160,9 @@ python server.py --sem-abrir    # API sozinha (dev)
 cd web && npm run dev           # Vite com proxy /api (dev)
 cd web && npm run build         # gera web/dist (versionado)
 ```
+
+O CI (`.github/workflows/testes.yml`) roda a suíte e o build em toda PR; os
+harness lentos (`balanceamento.py`, `desempenho.py`) continuam só locais.
 
 ## Como manter este mapa
 

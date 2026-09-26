@@ -1,0 +1,57 @@
+# Roda a suite e o build da web a cada push e pull request.
+#
+# Os harness lentos (testes/balanceamento.py e testes/desempenho.py) ficam de
+# fora: demoram e medem tempo, o que numa maquina compartilhada nao e confiavel.
+
+name: Testes
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: testes-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  motor:
+    name: Motor e API (unittest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      # stdlib pura: nada para instalar
+      - name: Suite
+        working-directory: testes
+        run: python -m unittest -v
+
+  web:
+    name: Web (build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Instalar
+        working-directory: web
+        run: npm ci
+      # tsc -b && vite build: o TypeScript tem de compilar
+      - name: Build
+        working-directory: web
+        run: npm run build
+      # web/dist e versionado; aviso (nao erro) se o build do commit ficou velho
+      - name: web/dist em dia?
+        run: |
+          if [ -n "$(git status --porcelain web/dist)" ]; then
+            echo "::warning::web/dist nao bate com o codigo: rode 'cd web && npm run build' e commite web/dist."
+            git status --short web/dist
+          fi
