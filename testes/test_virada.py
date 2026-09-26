@@ -21,7 +21,9 @@ class TestVirada(unittest.TestCase):
         if os.path.exists(apoio.SAVE_TESTE):
             os.remove(apoio.SAVE_TESTE)
         apoio.eng.rng.seed(2026)
-        novo = apoio.chamar("POST", "/api/novo")
+        # sem demissao pela diretoria: o teste e da virada; a demissao do
+        # passo 4 e forcada a mao, e uma no meio do ano travava o passo 1
+        novo = apoio.chamar("POST", "/api/novo", {"nome": "Teste", "opcoes": {"sem_demissao": True}})
         apoio.chamar("POST", "/api/clube", {"id": novo["clubes"][0]["id"]})
 
     @classmethod
