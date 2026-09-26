@@ -26,6 +26,11 @@ export function ResumoPartida({ partidas, historico = 5, alerta }: PropsResumo) 
   if (!partidas.length) return null
   const p = partidas.find((x) => x.chave === escolhida) ?? partidas[partidas.length - 1]
   const recentes = historico > 0 ? partidas.slice(-historico) : []
+  // liga e copa na mesma semana: os dois placares a vista, sem precisar abrir
+  // Competicoes (a chave comeca pela semana absoluta)
+  const semanaDe = (x: Partida) => x.chave.split('-')[0]
+  const ultima = partidas[partidas.length - 1]
+  const daSemana = partidas.filter((x) => semanaDe(x) === semanaDe(ultima))
 
   return (
     <section className="painel partida" aria-label="Ultima partida">
@@ -57,6 +62,23 @@ export function ResumoPartida({ partidas, historico = 5, alerta }: PropsResumo) 
           </div>
         )}
       </div>
+
+      {daSemana.length > 1 && (
+        <div className="partida-semana" role="group" aria-label="Jogos desta semana">
+          <span className="painel-titulo">Nesta semana</span>
+          {daSemana.map((x) => (
+            <button
+              type="button"
+              key={x.chave}
+              className={`bt-fantasma bt-mini partida-semana-jogo ${x.estado}${x.chave === p.chave ? ' ativa' : ''}`}
+              aria-pressed={x.chave === p.chave}
+              onClick={() => setEscolhida(x.chave)}
+            >
+              {x.comp}: {x.times[0]} {x.placar[0]} x {x.placar[1]} {x.times[1]}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="partida-placar">
         <span className={`partida-time${p.eu === 0 ? ' eu' : ''}`}>{p.times[0]}</span>

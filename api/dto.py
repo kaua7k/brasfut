@@ -494,6 +494,7 @@ def painel():
         "resultados": _resultados(G),
         "noticias": _noticias(G),
         "contratos": _contratos_acabando(G),
+        "propostas_jogadores": _propostas_jogadores(G),
         "propostas_emprego": _propostas_emprego(G),
         "patrocinio_vago": ([eng.NOME_ESPACO[e] for e in eng.espacos_vagos(G, G["clubes"][G["clube"]])]
                             or None),
@@ -522,6 +523,20 @@ def _mundo(G, quantas):
              "quando": ("semana %d" % f["s"]) if f["t"] == G["temporada"]
                        else "%d, semana %d" % (f["t"], f["s"])}
             for f in reversed(G.get("feed", [])[-quantas:])]
+
+
+def _propostas_jogadores(G):
+    """Aviso do Painel: propostas da semana pelos meus jogadores. Antes elas so
+    apareciam para quem abria a Vitrine do Mercado."""
+    ofertas = eng.propostas_recebidas(G)
+    if not ofertas:
+        return None
+    return {"total": len(ofertas),
+            "itens": [{"jogador": _corta(j["nome"], 22), "pos": j["pos"], "clube": cl["nome"],
+                       "valor": eng.din(v)} for j, cl, v in ofertas[:3]],
+            "texto": ("1 proposta nesta semana" if len(ofertas) == 1
+                      else "%d propostas nesta semana" % len(ofertas))
+                     + ": valem so ate avancar a semana."}
 
 
 def _contratos_acabando(G):

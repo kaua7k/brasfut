@@ -105,6 +105,20 @@ class TestMercadoRegras(unittest.TestCase):
         self.assertTrue(eng.por_a_venda(G, pid, 1_000_000)[0])
         eng.por_a_venda(G, pid, 0)
 
+    def test_painel_avisa_a_proposta(self):
+        """Item 11: a proposta aparece no Painel, sem precisar abrir o Mercado."""
+        G = self.G
+        j = G["jogadores"][self.meu()["elenco"][1]]
+        cl = self.comprador()
+        cl["dinheiro"] = 10 ** 9
+        G["ofertas"] = {"stamp": eng._stamp_semana(G), "itens": [[j["id"], cl["id"], 2_000_000]]}
+        painel = apoio.chamar("GET", "/api/painel")["painel"]
+        aviso = painel["propostas_jogadores"]
+        self.assertEqual(aviso["total"], 1)
+        self.assertEqual(aviso["itens"][0]["clube"], cl["nome"])
+        G["ofertas"] = {"stamp": eng._stamp_semana(G), "itens": []}
+        self.assertIsNone(apoio.chamar("GET", "/api/painel")["painel"]["propostas_jogadores"])
+
     def test_quem_veio_com_passe_pago_nao_trava(self):
         G = self.G
         outro = self.comprador()
