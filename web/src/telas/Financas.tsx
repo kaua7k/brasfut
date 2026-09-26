@@ -5,6 +5,8 @@
 // Cada linha diz de onde vem o dinheiro. A verba e o caixa menos a folha
 // guardada - gastando so ela, o clube nunca fica sem pagar salario.
 
+import { useState } from 'react'
+import { CampoDinheiro } from '../componentes/CampoDinheiro'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
 import { Grade, type Coluna } from '../componentes/Grade'
 import { iconeDeEstado } from '../icones'
@@ -59,13 +61,84 @@ function CartaoPatrocinio({ k, titulo, acao }: { k: ContratoPatrocinio; titulo?:
   )
 }
 
+// parcela da tabela Price, igual a do motor (eng.parcela_credito), so para a previa
+function parcelaPrice(valor: number, meses: number, juros: number): number {
+  return Math.round((valor * juros) / (1 - (1 + juros) ** -meses))
+}
+
+function BlocoCredito({ cr, ocupado, aoTomar, aoQuitar }: {
+  cr: TelaFinancas['credito']
+  ocupado: boolean
+  aoTomar: (valor: number, meses: number) => void
+  aoQuitar: () => void
+}) {
+  const [valor, setValor] = useState(0)
+  const [meses, setMeses] = useState(cr.prazos[1]?.meses ?? 12)
+  if (cr.ativo) {
+    const a = cr.ativo
+    return (
+      <section className={`painel faixa ${a.atrasos ? 'critico' : 'atencao'}`}>
+        <div className="faixa-icone">{iconeDeEstado(a.atrasos ? 'critico' : 'atencao')}</div>
+        <div className="encolhe">
+          <div className="faixa-titulo">
+            Credito em aberto: {a.restantes} de {a.meses} parcelas de {a.parcela}
+          </div>
+          <div className="faixa-detalhe">
+            tomou {a.valor} a {cr.juros} · saldo devedor {a.saldo}
+            {a.atrasos > 0 &&
+              ` · ${a.atrasos} ${a.atrasos === 1 ? 'parcela atrasada' : 'parcelas atrasadas'}: juro e multa entraram no saldo`}
+          </div>
+        </div>
+        <div className="espaco" />
+        <button type="button" className="bt-fantasma" disabled={ocupado} onClick={aoQuitar}>
+          Quitar ({a.quitar})
+        </button>
+      </section>
+    )
+  }
+  const juros = parseFloat(cr.juros) / 100
+  const cabe = valor >= (cr.minimo_num ?? 0) && valor <= cr.limite_num
+  return (
+    <section className="painel enxuto">
+      <div className="painel-titulo">Credito do clube</div>
+      <p className="tag-fraco m-0 mb-3">
+        O banco empresta ate {cr.limite} (3 meses de receita) a {cr.juros}, em parcelas fixas que saem
+        na virada do mes. Sem caixa para a parcela, ela atrasa: juro e multa vao para o saldo e a
+        diretoria cobra.
+      </p>
+      <div className="linha-flex larga">
+        <CampoDinheiro rotulo="Valor" valor={valor} aoMudar={setValor} maximo={cr.limite_num} />
+        <label className="campo-rotulo">
+          Prazo
+          <select className="seletor" value={meses} onChange={(e) => setMeses(Number(e.target.value))}>
+            {cr.prazos.map((p) => (
+              <option key={p.meses} value={p.meses}>
+                {p.meses} meses
+              </option>
+            ))}
+          </select>
+        </label>
+        <span className="tag-fraco">
+          {valor > 0 ? `parcela de R$ ${parcelaPrice(valor, meses, juros).toLocaleString('pt-BR')} por mes` : ''}
+        </span>
+        <div className="espaco" />
+        <button type="button" className="bt-acao" disabled={ocupado || !cabe} onClick={() => aoTomar(valor, meses)}>
+          Tomar credito
+        </button>
+      </div>
+    </section>
+  )
+}
+
 interface Props {
   tela: TelaFinancas
   ocupado: boolean
   aoAssinarPatrocinio: (espaco: string, indice: number) => void
+  aoTomarCredito: (valor: number, meses: number) => void
+  aoQuitarCredito: () => void
 }
 
-export function Financas({ tela, ocupado, aoAssinarPatrocinio }: Props) {
+export function Financas({ tela, ocupado, aoAssinarPatrocinio, aoTomarCredito, aoQuitarCredito }: Props) {
   const ex = tela.extrato
   const pat = tela.patrocinio
   const blocoPatrocinio = (
@@ -123,6 +196,8 @@ export function Financas({ tela, ocupado, aoAssinarPatrocinio }: Props) {
           </div>
         </div>
       </section>
+
+      <BlocoCredito cr={tela.credito} ocupado={ocupado} aoTomar={aoTomarCredito} aoQuitar={aoQuitarCredito} />
 
       <div className="financas-colunas">
         <section className="painel corte">

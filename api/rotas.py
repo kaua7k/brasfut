@@ -308,6 +308,28 @@ def ver_financas(_corpo):
         return {"tela": dto.financas()}
 
 
+@rota("POST", "/api/credito")
+def mexer_credito(corpo):
+    """Toma ({"acao": "tomar", "valor", "meses"}) ou quita ({"acao": "quitar"})."""
+    with SESSAO.cadeado:
+        G = SESSAO.exigir()
+        acao = corpo.get("acao")
+        if acao == "tomar":
+            try:
+                valor, meses = int(corpo.get("valor")), int(corpo.get("meses"))
+            except (TypeError, ValueError):
+                raise ErroDeUso("valor e meses do credito sao numeros")
+            ok, recado = eng.tomar_credito(G, valor, meses)
+        elif acao == "quitar":
+            ok, recado = eng.quitar_credito(G)
+        else:
+            raise ErroDeUso("acao do credito: tomar ou quitar")
+        if not ok:
+            raise ErroDeUso(recado)
+        SESSAO.salvar()
+        return {"recado": recado, "tela": dto.financas()}
+
+
 @rota("GET", "/api/infra")
 def ver_infra(_corpo):
     with SESSAO.cadeado:

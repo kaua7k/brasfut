@@ -617,6 +617,8 @@ export interface Patrocinio {
 export interface TelaFinancas {
   cabecalho: Cabecalho
   titulo: string
+  /** credito do clube (emprestimo financeiro): o que esta aberto, ou o limite */
+  credito: CreditoClube
   /** o ano ate agora, por categoria; a soma fecha com o caixa */
   extrato: {
     temporada: number
@@ -1249,4 +1251,21 @@ export interface AvisoPropostas {
   total: number
   itens: { jogador: string; pos: string; clube: string; valor: string }[]
   texto: string
+}
+
+export interface CreditoClube {
+  ativo: {
+    valor: string
+    saldo: string
+    parcela: string
+    restantes: number
+    meses: number
+    atrasos: number
+    quitar: string
+  } | null
+  limite: string | null
+  limite_num: number
+  minimo_num?: number
+  juros: string
+  prazos: { meses: number; parcela_do_limite: string }[]
 }

@@ -694,6 +694,30 @@ export function App() {
                 }
               })
             }
+            aoTomarCredito={(valor, meses) =>
+              comErro(async () => {
+                setOcupado(true)
+                try {
+                  const r = await api.tomarCredito(valor, meses)
+                  setConteudo({ tipo: 'financas', dados: r.tela })
+                  setRecado(r.recado)
+                } finally {
+                  setOcupado(false)
+                }
+              })
+            }
+            aoQuitarCredito={() =>
+              comErro(async () => {
+                setOcupado(true)
+                try {
+                  const r = await api.quitarCredito()
+                  setConteudo({ tipo: 'financas', dados: r.tela })
+                  setRecado(r.recado)
+                } finally {
+                  setOcupado(false)
+                }
+              })
+            }
           />
         )}
         {conteudo.tipo === 'infra' && (

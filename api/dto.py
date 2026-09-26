@@ -209,7 +209,8 @@ def _xi(G, d):
         elif j["cond"] < 45:
             estado, obs = "critico", "desgastado"
         elif j.get("amar", {}).get("liga", 0) >= 2:
-            estado, obs = "atencao", "pendurado"
+            # so a marca: pendurado nao muda o rendimento, nao pede cor de alerta
+            obs = "pendurado"
         p = pontos.get(pid, {"x": 50, "y": 50, "ordem": 0})
         fora.append({
             "id": pid, "nome": j["nome"], "curto": _corta(j["nome"], 14),
@@ -900,6 +901,23 @@ DICA_EXTRATO = {
 }
 
 
+def _credito(G):
+    """Credito do clube: o que esta em aberto, ou o limite e as simulacoes."""
+    cr = eng.credito(G)
+    juros = "%d%% ao mes" % round(eng.CREDITO_JUROS * 100)
+    if cr:
+        return {"ativo": {"valor": eng.din(cr["valor"]), "saldo": eng.din(cr["saldo"]),
+                          "parcela": eng.din(cr["parcela"]), "restantes": int(cr["restantes"]),
+                          "meses": int(cr["meses"]), "atrasos": int(cr.get("atrasos", 0)),
+                          "quitar": eng.din(cr["saldo"])},
+                "limite": None, "limite_num": 0, "juros": juros, "prazos": []}
+    limite = eng.limite_credito(G)
+    return {"ativo": None, "limite": eng.din(limite), "limite_num": int(limite), "juros": juros,
+            "minimo_num": eng.CREDITO_MINIMO,
+            "prazos": [{"meses": m, "parcela_do_limite": eng.din(eng.parcela_credito(limite, m))}
+                       for m in eng.CREDITO_PRAZOS]}
+
+
 def _extrato(G, c):
     """O ano do clube em categorias; a soma fecha com o caixa (test_extrato)."""
     st = eng.stats_ano(G)
@@ -1004,6 +1022,7 @@ def financas():
     return {
         "cabecalho": cabecalho(G),
         "titulo": "Financas",
+        "credito": _credito(G),
         "extrato": _extrato(G, c),
         "linhas": [
             {"nome": "Cotas de TV", "valor": eng.din(eng.tv_semanal(c)), "estado": ""},

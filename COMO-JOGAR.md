@@ -172,6 +172,11 @@ clube brasileiro faz.
 liga e a posição na tabela mexem no público de 20% a menos até 20% a mais. No começo do
 ano o efeito é neutro. A tela do Estádio mostra o momento atual.
 
+**Crédito do clube.** Em Finanças, o banco empresta até 3 meses de receita a 2% ao mês,
+em 6, 12 ou 24 parcelas fixas que saem na virada do mês. Uma operação por vez, e dá para
+quitar antes. Sem caixa para a parcela, ela atrasa: o juro do mês e uma multa de 2% entram no
+saldo, o prazo anda um mês e a diretoria perde 4 de confiança.
+
 ## Patrocínio
 
 O clube tem dois contratos de patrocínio: o **master** e o **fornecedor de uniforme**. Cada
