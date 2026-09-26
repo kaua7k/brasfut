@@ -43,7 +43,7 @@ Atas de decisão de roadmap: `docs/three-amigos/`.
 | `web/src/telas/*.tsx` | 14 arquivos | Uma tela por arquivo (Painel, Elenco, Escalação, Mercado, Financas, etc.) | Ao mexer numa tela específica |
 | `web/src/componentes/*.tsx` | 19 arquivos (`Ajuda.tsx`: ajuda e boas-vindas; `Partida.tsx`: resumo e detalhe da partida; `DialogoRenovar.tsx`: renovação em lote) | Diálogos e peças reusáveis (Mesa, Grade, Campo, Ficha...) | Componente compartilhado entre telas |
 | `web/src/api.ts`, `tipos.ts`, `formato.ts` | — | Cliente HTTP, tipos TS espelhando os DTOs, formatação (dinheiro, número) | Contrato front↔back |
-| `testes/*.py` | 34 arquivos (`desempenho.py` e `balanceamento.py` são harness lentos, fora da suíte) | `unittest` da stdlib, sem dependência externa. `cd testes && python -m unittest -v` (~120s, 158 testes) | Rodar antes de qualquer PR |
+| `testes/*.py` | 39 arquivos (`desempenho.py` e `balanceamento.py` são harness lentos, fora da suíte) | `unittest` da stdlib, sem dependência externa. `cd testes && python -m unittest -v` (~3 min, 177 testes) | Rodar antes de qualquer PR |
 | `.github/workflows/testes.yml` | — | CI (GitHub Actions): a cada push na `main` e em toda PR roda a suíte `unittest` e o `npm run build` da web; avisa se `web/dist` ficou velho | Ao mudar o que a suíte ou o build precisam |
 | `ferramentas/capturas.py` | — | Capturas das 13 telas em 5 resoluções (Edge headless, cópia isolada) e comparação por pixel | Antes/depois de mexer em CSS ou tela |
 | `ferramentas/importar_elencos.py` | — | Importa elencos reais (football-data.org / API-Football) | Atualização de temporada real |
@@ -123,6 +123,15 @@ decisões em `docs/three-amigos/2026-09-25-onda-2-decisoes.md`):
   +5 por jogo), `PESO_JOGO_ENTROS` em `rendimento`, entra na chave do memo do
   XI (`test_entrosamento.py`).
 - Economia com escolhas, mercado disputado, olheiros, Copinha, história do clube.
+
+**Feedback do testador (Okumura) — 2026-09-26**: cartões (expulso sai de
+campo, 2º amarelo = vermelho), mercado (acerto trava propostas, estadual
+renova ofertas, livre sem revenda por 8 semanas), confiança do líder,
+público com momento, renovação com idade, avisos no Painel, e a folha da IA
+(contratação só se couber em 85% da receita — acabou com as "contratações
+fantasmas" e com a Série D quebrando em 5 anos). Em aberto: ver as
+perguntas da PR (economia das ligas de fora, crédito para clube, aviso de
+pendurado, notícia de gol).
 
 **Mundo — concluído** (2026-09-26): nove ligas sul-americanas (ARG 20,
 URU, PAR, CHI, COL, EQU, PER, BOL, VEN) com as vagas da Libertadores e da
