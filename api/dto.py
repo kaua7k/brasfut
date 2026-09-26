@@ -1535,6 +1535,11 @@ def _rendimento_estadio(G, c):
     else:
         linhas.append({"nome": "Jogos em casa no ano", "valor": "nenhum ainda"})
     demanda = eng.demanda_torcida(c)
+    fator, porque = eng.momento_do_clube(G, c)
+    if porque:
+        linhas.append({"nome": "Momento do time", "valor": "%+d%% de publico" % round((fator - 1) * 100),
+                       "dica": porque + "; boa fase enche o estadio, ma fase esvazia",
+                       "estado": "ok" if fator >= 1.03 else ("atencao" if fator <= 0.97 else None)})
     linhas += [
         {"nome": "Torcida num jogo comum", "valor": "%s pessoas" % milhar(demanda),
          "dica": ("com ingresso de referencia; o estadio tem %s lugares%s"

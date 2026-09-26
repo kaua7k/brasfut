@@ -80,11 +80,11 @@ class TestSalarioLivre(unittest.TestCase):
         self.assertLessEqual(eng.exigencia_salarial(self.G, j, pequeno), base * 1.30 * 1.08 + 100)
         self.assertLess(eng.exigencia_salarial(self.G, j, grande), base * 1.08 + 100)
 
-    def test_quem_tem_clube_mantem_o_piso_de_85(self):
+    def test_quem_tem_clube_mantem_o_piso_do_salario_atual(self):
         c = self.meu()
         j = self.G["jogadores"][c["elenco"][0]]
         j["salario"] = eng.salario_de(j["ovr"]) * 3
-        self.assertEqual(eng.salario_referencia(j), int(j["salario"] * 0.85))
+        self.assertEqual(eng.salario_referencia(j), int(j["salario"] * eng.piso_salario_atual(j["idade"])))
 
     def test_carimbo_e_ia_pagando_a_pedida(self):
         G = self.G

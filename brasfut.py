@@ -2651,6 +2651,35 @@ def publico_esperado(c: Clube) -> int:
     return int(min(c["capacidade"] * 0.99, demanda_torcida(c) * elast))
 
 
+MOMENTO_JOGOS = 5            # ultimos jogos de liga que contam para o publico
+
+
+def momento_do_clube(G: Mundo, c: Clube) -> Tuple[float, str]:
+    """Quanto a fase do time mexe no publico: pontos nos ultimos 5 jogos de liga
+    (7 e o normal) e a posicao na tabela. De 0,80 a 1,20; 1,0 no comeco do ano.
+    Nao sorteia nada."""
+    liga = G["ligas"].get(c["divisao"])
+    if not liga or liga.get("rodada", 0) < 3:
+        return 1.0, ""
+    pts, jogos = 0, 0
+    for rodada in reversed(liga.get("resultados") or []):
+        for casa_id, fora_id, gc, gf in rodada:
+            if c["id"] in (casa_id, fora_id):
+                pro, contra = (gc, gf) if casa_id == c["id"] else (gf, gc)
+                pts += 3 if pro > contra else (1 if pro == contra else 0)
+                jogos += 1
+        if jogos >= MOMENTO_JOGOS:
+            break
+    if not jogos:
+        return 1.0, ""
+    ritmo = pts * MOMENTO_JOGOS / float(jogos)        # pontos numa janela de 5
+    ordem = classificacao(G, liga)
+    frac = ordem.index(c["id"]) / float(max(1, len(ordem) - 1)) if c["id"] in ordem else 0.5
+    fator = clamp(1.0 + 0.025 * (ritmo - 7) + 0.10 * (0.5 - frac), 0.80, 1.20)
+    return fator, "%d pontos nos ultimos %s, %do na tabela" % (
+        pts, plural(jogos, "jogo"), ordem.index(c["id"]) + 1 if c["id"] in ordem else 0)
+
+
 def publico_e_renda(G, casa, fora, comp):
     cap = casa["capacidade"]
     rel = fora["reputacao"] / max(30.0, casa["reputacao"])
@@ -2661,7 +2690,8 @@ def publico_e_renda(G, casa, fora, comp):
     jogo /= 0.52
     preco_ref = preco_referencia(casa)
     elast = clamp(1.35 - 0.55 * (casa["preco"] / max(8.0, preco_ref)), 0.15, 1.35) / 0.80
-    pub = int(min(cap * 0.99, demanda_torcida(casa) * jogo * elast * rng.uniform(0.82, 1.18)))
+    momento = momento_do_clube(G, casa)[0]      # time em boa fase enche o estadio
+    pub = int(min(cap * 0.99, demanda_torcida(casa) * jogo * elast * momento * rng.uniform(0.82, 1.18)))
     pub = max(pub, int(cap * 0.02))
     renda = int(pub * casa["preco"])
     return pub, renda
@@ -4967,7 +4997,20 @@ def salario_referencia(j: Jogador) -> int:
     mercado = int(salario_de(j["ovr"]) * fator_idade_salario(j["idade"]))
     if j["clube"] is None:
         return mercado
-    return max(mercado, int(j["salario"] * 0.85))
+    return max(mercado, int(j["salario"] * piso_salario_atual(j["idade"])))
+
+
+def piso_salario_atual(idade: int) -> float:
+    """Quanto do salario atual quem tem clube defende numa renovacao ou
+    transferencia. O veterano acima do mercado aceita corte maior: sem isto o
+    piso de 85% apagava a idade da conta."""
+    if idade >= 35:
+        return 0.55
+    if idade >= 33:
+        return 0.65
+    if idade >= 31:
+        return 0.75
+    return 0.85
 
 
 def exigencia_salarial(G: Mundo, j: Jogador, destino: Clube, anos: int = 3) -> int:
