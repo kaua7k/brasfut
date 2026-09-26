@@ -4027,7 +4027,11 @@ def _receita_base(c):
 # a regua antiga dividida: 60% vira cota de TV, 40% patrocinio (master 28%,
 # uniforme 12%). A calibragem de quanto cada um vale e da entrega 4.
 FATIA_TV = 0.60
-FATIA_PATROCINIO = {"master": 0.28, "uniforme": 0.12}
+# fatia da receita-base por espaco (decidido em 2026-09-26: ~2,5x o total de
+# antes, quando so havia master 0,28 e uniforme 0,12)
+FATIA_PATROCINIO = {"master": 0.40, "uniforme": 0.18, "costas": 0.14, "naming": 0.16,
+                    "manga": 0.07, "calcao": 0.06, "treino": 0.04}
+NAMING_CAPACIDADE = 20_000     # naming rights so para estadio deste tamanho
 
 
 def tv_semanal(c):
@@ -4050,14 +4054,34 @@ def receita_semanal(G, c):
 # sorteio: empresa e variacao saem de _ruido, estaveis por clube e ano.
 # ----------------------------------------------------------------------------
 
-ESPACOS_PATROCINIO = ("master", "uniforme")
-NOME_ESPACO = {"master": "Patrocinio master", "uniforme": "Fornecedor de uniforme"}
+ESPACOS_PATROCINIO = ("master", "uniforme", "costas", "naming", "manga", "calcao", "treino")
+NOME_ESPACO = {"master": "Patrocinio master", "uniforme": "Fornecedor de uniforme",
+               "costas": "Costas da camisa", "naming": "Naming rights do estadio",
+               "manga": "Manga", "calcao": "Calcao", "treino": "Patrocinio de treino"}
+# naming rights e contrato longo: as temporadas do perfil valem o dobro
+ANOS_ESPACO = {"naming": 2}
+
+
+def espacos_do_clube(c) -> Tuple[str, ...]:
+    """Os espacos que este clube tem para vender: naming so com estadio grande."""
+    return tuple(e for e in ESPACOS_PATROCINIO
+                 if e != "naming" or c.get("capacidade", 0) >= NAMING_CAPACIDADE)
 EMPRESAS = {
     "master": ["Banco Horizonte", "Viva Telecom", "Construtora Atlas", "Seguros Farol",
                "Rede Mercadao", "Aurora Energia", "Grupo Ventura", "Credito Popular",
                "Transportes Rota Sul", "Farmacias Bem Estar"],
     "uniforme": ["Kappo Sport", "Trama Esportes", "Vento Norte", "Arena Wear",
                  "Pulso Athletic", "Garra Sports", "Linha Fina", "Onda Esportiva"],
+    "costas": ["Supermercados Boa Praca", "Viacao Estrela", "Clinica Vital", "Ceramica Solar",
+               "Tintas Arco-Iris", "Motos Trilha"],
+    "naming": ["Banco Horizonte", "Viva Telecom", "Aurora Energia", "Grupo Ventura",
+               "Seguradora Porto Firme", "Petro Litoral"],
+    "manga": ["Oticas Visao", "Auto Pecas Motor", "Cafe Serrano", "Moveis Lar Doce",
+              "Escola Futuro", "Agua Cristal"],
+    "calcao": ["Academia Forte", "Pizzaria Bella", "Imobiliaria Chave", "Pneus Rodovia",
+               "Laticinios Campo Verde"],
+    "treino": ["Suplementos Pro", "Isotonico Rapido", "Plano Saude Mais", "Tenis Pista",
+               "App Delivery Ja"],
 }
 # (rotulo, fator do fixo, temporadas, meta do bonus, bonus em semanas de fixo)
 PERFIS_PATROCINIO = (
@@ -4071,13 +4095,19 @@ TEXTO_META = {"objetivo": "cumprir o objetivo da temporada",
 
 
 def fator_campanha(G, c):
-    """O ano que passou pesa no quanto as empresas oferecem."""
+    """O ano que passou pesa no quanto as empresas oferecem: quem ganha tudo
+    vale bem mais (1 titulo 1,35; 2 titulos 1,50; 3 ou mais 1,70)."""
     r = G.get("ultimo_resumo") or {}
     if c["id"] != G.get("clube") or not r:
         return 1.0
-    if r.get("titulos"):
-        return 1.20
-    return 1.10 if r.get("objetivo_ok") else 0.95
+    n = len(r.get("titulos") or [])
+    if n >= 3:
+        return 1.70
+    if n == 2:
+        return 1.50
+    if n == 1:
+        return 1.35
+    return 1.12 if r.get("objetivo_ok") else 0.92
 
 
 def patrocinio_base(G, c, espaco):
@@ -4087,9 +4117,9 @@ def patrocinio_base(G, c, espaco):
 
 def patrocinio_semanal(G, c):
     if c["id"] != G.get("clube"):
-        return sum(int(_receita_base(c) * f) for f in FATIA_PATROCINIO.values())
+        return sum(int(_receita_base(c) * FATIA_PATROCINIO[e]) for e in espacos_do_clube(c))
     contratos = c.get("patrocinios") or {}
-    return sum(int(contratos[e]["semanal"]) for e in ESPACOS_PATROCINIO if contratos.get(e))
+    return sum(int(contratos[e]["semanal"]) for e in espacos_do_clube(c) if contratos.get(e))
 
 
 def _meta_do_perfil(c, meta):
@@ -4109,7 +4139,8 @@ def ofertas_patrocinio(G, c, espaco):
         semanal = int(base * fator * _ruido(chave, 0.94, 1.07) / 100) * 100
         empresa = nomes[int(_ruido(chave + "-nome", 0, len(nomes) - 0.001))]
         meta = _meta_do_perfil(c, meta)
-        fora.append({"perfil": rotulo, "empresa": empresa, "semanal": semanal, "temporadas": anos,
+        fora.append({"perfil": rotulo, "empresa": empresa, "semanal": semanal,
+                     "temporadas": anos * ANOS_ESPACO.get(espaco, 1),
                      "meta": meta, "bonus": int(semanal * semanas_bonus / 1000) * 1000})
     return fora
 
@@ -4123,7 +4154,7 @@ def assinar_patrocinio(G, c, espaco, oferta, automatico=False):
 
 def espacos_vagos(G, c):
     contratos = c.get("patrocinios") or {}
-    return [e for e in ESPACOS_PATROCINIO if not contratos.get(e)]
+    return [e for e in espacos_do_clube(c) if not contratos.get(e)]
 
 
 def assinar_vagos_automatico(G):
@@ -4139,7 +4170,7 @@ def herdar_patrocinios(G, c):
     """Clube novo (ou save de antes do patrocinio): os contratos que ja estavam
     la, pelo valor base, ate o fim desta temporada."""
     c["patrocinios"] = {}
-    for espaco in ESPACOS_PATROCINIO:
+    for espaco in espacos_do_clube(c):
         c["patrocinios"][espaco] = {
             "perfil": "herdado", "empresa": EMPRESAS[espaco][c["id"] % len(EMPRESAS[espaco])],
             "semanal": patrocinio_base(G, c, espaco), "temporadas": 1, "meta": "objetivo", "bonus": 0}
@@ -4160,7 +4191,7 @@ def fechar_ano_patrocinio(G, c, resumo):
     """Virada: paga o bonus de quem bateu a meta e desconta um ano de contrato."""
     pagos = []
     contratos = c.get("patrocinios") or {}
-    for espaco in ESPACOS_PATROCINIO:
+    for espaco in espacos_do_clube(c):
         k = contratos.get(espaco)
         if not k:
             continue

@@ -958,7 +958,7 @@ def patrocinio(G, c):
     """Contratos em vigor e, nos espacos vagos, as tres propostas do ano."""
     contratos = c.get("patrocinios") or {}
     vigentes, vagos = [], []
-    for espaco in eng.ESPACOS_PATROCINIO:
+    for espaco in eng.espacos_do_clube(c):
         k = contratos.get(espaco)
         if k:
             vigentes.append(dict(_linha_patrocinio(G, k), espaco=espaco, nome=eng.NOME_ESPACO[espaco]))
