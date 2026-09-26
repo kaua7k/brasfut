@@ -408,6 +408,30 @@ FASE_GRUPOS = "Fase de grupos"
 SEMANAS_FASE_LIGA = [5, 7, 10, 12, 15, 17, 20, 23]
 SEMANAS_EURO = [26, 29, 32, 35, 37]
 FASE_LIGA = "Fase de liga"
+# Copas nacionais de fora: em segundo plano, jogo unico, com os clubes da liga
+# (os 16 ou 8 de maior reputacao). Semanas livres das copas continentais.
+COPAS_NACIONAIS = {
+    "ENG": "FA Cup", "ESP": "Copa del Rey", "GER": "DFB-Pokal", "ITA": "Coppa Italia",
+    "FRA": "Coupe de France", "POR": "Taca de Portugal", "NED": "KNVB Beker",
+    "USA": "US Open Cup", "SAU": "King's Cup", "ARG": "Copa Argentina", "URU": "Copa AUF Uruguay",
+    "PAR": "Copa Paraguay", "CHI": "Copa Chile", "COL": "Copa Colombia", "EQU": "Copa Ecuador",
+    "PER": "Copa Bicentenario", "BOL": "Copa Bolivia", "VEN": "Copa Venezuela",
+}
+# calendario por pais, em grupos, para as estreias nao cairem todas na mesma
+# semana (80 jogos a mais numa semana so passava do limite de tempo)
+_CN16 = {"A": [9, 18, 25, 34], "B": [2, 19, 30, 38], "C": [4, 14, 24, 31]}
+_CN8 = {"A": [1, 18, 30], "B": [14, 25, 34]}
+SEMANAS_COPA_NAC = {
+    16: {"ENG": _CN16["A"], "ESP": _CN16["A"], "GER": _CN16["A"], "ITA": _CN16["A"],
+         "FRA": _CN16["B"], "POR": _CN16["B"], "NED": _CN16["B"],
+         "USA": _CN16["C"], "SAU": _CN16["C"], "ARG": _CN16["C"]},
+    8: {"URU": _CN8["A"], "PAR": _CN8["A"], "CHI": _CN8["A"], "COL": _CN8["A"],
+        "EQU": _CN8["B"], "PER": _CN8["B"], "BOL": _CN8["B"], "VEN": _CN8["B"]},
+}
+
+
+def semanas_copa_nac(codigo: str, n: int) -> List[int]:
+    return list(SEMANAS_COPA_NAC[n].get(codigo) or (_CN16["A"] if n == 16 else _CN8["B"]))
 # ordem de forca das ligas: desempata vaga e completa as copas
 ORDEM_LIGAS_EXT = ["ENG", "ESP", "GER", "ITA", "FRA", "POR", "NED"]
 VAGAS_CHAMPIONS = {"ENG": 4, "ESP": 4, "GER": 4, "ITA": 4, "FRA": 3, "POR": 2, "NED": 2}
@@ -1338,6 +1362,35 @@ def montar_copas(G, primeira=False):
     rng.shuffle(G["copas"]["copa"]["vivos"])
     G["copas"]["copa"]["sorteio"] = sortear_confrontos(G, G["copas"]["copa"]["vivos"])
     montar_copas_europeias(G, primeira, campeao_ucl)
+    montar_copas_nacionais(G)
+
+
+def chave_copa_nac(codigo: str) -> str:
+    return "cn_" + codigo
+
+
+def montar_copas_nacionais(G, so_faltam=False):
+    """Uma copa por liga de fora que tem nome em COPAS_NACIONAIS. Com
+    so_faltam (save antigo), cria so as que nao existem e so se a primeira
+    fase ainda nao passou."""
+    for codigo, nome in COPAS_NACIONAIS.items():
+        chave = chave_copa_nac(codigo)
+        liga = G["ligas"].get(codigo)
+        if not liga or (so_faltam and chave in G["copas"]):
+            continue
+        times = sorted((i for i in liga["times"] if i in G["clubes"]),
+                       key=lambda i: -G["clubes"][i]["reputacao"])
+        n = 16 if len(times) >= 16 else 8
+        if len(times) < n:
+            continue
+        semanas = semanas_copa_nac(codigo, n)
+        if so_faltam and G.get("fase") == "liga" and G["semana"] >= semanas[0]:
+            continue
+        vivos = times[:n]
+        rng.shuffle(vivos)
+        G["copas"][chave] = {"nome": nome, "vivos": vivos, "fase": 0, "semanas": list(semanas),
+                             "campeao": None, "historico": [], "jogo_unico": True, "fundo": True,
+                             "pais": codigo, "sorteio": sortear_confrontos(G, vivos)}
 
 
 # ----------------------------------------------------------------------------
@@ -4171,9 +4224,11 @@ def jogar_fase_copa(G, chave):
     # o que a fase deixou: vai para o historico, que a tela de competicoes le
     registro = {"fase": fase_da_copa(cp), "semana": int(G["semana"]),
                 "temporada": int(G["temporada"]), "jogos": []}
+    unico = final or cp.get("jogo_unico")
+    fundo = cp.get("fundo")
     for a, b in pares:
-        if final:
-            r = simular(G, a, b, chave, neutro=True)
+        if unico:
+            r = simular(G, a, b, chave, neutro=final)
             if r["gc"] > r["gf"]:
                 venc = a
             elif r["gf"] > r["gc"]:
@@ -4213,7 +4268,7 @@ def jogar_fase_copa(G, chave):
                 lancar(G, perd, int(PREMIO_COPA.get(chave, 0) * FRACAO_VICE), "premio_copa")
         elif G["clubes"][venc]["divisao"] != "EX":
             lancar(G, G["clubes"][venc], premio_fase_copa(chave, len(vivos)), "premio_copa")
-        if perd["reputacao"] >= GRANDE_REP and perd["divisao"] != "EX" and not final:
+        if perd["reputacao"] >= GRANDE_REP and perd["divisao"] != "EX" and not final and not fundo:
             manchete(G, "copa", "%s elimina %s na %s (%s)." % (
                 G["clubes"][venc]["nome"], perd["nome"], cp["nome"], registro["fase"].lower()))
     cp.setdefault("historico", []).append(registro)
@@ -4234,7 +4289,8 @@ def jogar_fase_copa(G, chave):
         if c["divisao"] != "EX":
             lancar(G, c, premio, "premio_copa")
             c["reputacao"] = clamp(c["reputacao"] + 2, 10, 99)
-        noticia(G, "%s: %s e campeao." % (cp["nome"], c["nome"]))
+        if not fundo:
+            noticia(G, "%s: %s e campeao." % (cp["nome"], c["nome"]))
     return res
 
 
@@ -9193,6 +9249,8 @@ def migrar(G):
         G["seq_c"] = max([G.get("seq_c", 0)] + list(G["clubes"]))
         G["seq"] = max([G.get("seq", 0)] + list(G["jogadores"]))
         montar_ligas_sul(G, {j["nome"] for j in G["jogadores"].values()})
+    if G.get("copas") and any(chave_copa_nac(k) not in G["copas"] for k in COPAS_NACIONAIS if k in G["ligas"]):
+        montar_copas_nacionais(G, so_faltam=True)
     for j in G["jogadores"].values():
         j.setdefault("dono", None)
         j.setdefault("emp_pct", 100)
