@@ -47,7 +47,7 @@ Atas de decisão de roadmap: `docs/three-amigos/`.
 | `.github/workflows/testes.yml` | — | CI (GitHub Actions): a cada push na `main` e em toda PR roda a suíte `unittest` e o `npm run build` da web; avisa se `web/dist` ficou velho | Ao mudar o que a suíte ou o build precisam |
 | `ferramentas/capturas.py` | — | Capturas das 13 telas em 5 resoluções (Edge headless, cópia isolada) e comparação por pixel | Antes/depois de mexer em CSS ou tela |
 | `ferramentas/importar_elencos.py` | — | Importa elencos reais (football-data.org / API-Football) | Atualização de temporada real |
-| `.backup-pre-patch/` | — | Snapshots do motor pré-patch (histórico, não código ativo) | Raramente |
+| `.github/pull_request_template.md` | — | Modelo de PR (o que muda, por que, testes, docs); convenções de branch e título no `CLAUDE.md` | Ao abrir PR |
 
 ## Índice do motor (`brasfut.py`) — por seção
 

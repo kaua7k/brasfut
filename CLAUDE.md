@@ -22,3 +22,14 @@ tocar no mapa.
 
 Rodar os testes antes de considerar algo pronto:
 `cd testes && python -m unittest -v` (unittest da stdlib, sem pip, ~2 min).
+
+## Git e PRs
+
+- Um branch por tema, a partir da `main` atualizada: `tipo/assunto`
+  (ex.: `feat/ligas-sul`, `fix/salario-livre`). Nao reaproveitar branch de PR
+  ja mergeada.
+- Titulo de commit e de PR no formato `tipo(escopo): descricao`, com `tipo`
+  entre `feat`, `fix`, `perf`, `docs`, `ci`, `refactor`, `test`.
+- A PR segue `.github/pull_request_template.md` e so entra com o CI verde
+  (`.github/workflows/testes.yml`).
+- Depois do merge, apagar o branch.
