@@ -2988,6 +2988,8 @@ def simular(G, casa_id, fora_id, comp="liga", neutro=False):
     # jogo com a que entrou, ate se a partida estourar no meio
     originais = (casa["tatica"], fora["tatica"])
     instrucoes = []
+    amarelados: set = set()          # amarelo neste jogo: o segundo e vermelho
+    expulsos: List[Tuple[int, int, int, int]] = []
     try:
         for ini, fim, minutos in ((1, 45, 45), (46, 70, 25), (71, 92, 20)):
             if ini > 1:
@@ -3071,9 +3073,22 @@ def simular(G, casa_id, fora_id, comp="liga", neutro=False):
                         stats["faltas"][lado] += 1
                     if rng.random() < 0.214 * peso:
                         j["ca"] += 1
-                        j["amar"][comp] = j["amar"].get(comp, 0) + 1
                         notas[pid] = notas.get(pid, 6.0) - 0.25
-                        eventos.append((rng.randint(ini, fim), lado, "amarelo", pid, None))
+                        minuto_cartao = rng.randint(ini, fim)
+                        eventos.append((minuto_cartao, lado, "amarelo", pid, None))
+                        if pid in amarelados:
+                            # segundo amarelo no jogo: vermelho. Ele nao entra no
+                            # acumulado da competicao; a expulsao suspende um jogo
+                            j["cv"] += 1
+                            j["susp"][comp] = j["susp"].get(comp, 0) + 1
+                            sincronizar_suspensao(j)
+                            notas[pid] = notas.get(pid, 6.0) - 1.0
+                            eventos.append((minuto_cartao, lado, "vermelho", pid, None))
+                            expulsos.append((pid, len(eventos) - 1, ini, fim))
+                            esc.remove(pid)
+                            continue
+                        amarelados.add(pid)
+                        j["amar"][comp] = j["amar"].get(comp, 0) + 1
                         if j["amar"][comp] >= 3:
                             j["amar"][comp] = 0
                             j["susp"][comp] = j["susp"].get(comp, 0) + 1
@@ -3084,6 +3099,7 @@ def simular(G, casa_id, fora_id, comp="liga", neutro=False):
                         sincronizar_suspensao(j)
                         notas[pid] = notas.get(pid, 6.0) - 1.5
                         eventos.append((rng.randint(ini, fim), lado, "vermelho", pid, None))
+                        expulsos.append((pid, len(eventos) - 1, ini, fim))
                         esc.remove(pid)              # expulso sai de campo de verdade
                         continue
                     risco = RISCO_LESAO_JOGO * (1.0 - 0.05 * dono["medico"]) * (minutos / 90.0)
@@ -3103,6 +3119,24 @@ def simular(G, casa_id, fora_id, comp="liga", neutro=False):
                             usadas_c += usou
                         else:
                             usadas_f += usou
+
+            # o periodo sorteia os gols antes dos cartoes, cada evento com minuto
+            # proprio: o expulso nao pode aparecer depois da expulsao. O cartao
+            # vai para depois do ultimo lance dele no periodo (sem mexer no rng)
+            for pid, k, p_ini, p_fim in expulsos:
+                m = eventos[k][0]
+                # o segundo amarelo, colado no vermelho, anda junto com ele
+                par = k - 1 if (k > 0 and eventos[k - 1][2] == "amarelo"
+                                and eventos[k - 1][3] == pid and eventos[k - 1][0] == m) else None
+                ultimo = max((e[0] for i, e in enumerate(eventos)
+                              if i not in (k, par) and p_ini <= e[0] <= p_fim
+                              and pid in (e[3], e[4])), default=None)
+                if ultimo is not None and ultimo >= m:
+                    novo = min(p_fim, ultimo + 1)
+                    eventos[k] = (novo,) + tuple(eventos[k][1:])
+                    if par is not None:
+                        eventos[par] = (novo,) + tuple(eventos[par][1:])
+            expulsos.clear()
 
             _fadigar(G, esc_c, minutos, casa, ef_c)
             _fadigar(G, esc_f, minutos, fora, ef_f)
