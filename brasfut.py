@@ -4627,6 +4627,11 @@ def transferir(G, pid, destino_id, valor):
     origem = G["clubes"].get(j["clube"]) if j["clube"] else None
     destino = G["clubes"][destino_id]
     registrar_negocio(G, j, origem["id"] if origem else None, destino_id, valor)
+    if origem is None:
+        # agente livre: sem passe pago, nao pode virar lucro na semana seguinte
+        j["livre_trava_ate"] = semana_absoluta(G) + LIVRE_SEM_REVENDA
+    else:
+        j.pop("livre_trava_ate", None)
     if da_base(j):
         # ninguem sai da academia direto para outro clube: se foi negociado,
         # e porque virou profissional
@@ -5332,11 +5337,26 @@ def preco_sugerido(G: Mundo, j: Jogador, pct: int = 130) -> int:
     return int(max(1000.0, j["valor"] * pct / 100.0) / 1000.0) * 1000
 
 
+LIVRE_SEM_REVENDA = 8        # semanas: livre contratado nao volta ao mercado antes disso
+
+
+def revenda_travada(G: Mundo, j: Jogador) -> int:
+    """Semanas que faltam para poder vender quem chegou como agente livre."""
+    return max(0, int(j.get("livre_trava_ate", 0)) - semana_absoluta(G))
+
+
+def recado_revenda(G: Mundo, j: Jogador) -> str:
+    return ("%s chegou como agente livre: so pode ser vendido daqui a %s."
+            % (j["nome"], plural(revenda_travada(G, j), "semana")))
+
+
 def por_a_venda(G: Mundo, pid: int, preco: int) -> Tuple[bool, str]:
     """Coloca (ou reprecifica) o jogador na vitrine."""
     j = G["jogadores"][pid]
     if j.get("dono"):
         return False, "%s esta emprestado, o passe nao e seu." % j["nome"]
+    if int(preco) > 0 and revenda_travada(G, j):
+        return False, recado_revenda(G, j)
     j["listado"] = max(0, int(preco))
     if not j["listado"]:
         return True, "%s saiu da vitrine." % j["nome"]
@@ -5434,7 +5454,9 @@ def ceder_por_emprestimo(G: Mundo, pid: int, destino_id: int, pct: int) -> Tuple
 
 
 def _stamp_semana(G: Mundo) -> str:
-    return "%d-%d" % (G["temporada"], G["semana"])
+    """Uma chave por semana jogada. Era temporada-semana, mas G["semana"] fica
+    em 0 no estadual inteiro: as propostas nunca se renovavam ali."""
+    return "%d-a%d" % (G["temporada"], semana_absoluta(G))
 
 
 # ----------------------------------------------------------------------------
@@ -5633,9 +5655,11 @@ def _sortear_ofertas(G: Mundo) -> List[List[int]]:
     c = G["clubes"][G["clube"]]
     itens: List[List[int]] = []
     ja = set()
+    presos = presos_em_acerto(G)
     for pid in list(c["elenco"]):
         j = G["jogadores"][pid]
-        if j.get("dono") or da_base(j):
+        # acertado com alguem (janela fechada) ou livre recem-chegado: ninguem oferta
+        if j.get("dono") or da_base(j) or pid in presos or revenda_travada(G, j):
             continue
         if j["listado"]:
             # vitrine: o preco e seu, e quem cobre o pedido aparece rapido
@@ -5708,9 +5732,12 @@ def propostas_recebidas(G: Mundo) -> List[Tuple[Jogador, Clube, int]]:
         caixa["itens"] = _sortear_ofertas(G)
         caixa["contras"] = {}
     saida = []
+    presos = presos_em_acerto(G)
     for pid, cid, valor in list(caixa["itens"]):
         j = G["jogadores"].get(pid)
         cl = G["clubes"].get(cid)
+        if pid in presos:
+            continue                    # vendido com a janela fechada: acabou a conversa
         # descarta o que envelheceu: jogador que saiu, clube que gastou o caixa.
         # NAO exige mais estar na vitrine: sondagem espontanea nasce justamente
         # de quem nao esta a venda, e essa condicao apagava todas elas.
@@ -5736,6 +5763,11 @@ def aceitar_oferta(G: Mundo, pid: int, cid: int, valor: int) -> Tuple[bool, str]
     cl = G["clubes"].get(cid)
     if not j or not cl or j["clube"] != G["clube"] or j.get("dono"):
         return False, "Esta proposta nao vale mais."
+    if pid in presos_em_acerto(G):
+        _descartar_oferta(G, pid)
+        return False, "%s ja tem acerto fechado: sai na abertura da janela." % j["nome"]
+    if revenda_travada(G, j):
+        return False, recado_revenda(G, j)
     if cl["dinheiro"] < valor:
         return False, "O %s nao tem mais esse dinheiro em caixa." % cl["nome"]
     if not mercado_aberto(G):
