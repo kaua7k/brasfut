@@ -4247,6 +4247,17 @@ def reserva_custos(G: Mundo, c: Clube, salario_novo: int = 0) -> int:
     return int(custo_mes * RESERVA_MESES)
 
 
+TETO_FOLHA_RECEITA = 0.85   # folha que um clube da IA aceita, em fracao da receita do mes
+
+
+def cabe_na_folha(G: Mundo, c: Clube, salario_mes: int) -> bool:
+    """Este salario cabe na folha do clube? A mesma conta de sob_pressao: sem
+    ela, craque europeu livre caia na Serie D pelo mercado do overall (R$ 2 a 3
+    mi por mes com receita de R$ 700 mil) e a divisao inteira quebrava."""
+    receita_mes = receita_semanal(G, c) * 4 + bilheteria_mensal_estimada(c)
+    return folha_semanal(G, c) * 4 + max(0, int(salario_mes)) <= receita_mes * TETO_FOLHA_RECEITA
+
+
 def verba_contratacao(G: Mundo, c: Clube, salario_novo: int = 0) -> int:
     """Quanto pode ir para passe ou taxa sem ameacar a folha."""
     return max(0, int(c["dinheiro"] - reserva_custos(G, c, salario_novo)))
@@ -4781,7 +4792,8 @@ def mercado_ia(G):
         alvos = [j for j in G["jogadores"].values()
                  if j["listado"] and j["clube"] not in (None, c["id"], G["clube"])
                  and j["id"] not in presos and j["listado"] <= caixa and j["ovr"] > media_elenco(G, c) - 2
-                 and j["listado"] <= verba_contratacao(G, c, j["salario"])]
+                 and j["listado"] <= verba_contratacao(G, c, j["salario"])
+                 and cabe_na_folha(G, c, j["salario"])]
         if alvos and len(c["elenco"]) < 28 and rng.random() < 0.85:
             alvo = rng.choice(alvos)
             vendedor = G["clubes"][alvo["clube"]]
@@ -4791,8 +4803,12 @@ def mercado_ia(G):
         soltos = [p for p in G["livres"] if p not in presos]
         if len(c["elenco"]) < 24 and soltos and rng.random() < 0.4:
             pid = rng.choice(soltos)
-            transferir(G, pid, c["id"], 0)
-            G["jogadores"][pid]["contrato"] = rng.randint(1, 3)
+            j = G["jogadores"][pid]
+            pedida = exigencia_salarial(G, j, c)
+            if cabe_na_folha(G, c, pedida):
+                j["salario"] = pedida
+                transferir(G, pid, c["id"], 0)
+                j["contrato"] = rng.randint(1, 3)
 
 
 def media_elenco(G, c):
@@ -6853,7 +6869,8 @@ def contratar_livres_ia(G):
             pior_titular = titulares[vagas - 1] if len(titulares) >= vagas else 0
             if j["ovr"] <= pior_titular:
                 continue
-            if verba_contratacao(G, c, j["salario"]) <= 0:
+            pedida = exigencia_salarial(G, j, c)
+            if verba_contratacao(G, c, pedida) <= 0 or not cabe_na_folha(G, c, pedida):
                 continue
             cands.append(c)
         if not cands:
@@ -6880,8 +6897,12 @@ def contratar_livre_ia(G, c, pos, nivel_alvo):
     if not cands:
         return False
     cands.sort(key=lambda j: -j["ovr"])
-    faixa = [j for j in cands if j["ovr"] <= nivel_alvo + 6]
-    alvo = (faixa or cands)[0]
+    # so quem e do nivel do clube e cabe na folha. Antes, sem ninguem na faixa,
+    # ia o MELHOR livre do mundo: as "contratacoes fantasmas" da virada
+    alvo = next((j for j in cands if j["ovr"] <= nivel_alvo + 6
+                 and cabe_na_folha(G, c, exigencia_salarial(G, j, c))), None)
+    if alvo is None:
+        return False                  # repor_elencos gera um jogador do nivel
     alvo["salario"] = exigencia_salarial(G, alvo, c)
     transferir(G, alvo["id"], c["id"], 0)
     alvo["contrato"] = rng.randint(1, 3)
@@ -6948,7 +6969,8 @@ def investimentos_ia(G):
             alvos = [j for j in G["jogadores"].values()
                      if j["listado"] and j["clube"] not in (None, c["id"], G["clube"])
                      and j["listado"] < c["dinheiro"] * 0.4
-                     and j["listado"] <= verba_contratacao(G, c, j["salario"])]
+                     and j["listado"] <= verba_contratacao(G, c, j["salario"])
+                     and cabe_na_folha(G, c, j["salario"])]
             if alvos:
                 alvo = max(alvos, key=lambda j: j["ovr"])
                 transferir(G, alvo["id"], c["id"], alvo["listado"])
