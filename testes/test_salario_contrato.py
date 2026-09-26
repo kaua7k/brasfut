@@ -63,7 +63,9 @@ class TestSalarioContrato(unittest.TestCase):
     def test_quem_evoluiu_barato_pede_o_mercado(self):
         j = dict(self.profissional())
         j["salario"] = 10_000
-        self.assertEqual(eng.salario_referencia(j), eng.salario_de(j["ovr"]))
+        # o mercado do overall ja descontado pela idade (veterano vale menos)
+        self.assertEqual(eng.salario_referencia(j),
+                         int(eng.salario_de(j["ovr"]) * eng.fator_idade_salario(j["idade"])))
         j["salario"] = eng.salario_de(j["ovr"]) * 3        # veterano caro: aceita no maximo 15% de corte
         self.assertEqual(eng.salario_referencia(j), int(j["salario"] * 0.85))
 

@@ -217,6 +217,53 @@ seis posições abaixo do próprio tamanho e está no terço de baixo manda o tr
 (sai no feed do mundo). A vaga fica aberta dez semanas, e é esse clube que liga primeiro
 quando você está indo bem.
 
+## O mundo: ligas e copas
+
+- **Ligas sul-americanas.** Argentina (20 clubes), Uruguai, Paraguai, Chile, Colômbia,
+  Equador, Peru, Bolívia e Venezuela têm liga própria, jogada toda semana junto do
+  Brasileirão. Os clubes que faltavam entraram com nome real e elenco gerado. As 24 vagas de
+  fora da **Libertadores** e da **Sul-Americana** saem da tabela do ano anterior de cada
+  país: Argentina 5 e 4, Uruguai, Paraguai, Chile, Colômbia e Equador 3 e 3, Peru 2 e 2,
+  Bolívia 1 e 2, Venezuela 1 e 1. Na Classificação, o verde das ligas de fora marca essas
+  vagas (e as da Champions, na Europa).
+- **Copas nacionais de fora.** FA Cup, Copa del Rey, DFB-Pokal, Coppa Italia, Coupe de
+  France, Taça de Portugal, KNVB Beker, US Open Cup, King's Cup, Copa Argentina e as copas
+  dos outros países sul-americanos: mata-mata em jogo único com os 16 (ou 8) maiores clubes
+  da liga. Correm em segundo plano: o título vai para a sala de troféus e para o feed do
+  mundo.
+- **Supercopas.** Na virada, com os campeões do ano que acabou: a **Supercopa do Brasil**
+  (campeão brasileiro x campeão da Copa do Brasil, jogo único) na 2ª rodada do estadual e a
+  **Recopa Sul-Americana** (Libertadores x Sul-Americana, ida e volta) na 3ª. Se o mesmo clube
+  ganhou as duas coisas, o outro lado é o vice da liga. A Supercopa da UEFA e 17 supercopas
+  nacionais (Community Shield, Supercopa da Espanha...) caem na primeira semana da liga. O
+  primeiro ano da carreira não tem supercopa: ainda não há campeão anterior.
+- **Copa Intercontinental**, todo ano, logo depois das finais: o campeão da Libertadores
+  pega o melhor da MLS no Derby das Américas (semana 37) e quem passa decide com o campeão
+  da Champions (semana 38). Jogo único, campo neutro.
+- **Mundial de Clubes**, a cada quatro anos a partir de 2029: 32 clubes (14 europeus, 8 da
+  América do Sul com os brasileiros, 5 da MLS e 5 da Arábia), 8 grupos de turno único e
+  mata-mata em jogo único, em campo neutro, nas semanas livres das copas continentais.
+- Na tela de Competições e na Classificação, o seletor de torneios agrupa tudo por região:
+  Brasil, Estaduais, América do Sul, Europa, Mundial e outras ligas.
+
+## O elenco por dentro: moral, entrosamento e prêmios
+
+- **Moral com causa.** A ficha do jogador mostra por que a moral dele está onde está: as
+  cinco últimas mudanças, com o motivo ("+4: vitoria sobre o Palmeiras (2 x 0)", "-8: a
+  renovacao nao saiu", "+14: subiu da base ao profissional") e há quantas semanas foi.
+- **Clássico mexe o dobro.** Ganhar ou perder um clássico pesa o dobro na moral de quem
+  jogou (empate não). Na confiança da diretoria o clássico já valia o dobro.
+- **Entrosamento.** Cada jogador tem de 0 a 100 de entrosamento com o time. Quem chega
+  (compra, livre ou empréstimo) começa em 35; quem volta de empréstimo ou sobe da base, em
+  60; o elenco de um mundo novo, em 80. Cada jogo pelo clube soma 5. Pesa pouco: um
+  recém-chegado rende uns 4% abaixo do mesmo jogador entrosado. Um time que troca meio
+  elenco na janela sente por algumas rodadas. A média do XI aparece na Escalação, ao lado
+  de ataque e defesa, e cada jogador tem a sua barra na ficha.
+- **Prêmios do ano.** Na virada, cada série premia o melhor jogador (média de nota, com
+  pelo menos metade das rodadas jogadas), o artilheiro, a revelação (até 21 anos) e a
+  seleção do campeonato (4-3-3). Contam jogos de todas as competições. O prêmio fica na
+  ficha do jogador e valoriza o passe até a virada seguinte.
+
 ## O que a varredura encontrou e o que mudou
 
 - **Empréstimo era porta dos fundos.** A exigência passava de 100% para jogador bom, mas o
@@ -348,6 +395,15 @@ verde *deve ser aceita*, amarelo *abaixo do pedido*, vermelho *ofensiva: encerra
 conversa*. Junto vêm o caixa que sobra depois do passe e a folha antes e depois do
 salário. Os anos de contrato mexem no que o empresário pede: um ano custa mais, cinco
 custa menos. Três tentativas por mesa.
+
+**Quanto o jogador pede.** O ponto de partida é o salário de mercado do overall dele,
+descontado pela idade: aos 31-32 anos o mercado paga 15% menos, aos 33-34, 30% menos, e
+dos 35 em diante, 45% menos. Quem tem clube nunca pede menos que 85% do que já ganha.
+**O agente livre** não tem contrato a defender: parte só do mercado e ainda dá desconto
+por estar parado, 15% logo que sai e até 40% depois de dez semanas sem clube. Para descer
+de patamar (ir para um clube bem menor), o livre cobra no máximo 30% a mais. Na lista do
+Mercado, a coluna de salário do livre já mostra o que ele pede ao seu clube, não o
+contrato antigo. A IA paga ao livre a mesma pedida.
 
 Nos campos de dinheiro dá para escrever do jeito que se fala: `12 mi`, `12,5 mi`,
 `800 mil`, `90k` ou `12000000` — todos chegam no mesmo número, e o campo formata sozinho.

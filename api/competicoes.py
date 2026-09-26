@@ -37,16 +37,16 @@ def _lista(G):
             estado = eng.fase_da_copa(cp).lower()
         itens.append({"id": "copa:" + chave, "nome": cp["nome"], "tipo": "mata-mata",
                       "meu": participa, "estado": estado,
-                      "vivo": eng.vivo_na_copa(cp, meu)})
+                      "vivo": eng.vivo_na_copa(cp, meu), "grupo": dto.regiao_copa(chave, cp)})
     for d in "ABCD":
         liga = G["ligas"][d]
-        itens.append({"id": "liga:" + d, "nome": "Serie " + d, "tipo": "pontos",
+        itens.append({"id": "liga:" + d, "nome": "Serie " + d, "tipo": "pontos", "grupo": dto.BRASIL,
                       "meu": c["divisao"] == d,
                       "estado": "rodada %d de %d" % (liga["rodada"], len(liga["rodadas"])),
                       "vivo": c["divisao"] == d})
     for k, liga in eng.ligas_ext(G).items():
         itens.append({"id": "liga:" + k, "nome": liga["nome"], "tipo": "pontos",
-                      "meu": c["divisao"] == k,
+                      "grupo": dto.regiao_liga(k), "meu": c["divisao"] == k,
                       "estado": "rodada %d de %d" % (liga["rodada"], len(liga["rodadas"])),
                       "vivo": c["divisao"] == k})
     for chave, est in sorted(eng.estaduais(G).items(),
@@ -54,13 +54,14 @@ def _lista(G):
         campanha = eng.campanha_estadual(G, est, meu)
         caiu = campanha.startswith("eliminado") or campanha.endswith("mata-mata")
         itens.append({"id": "est:" + chave, "nome": est["nome"], "tipo": "pontos",
-                      "meu": meu in est["times"],
+                      "grupo": dto.ESTADUAIS, "meu": meu in est["times"],
                       "estado": ("campeao: %s" % _nome(G, est["campeao"])
                                  if eng.estadual_terminado(est) and est.get("campeao")
                                  else eng.etapa_estadual(est).lower()),
                       "vivo": meu in est["times"] and not eng.estadual_terminado(est)
                               and not caiu})
-    itens.sort(key=lambda x: (not x["meu"],))
+    ordem = (dto.BRASIL, dto.ESTADUAIS, dto.AMERICA_SUL, dto.EUROPA, dto.MUNDIAL, dto.OUTRAS)
+    itens.sort(key=lambda x: (not x["meu"], ordem.index(x["grupo"])))
     return itens
 
 
@@ -137,7 +138,9 @@ def _copa(G, chave, alvo):
     meu = G["clube"]
     fases = []
     for h in cp.get("historico", []):
-        fases.append({"nome": h["fase"], "semana": h["semana"], "estado": "jogada",
+        # semana 0 = jogada durante o estadual (Supercopa, Recopa)
+        fases.append({"nome": h["fase"], "semana": h["semana"] or None, "estado": "jogada",
+                      "nota": None if h["semana"] else "no estadual",
                       "jogos": [_jogo_copa(G, j, meu) for j in h["jogos"]]})
     jogadas_sem_registro = cp["fase"] - len(fases)
     sorteio = eng.sorteio_da_copa(G, chave)
@@ -149,19 +152,35 @@ def _copa(G, chave, alvo):
             fases.append({"nome": nomes[k] if k < len(nomes) else "Fase %d" % (k + 1),
                           "semana": sem, "estado": "futura", "jogos": [],
                           "nota": "depois dos grupos" if k == 0 else None})
-    elif not cp["campeao"] and cp["fase"] < len(cp["semanas"]):
-        fases.append({"nome": eng.fase_da_copa(cp), "semana": cp["semanas"][cp["fase"]],
-                      "estado": "sorteada",
-                      "jogos": [{"a": _nome(G, a), "b": _nome(G, b), "ida": None, "volta": None,
-                                 "agregado": None, "penaltis": None, "vencedor": None,
-                                 "venceu_a": None, "meu": meu in (a, b), "passei": None}
-                                for a, b in sorteio]})
+    elif not cp["campeao"] and cp["fase"] < len(cp["semanas"] or cp.get("semanas_est") or []):
+        # Supercopa e Recopa marcam a rodada do estadual, nao a semana da liga
+        no_estadual = not cp["semanas"]
+        semanas = cp.get("semanas_est") if no_estadual else cp["semanas"]
+        quando = ("rodada %d do estadual" % semanas[cp["fase"]]) if no_estadual else None
+        if sorteio:
+            fases.append({"nome": eng.fase_da_copa(cp),
+                          "semana": None if no_estadual else semanas[cp["fase"]],
+                          "estado": "sorteada", "nota": quando,
+                          "jogos": [{"a": _nome(G, a), "b": _nome(G, b), "ida": None, "volta": None,
+                                     "agregado": None, "penaltis": None, "vencedor": None,
+                                     "venceu_a": None, "meu": meu in (a, b), "passei": None}
+                                    for a, b in sorteio]})
+        else:
+            # Intercontinental antes da final da Libertadores: ainda sem os lados
+            fases.append({"nome": eng.fase_da_copa(cp), "semana": semanas[cp["fase"]],
+                          "estado": "futura", "jogos": [],
+                          "nota": ("campeao da Libertadores x melhor da MLS"
+                                   if cp.get("intercontinental") else "a definir")})
         n = (len(cp["vivos"]) // 2) + len(cp.get("espera", []))
-        for k, sem in enumerate(cp["semanas"][cp["fase"] + 1:], cp["fase"] + 1):
+        if cp.get("intercontinental") and not cp["vivos"]:
+            n = 2                       # o vencedor do Derby e o campeao europeu
+        for k, sem in enumerate(semanas[cp["fase"] + 1:], cp["fase"] + 1):
             if n < 2:
                 break
             fases.append({"nome": nomes[k] if k < len(nomes) else eng.nome_fase(n),
-                          "semana": sem, "estado": "futura", "jogos": []})
+                          "semana": sem, "estado": "futura", "jogos": [],
+                          "nota": ("contra o campeao da Champions" if cp.get("intercontinental")
+                                   else None)})
             n //= 2
 
     # onde o meu clube esta nesta copa, numa frase

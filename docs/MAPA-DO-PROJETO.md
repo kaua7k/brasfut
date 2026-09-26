@@ -1,14 +1,14 @@
 # Mapa do projeto — BRASFUT
 
 > **Para quem (Claude Code) for trabalhar neste repo**: leia este arquivo
-> primeiro. Ele existe pra evitar reler `brasfut.py` (8,5k linhas) e
+> primeiro. Ele existe pra evitar reler `brasfut.py` (9,8k linhas) e
 > `brasfut_app.py` (4,5k linhas) inteiros toda vez. Abra os arquivos-fonte só
 > na faixa de linha indicada abaixo para a sua tarefa. Ao terminar um
 > trabalho que muda estrutura, adiciona arquivo, fecha um item do roadmap ou
 > descobre algo que devia estar aqui, **edite a seção correspondente deste
 > mapa** (não regenere o arquivo inteiro) — é assim que ele se paga.
 
-Última atualização: 2026-09-25 · commit de referência: `78b7af5`
+Última atualização: 2026-09-26 · commit de referência: `4d2e909`
 
 ## O que é
 
@@ -29,7 +29,7 @@ Atas de decisão de roadmap: `docs/three-amigos/`.
 
 | Arquivo / pasta | Tamanho | O que é | Quando abrir |
 |---|---|---|---|
-| `brasfut.py` | 8497 linhas, 391 funções/classes | O motor inteiro + a interface de terminal original (`main()`, `loop()`, `tela_*`) | Só a faixa de linha da seção que precisa (ver índice abaixo) |
+| `brasfut.py` | 9839 linhas | O motor inteiro + a interface de terminal original (`main()`, `loop()`, `tela_*`) | Só a faixa de linha da seção que precisa (ver índice abaixo) |
 | `brasfut_app.py` | 4552 linhas | Janela desktop (tkinter). Uma classe `Dialogo` por tela/ação | Só se a tarefa for na janela desktop — a maioria do trabalho novo vai para a web |
 | `dados_mundo.py` | 1181 linhas | Dados estáticos: clubes, ligas, seleções, nomes | Ao adicionar/corrigir liga, clube ou país |
 | `server.py` | 156 linhas | `http.server` da stdlib; serve a API e `web/dist` | Infra do servidor, não regra de jogo |
@@ -43,7 +43,7 @@ Atas de decisão de roadmap: `docs/three-amigos/`.
 | `web/src/telas/*.tsx` | 14 arquivos | Uma tela por arquivo (Painel, Elenco, Escalação, Mercado, Financas, etc.) | Ao mexer numa tela específica |
 | `web/src/componentes/*.tsx` | 19 arquivos (`Ajuda.tsx`: ajuda e boas-vindas; `Partida.tsx`: resumo e detalhe da partida; `DialogoRenovar.tsx`: renovação em lote) | Diálogos e peças reusáveis (Mesa, Grade, Campo, Ficha...) | Componente compartilhado entre telas |
 | `web/src/api.ts`, `tipos.ts`, `formato.ts` | — | Cliente HTTP, tipos TS espelhando os DTOs, formatação (dinheiro, número) | Contrato front↔back |
-| `testes/*.py` | 26 arquivos (`desempenho.py` e `balanceamento.py` são harness lentos, fora da suíte) | `unittest` da stdlib, sem dependência externa. `cd testes && python -m unittest -v` (~90s, 122 testes) | Rodar antes de qualquer PR |
+| `testes/*.py` | 34 arquivos (`desempenho.py` e `balanceamento.py` são harness lentos, fora da suíte) | `unittest` da stdlib, sem dependência externa. `cd testes && python -m unittest -v` (~120s, 158 testes) | Rodar antes de qualquer PR |
 | `ferramentas/capturas.py` | — | Capturas das 13 telas em 5 resoluções (Edge headless, cópia isolada) e comparação por pixel | Antes/depois de mexer em CSS ou tela |
 | `ferramentas/importar_elencos.py` | — | Importa elencos reais (football-data.org / API-Football) | Atualização de temporada real |
 | `.backup-pre-patch/` | — | Snapshots do motor pré-patch (histórico, não código ativo) | Raramente |
@@ -55,22 +55,24 @@ achar o nome exato, ou abra só a faixa abaixo:
 
 | Linhas | Seção |
 |---|---|
-| 1–600 | Utilitários, formações (`formacao_de`, `rotulo_formacao`), helpers de texto/número |
-| 600–1000 | Geração de jogador/clube (`novo_jogador`, `novo_clube`), elencos reais, `criar_mundo` |
-| 1000–1500 | Ligas externas (Europa/MLS/Árabe), montagem de copas continentais |
-| 1500–2000 | Escalação: seleção automática (`_atribuicao_hungara`), `montar_escalacao`, `diagnostico_escalacao` |
-| 2000–2650 | Simulação de partida (`simular`), posse, força de meio, moral, pênaltis |
-| 2650–3350 | Classificação, clássicos, **estaduais reais** (`_formato_estadual`, `montar_estaduais`, mata-mata) |
-| 3350–3800 | Economia semanal, manchetes (`manchetes_da_semana`), `avancar_semana` |
-| 3800–4000 | Mercado — transferência/empréstimo básicos, IA de mercado |
-| 4000–5000 | Mercado — propostas, negociação (`Proposta`/`Resposta`), agendadas, ofertas espontâneas, contraproposta |
-| 5000–5320 | Evolução de jogador (potencial, declínio, treino) |
-| 5320–5630 | Base: categoria de base, peneira regional, candidatos, promoção |
-| 5630–6090 | Teto de potencial, IA (contratar livres, investimentos, rebaixamento, premiação) |
-| 6090–6600 | Diretoria (`avaliar_diretoria`, **confiança semanal**, `ia_demite_tecnicos`), opções e carreira do técnico (propostas de emprego, reputação, marcos) |
-| 6373–7500 | **Interface de terminal original** (`tela_elenco`, `tela_mercado`, `main()` do modo texto — não confundir com `brasfut_app.py`, que é a janela tkinter) |
-| 7500–8000 | Relatório de temporada, resumo, estatísticas do ano |
-| 8000–8497 | Save/load (`salvar`, `carregar`, `migrar`), trava de save, `loop()` principal, `main()` |
+| 1–630 | Utilitários, formações (`formacao_de`), perfis das ligas de fora (`PERFIL_LIGA_EXT`), calendário das copas (`SEMANAS_*`, `COPAS_NACIONAIS`, `SUPERCOPAS_NACIONAIS`, Intercontinental/Mundial), clubes brasileiros e sul-americanos |
+| 630–870 | **Ligas sul-americanas**: `LIGAS_SUL`, `VAGAS_LIB`/`VAGAS_SULA`, `CLUBES_LIGAS_SUL` (clubes novos com nome real) |
+| 870–1150 | Geração de jogador/clube (`novo_jogador`, `novo_clube`), elencos reais (`aplicar_elencos_reais`), `criar_mundo` |
+| 1150–1345 | Mundo embutido (`mundo_embutido`, `aplicar_mundo`), ligas de fora, `montar_ligas_sul`, `vagas_continentais_sul` |
+| 1345–1700 | Copas: `montar_copas`, **Intercontinental e Mundial** (`nova_intercontinental`, `montar_mundial`), **supercopas** (`montar_supercopas`), **copas nacionais de fora** (`montar_copas_nacionais`), Champions/Europa League, grupos continentais |
+| 1700–2400 | Escalação: seleção automática (`_atribuicao_hungara`), `montar_escalacao`, `diagnostico_escalacao` |
+| 2400–3230 | Simulação de partida (`simular`), posse, moral com causa (`mexer_moral`), pênaltis |
+| 3230–4240 | Classificação, clássicos, **estaduais reais** (`_formato_estadual`, `montar_estaduais`), semana de estadual (joga Supercopa/Recopa) |
+| 4240–4680 | Economia semanal, manchetes, mata-mata (`jogar_fase_copa`: jogo único, campo neutro, segundo plano), `avancar_semana` |
+| 4680–4790 | Mercado — transferência/empréstimo básicos, IA de mercado |
+| 4790–5960 | Mercado — propostas, negociação (`Proposta`/`Resposta`), salário do livre e do veterano, agendadas, contraproposta |
+| 5960–6220 | Evolução de jogador (potencial, declínio, treino) |
+| 6220–6500 | Base: categoria de base, peneira regional, promoção |
+| 6500–7000 | Teto de potencial, IA (livres, investimentos, rebaixamento, premiação), prêmios do ano |
+| 7000–7670 | Diretoria (**confiança semanal**, `ia_demite_tecnicos`), carreira do técnico |
+| 7670–8760 | **Interface de terminal original** (`tela_elenco`, `tela_mercado`, `jogar_semana` do modo texto — não confundir com `brasfut_app.py`) |
+| 8760–9400 | Estatísticas do ano, relatório e resumo de temporada (`apurar_temporada`, `encerrar_temporada`) |
+| 9400–9839 | Save/load (`salvar`, `carregar`, `migrar`), trava de save, `loop()` principal, `main()` |
 
 `brasfut_app.py`: além dos helpers de UI (linhas 1–560), cada tela/diálogo
 é uma classe (`class NomeDoDialogo(Dialogo)`) a partir da linha 566 — a
@@ -108,13 +110,29 @@ decisões em `docs/three-amigos/2026-09-25-onda-2-decisoes.md`):
   máquina sobe/desce um degrau aos 71' (`test_condicional.py`,
   `testes/balanceamento.py`).
 
-**Onda 3 — depois** (precisa de spike):
+**Onda 3 — em andamento** (os dois primeiros itens precisam de spike):
 - Intervalo interativo (spike de arquitetura: `simular` viraria máquina de
   estados).
 - IA com identidade tática e rebalanceamento (Retranca hoje domina
   matematicamente sobre Pressão — decisão foi **não mexer agora**).
-- Moral com causa, clássico com peso, economia com escolhas, entrosamento,
-  mercado disputado, olheiros, Copinha, história do clube.
+- ~~Moral com causa e clássico com peso~~ — feito: `mexer_moral`/`anotar_moral`
+  guardam `j["moral_hist"]` (5, só do meu clube), clássico dobra a moral de
+  resultado (`test_moral.py`).
+- ~~Entrosamento~~ — feito: `j["entros"]` (padrão 80, chegada 35, volta 60,
+  +5 por jogo), `PESO_JOGO_ENTROS` em `rendimento`, entra na chave do memo do
+  XI (`test_entrosamento.py`).
+- Economia com escolhas, mercado disputado, olheiros, Copinha, história do clube.
+
+**Mundo — concluído** (2026-09-26): nove ligas sul-americanas (ARG 20,
+URU, PAR, CHI, COL, EQU, PER, BOL, VEN) com as vagas da Libertadores e da
+Sul-Americana saindo da tabela de cada país; copas nacionais de todas as
+ligas de fora (jogo único, em segundo plano); Supercopa do Brasil e Recopa
+numa rodada do estadual; Supercopa da UEFA e 17 supercopas nacionais na
+semana 1; Copa Intercontinental todo ano (semanas 37–38) e Mundial de 32 a
+cada 4 anos desde 2029 (`test_ligas_sul.py`, `test_copas_nacionais.py`,
+`test_supercopas.py`, `test_mundial.py`). Semana de liga ~0,48 s.
+Ponto a acompanhar: o caixa das ligas sul-americanas menores ainda cai
+25–45% no primeiro ano.
 
 **Economia — concluída** (PRs #3–#6, `docs/three-amigos/2026-09-25-economia-decisoes.md`):
 extrato e informação, salário fixo pelo contrato, patrocínio como contrato e
@@ -136,7 +154,7 @@ de quando era terminal); React não tem testes (só a API tem).
 
 ```
 iniciar-web.bat                 # jogar (sobe server.py, abre o navegador)
-cd testes && python -m unittest -v   # testes, ~90s, sem pip/npm
+cd testes && python -m unittest -v   # testes, ~2 min, sem pip/npm
 python server.py --sem-abrir    # API sozinha (dev)
 cd web && npm run dev           # Vite com proxy /api (dev)
 cd web && npm run build         # gera web/dist (versionado)

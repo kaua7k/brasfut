@@ -19,3 +19,15 @@ export function dinheiro(v: number): string {
 export function plural(n: number, singular: string, plural?: string): string {
   return `${n} ${n === 1 ? singular : (plural ?? `${singular}s`)}`
 }
+
+/** Itens em grupos, na ordem em que cada grupo aparece pela primeira vez
+ * (para <optgroup> nos seletores de torneio). */
+export function agrupar<T extends { grupo: string }>(itens: T[]): [string, T[]][] {
+  const grupos = new Map<string, T[]>()
+  for (const item of itens) {
+    const lista = grupos.get(item.grupo)
+    if (lista) lista.push(item)
+    else grupos.set(item.grupo, [item])
+  }
+  return [...grupos.entries()]
+}

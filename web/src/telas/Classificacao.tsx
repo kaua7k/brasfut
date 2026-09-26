@@ -3,6 +3,7 @@
 // A tabela completa mora aqui; o Painel mostra so a minha vizinhanca, que e o
 // que importa de relance. Aqui e o lugar de olhar o torneio inteiro.
 
+import { agrupar } from '../formato'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
 import { Grade, type Coluna } from '../componentes/Grade'
 import { LegendaZonas, MarcaZona } from '../componentes/Zona'
@@ -57,10 +58,14 @@ export function Classificacao({ tela, aoTrocarTorneio, ocupado }: Props) {
             disabled={ocupado}
             onChange={(e) => aoTrocarTorneio(e.target.value)}
           >
-            {tela.torneios.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.nome}
-              </option>
+            {agrupar(tela.torneios).map(([grupo, itens]) => (
+              <optgroup key={grupo} label={grupo}>
+                {itens.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.nome}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
           {tela.legenda && <span className="sub txt-fraco">{tela.legenda}</span>}

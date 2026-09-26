@@ -562,7 +562,7 @@ export interface TelaTabela {
   cabecalho: Cabecalho
   titulo: string
   subtitulo?: string
-  torneios: { id: string; nome: string }[]
+  torneios: { id: string; nome: string; grupo: string }[]
   alvo: string
   legenda: string | null
   vazio: string | null
@@ -688,6 +688,8 @@ export interface FichaJogador {
   carreira: { j: number; g: number; tit: number }
   /** premios do ano que o jogador ganhou, do mais novo para o mais velho */
   premios: string[]
+  /** as ultimas causas da moral, da mais nova para a mais velha */
+  moral_causas: { texto: string; estado: string; quando: string }[]
   contrato: {
     anos: number
     salario: string
@@ -1116,6 +1118,8 @@ export interface ItemCompeticao {
   meu: boolean
   estado: string
   vivo: boolean
+  /** regiao no seletor: Brasil, Estaduais, America do Sul, Europa, Mundial... */
+  grupo: string
 }
 
 export interface JogoRodada {
@@ -1168,7 +1172,8 @@ export interface JogoCopa {
 
 export interface FaseCopa {
   nome: string
-  semana: number
+  /** null na Supercopa e na Recopa, que caem numa rodada do estadual (vem na nota) */
+  semana: number | null
   estado: 'jogada' | 'sorteada' | 'futura'
   /** troca o rotulo padrao da fase (estadual: "ida", "a definir"...) */
   nota?: string | null

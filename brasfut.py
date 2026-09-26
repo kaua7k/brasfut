@@ -352,6 +352,16 @@ PERFIL_LIGA_EXT = {
     "NED": {"tv": (600_000, 30_000), "premio": 50_000_000, "caixa": 1.2, "peso": 0.95, "teto": 92},
     "USA": {"tv": (830_000, 28_000), "premio": 40_000_000, "caixa": 1.4, "peso": 0.90, "teto": 88},
     "SAU": {"tv": (700_000, 28_000), "premio": 60_000_000, "caixa": 2.5, "peso": 0.88, "teto": 88},
+    # America do Sul: bem abaixo da Europa, a Argentina um degrau acima dos vizinhos
+    "ARG": {"tv": (300_000, 7_800), "premio": 12_000_000, "caixa": 0.45, "peso": 0.90, "teto": 90},
+    "URU": {"tv": (190_000, 5_200), "premio": 4_000_000, "caixa": 0.25, "peso": 0.84, "teto": 86},
+    "PAR": {"tv": (200_000, 4_800), "premio": 4_000_000, "caixa": 0.25, "peso": 0.83, "teto": 85},
+    "CHI": {"tv": (175_000, 5_000), "premio": 4_500_000, "caixa": 0.28, "peso": 0.84, "teto": 86},
+    "COL": {"tv": (230_000, 5_600), "premio": 5_000_000, "caixa": 0.30, "peso": 0.85, "teto": 87},
+    "EQU": {"tv": (240_000, 5_300), "premio": 4_500_000, "caixa": 0.28, "peso": 0.84, "teto": 86},
+    "PER": {"tv": (155_000, 4_600), "premio": 2_500_000, "caixa": 0.20, "peso": 0.78, "teto": 83},
+    "BOL": {"tv": (130_000, 4_400), "premio": 2_000_000, "caixa": 0.18, "peso": 0.76, "teto": 82},
+    "VEN": {"tv": (125_000, 4_000), "premio": 2_000_000, "caixa": 0.18, "peso": 0.76, "teto": 82},
 }
 PERFIL_PADRAO = {"tv": (600_000, 20_000), "premio": 30_000_000, "caixa": 1.0, "peso": 0.9, "teto": 88}
 
@@ -398,11 +408,62 @@ FASE_GRUPOS = "Fase de grupos"
 SEMANAS_FASE_LIGA = [5, 7, 10, 12, 15, 17, 20, 23]
 SEMANAS_EURO = [26, 29, 32, 35, 37]
 FASE_LIGA = "Fase de liga"
+# Copas nacionais de fora: em segundo plano, jogo unico, com os clubes da liga
+# (os 16 ou 8 de maior reputacao). Semanas livres das copas continentais.
+COPAS_NACIONAIS = {
+    "ENG": "FA Cup", "ESP": "Copa del Rey", "GER": "DFB-Pokal", "ITA": "Coppa Italia",
+    "FRA": "Coupe de France", "POR": "Taca de Portugal", "NED": "KNVB Beker",
+    "USA": "US Open Cup", "SAU": "King's Cup", "ARG": "Copa Argentina", "URU": "Copa AUF Uruguay",
+    "PAR": "Copa Paraguay", "CHI": "Copa Chile", "COL": "Copa Colombia", "EQU": "Copa Ecuador",
+    "PER": "Copa Bicentenario", "BOL": "Copa Bolivia", "VEN": "Copa Venezuela",
+}
+# calendario por pais, em grupos, para as estreias nao cairem todas na mesma
+# semana (80 jogos a mais numa semana so passava do limite de tempo)
+_CN16 = {"A": [9, 18, 25, 34], "B": [2, 19, 30, 38], "C": [4, 14, 24, 31]}
+_CN8 = {"A": [1, 18, 30], "B": [14, 25, 34]}
+# Supercopas: campeao contra campeao, com os titulos do ano anterior. A do
+# Brasil e a Recopa caem no estadual (rodada do estadual, semana_est); a da
+# UEFA e as nacionais de fora, na primeira semana da liga.
+SUPERCOPA_BR_EST = 2          # rodada do estadual da Supercopa do Brasil
+RECOPA_EST = 3                # e da Recopa (ida e volta na mesma semana)
+SEMANA_SUPERCOPAS = 1
+SUPERCOPAS_NACIONAIS = {
+    "ENG": "Community Shield", "ESP": "Supercopa da Espanha", "GER": "DFL-Supercup",
+    "ITA": "Supercoppa Italiana", "FRA": "Trophee des Champions", "POR": "Supertaca Candido de Oliveira",
+    "NED": "Johan Cruijff Schaal", "SAU": "Supercopa Saudita", "ARG": "Supercopa Argentina",
+    "URU": "Supercopa Uruguaya", "PAR": "Supercopa Paraguay", "CHI": "Supercopa de Chile",
+    "COL": "Superliga Colombiana", "EQU": "Supercopa do Equador", "PER": "Supercopa Peruana",
+    "BOL": "Supercopa Boliviana", "VEN": "Supercopa Venezuelana",
+}
+# Copa Intercontinental, todo ano, logo depois das finais: o campeao da
+# Libertadores pega o melhor da MLS (Derby das Americas) e quem passa decide com
+# o campeao da Champions. Campo neutro, jogo unico.
+SEMANAS_INTERCONTINENTAL = [37, 38]
+FASES_INTERCONTINENTAL = ["Derby das Americas", "FINAL"]
+# Mundial de Clubes de 32, a cada 4 anos (o de 2025 ja foi): 8 grupos de 4 em
+# turno unico e mata-mata em jogo unico, tudo em campo neutro, nas semanas
+# livres das copas continentais.
+ANO_MUNDIAL = 2029
+SEMANAS_MUNDIAL_GRUPOS = [18, 19, 24]
+SEMANAS_MUNDIAL = [25, 30, 31, 34]
+VAGAS_MUNDIAL = (("europeu", 14), ("conmebol", 8), ("USA", 5), ("SAU", 5))
+SEMANAS_COPA_NAC = {
+    16: {"ENG": _CN16["A"], "ESP": _CN16["A"], "GER": _CN16["A"], "ITA": _CN16["A"],
+         "FRA": _CN16["B"], "POR": _CN16["B"], "NED": _CN16["B"],
+         "USA": _CN16["C"], "SAU": _CN16["C"], "ARG": _CN16["C"]},
+    8: {"URU": _CN8["A"], "PAR": _CN8["A"], "CHI": _CN8["A"], "COL": _CN8["A"],
+        "EQU": _CN8["B"], "PER": _CN8["B"], "BOL": _CN8["B"], "VEN": _CN8["B"]},
+}
+
+
+def semanas_copa_nac(codigo: str, n: int) -> List[int]:
+    return list(SEMANAS_COPA_NAC[n].get(codigo) or (_CN16["A"] if n == 16 else _CN8["B"]))
 # ordem de forca das ligas: desempata vaga e completa as copas
 ORDEM_LIGAS_EXT = ["ENG", "ESP", "GER", "ITA", "FRA", "POR", "NED"]
 VAGAS_CHAMPIONS = {"ENG": 4, "ESP": 4, "GER": 4, "ITA": 4, "FRA": 3, "POR": 2, "NED": 2}
 # o que cada vitoria na fase de grupos paga a um clube brasileiro
-PREMIO_VITORIA_GRUPO = {"lib": 1_800_000, "sul": 900_000, "ucl": 12_000_000, "uel": 4_000_000}
+PREMIO_VITORIA_GRUPO = {"lib": 1_800_000, "sul": 900_000, "ucl": 12_000_000, "uel": 4_000_000,
+                        "mundial": 6_000_000}
 JANELAS = list(range(1, 5)) + list(range(19, 23))   # semanas com mercado aberto
 
 # ----------------------------------------------------------------------------
@@ -555,6 +616,97 @@ CLUBES_SUL = [
     ("Melgar", "PER", "Monumental UNSA", 60000, 61),
     ("Cienciano", "PER", "Inca Garcilaso", 45000, 60),
 ]
+
+# ----------------------------------------------------------------------------
+# LIGAS SUL-AMERICANAS
+#
+# Os clubes de CLUBES_LIB, CLUBES_SUL e os sul-americanos do dados_mundo.py
+# entram na liga do pais; os que faltam para fechar a liga vem daqui, com nome
+# real e elenco gerado pela reputacao. As vagas da Libertadores e da
+# Sul-Americana saem da classificacao de cada liga no ano anterior.
+# ----------------------------------------------------------------------------
+
+# codigo (= pais), nome da liga, numero de clubes
+LIGAS_SUL = [
+    ("ARG", "Liga Profesional Argentina", 20),
+    ("URU", "Campeonato Uruguaio", 10),
+    ("PAR", "Campeonato Paraguaio", 10),
+    ("CHI", "Campeonato Chileno", 12),
+    ("COL", "Liga Colombiana", 12),
+    ("EQU", "LigaPro Equatoriana", 10),
+    ("PER", "Liga 1 Peruana", 10),
+    ("BOL", "Campeonato Boliviano", 10),
+    ("VEN", "Liga Venezuelana", 10),
+]
+CODIGOS_SUL = [k for k, _, _ in LIGAS_SUL]
+# 24 vagas de fora em cada copa (as outras 8 sao brasileiras)
+VAGAS_LIB = {"ARG": 5, "URU": 3, "PAR": 3, "CHI": 3, "COL": 3, "EQU": 3, "PER": 2, "BOL": 1, "VEN": 1}
+VAGAS_SULA = {"ARG": 4, "URU": 3, "PAR": 3, "CHI": 3, "COL": 3, "EQU": 3, "PER": 2, "BOL": 2, "VEN": 1}
+
+# na ordem em que entram, ate a liga fechar o numero de clubes
+CLUBES_LIGAS_SUL = {
+    "ARG": [("Godoy Cruz", "ARG", "Malvinas Argentinas", 42000, 64),
+            ("Gimnasia La Plata", "ARG", "Juan Carmelo Zerillo", 24544, 63),
+            ("Banfield", "ARG", "Florencio Sola", 34901, 62),
+            ("Union de Santa Fe", "ARG", "15 de Abril", 22852, 62),
+            ("Tigre", "ARG", "Jose Dellagiovanna", 26282, 61)],
+    "URU": [("Montevideo Wanderers", "URU", "Parque Alfredo Viera", 7420, 57),
+            ("Cerro Largo", "URU", "Antonio Ubilla", 9000, 54),
+            ("Plaza Colonia", "URU", "Profesor Alberto Suppici", 12000, 53),
+            ("Racing Montevideo", "URU", "Parque Roberto", 8500, 53),
+            ("Progreso", "URU", "Parque Abraham Paladino", 8000, 52),
+            ("Fenix", "URU", "Parque Capurro", 5500, 52)],
+    "PAR": [("Sportivo Luqueno", "PAR", "Feliciano Caceres", 24000, 55),
+            ("Sportivo Trinidense", "PAR", "Martin Torres", 3000, 52),
+            ("Tacuary", "PAR", "Roberto Bettega", 3000, 51),
+            ("Sportivo Ameliano", "PAR", "Jose Tomas Silva", 3000, 51),
+            ("General Caballero", "PAR", "Ka'arendy", 8000, 51),
+            ("Sportivo San Lorenzo", "PAR", "Gunther Vogel", 5000, 50)],
+    "CHI": [("Palestino", "CHI", "Municipal de La Cisterna", 12000, 58),
+            ("Everton de Vina", "CHI", "Sausalito", 22360, 57),
+            ("Union Espanola", "CHI", "Santa Laura", 19887, 57),
+            ("Cobresal", "CHI", "El Cobre", 12000, 55),
+            ("Nublense", "CHI", "Nelson Oyarzun", 12000, 55),
+            ("Union La Calera", "CHI", "Nicolas Chahuan", 9200, 55),
+            ("Deportes Iquique", "CHI", "Tierra de Campeones", 13171, 54)],
+    "COL": [("Independiente Medellin", "COL", "Atanasio Girardot", 40043, 64),
+            ("Atletico Bucaramanga", "COL", "Alfonso Lopez", 25000, 61),
+            ("Deportivo Pereira", "COL", "Hernan Ramirez Villegas", 30297, 59),
+            ("Envigado", "COL", "Polideportivo Sur", 11000, 55),
+            ("Deportivo Pasto", "COL", "Departamental Libertad", 20665, 55),
+            ("Alianza FC", "COL", "Armando Maestre", 11000, 54)],
+    "EQU": [("Emelec", "EQU", "George Capwell", 40020, 66),
+            ("Catolica del Ecuador", "EQU", "Olimpico Atahualpa", 35258, 58),
+            ("Delfin", "EQU", "Jocay", 17000, 58),
+            ("Orense", "EQU", "9 de Mayo", 16500, 56),
+            ("Deportivo Cuenca", "EQU", "Alejandro Serrano Aguilar", 16500, 56),
+            ("Mushuc Runa", "EQU", "Mushuc Runa", 8200, 54),
+            ("Tecnico Universitario", "EQU", "Bellavista", 16467, 53)],
+    "PER": [("Sport Huancayo", "PER", "Huancayo", 20000, 55),
+            ("Deportivo Garcilaso", "PER", "Garcilaso", 45000, 54),
+            ("ADT", "PER", "Union Tarma", 9000, 53),
+            ("Alianza Atletico", "PER", "Campeones del 36", 8000, 52),
+            ("Atletico Grau", "PER", "Miguel Grau", 25000, 52),
+            ("Comerciantes Unidos", "PER", "Juan Maldonado Gamarra", 5000, 51),
+            ("UTC", "PER", "Heroes de San Ramon", 18000, 51)],
+    "BOL": [("Blooming", "BOL", "Ramon Tahuichi Aguilera", 38000, 57),
+            ("Oriente Petrolero", "BOL", "Ramon Tahuichi Aguilera", 38000, 57),
+            ("Jorge Wilstermann", "BOL", "Felix Capriles", 32000, 57),
+            ("San Antonio Bulo Bulo", "BOL", "Carlos Villegas", 6000, 53),
+            ("Aurora", "BOL", "Felix Capriles", 32000, 52),
+            ("Real Tomayapo", "BOL", "IV Centenario", 15000, 51),
+            ("Guabira", "BOL", "Gilberto Parada", 13000, 51),
+            ("Universitario de Vinto", "BOL", "Municipal de Vinto", 5000, 50)],
+    "VEN": [("Caracas FC", "VEN", "Olimpico de la UCV", 23940, 58),
+            ("Monagas", "VEN", "Monumental de Maturin", 51796, 55),
+            ("Estudiantes de Merida", "VEN", "Metropolitano de Merida", 42200, 54),
+            ("Zamora", "VEN", "Agustin Tovar", 29800, 53),
+            ("Metropolitanos", "VEN", "Olimpico de la UCV", 23940, 53),
+            ("Portuguesa FC", "VEN", "Jose Antonio Paez", 18000, 52),
+            ("Rayo Zuliano", "VEN", "Pachencho Romero", 40800, 51),
+            ("Academia Puerto Cabello", "VEN", "Complejo Socialista", 7500, 51)],
+}
+
 
 # ----------------------------------------------------------------------------
 # GERADOR DE NOMES
@@ -969,6 +1121,7 @@ def criar_mundo(nome_tecnico):
     aplicar_elencos_reais(G, usados)
     # depois dos elencos brasileiros: a recalibracao deles nao pode mexer na Europa
     aplicar_mundo(G, usados, sul=True)
+    montar_ligas_sul(G, usados)
     for c in G["clubes"].values():
         if c["divisao"] == "EX":
             continue
@@ -1055,8 +1208,12 @@ def nova_liga_ext(codigo, nome, ids):
 
 def aplicar_mundo(G, usados, sul=False):
     """Cria as ligas europeias que faltam. Com sul=True (so em mundo novo), poe
-    tambem os elencos reais dos sul-americanos e dos brasileiros sincronizados:
-    em save ja comecado eles nao mudam, para nao virar o elenco de ninguem."""
+    tambem os elencos reais dos sul-americanos: em save ja comecado eles nao
+    mudam, para nao virar o elenco de ninguem.
+
+    Os brasileiros vem so de ELENCOS_EMBUTIDOS (feitos a mao). O bloco "brasil"
+    que o importador chegou a gerar (o Santos da API por cima do original) e
+    ignorado de proposito."""
     m = mundo_embutido()
     if not m:
         return
@@ -1088,10 +1245,59 @@ def aplicar_mundo(G, usados, sul=False):
     if not sul:
         return
     por_nome = {c["nome"]: c for c in G["clubes"].values() if not c.get("europeu")}
-    for bloco in ("sul", "brasil"):
-        for nome, lista in (m.get(bloco) or {}).items():
-            if nome in por_nome and lista:
-                trocar_elenco(G, por_nome[nome], lista, usados)
+    for nome, lista in (m.get("sul") or {}).items():
+        if nome in por_nome and lista and por_nome[nome]["divisao"] not in DIVISOES_BR:
+            trocar_elenco(G, por_nome[nome], lista, usados)
+
+
+def montar_ligas_sul(G, usados):
+    """Poe os sul-americanos "EX" na liga do pais e completa cada liga com os
+    clubes de CLUBES_LIGAS_SUL. Liga que ja existe no save nao muda. Devolve
+    os codigos criados."""
+    criadas = []
+    for codigo, nome, n in LIGAS_SUL:
+        if codigo in G["ligas"]:
+            continue
+        do_pais = sorted((c for c in G["clubes"].values()
+                          if c["divisao"] == "EX" and c["uf"] == codigo and not c.get("europeu")),
+                         key=lambda c: -c["reputacao"])
+        nomes = {c["nome"] for c in do_pais}
+        for dados in CLUBES_LIGAS_SUL.get(codigo, []):
+            if len(do_pais) >= n:
+                break
+            if dados[0] in nomes:
+                continue
+            do_pais.append(novo_clube(G, dados, codigo, usados))
+        if len(do_pais) < 4:
+            continue
+        ids = []
+        for c in do_pais:
+            if c["divisao"] == "EX":
+                # veio de fora das ligas: caixa na escala do pais
+                c["dinheiro"] = int(c["reputacao"] ** 2 * 3800 * perfil_liga(codigo)["caixa"]) \
+                    + rng.randint(200_000, 1_200_000)
+            c["divisao"] = codigo
+            c["liga_ext"] = codigo
+            ids.append(c["id"])
+        G["ligas"][codigo] = nova_liga_ext(codigo, nome, ids)
+        criadas.append(codigo)
+    return criadas
+
+
+def ligas_sul(G):
+    return [k for k in CODIGOS_SUL if k in G["ligas"]]
+
+
+def vagas_continentais_sul(G):
+    """As 24 vagas de fora da Libertadores e da Sul-Americana, pela liga de
+    cada pais (classificacao do ano anterior; no primeiro ano, reputacao)."""
+    lib, sula = [], []
+    for k in ligas_sul(G):
+        ordem = _ordem_liga_ext(G, k)
+        a, b = VAGAS_LIB.get(k, 0), VAGAS_SULA.get(k, 0)
+        lib += ordem[:a]
+        sula += ordem[a:a + b]
+    return lib, sula
 
 
 def falta_mundo(G):
@@ -1153,10 +1359,19 @@ def montar_copas(G, primeira=False):
         ordem = ordem + faltam
 
     campeao_ucl = (G.get("copas") or {}).get("ucl", {}).get("campeao")
+    supercopas = [] if primeira else montar_supercopas(G, G.get("copas") or {})
     ex = sorted((c["id"] for c in G["clubes"].values()
                  if c["divisao"] == "EX" and not c.get("liga_ext") and not c.get("europeu")),
                 key=lambda i: -G["clubes"][i]["reputacao"])
-    ex_lib, ex_sul = ex[:24], ex[24:48]
+    if ligas_sul(G):
+        # as vagas saem das ligas do continente; sobra de "EX" (save antigo) completa
+        ex_lib, ex_sul = vagas_continentais_sul(G)
+        resto = [i for i in ex if i not in ex_lib and i not in ex_sul]
+        ex_lib += resto[:max(0, 24 - len(ex_lib))]
+        resto = [i for i in resto if i not in ex_lib]
+        ex_sul += resto[:max(0, 24 - len(ex_sul))]
+    else:
+        ex_lib, ex_sul = ex[:24], ex[24:48]
     br_lib, br_sul = ordem[:8], ordem[8:16]
     # mundo sem estrangeiros bastantes: a Sul-Americana completa com brasileiros,
     # seguindo a Serie A e depois a Serie B por reputacao
@@ -1175,6 +1390,180 @@ def montar_copas(G, primeira=False):
     rng.shuffle(G["copas"]["copa"]["vivos"])
     G["copas"]["copa"]["sorteio"] = sortear_confrontos(G, G["copas"]["copa"]["vivos"])
     montar_copas_europeias(G, primeira, campeao_ucl)
+    montar_copas_nacionais(G)
+    for chave, cp in supercopas:
+        G["copas"][chave] = cp
+    # depois da Champions no dicionario: na semana 37 a final dela ja saiu
+    G["copas"]["intercontinental"] = nova_intercontinental()
+    if ano_de_mundial(int(G["temporada"])) and not primeira:
+        mundial = montar_mundial(G)
+        if mundial:
+            G["copas"]["mundial"] = mundial
+
+
+def nova_intercontinental():
+    return {"nome": "Copa Intercontinental", "vivos": [], "fase": 0,
+            "semanas": list(SEMANAS_INTERCONTINENTAL), "fases": list(FASES_INTERCONTINENTAL),
+            "campeao": None, "historico": [], "sorteio": [], "espera": [],
+            "jogo_unico": True, "neutro": True, "intercontinental": True}
+
+
+def _lider(G, codigo):
+    liga = G["ligas"].get(codigo)
+    return classificacao(G, liga)[0] if liga and liga["times"] else None
+
+
+def preparar_intercontinental(G):
+    """Assim que a Libertadores tem campeao, o Derby das Americas ganha os dois
+    lados (o melhor da MLS agora; sem MLS, o da Arabia)."""
+    cp = G["copas"].get("intercontinental")
+    if not cp or cp["vivos"] or cp["campeao"] or cp["fase"]:
+        return
+    lib = (G["copas"].get("lib") or {}).get("campeao")
+    if lib is None:
+        return
+    rival = _lider(G, "USA") or _lider(G, "SAU")
+    if rival is None or rival == lib:
+        return
+    cp["vivos"] = [lib, rival]
+    cp["sorteio"] = [[rival, lib]]
+
+
+def entrar_campeao_europeu(G, cp):
+    """Na hora do Derby: o campeao da Champions (final na mesma semana, antes
+    no calendario) espera na final."""
+    ucl = (G["copas"].get("ucl") or {}).get("campeao")
+    if cp["fase"] == 0 and ucl is not None and ucl not in cp["vivos"] and not cp["espera"]:
+        cp["espera"] = [ucl]
+
+
+def ano_de_mundial(temporada: int) -> bool:
+    return temporada >= ANO_MUNDIAL and (temporada - ANO_MUNDIAL) % 4 == 0
+
+
+def montar_mundial(G):
+    """Os 32: campeoes da Champions e da Libertadores do ano que acabou, e o
+    resto por reputacao em cada bloco (Europa, America do Sul com os
+    brasileiros, MLS e Arabia). Bloco que nao fecha e completado pela Europa."""
+    anteriores = G.get("copas") or {}
+    clubes = G["clubes"].values()
+    blocos = {
+        "europeu": [c for c in clubes if c.get("europeu")],
+        "conmebol": [c for c in clubes if c["divisao"] in DIVISOES_BR or c["divisao"] in CODIGOS_SUL],
+        "USA": [c for c in clubes if c["divisao"] == "USA"],
+        "SAU": [c for c in clubes if c["divisao"] == "SAU"],
+    }
+    campeoes = {"europeu": (anteriores.get("ucl") or {}).get("campeao"),
+                "conmebol": (anteriores.get("lib") or {}).get("campeao")}
+    times, falta = [], 0
+    for bloco, n in VAGAS_MUNDIAL:
+        ordem = sorted((c["id"] for c in blocos[bloco]), key=lambda i: -G["clubes"][i]["reputacao"])
+        primeiro = campeoes.get(bloco)
+        if primeiro in G["clubes"]:
+            ordem = [primeiro] + [i for i in ordem if i != primeiro]
+        escolhidos = ordem[:n]
+        falta += n - len(escolhidos)
+        times += escolhidos
+    if falta:
+        resto = sorted((c["id"] for c in blocos["europeu"] if c["id"] not in times),
+                       key=lambda i: -G["clubes"][i]["reputacao"])
+        times += resto[:falta]
+    if len(times) < 32:
+        return None
+    grupos = sortear_grupos_continentais(G, times)
+    for g in grupos:
+        a, b, c, d = g["times"]
+        g["rodadas"] = [[[a, b], [c, d]], [[a, c], [d, b]], [[d, a], [b, c]]]
+    return {"nome": "Mundial de Clubes", "vivos": list(times), "fase": 0,
+            "semanas": list(SEMANAS_MUNDIAL), "fases": list(FASES_LIB), "campeao": None,
+            "historico": [], "sorteio": [], "espera": [], "grupos": grupos,
+            "semanas_grupos": list(SEMANAS_MUNDIAL_GRUPOS), "rodada_grupo": 0,
+            "formato": "grupos_top2", "jogo_unico": True, "neutro": True}
+
+
+def _decisao(nome, a, b, **extra):
+    """Uma supercopa: dois clubes, uma fase so."""
+    cp = {"nome": nome, "vivos": [a, b], "fase": 0, "semanas": [], "campeao": None,
+          "historico": [], "sorteio": [[a, b]], "supercopa": True}
+    cp.update(extra)
+    return cp
+
+
+def _campeao_liga(G, codigo):
+    if codigo == "A":
+        ordem = G.get("class_A_anterior") or []
+    else:
+        ordem = G.get("class_ext_anterior", {}).get(codigo) or []
+    return [i for i in ordem if i in G["clubes"]]
+
+
+def montar_supercopas(G, anteriores):
+    """As supercopas do ano que comeca, com os campeoes do ano que acabou.
+    Quando o mesmo clube ganhou as duas coisas, o outro lado e o vice da liga."""
+    out = []
+
+    def par(liga_ordem, copa):
+        if not liga_ordem:
+            return None
+        a = liga_ordem[0]
+        b = (anteriores.get(copa) or {}).get("campeao")
+        if b is None or b == a or b not in G["clubes"]:
+            b = liga_ordem[1] if len(liga_ordem) > 1 else None
+        return (a, b) if b is not None else None
+
+    ab = par(_campeao_liga(G, "A"), "copa")
+    if ab:
+        out.append(("supercopa", _decisao("Supercopa do Brasil", *ab, semanas_est=[SUPERCOPA_BR_EST])))
+    lib = (anteriores.get("lib") or {}).get("campeao")
+    sula = (anteriores.get("sul") or {}).get("campeao")
+    if lib in G["clubes"] and sula in G["clubes"] and lib != sula:
+        out.append(("recopa", _decisao("Recopa Sul-Americana", lib, sula, semanas_est=[RECOPA_EST],
+                                       final_ida_volta=True)))
+    ucl = (anteriores.get("ucl") or {}).get("campeao")
+    uel = (anteriores.get("uel") or {}).get("campeao")
+    if ucl in G["clubes"] and uel in G["clubes"] and ucl != uel:
+        out.append(("supercopa_uefa", _decisao("Supercopa da UEFA", ucl, uel,
+                                               semanas=[SEMANA_SUPERCOPAS], fundo=True)))
+    for codigo, nome in SUPERCOPAS_NACIONAIS.items():
+        ab = par(_campeao_liga(G, codigo), chave_copa_nac(codigo))
+        if ab:
+            out.append(("sc_" + codigo, _decisao(nome, *ab, semanas=[SEMANA_SUPERCOPAS],
+                                                 fundo=True, pais=codigo)))
+    return out
+
+
+def copa_do_estadual_na_semana(cp, semana_est):
+    """Copa que se joga numa rodada do estadual (Supercopa, Recopa)."""
+    se = cp.get("semanas_est") or []
+    return not cp["campeao"] and cp["fase"] < len(se) and se[cp["fase"]] == semana_est
+
+
+def chave_copa_nac(codigo: str) -> str:
+    return "cn_" + codigo
+
+
+def montar_copas_nacionais(G, so_faltam=False):
+    """Uma copa por liga de fora que tem nome em COPAS_NACIONAIS. Com
+    so_faltam (save antigo), cria so as que nao existem e so se a primeira
+    fase ainda nao passou."""
+    for codigo, nome in COPAS_NACIONAIS.items():
+        chave = chave_copa_nac(codigo)
+        liga = G["ligas"].get(codigo)
+        if not liga or (so_faltam and chave in G["copas"]):
+            continue
+        times = sorted((i for i in liga["times"] if i in G["clubes"]),
+                       key=lambda i: -G["clubes"][i]["reputacao"])
+        n = 16 if len(times) >= 16 else 8
+        if len(times) < n:
+            continue
+        semanas = semanas_copa_nac(codigo, n)
+        if so_faltam and G.get("fase") == "liga" and G["semana"] >= semanas[0]:
+            continue
+        vivos = times[:n]
+        rng.shuffle(vivos)
+        G["copas"][chave] = {"nome": nome, "vivos": vivos, "fase": 0, "semanas": list(semanas),
+                             "campeao": None, "historico": [], "jogo_unico": True, "fundo": True,
+                             "pais": codigo, "sorteio": sortear_confrontos(G, vivos)}
 
 
 # ----------------------------------------------------------------------------
@@ -1347,7 +1736,7 @@ def jogar_rodada_grupos(G, chave):
             continue
         placares = []
         for casa, fora in g["rodadas"][g["rodada"]]:
-            r = simular(G, casa, fora, chave)
+            r = simular(G, casa, fora, chave, neutro=bool(cp.get("neutro")))
             registrar(g, casa, fora, r["gc"], r["gf"])
             placares.append([casa, fora, r["gc"], r["gf"]])
             res.append(r)
@@ -1384,6 +1773,16 @@ def fechar_grupos(G):
         cp["sorteio"] = cruzar(G, ordem[8:16], ordem[16:24])
         manchete(G, "copa", "%s: %s termina a fase de liga em primeiro." %
                  (cp["nome"], G["clubes"][ordem[0]]["nome"]))
+    for chave, cp in G["copas"].items():
+        if cp.get("formato") != "grupos_top2" or cp.get("grupos_fechados") or em_grupos(cp):
+            continue
+        ordens = [classificacao(G, g) for g in cp["grupos"]]
+        primeiros, segundos = [o[0] for o in ordens], [o[1] for o in ordens]
+        cp["grupos_fechados"] = True
+        cp["vivos"] = primeiros + segundos
+        cp["sorteio"] = cruzar(G, primeiros, segundos)
+        if meu in cp["vivos"]:
+            noticia(G, "%s: classificado para o mata-mata." % cp["nome"])
     for chave in ("lib", "sul"):
         cp = G["copas"].get(chave)
         if not cp or not cp.get("grupos") or cp.get("grupos_fechados") or em_grupos(cp):
@@ -1495,6 +1894,18 @@ PESO_ESCOLHA_MORAL = 0.06
 PESO_JOGO_COND = 0.28
 PESO_JOGO_FORMA = 0.10
 PESO_JOGO_MORAL = 0.05
+# Entrosamento (0-100): o quanto o jogador conhece o time. Quem chega comeca
+# baixo e ganha a cada jogo pelo clube; quem ja estava no mundo novo comeca
+# em ENTROS_PADRAO (sem campo no save, vale o padrao: save antigo carrega igual).
+PESO_JOGO_ENTROS = 0.06
+ENTROS_PADRAO = 80
+ENTROS_CHEGADA = 35       # contratado ou emprestado: time novo, esquema novo
+ENTROS_VOLTA = 60         # voltou de emprestimo ou subiu da base: ja conhecia a casa
+ENTROS_POR_JOGO = 5
+
+
+def entrosamento(j: Jogador) -> int:
+    return int(j.get("entros", ENTROS_PADRAO))
 
 
 def sincronizar_suspensao(j: Jogador) -> None:
@@ -1528,6 +1939,7 @@ def rendimento(j: Jogador, afinidade: float = 1.0) -> float:
     base *= (1.0 - PESO_JOGO_COND) + PESO_JOGO_COND * (j["cond"] / 100.0)
     base *= (1.0 - PESO_JOGO_FORMA) + PESO_JOGO_FORMA * (j["forma"] / 100.0)
     base *= (1.0 - PESO_JOGO_MORAL) + PESO_JOGO_MORAL * (j["moral"] / 100.0)
+    base *= (1.0 - PESO_JOGO_ENTROS) + PESO_JOGO_ENTROS * (j.get("entros", ENTROS_PADRAO) / 100.0)
     return base
 
 
@@ -1868,7 +2280,7 @@ def vagas_manuais(c: Optional[Clube]) -> Dict[int, str]:
 
 # Memo exato do laco de simulacao. atribuir_vagas e funcao pura de (formacao,
 # vagas fixadas e, de cada titular na ordem do XI: posicao, overall, condicao,
-# forma e moral) - rendimento() nao le mais nada. A chave leva tudo isso, entao
+# forma, moral e entrosamento) - rendimento() nao le mais nada. A chave leva tudo isso, entao
 # o memo nunca devolve conta velha: jogador que cansou no intervalo ou mudou de
 # moral e outra chave. Acerta quando o mesmo XI e medido de novo no mesmo
 # estado (posse, forcas do primeiro tempo, diagnostico, painel). Vive fora do
@@ -1881,7 +2293,8 @@ def _chave_xi(G: Mundo, esc: List[int], form: Dict[str, int],
               fixas: Optional[Dict[int, str]]) -> Any:
     js = G["jogadores"]
     jogadores = tuple((pid, js[pid]["pos"], js[pid]["ovr"], js[pid]["cond"],
-                       js[pid]["forma"], js[pid]["moral"]) for pid in esc)
+                       js[pid]["forma"], js[pid]["moral"], js[pid].get("entros", ENTROS_PADRAO))
+                      for pid in esc)
     return (tuple(sorted(form.items())), tuple(sorted((fixas or {}).items())), jogadores)
 
 
@@ -2717,6 +3130,8 @@ def simular(G, casa_id, fora_id, comp="liga", neutro=False):
             j["j"] += 1
             j["car_j"] += 1
             j["j_mes"] = j.get("j_mes", 0) + 1
+            if entrosamento(j) < 100:
+                j["entros"] = min(100, entrosamento(j) + ENTROS_POR_JOGO)
 
     for lado, jogaram in ((0, jogaram_c), (1, jogaram_f)):
         pro, contra = (gc, gf) if lado == 0 else (gf, gc)
@@ -2735,8 +3150,9 @@ def simular(G, casa_id, fora_id, comp="liga", neutro=False):
                 j["nota_soma"] = round(j.get("nota_soma", 0.0) + notas[pid], 1)
                 j["nota_j"] = j.get("nota_j", 0) + 1
 
-    aplicar_moral(G, list(jogaram_c), gc, gf)
-    aplicar_moral(G, list(jogaram_f), gf, gc)
+    classico = eh_classico(G, casa_id, fora_id)
+    aplicar_moral(G, list(jogaram_c), gc, gf, fora["nome"], classico)
+    aplicar_moral(G, list(jogaram_f), gf, gc, casa["nome"], classico)
     eventos.sort(key=lambda e: e[0])
     return {"casa": casa_id, "fora": fora_id, "gc": gc, "gf": gf,
             "pub": pub, "renda": renda, "eventos": eventos, "comp": comp,
@@ -2744,21 +3160,50 @@ def simular(G, casa_id, fora_id, comp="liga", neutro=False):
             "xi": {"casa": jogaram_c, "fora": jogaram_f}}
 
 
-def aplicar_moral(G, esc, pro, contra):
+MORAL_HIST = 5          # causas de moral guardadas por jogador (so do meu clube)
+PESO_CLASSICO_MORAL = 2  # vitoria ou derrota em classico mexe o dobro na moral
+
+
+def anotar_moral(G: Mundo, j: Jogador, delta: int, causa: str) -> None:
+    """Guarda a causa da mudanca de moral, para a ficha explicar o numero.
+    So para quem esta no meu clube: o resto do mundo nao aparece em lugar
+    nenhum e encheria o save."""
+    if not delta or j.get("clube") != G.get("clube"):
+        return
+    hist = j.setdefault("moral_hist", [])
+    hist.append([semana_absoluta(G), int(delta), causa])
+    del hist[:-MORAL_HIST]
+
+
+def mexer_moral(G: Mundo, j: Jogador, delta: int, causa: str) -> None:
+    antes = j["moral"]
+    j["moral"] = clamp(j["moral"] + delta, 5, 100)
+    anotar_moral(G, j, j["moral"] - antes, causa)
+
+
+def aplicar_moral(G, esc, pro, contra, rival=None, classico=False):
     if pro > contra:
-        dm, df = 3, 3
+        dm, df, fato = 3, 3, "vitoria"
     elif pro == contra:
-        dm, df = 1, 1
+        dm, df, fato = 1, 1, "empate"
     else:
-        dm, df = -3, -3
+        dm, df, fato = -3, -3, "derrota"
+    if classico and pro != contra:
+        dm *= PESO_CLASSICO_MORAL
+    causa = "%s %s%s" % (fato, "no classico contra o " if classico else
+                         {"vitoria": "sobre o ", "empate": "com o ", "derrota": "para o "}[fato],
+                         rival or "adversario")
+    causa += " (%d x %d)" % (pro, contra)
     for pid in esc:
         j = G["jogadores"][pid]
+        antes = j["moral"]
         m = j["moral"] + dm + rng.randint(-2, 2)
         f = j["forma"] + df + rng.randint(-6, 6)
         # puxao de volta para a media: sem isto, moral vira espiral divergente e
         # o campeonato passa a separar times por historico em vez de por elenco.
         j["moral"] = int(round(clamp(m + 0.12 * (65 - m), 5, 100)))
         j["forma"] = int(round(clamp(f + 0.12 * (65 - f), 5, 100)))
+        anotar_moral(G, j, j["moral"] - antes, causa)
 
 
 def penaltis(G: Mundo, a: int, b: int, comp: str = "liga") -> int:
@@ -3441,6 +3886,12 @@ def _semana_estadual(G: Mundo) -> List[Dict[str, Any]]:
         for r in jogar_rodada_estadual(G, chave):
             if G["clube"] in (r["casa"], r["fora"]):
                 meus.append(r)
+    rodada = int(G.get("semana_est", 1))
+    for chave, cp in list(G["copas"].items()):
+        if copa_do_estadual_na_semana(cp, rodada):
+            for r in jogar_fase_copa(G, chave):
+                if G["clube"] in (r["casa"], r["fora"]):
+                    meus.append(r)
     G["ultimos_meus"] = [dict(r) for r in meus]
     guardar_historico(G, meus)
     for r in meus:
@@ -3449,6 +3900,7 @@ def _semana_estadual(G: Mundo) -> List[Dict[str, Any]]:
     atualizar_confianca(G, meus)
     recuperacao(G)
     mercado_ia(G)
+    carimbar_livres(G)
     contratar_livres_ia(G)
     rodar_peneira(G)
     G["semana_est"] = int(G.get("semana_est", 1)) + 1
@@ -3472,7 +3924,12 @@ def _semana_estadual(G: Mundo) -> List[Dict[str, Any]]:
 def jogos_da_semana(G, cid):
     """Lista de (comp, casa, fora) do clube na semana atual."""
     if G.get("fase") == "estadual":
-        return jogos_estaduais_da_semana(G, cid)
+        out = jogos_estaduais_da_semana(G, cid)
+        rodada = int(G.get("semana_est", 1))
+        for k, cp in G["copas"].items():
+            if cid in cp["vivos"] and copa_do_estadual_na_semana(cp, rodada):
+                out.append((k, None, None))
+        return out
     out = []
     sem = G["semana"]
     c = G["clubes"][cid]
@@ -3491,6 +3948,8 @@ def jogos_da_semana(G, cid):
                 out.append((k, jogo[0], jogo[1]))
             continue
         if cp["fase"] < len(cp["semanas"]) and cp["semanas"][cp["fase"]] == sem:
+            out.append((k, None, None))
+        elif cp.get("semanas_est") and cp["fase"] < len(cp["semanas_est"]):
             out.append((k, None, None))
     return out
 
@@ -3874,6 +4333,9 @@ def _onde(G: Mundo, r: Dict[str, Any]) -> str:
     comp = NOME_COMP.get(r.get("comp"))
     if comp:
         return comp
+    cp = G.get("copas", {}).get(r.get("comp"))
+    if cp:
+        return cp["nome"]           # copas nacionais de fora, supercopas, Mundial
     div = G["clubes"][r["casa"]]["divisao"]
     return nome_da_liga(G, div)
 
@@ -3956,14 +4418,18 @@ def jogar_fase_copa(G, chave):
     if len(vivos) < 2:
         return []
     pares = [tuple(par) for par in sorteio_da_copa(G, chave)]
-    final = len(vivos) == 2
+    # a Recopa decide em ida e volta: a "final" dela nao e jogo unico
+    # com clube esperando (o campeao europeu na Intercontinental) ainda nao e a final
+    final = len(vivos) == 2 and not cp.get("final_ida_volta") and not cp.get("espera")
     res, prox = [], []
     # o que a fase deixou: vai para o historico, que a tela de competicoes le
     registro = {"fase": fase_da_copa(cp), "semana": int(G["semana"]),
                 "temporada": int(G["temporada"]), "jogos": []}
+    unico = final or cp.get("jogo_unico")
+    fundo = cp.get("fundo")
     for a, b in pares:
-        if final:
-            r = simular(G, a, b, chave, neutro=True)
+        if unico:
+            r = simular(G, a, b, chave, neutro=final or bool(cp.get("neutro")))
             if r["gc"] > r["gf"]:
                 venc = a
             elif r["gf"] > r["gc"]:
@@ -4003,7 +4469,7 @@ def jogar_fase_copa(G, chave):
                 lancar(G, perd, int(PREMIO_COPA.get(chave, 0) * FRACAO_VICE), "premio_copa")
         elif G["clubes"][venc]["divisao"] != "EX":
             lancar(G, G["clubes"][venc], premio_fase_copa(chave, len(vivos)), "premio_copa")
-        if perd["reputacao"] >= GRANDE_REP and perd["divisao"] != "EX" and not final:
+        if perd["reputacao"] >= GRANDE_REP and perd["divisao"] != "EX" and not final and not fundo:
             manchete(G, "copa", "%s elimina %s na %s (%s)." % (
                 G["clubes"][venc]["nome"], perd["nome"], cp["nome"], registro["fase"].lower()))
     cp.setdefault("historico", []).append(registro)
@@ -4016,15 +4482,16 @@ def jogar_fase_copa(G, chave):
         cp["espera"] = []
     else:
         cp["sorteio"] = sortear_confrontos(G, prox) if len(prox) >= 2 else []
-    if len(prox) == 1:
-        cp["campeao"] = prox[0]
-        c = G["clubes"][prox[0]]
+    if len(cp["vivos"]) == 1:
+        cp["campeao"] = cp["vivos"][0]
+        c = G["clubes"][cp["campeao"]]
         dar_titulo(G, c, cp["nome"])
         premio = PREMIO_COPA.get(chave, 0)
         if c["divisao"] != "EX":
             lancar(G, c, premio, "premio_copa")
             c["reputacao"] = clamp(c["reputacao"] + 2, 10, 99)
-        noticia(G, "%s: %s e campeao." % (cp["nome"], c["nome"]))
+        if not fundo:
+            noticia(G, "%s: %s e campeao." % (cp["nome"], c["nome"]))
     return res
 
 
@@ -4059,14 +4526,19 @@ def avancar_semana(G):
             jogar = jogar_rodada_grupos if cp["semanas_grupos"][cp["rodada_grupo"]] == sem else None
         elif cp["fase"] < len(cp["semanas"]) and cp["semanas"][cp["fase"]] == sem:
             jogar = jogar_fase_copa
+        elif cp.get("semanas_est") and cp["fase"] < len(cp["semanas_est"]):
+            jogar = jogar_fase_copa         # o estadual acabou antes dela: joga agora
         else:
             jogar = None
+        if jogar and cp.get("intercontinental"):
+            entrar_campeao_europeu(G, cp)
         if jogar:
             for r in jogar(G, chave):
                 todos.append(r)
                 if G["clube"] in (r["casa"], r["fora"]):
                     meus.append(r)
     fechar_grupos(G)
+    preparar_intercontinental(G)
     ia_demite_tecnicos(G)
     manchetes_da_semana(G, todos, antes)
     G["ultimos_meus"] = [dict(r) for r in meus]
@@ -4077,6 +4549,7 @@ def avancar_semana(G):
     atualizar_confianca(G, meus)
     recuperacao(G)
     mercado_ia(G)
+    carimbar_livres(G)
     contratar_livres_ia(G)
     rodar_peneira(G)
     saneamento_ia(G)
@@ -4148,7 +4621,9 @@ def transferir(G, pid, destino_id, valor):
     j["dono"] = None
     j["emp_pct"] = 100
     j["emp_opcao"] = 0
-    j["moral"] = clamp(j["moral"] + 8, 5, 100)
+    j.pop("livre_desde", None)
+    j["entros"] = ENTROS_CHEGADA
+    mexer_moral(G, j, 8, "chegou ao clube")
 
 
 def emprestar(G, pid, destino_id, pct):
@@ -4166,7 +4641,8 @@ def emprestar(G, pid, destino_id, pct):
     j["emp_pct"] = int(clamp(pct, 0, 100))
     j["listado"] = 0
     j["emp_listado"] = 0
-    j["moral"] = clamp(j["moral"] + 6, 5, 100)
+    j["entros"] = ENTROS_CHEGADA
+    mexer_moral(G, j, 6, "chegou por emprestimo")
 
 
 def devolver_emprestimo(G, pid):
@@ -4184,6 +4660,7 @@ def devolver_emprestimo(G, pid):
             dono["emprestados"].remove(pid)
         dono["elenco"].append(pid)
         j["clube"] = dono["id"]
+        j["entros"] = ENTROS_VOLTA
     j["dono"] = None
     j["emp_pct"] = 100
     j["emp_opcao"] = 0
@@ -4403,21 +4880,69 @@ def pedido_efetivo(G: Mundo, j: Jogador) -> Tuple[int, bool]:
     return pedido, intocavel
 
 
+def fator_idade_salario(idade: int) -> float:
+    """O mercado paga menos pelo veterano: o mesmo overall aos 35 vale um
+    contrato bem menor que aos 27 (decidido em 2026-09-25)."""
+    if idade >= 35:
+        return 0.55
+    if idade >= 33:
+        return 0.70
+    if idade >= 31:
+        return 0.85
+    return 1.0
+
+
+LIVRE_DESCONTO_INI = 0.15    # livre recem-saido ja pede 15% abaixo do mercado
+LIVRE_DESCONTO_MAX = 0.40    # e encalhado chega a 40% abaixo
+LIVRE_SEMANAS_MAX = 10       # semanas sem clube ate o desconto maximo
+LIVRE_TETO_DEGRAU = 1.30     # livre desce de patamar cobrando no maximo 30% a mais
+
+
+def semanas_sem_clube(G: Mundo, j: Jogador) -> int:
+    """Ha quanto tempo o livre esta parado. O carimbo e posto toda semana em
+    carimbar_livres; sem carimbo ainda (acabou de sair), conta zero."""
+    if j["clube"] is not None:
+        return 0
+    return max(0, semana_absoluta(G) - int(j.get("livre_desde", semana_absoluta(G))))
+
+
+def desconto_livre(G: Mundo, j: Jogador) -> float:
+    frac = min(1.0, semanas_sem_clube(G, j) / float(LIVRE_SEMANAS_MAX))
+    return LIVRE_DESCONTO_INI + (LIVRE_DESCONTO_MAX - LIVRE_DESCONTO_INI) * frac
+
+
+def carimbar_livres(G: Mundo) -> None:
+    """Marca a semana em que cada livre ficou sem clube (uma vez)."""
+    agora = semana_absoluta(G)
+    for pid in G["livres"]:
+        j = G["jogadores"].get(pid)
+        if j is not None and "livre_desde" not in j:
+            j["livre_desde"] = agora
+
+
 def salario_referencia(j: Jogador) -> int:
-    """De onde parte o que o jogador pede: o mercado do overall de hoje, e
-    nunca menos que 85% do que ja ganha. Quem evoluiu com contrato barato pede
-    aumento; o veterano em queda aceita corte de ate 15%."""
-    return max(salario_de(j["ovr"]), int(j["salario"] * 0.85))
+    """De onde parte o que o jogador pede: o mercado do overall e da idade de
+    hoje. Quem tem clube nunca pede menos que 85% do que ja ganha (quem evoluiu
+    com contrato barato pede aumento; o veterano em queda aceita corte de ate
+    15%). O livre nao tem contrato a defender: parte so do mercado."""
+    mercado = int(salario_de(j["ovr"]) * fator_idade_salario(j["idade"]))
+    if j["clube"] is None:
+        return mercado
+    return max(mercado, int(j["salario"] * 0.85))
 
 
 def exigencia_salarial(G: Mundo, j: Jogador, destino: Clube, anos: int = 3) -> int:
     """Quanto o jogador quer por mes para assinar com este clube."""
     base = salario_referencia(j) * 1.12
+    livre = j["clube"] is None
+    if livre:
+        base *= 1.0 - desconto_livre(G, j)
     rep_origem = G["clubes"][j["clube"]]["reputacao"] if j["clube"] else 42
     gap = destino["reputacao"] - rep_origem
     if gap < -8:
         # quanto mais fundo o degrau, mais caro. Curva continua, sem salto.
-        base *= min(2.60, 1.0 + (-gap - 8) * 0.032)
+        # O livre nao tem clube para comparar: desce cobrando pouco a mais.
+        base *= min(LIVRE_TETO_DEGRAU if livre else 2.60, 1.0 + (-gap - 8) * 0.032)
     elif gap > 8:
         base *= 1.0 - min(0.16, (gap - 8) * 0.007)
     if j["idade"] <= 23 and j["pot"] - j["ovr"] >= 8:
@@ -4756,7 +5281,7 @@ def fechar_renovacao(G: Mundo, prop: Proposta) -> str:
     j = G["jogadores"][prop.jogador]
     j["salario"] = int(prop.salario)
     j["contrato"] = int(clamp(prop.anos, 1, 5))
-    j["moral"] = clamp(j["moral"] + 12, 5, 100)
+    mexer_moral(G, j, 12, "renovou o contrato")
     noticia(G, "%s renovou com o %s por %s."
             % (j["nome"], G["clubes"][j["clube"]]["nome"], plural(j["contrato"], "ano")))
     return "%s renovou por %s, %s por mes." % (j["nome"], plural(j["contrato"], "ano"), din(prop.salario))
@@ -4764,7 +5289,7 @@ def fechar_renovacao(G: Mundo, prop: Proposta) -> str:
 
 def romper_renovacao(G: Mundo, j: Jogador) -> str:
     """Conversa esgotada: ele fecha a porta e a moral cai."""
-    j["moral"] = clamp(j["moral"] - 8, 5, 100)
+    mexer_moral(G, j, -8, "a renovacao nao saiu")
     return "%s recusou renovar e vai ouvir o mercado." % j["nome"]
 
 
@@ -5740,7 +6265,8 @@ def promover_da_base(G: Mundo, pid: int, anos: int = 3) -> Tuple[bool, str]:
     j["contrato"] = int(clamp(anos, 1, 5))
     j["salario"] = salario_devido(j)
     j["desde"] = G["temporada"] * 100 + G["semana"]
-    j["moral"] = clamp(j["moral"] + 14, 5, 100)
+    j["entros"] = ENTROS_VOLTA
+    mexer_moral(G, j, 14, "subiu da base ao profissional")
     c.setdefault("revelados", []).append({"id": pid, "nome": j["nome"], "pos": j["pos"],
                                          "temporada": int(G["temporada"]), "ovr": int(j["ovr"])})
     del c["revelados"][:-30]
@@ -6132,7 +6658,9 @@ def evoluir_jogadores(G: Mundo) -> None:
         # espiral de moral atravessava temporadas.
         j["cond"] = 100
         j["forma"] = clamp(60 + rng.randint(0, 12), 5, 100)
+        antes = j["moral"]
         j["moral"] = clamp(int(j["moral"] + 0.6 * (65 - j["moral"])), 5, 100)
+        anotar_moral(G, j, j["moral"] - antes, "ferias e pre-temporada")
         j["lesao"] = 0
         j["amar"] = {k: 0 for k in COMPETICOES}
         j["susp"] = {k: 0 for k in COMPETICOES}
@@ -6223,6 +6751,7 @@ def contratar_livres_ia(G):
             continue
         cands.sort(key=lambda c: -c["reputacao"])
         c = cands[0] if rng.random() < 0.6 else rng.choice(cands[:5])
+        j["salario"] = exigencia_salarial(G, j, c)
         transferir(G, j["id"], c["id"], 0)
         j["contrato"] = rng.randint(1, 3)
         feito = c.get("livres_sem") or [None, 0]
@@ -6244,6 +6773,7 @@ def contratar_livre_ia(G, c, pos, nivel_alvo):
     cands.sort(key=lambda j: -j["ovr"])
     faixa = [j for j in cands if j["ovr"] <= nivel_alvo + 6]
     alvo = (faixa or cands)[0]
+    alvo["salario"] = exigencia_salarial(G, alvo, c)
     transferir(G, alvo["id"], c["id"], 0)
     alvo["contrato"] = rng.randint(1, 3)
     return True
@@ -6322,7 +6852,9 @@ def premio_liga(div: str, posicao: int) -> int:
 
 
 PREMIO_COPA = {"copa": 78_000_000, "lib": 130_000_000, "sul": 30_000_000,
-               "ucl": 350_000_000, "uel": 90_000_000}
+               "ucl": 350_000_000, "uel": 90_000_000,
+               "supercopa": 10_000_000, "recopa": 9_000_000,
+               "intercontinental": 25_000_000, "mundial": 180_000_000}
 # passar de fase paga uma fracao do premio do campeao (pelo numero de clubes
 # vivos na rodada); o vice leva 40%. Antes so o campeao recebia.
 FRACAO_FASE = ((32, 0.01), (16, 0.02), (8, 0.04), (4, 0.07))
@@ -8921,6 +9453,15 @@ def migrar(G):
         G["seq_c"] = max([G.get("seq_c", 0)] + list(G["clubes"]))
         G["seq"] = max([G.get("seq", 0)] + list(G["jogadores"]))
         aplicar_mundo(G, {j["nome"] for j in G["jogadores"].values()})
+    if any(k not in G["ligas"] for k in CODIGOS_SUL):
+        G["seq_c"] = max([G.get("seq_c", 0)] + list(G["clubes"]))
+        G["seq"] = max([G.get("seq", 0)] + list(G["jogadores"]))
+        montar_ligas_sul(G, {j["nome"] for j in G["jogadores"].values()})
+    if G.get("copas") and any(chave_copa_nac(k) not in G["copas"] for k in COPAS_NACIONAIS if k in G["ligas"]):
+        montar_copas_nacionais(G, so_faltam=True)
+    if G.get("copas") and "intercontinental" not in G["copas"] and \
+            not (G.get("fase") == "liga" and G.get("semana", 0) >= SEMANAS_INTERCONTINENTAL[0]):
+        G["copas"]["intercontinental"] = nova_intercontinental()
     for j in G["jogadores"].values():
         j.setdefault("dono", None)
         j.setdefault("emp_pct", 100)

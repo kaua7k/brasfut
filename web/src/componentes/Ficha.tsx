@@ -68,6 +68,20 @@ export function Ficha({ ficha, aoFechar, acoes }: Props) {
           ))}
         </div>
 
+        {ficha.moral_causas.length > 0 && (
+          <>
+            <div className="painel-titulo mt-3 mb-2">Por que a moral esta assim</div>
+            <ul className="mb-3 txt-p ficha-causas">
+              {ficha.moral_causas.map((c, k) => (
+                <li key={k}>
+                  <span className={`txt-${c.estado}`}>{c.texto}</span>{' '}
+                  <span className="txt-fraco">· {c.quando}</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
         <div className="painel-titulo mt-1 mb-2">Temporada</div>
         <div className="ficha-numeros">
           <div className="cx"><div className="n">{ficha.temporada.j}</div><div className="r">jogos</div></div>
