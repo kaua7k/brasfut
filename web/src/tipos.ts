@@ -562,7 +562,7 @@ export interface TelaTabela {
   cabecalho: Cabecalho
   titulo: string
   subtitulo?: string
-  torneios: { id: string; nome: string }[]
+  torneios: { id: string; nome: string; grupo: string }[]
   alvo: string
   legenda: string | null
   vazio: string | null
@@ -1118,6 +1118,8 @@ export interface ItemCompeticao {
   meu: boolean
   estado: string
   vivo: boolean
+  /** regiao no seletor: Brasil, Estaduais, America do Sul, Europa, Mundial... */
+  grupo: string
 }
 
 export interface JogoRodada {
@@ -1170,7 +1172,8 @@ export interface JogoCopa {
 
 export interface FaseCopa {
   nome: string
-  semana: number
+  /** null na Supercopa e na Recopa, que caem numa rodada do estadual (vem na nota) */
+  semana: number | null
   estado: 'jogada' | 'sorteada' | 'futura'
   /** troca o rotulo padrao da fase (estadual: "ida", "a definir"...) */
   nota?: string | null

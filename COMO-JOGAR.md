@@ -217,6 +217,35 @@ seis posições abaixo do próprio tamanho e está no terço de baixo manda o tr
 (sai no feed do mundo). A vaga fica aberta dez semanas, e é esse clube que liga primeiro
 quando você está indo bem.
 
+## O mundo: ligas e copas
+
+- **Ligas sul-americanas.** Argentina (20 clubes), Uruguai, Paraguai, Chile, Colômbia,
+  Equador, Peru, Bolívia e Venezuela têm liga própria, jogada toda semana junto do
+  Brasileirão. Os clubes que faltavam entraram com nome real e elenco gerado. As 24 vagas de
+  fora da **Libertadores** e da **Sul-Americana** saem da tabela do ano anterior de cada
+  país: Argentina 5 e 4, Uruguai, Paraguai, Chile, Colômbia e Equador 3 e 3, Peru 2 e 2,
+  Bolívia 1 e 2, Venezuela 1 e 1. Na Classificação, o verde das ligas de fora marca essas
+  vagas (e as da Champions, na Europa).
+- **Copas nacionais de fora.** FA Cup, Copa del Rey, DFB-Pokal, Coppa Italia, Coupe de
+  France, Taça de Portugal, KNVB Beker, US Open Cup, King's Cup, Copa Argentina e as copas
+  dos outros países sul-americanos: mata-mata em jogo único com os 16 (ou 8) maiores clubes
+  da liga. Correm em segundo plano: o título vai para a sala de troféus e para o feed do
+  mundo.
+- **Supercopas.** Na virada, com os campeões do ano que acabou: a **Supercopa do Brasil**
+  (campeão brasileiro x campeão da Copa do Brasil, jogo único) na 2ª rodada do estadual e a
+  **Recopa Sul-Americana** (Libertadores x Sul-Americana, ida e volta) na 3ª. Se o mesmo clube
+  ganhou as duas coisas, o outro lado é o vice da liga. A Supercopa da UEFA e 17 supercopas
+  nacionais (Community Shield, Supercopa da Espanha...) caem na primeira semana da liga. O
+  primeiro ano da carreira não tem supercopa: ainda não há campeão anterior.
+- **Copa Intercontinental**, todo ano, logo depois das finais: o campeão da Libertadores
+  pega o melhor da MLS no Derby das Américas (semana 37) e quem passa decide com o campeão
+  da Champions (semana 38). Jogo único, campo neutro.
+- **Mundial de Clubes**, a cada quatro anos a partir de 2029: 32 clubes (14 europeus, 8 da
+  América do Sul com os brasileiros, 5 da MLS e 5 da Arábia), 8 grupos de turno único e
+  mata-mata em jogo único, em campo neutro, nas semanas livres das copas continentais.
+- Na tela de Competições e na Classificação, o seletor de torneios agrupa tudo por região:
+  Brasil, Estaduais, América do Sul, Europa, Mundial e outras ligas.
+
 ## O elenco por dentro: moral, entrosamento e prêmios
 
 - **Moral com causa.** A ficha do jogador mostra por que a moral dele está onde está: as

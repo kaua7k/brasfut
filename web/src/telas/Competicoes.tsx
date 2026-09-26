@@ -10,6 +10,7 @@
 
 import { porque, AGUARDE } from '../motivo'
 import { useEffect, useState } from 'react'
+import { agrupar } from '../formato'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
 import { Grade, type Coluna } from '../componentes/Grade'
 import { LegendaZonas, MarcaZona } from '../componentes/Zona'
@@ -217,7 +218,8 @@ function Fase({ f }: { f: FaseCopa }) {
     <section className={`painel copa-fase ${f.estado}`}>
       <div className="painel-cab cab-tabela">
         <span className="painel-titulo">
-          {f.nome} · semana {f.semana}
+          {f.nome}
+          {f.semana !== null && ` · semana ${f.semana}`}
           {f.nota
             ? ` · ${f.nota}`
             : (f.estado === 'sorteada' && ' · proxima fase, ja sorteada') || (f.estado === 'futura' && ' · a sortear')}
@@ -361,10 +363,14 @@ export function Competicoes({ tela, ocupado, aoTrocar }: Props) {
             onChange={(e) => e.target.value && aoTrocar(e.target.value)}
           >
             <option value="">escolha…</option>
-            {outros.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nome} · {c.estado}
-              </option>
+            {agrupar(outros).map(([grupo, itens]) => (
+              <optgroup key={grupo} label={grupo}>
+                {itens.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nome} · {c.estado}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </label>

@@ -279,6 +279,16 @@ def _confianca(G):
     }
 
 
+def vagas_topo(div):
+    """Quantos de cima ficam verdes e o que isso quer dizer. Liga de fora que
+    manda clube para copa continental mostra as vagas de verdade."""
+    if div in eng.VAGAS_LIB:
+        return eng.VAGAS_LIB[div], "Libertadores"
+    if div in eng.VAGAS_CHAMPIONS:
+        return eng.VAGAS_CHAMPIONS[div], "Champions"
+    return 4, None
+
+
 def rotulo_zona(zona, div=None, estadual=False):
     """O que a faixa colorida da tabela quer dizer, em palavras: a cor sozinha
     nao chega a quem nao distingue verde de vermelho."""
@@ -290,7 +300,7 @@ def rotulo_zona(zona, div=None, estadual=False):
         return "rebaixamento"
     if div in eng.DIVISOES_BR and div != "A":
         return "acesso"
-    return "G4"
+    return vagas_topo(div)[1] or "G4"
 
 
 def _tabela(G, quantas=6):
@@ -321,7 +331,8 @@ def _tabela(G, quantas=6):
             zona = "alta" if i < eng.vagas_por_grupo(est) else ""
         else:
             rebaixa = eng.tem_rebaixamento(c["divisao"])
-            zona = "alta" if i < 4 else ("baixa" if rebaixa and i >= len(ordem) - 4 else "")
+            zona = "alta" if i < vagas_topo(c["divisao"])[0] else (
+                "baixa" if rebaixa and i >= len(ordem) - 4 else "")
         linhas.append({"pos": i + 1, "clube": _corta(G["clubes"][cid]["nome"], 18),
                        "j": t["j"], "sg": t["gp"] - t["gc"], "v": t.get("v", 0),
                        "pts": t["p"], "eu": cid == c["id"], "zona": zona,
@@ -703,13 +714,43 @@ def _revelados(G, c):
 
 
 # --------------------------------------------------------------------- tabela
+BRASIL, ESTADUAIS, AMERICA_SUL, EUROPA, OUTRAS, MUNDIAL = (
+    "Brasil", "Estaduais", "America do Sul", "Europa", "Outras ligas", "Mundial")
+
+
+def regiao_liga(codigo):
+    """Em que grupo do seletor a liga aparece."""
+    if codigo in eng.DIVISOES_BR:
+        return BRASIL
+    if codigo in eng.CODIGOS_SUL:
+        return AMERICA_SUL
+    if codigo in eng.ORDEM_LIGAS_EXT:
+        return EUROPA
+    return OUTRAS
+
+
+def regiao_copa(chave, cp):
+    if chave in ("copa", "supercopa"):
+        return BRASIL
+    if chave in ("lib", "sul", "recopa"):
+        return AMERICA_SUL
+    if chave in ("ucl", "uel", "supercopa_uefa"):
+        return EUROPA
+    if chave in ("intercontinental", "mundial"):
+        return MUNDIAL
+    return regiao_liga(cp.get("pais", ""))
+
+
 def _torneios(G):
     """Os quatro pontos fixos e os estaduais do ano, no mesmo seletor."""
-    out = [{"id": "liga:" + d, "nome": "Serie " + d} for d in "ABCD"]
-    out += [{"id": "liga:" + k, "nome": l["nome"]} for k, l in eng.ligas_ext(G).items()]
+    out = [{"id": "liga:" + d, "nome": "Serie " + d, "grupo": BRASIL} for d in "ABCD"]
     for chave, est in sorted(eng.estaduais(G).items(),
                              key=lambda kv: (-len(kv[1]["times"]), kv[1]["nome"])):
-        out.append({"id": "est:" + str(chave), "nome": est["nome"]})
+        out.append({"id": "est:" + str(chave), "nome": est["nome"], "grupo": ESTADUAIS})
+    ext = [{"id": "liga:" + k, "nome": l["nome"], "grupo": regiao_liga(k)}
+           for k, l in eng.ligas_ext(G).items()]
+    ordem = (AMERICA_SUL, EUROPA, OUTRAS)
+    out += sorted(ext, key=lambda t: ordem.index(t["grupo"]))
     return out
 
 
@@ -774,7 +815,8 @@ def tabela(alvo=None):
                 else:
                     # liga de fora nao tem rebaixamento no jogo: so o verde de cima
                     rebaixa = eng.tem_rebaixamento(liga.get("div"))
-                    zona = "alta" if i <= 4 else ("baixa" if rebaixa and i > len(ordem) - 4 else "")
+                    zona = "alta" if i <= vagas_topo(liga.get("div"))[0] else (
+                        "baixa" if rebaixa and i > len(ordem) - 4 else "")
                 do_grupo.append({"pos": i, "clube": G["clubes"][cid]["nome"], "p": t["p"],
                                  "j": t["j"], "v": t["v"], "e": t["e"], "d": t["d"],
                                  "gp": t["gp"], "gc": t["gc"], "sg": t["gp"] - t["gc"],
