@@ -66,8 +66,8 @@ class TestSalarioContrato(unittest.TestCase):
         # o mercado do overall ja descontado pela idade (veterano vale menos)
         self.assertEqual(eng.salario_referencia(j),
                          int(eng.salario_de(j["ovr"]) * eng.fator_idade_salario(j["idade"])))
-        j["salario"] = eng.salario_de(j["ovr"]) * 3        # veterano caro: aceita no maximo 15% de corte
-        self.assertEqual(eng.salario_referencia(j), int(j["salario"] * 0.85))
+        j["salario"] = eng.salario_de(j["ovr"]) * 3        # caro: defende o piso da idade (85% ate 30 anos, menos depois)
+        self.assertEqual(eng.salario_referencia(j), int(j["salario"] * eng.piso_salario_atual(j["idade"])))
 
     def test_contrato_novo_parte_do_mercado_e_a_mesa_grava_o_negociado(self):
         G = self.G

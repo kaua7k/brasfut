@@ -2651,6 +2651,35 @@ def publico_esperado(c: Clube) -> int:
     return int(min(c["capacidade"] * 0.99, demanda_torcida(c) * elast))
 
 
+MOMENTO_JOGOS = 5            # ultimos jogos de liga que contam para o publico
+
+
+def momento_do_clube(G: Mundo, c: Clube) -> Tuple[float, str]:
+    """Quanto a fase do time mexe no publico: pontos nos ultimos 5 jogos de liga
+    (7 e o normal) e a posicao na tabela. De 0,80 a 1,20; 1,0 no comeco do ano.
+    Nao sorteia nada."""
+    liga = G["ligas"].get(c["divisao"])
+    if not liga or liga.get("rodada", 0) < 3:
+        return 1.0, ""
+    pts, jogos = 0, 0
+    for rodada in reversed(liga.get("resultados") or []):
+        for casa_id, fora_id, gc, gf in rodada:
+            if c["id"] in (casa_id, fora_id):
+                pro, contra = (gc, gf) if casa_id == c["id"] else (gf, gc)
+                pts += 3 if pro > contra else (1 if pro == contra else 0)
+                jogos += 1
+        if jogos >= MOMENTO_JOGOS:
+            break
+    if not jogos:
+        return 1.0, ""
+    ritmo = pts * MOMENTO_JOGOS / float(jogos)        # pontos numa janela de 5
+    ordem = classificacao(G, liga)
+    frac = ordem.index(c["id"]) / float(max(1, len(ordem) - 1)) if c["id"] in ordem else 0.5
+    fator = clamp(1.0 + 0.025 * (ritmo - 7) + 0.10 * (0.5 - frac), 0.80, 1.20)
+    return fator, "%d pontos nos ultimos %s, %do na tabela" % (
+        pts, plural(jogos, "jogo"), ordem.index(c["id"]) + 1 if c["id"] in ordem else 0)
+
+
 def publico_e_renda(G, casa, fora, comp):
     cap = casa["capacidade"]
     rel = fora["reputacao"] / max(30.0, casa["reputacao"])
@@ -2661,7 +2690,8 @@ def publico_e_renda(G, casa, fora, comp):
     jogo /= 0.52
     preco_ref = preco_referencia(casa)
     elast = clamp(1.35 - 0.55 * (casa["preco"] / max(8.0, preco_ref)), 0.15, 1.35) / 0.80
-    pub = int(min(cap * 0.99, demanda_torcida(casa) * jogo * elast * rng.uniform(0.82, 1.18)))
+    momento = momento_do_clube(G, casa)[0]      # time em boa fase enche o estadio
+    pub = int(min(cap * 0.99, demanda_torcida(casa) * jogo * elast * momento * rng.uniform(0.82, 1.18)))
     pub = max(pub, int(cap * 0.02))
     renda = int(pub * casa["preco"])
     return pub, renda
@@ -2988,6 +3018,8 @@ def simular(G, casa_id, fora_id, comp="liga", neutro=False):
     # jogo com a que entrou, ate se a partida estourar no meio
     originais = (casa["tatica"], fora["tatica"])
     instrucoes = []
+    amarelados: set = set()          # amarelo neste jogo: o segundo e vermelho
+    expulsos: List[Tuple[int, int, int, int]] = []
     try:
         for ini, fim, minutos in ((1, 45, 45), (46, 70, 25), (71, 92, 20)):
             if ini > 1:
@@ -3071,9 +3103,22 @@ def simular(G, casa_id, fora_id, comp="liga", neutro=False):
                         stats["faltas"][lado] += 1
                     if rng.random() < 0.214 * peso:
                         j["ca"] += 1
-                        j["amar"][comp] = j["amar"].get(comp, 0) + 1
                         notas[pid] = notas.get(pid, 6.0) - 0.25
-                        eventos.append((rng.randint(ini, fim), lado, "amarelo", pid, None))
+                        minuto_cartao = rng.randint(ini, fim)
+                        eventos.append((minuto_cartao, lado, "amarelo", pid, None))
+                        if pid in amarelados:
+                            # segundo amarelo no jogo: vermelho. Ele nao entra no
+                            # acumulado da competicao; a expulsao suspende um jogo
+                            j["cv"] += 1
+                            j["susp"][comp] = j["susp"].get(comp, 0) + 1
+                            sincronizar_suspensao(j)
+                            notas[pid] = notas.get(pid, 6.0) - 1.0
+                            eventos.append((minuto_cartao, lado, "vermelho", pid, None))
+                            expulsos.append((pid, len(eventos) - 1, ini, fim))
+                            esc.remove(pid)
+                            continue
+                        amarelados.add(pid)
+                        j["amar"][comp] = j["amar"].get(comp, 0) + 1
                         if j["amar"][comp] >= 3:
                             j["amar"][comp] = 0
                             j["susp"][comp] = j["susp"].get(comp, 0) + 1
@@ -3084,6 +3129,7 @@ def simular(G, casa_id, fora_id, comp="liga", neutro=False):
                         sincronizar_suspensao(j)
                         notas[pid] = notas.get(pid, 6.0) - 1.5
                         eventos.append((rng.randint(ini, fim), lado, "vermelho", pid, None))
+                        expulsos.append((pid, len(eventos) - 1, ini, fim))
                         esc.remove(pid)              # expulso sai de campo de verdade
                         continue
                     risco = RISCO_LESAO_JOGO * (1.0 - 0.05 * dono["medico"]) * (minutos / 90.0)
@@ -3103,6 +3149,24 @@ def simular(G, casa_id, fora_id, comp="liga", neutro=False):
                             usadas_c += usou
                         else:
                             usadas_f += usou
+
+            # o periodo sorteia os gols antes dos cartoes, cada evento com minuto
+            # proprio: o expulso nao pode aparecer depois da expulsao. O cartao
+            # vai para depois do ultimo lance dele no periodo (sem mexer no rng)
+            for pid, k, p_ini, p_fim in expulsos:
+                m = eventos[k][0]
+                # o segundo amarelo, colado no vermelho, anda junto com ele
+                par = k - 1 if (k > 0 and eventos[k - 1][2] == "amarelo"
+                                and eventos[k - 1][3] == pid and eventos[k - 1][0] == m) else None
+                ultimo = max((e[0] for i, e in enumerate(eventos)
+                              if i not in (k, par) and p_ini <= e[0] <= p_fim
+                              and pid in (e[3], e[4])), default=None)
+                if ultimo is not None and ultimo >= m:
+                    novo = min(p_fim, ultimo + 1)
+                    eventos[k] = (novo,) + tuple(eventos[k][1:])
+                    if par is not None:
+                        eventos[par] = (novo,) + tuple(eventos[par][1:])
+            expulsos.clear()
 
             _fadigar(G, esc_c, minutos, casa, ef_c)
             _fadigar(G, esc_f, minutos, fora, ef_f)
@@ -4183,6 +4247,17 @@ def reserva_custos(G: Mundo, c: Clube, salario_novo: int = 0) -> int:
     return int(custo_mes * RESERVA_MESES)
 
 
+TETO_FOLHA_RECEITA = 0.85   # folha que um clube da IA aceita, em fracao da receita do mes
+
+
+def cabe_na_folha(G: Mundo, c: Clube, salario_mes: int) -> bool:
+    """Este salario cabe na folha do clube? A mesma conta de sob_pressao: sem
+    ela, craque europeu livre caia na Serie D pelo mercado do overall (R$ 2 a 3
+    mi por mes com receita de R$ 700 mil) e a divisao inteira quebrava."""
+    receita_mes = receita_semanal(G, c) * 4 + bilheteria_mensal_estimada(c)
+    return folha_semanal(G, c) * 4 + max(0, int(salario_mes)) <= receita_mes * TETO_FOLHA_RECEITA
+
+
 def verba_contratacao(G: Mundo, c: Clube, salario_novo: int = 0) -> int:
     """Quanto pode ir para passe ou taxa sem ameacar a folha."""
     return max(0, int(c["dinheiro"] - reserva_custos(G, c, salario_novo)))
@@ -4593,6 +4668,11 @@ def transferir(G, pid, destino_id, valor):
     origem = G["clubes"].get(j["clube"]) if j["clube"] else None
     destino = G["clubes"][destino_id]
     registrar_negocio(G, j, origem["id"] if origem else None, destino_id, valor)
+    if origem is None:
+        # agente livre: sem passe pago, nao pode virar lucro na semana seguinte
+        j["livre_trava_ate"] = semana_absoluta(G) + LIVRE_SEM_REVENDA
+    else:
+        j.pop("livre_trava_ate", None)
     if da_base(j):
         # ninguem sai da academia direto para outro clube: se foi negociado,
         # e porque virou profissional
@@ -4712,7 +4792,8 @@ def mercado_ia(G):
         alvos = [j for j in G["jogadores"].values()
                  if j["listado"] and j["clube"] not in (None, c["id"], G["clube"])
                  and j["id"] not in presos and j["listado"] <= caixa and j["ovr"] > media_elenco(G, c) - 2
-                 and j["listado"] <= verba_contratacao(G, c, j["salario"])]
+                 and j["listado"] <= verba_contratacao(G, c, j["salario"])
+                 and cabe_na_folha(G, c, j["salario"])]
         if alvos and len(c["elenco"]) < 28 and rng.random() < 0.85:
             alvo = rng.choice(alvos)
             vendedor = G["clubes"][alvo["clube"]]
@@ -4722,8 +4803,12 @@ def mercado_ia(G):
         soltos = [p for p in G["livres"] if p not in presos]
         if len(c["elenco"]) < 24 and soltos and rng.random() < 0.4:
             pid = rng.choice(soltos)
-            transferir(G, pid, c["id"], 0)
-            G["jogadores"][pid]["contrato"] = rng.randint(1, 3)
+            j = G["jogadores"][pid]
+            pedida = exigencia_salarial(G, j, c)
+            if cabe_na_folha(G, c, pedida):
+                j["salario"] = pedida
+                transferir(G, pid, c["id"], 0)
+                j["contrato"] = rng.randint(1, 3)
 
 
 def media_elenco(G, c):
@@ -4928,7 +5013,20 @@ def salario_referencia(j: Jogador) -> int:
     mercado = int(salario_de(j["ovr"]) * fator_idade_salario(j["idade"]))
     if j["clube"] is None:
         return mercado
-    return max(mercado, int(j["salario"] * 0.85))
+    return max(mercado, int(j["salario"] * piso_salario_atual(j["idade"])))
+
+
+def piso_salario_atual(idade: int) -> float:
+    """Quanto do salario atual quem tem clube defende numa renovacao ou
+    transferencia. O veterano acima do mercado aceita corte maior: sem isto o
+    piso de 85% apagava a idade da conta."""
+    if idade >= 35:
+        return 0.55
+    if idade >= 33:
+        return 0.65
+    if idade >= 31:
+        return 0.75
+    return 0.85
 
 
 def exigencia_salarial(G: Mundo, j: Jogador, destino: Clube, anos: int = 3) -> int:
@@ -5298,11 +5396,26 @@ def preco_sugerido(G: Mundo, j: Jogador, pct: int = 130) -> int:
     return int(max(1000.0, j["valor"] * pct / 100.0) / 1000.0) * 1000
 
 
+LIVRE_SEM_REVENDA = 8        # semanas: livre contratado nao volta ao mercado antes disso
+
+
+def revenda_travada(G: Mundo, j: Jogador) -> int:
+    """Semanas que faltam para poder vender quem chegou como agente livre."""
+    return max(0, int(j.get("livre_trava_ate", 0)) - semana_absoluta(G))
+
+
+def recado_revenda(G: Mundo, j: Jogador) -> str:
+    return ("%s chegou como agente livre: so pode ser vendido daqui a %s."
+            % (j["nome"], plural(revenda_travada(G, j), "semana")))
+
+
 def por_a_venda(G: Mundo, pid: int, preco: int) -> Tuple[bool, str]:
     """Coloca (ou reprecifica) o jogador na vitrine."""
     j = G["jogadores"][pid]
     if j.get("dono"):
         return False, "%s esta emprestado, o passe nao e seu." % j["nome"]
+    if int(preco) > 0 and revenda_travada(G, j):
+        return False, recado_revenda(G, j)
     j["listado"] = max(0, int(preco))
     if not j["listado"]:
         return True, "%s saiu da vitrine." % j["nome"]
@@ -5400,7 +5513,9 @@ def ceder_por_emprestimo(G: Mundo, pid: int, destino_id: int, pct: int) -> Tuple
 
 
 def _stamp_semana(G: Mundo) -> str:
-    return "%d-%d" % (G["temporada"], G["semana"])
+    """Uma chave por semana jogada. Era temporada-semana, mas G["semana"] fica
+    em 0 no estadual inteiro: as propostas nunca se renovavam ali."""
+    return "%d-a%d" % (G["temporada"], semana_absoluta(G))
 
 
 # ----------------------------------------------------------------------------
@@ -5599,9 +5714,11 @@ def _sortear_ofertas(G: Mundo) -> List[List[int]]:
     c = G["clubes"][G["clube"]]
     itens: List[List[int]] = []
     ja = set()
+    presos = presos_em_acerto(G)
     for pid in list(c["elenco"]):
         j = G["jogadores"][pid]
-        if j.get("dono") or da_base(j):
+        # acertado com alguem (janela fechada) ou livre recem-chegado: ninguem oferta
+        if j.get("dono") or da_base(j) or pid in presos or revenda_travada(G, j):
             continue
         if j["listado"]:
             # vitrine: o preco e seu, e quem cobre o pedido aparece rapido
@@ -5674,9 +5791,12 @@ def propostas_recebidas(G: Mundo) -> List[Tuple[Jogador, Clube, int]]:
         caixa["itens"] = _sortear_ofertas(G)
         caixa["contras"] = {}
     saida = []
+    presos = presos_em_acerto(G)
     for pid, cid, valor in list(caixa["itens"]):
         j = G["jogadores"].get(pid)
         cl = G["clubes"].get(cid)
+        if pid in presos:
+            continue                    # vendido com a janela fechada: acabou a conversa
         # descarta o que envelheceu: jogador que saiu, clube que gastou o caixa.
         # NAO exige mais estar na vitrine: sondagem espontanea nasce justamente
         # de quem nao esta a venda, e essa condicao apagava todas elas.
@@ -5702,6 +5822,11 @@ def aceitar_oferta(G: Mundo, pid: int, cid: int, valor: int) -> Tuple[bool, str]
     cl = G["clubes"].get(cid)
     if not j or not cl or j["clube"] != G["clube"] or j.get("dono"):
         return False, "Esta proposta nao vale mais."
+    if pid in presos_em_acerto(G):
+        _descartar_oferta(G, pid)
+        return False, "%s ja tem acerto fechado: sai na abertura da janela." % j["nome"]
+    if revenda_travada(G, j):
+        return False, recado_revenda(G, j)
     if cl["dinheiro"] < valor:
         return False, "O %s nao tem mais esse dinheiro em caixa." % cl["nome"]
     if not mercado_aberto(G):
@@ -6744,7 +6869,8 @@ def contratar_livres_ia(G):
             pior_titular = titulares[vagas - 1] if len(titulares) >= vagas else 0
             if j["ovr"] <= pior_titular:
                 continue
-            if verba_contratacao(G, c, j["salario"]) <= 0:
+            pedida = exigencia_salarial(G, j, c)
+            if verba_contratacao(G, c, pedida) <= 0 or not cabe_na_folha(G, c, pedida):
                 continue
             cands.append(c)
         if not cands:
@@ -6771,8 +6897,12 @@ def contratar_livre_ia(G, c, pos, nivel_alvo):
     if not cands:
         return False
     cands.sort(key=lambda j: -j["ovr"])
-    faixa = [j for j in cands if j["ovr"] <= nivel_alvo + 6]
-    alvo = (faixa or cands)[0]
+    # so quem e do nivel do clube e cabe na folha. Antes, sem ninguem na faixa,
+    # ia o MELHOR livre do mundo: as "contratacoes fantasmas" da virada
+    alvo = next((j for j in cands if j["ovr"] <= nivel_alvo + 6
+                 and cabe_na_folha(G, c, exigencia_salarial(G, j, c))), None)
+    if alvo is None:
+        return False                  # repor_elencos gera um jogador do nivel
     alvo["salario"] = exigencia_salarial(G, alvo, c)
     transferir(G, alvo["id"], c["id"], 0)
     alvo["contrato"] = rng.randint(1, 3)
@@ -6839,7 +6969,8 @@ def investimentos_ia(G):
             alvos = [j for j in G["jogadores"].values()
                      if j["listado"] and j["clube"] not in (None, c["id"], G["clube"])
                      and j["listado"] < c["dinheiro"] * 0.4
-                     and j["listado"] <= verba_contratacao(G, c, j["salario"])]
+                     and j["listado"] <= verba_contratacao(G, c, j["salario"])
+                     and cabe_na_folha(G, c, j["salario"])]
             if alvos:
                 alvo = max(alvos, key=lambda j: j["ovr"])
                 transferir(G, alvo["id"], c["id"], alvo["listado"])
@@ -6971,6 +7102,7 @@ CONFIANCA_DEMISSAO = 15
 CONFIANCA_RECUPERA = 40     # voltou acima disto, o aviso cai
 CONFIANCA_HIST = 12         # semanas guardadas (a tendencia usa as 4 ultimas)
 PATAMAR_CONFIANCA = {"meta": 75, "perto": 55, "longe": 35, "rebaixamento": 22}
+PATAMAR_TOPO = 95            # patamar do 1o colocado, com a meta cumprida com folga
 
 
 def confianca(G: Mundo) -> Dict[str, Any]:
@@ -7038,12 +7170,19 @@ def atualizar_confianca(G: Mundo, meus: List[Dict[str, Any]]) -> None:
         if tem_rebaixamento(c["divisao"]) and pos > total - 4:
             patamar, txt = PATAMAR_CONFIANCA["rebaixamento"], "zona de rebaixamento (%do)" % pos
         elif pos <= alvo:
-            patamar, txt = PATAMAR_CONFIANCA["meta"], "dentro da meta (%do)" % pos
+            # quanto mais folga sobre a meta, mais alto o patamar: 75 no limite,
+            # ate PATAMAR_TOPO em 1o. Antes era 75 para todos, e o lider com 83
+            # de confianca perdia ponto "dentro da meta"
+            folga = (alvo - pos) / float(max(1, alvo - 1))
+            patamar = PATAMAR_CONFIANCA["meta"] + (PATAMAR_TOPO - PATAMAR_CONFIANCA["meta"]) * folga
+            txt = "dentro da meta (%do)" % pos
         elif pos <= alvo + 3:
             patamar, txt = PATAMAR_CONFIANCA["perto"], "perto da meta (%do, meta top %d)" % (pos, alvo)
         else:
             patamar, txt = PATAMAR_CONFIANCA["longe"], "abaixo da meta (%do, meta top %d)" % (pos, alvo)
         puxao = int(round((patamar - conf["valor"]) * 0.12))
+        if pos <= alvo and not (tem_rebaixamento(c["divisao"]) and pos > total - 4):
+            puxao = max(0, puxao)       # dentro da meta a tabela so ajuda; quem tira e o resultado
         if puxao:
             causas.append([puxao, txt])
     if c["dinheiro"] < 0:

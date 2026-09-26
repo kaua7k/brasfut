@@ -205,6 +205,8 @@ export interface DadosPainel {
   noticias: Noticia[]
   /** quem esta no ultimo ano (ou venceu): atalho para a fila de renovacao */
   contratos: AvisoContratos | null
+  /** propostas da semana pelos meus jogadores (dto._propostas_jogadores) */
+  propostas_jogadores: AvisoPropostas | null
   /** clubes querendo o treinador */
   propostas_emprego: PropostaEmprego[]
   /** espacos de patrocinio sem contrato (pre-temporada): atalho para Financas */
@@ -1240,4 +1242,11 @@ export interface BoasVindas {
   aviso: string
   passos: ItemAjuda[]
   sem_pressa: string
+}
+
+/** Faixa do Painel: alguem quer comprar um dos seus jogadores. */
+export interface AvisoPropostas {
+  total: number
+  itens: { jogador: string; pos: string; clube: string; valor: string }[]
+  texto: string
 }

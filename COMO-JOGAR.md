@@ -168,6 +168,10 @@ da Série D vive no limite, levemente no vermelho. Quem gasta em salário além 
 fecha o ano no prejuízo. A venda de jogadores continua sendo o melhor dinheiro que um
 clube brasileiro faz.
 
+**Público e momento.** A lotação acompanha a fase do time: os pontos nos últimos 5 jogos de
+liga e a posição na tabela mexem no público de 20% a menos até 20% a mais. No começo do
+ano o efeito é neutro. A tela do Estádio mostra o momento atual.
+
 ## Patrocínio
 
 O clube tem dois contratos de patrocínio: o **master** e o **fornecedor de uniforme**. Cada
@@ -197,8 +201,10 @@ no Painel, fica a **confiança da diretoria**: um número de 0 a 100, a tendênc
   é mais fraco custa caro. O esperado vem do tamanho dos dois elencos e do mando de campo.
   Clássico vale o dobro, para o bem e para o mal.
 - **Posição contra a meta.** No Brasileirão (da 6ª rodada em diante), a posição puxa a
-  confiança aos poucos para um patamar: alto dentro da meta, baixo longe dela, mais baixo
-  ainda na zona de rebaixamento. Sozinha, a tabela leva no máximo ao aviso.
+  confiança aos poucos para um patamar: alto dentro da meta (e mais alto quanto maior a
+  folga, até 95 em 1º), baixo longe dela, mais baixo ainda na zona de rebaixamento. Dentro
+  da meta a tabela só soma: quem tira ponto ali é o resultado. Sozinha, a tabela leva no
+  máximo ao aviso.
 - **Caixa no vermelho** também pesa.
 - A **dificuldade** da carreira multiplica só as quedas.
 
@@ -398,7 +404,9 @@ custa menos. Três tentativas por mesa.
 
 **Quanto o jogador pede.** O ponto de partida é o salário de mercado do overall dele,
 descontado pela idade: aos 31-32 anos o mercado paga 15% menos, aos 33-34, 30% menos, e
-dos 35 em diante, 45% menos. Quem tem clube nunca pede menos que 85% do que já ganha.
+dos 35 em diante, 45% menos. Quem tem clube defende parte do que já ganha, e essa parte
+também cai com a idade: 85% até 30 anos, 75% aos 31-32, 65% aos 33-34 e 55% dos 35 em diante
+(é o que pesa na renovação do veterano caro).
 **O agente livre** não tem contrato a defender: parte só do mercado e ainda dá desconto
 por estar parado, 15% logo que sai e até 40% depois de dez semanas sem clube. Para descer
 de patamar (ir para um clube bem menor), o livre cobra no máximo 30% a mais. Na lista do

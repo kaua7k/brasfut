@@ -1827,3 +1827,10 @@ button.forma-badge { border: 0; padding: 0; cursor: pointer; }
 ol.ajuda-lista { padding-left: 20px; max-height: none; }
 .ajuda-lista dt { font-weight: 700; }
 .ajuda-lista dd { margin: 2px 0 0; color: var(--fraco); font-size: var(--fs-p); }
+
+/* jogos da mesma semana (liga + copa) no cartao da partida */
+.partida-semana { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0 4px; }
+.partida-semana-jogo.ok { border-color: var(--ok); }
+.partida-semana-jogo.critico { border-color: var(--critico); }
+.partida-semana-jogo.atencao { border-color: var(--atencao); }
+.partida-semana-jogo.ativa { background: var(--painel-alto); }

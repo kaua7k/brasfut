@@ -34,6 +34,7 @@ import { Carreira } from './telas/Carreira'
 import { Painel } from './telas/Painel'
 import { Treino, type AcaoTreino } from './telas/Treino'
 import type {
+  AbaMercado,
   Ajuda as DadosAjuda,
   BoasVindas as DadosBoasVindas,
   Cabecalho,
@@ -188,7 +189,7 @@ export function App() {
               setConteudo({ tipo: 'estadio', dados: (await api.estadio()).tela })
               break
             case 'mercado':
-              setConteudo({ tipo: 'mercado', dados: (await api.mercado()).tela })
+              setConteudo({ tipo: 'mercado', dados: (await api.mercado((alvo as AbaMercado) || 'compra')).tela })
               break
             default:
               // tela ainda nao migrada: o menu ja impede o clique, isto e a rede
@@ -643,7 +644,7 @@ export function App() {
             aoIr={(destino) =>
               destino === 'resumo'
                 ? comErro(async () => setResumo((await api.resumo()).resumo))
-                : irPara(destino)
+                : irPara(...(destino.split(':') as [string, string?]))
             }
             aoRenovar={(ids) => agirElenco('renovar', ids)}
           />

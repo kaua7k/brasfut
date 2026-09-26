@@ -45,6 +45,25 @@ export function Painel({ dados, aoDefinirAuto, mudandoAuto, aoIr, aoRenovar, aoR
       <div className="coluna">
         <FaixaProntidao prontidao={dados.prontidao} prontas={prontas} aoIr={aoIr} />
         {dados.contratos && <FaixaContratos aviso={dados.contratos} aoRenovar={aoRenovar} />}
+        {dados.propostas_jogadores && (
+          <section className="painel faixa ok">
+            <div className="faixa-icone">{iconeDeEstado('ok')}</div>
+            <div className="encolhe">
+              <div className="faixa-titulo">{dados.propostas_jogadores.texto}</div>
+              <div className="faixa-detalhe">
+                {dados.propostas_jogadores.itens
+                  .map((p) => `${p.jogador} (${p.pos}): ${p.clube} oferece ${p.valor}`)
+                  .join(' · ')}
+                {dados.propostas_jogadores.total > dados.propostas_jogadores.itens.length &&
+                  ` · e mais ${dados.propostas_jogadores.total - dados.propostas_jogadores.itens.length}`}
+              </div>
+            </div>
+            <div className="espaco" />
+            <button type="button" className="bt-fantasma" onClick={() => aoIr('mercado:vitrine')}>
+              Ver propostas
+            </button>
+          </section>
+        )}
         {dados.propostas_emprego.map((o) => (
           <FaixaProposta key={o.id} proposta={o} aoResponder={aoResponderProposta} />
         ))}
