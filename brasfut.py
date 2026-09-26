@@ -352,6 +352,16 @@ PERFIL_LIGA_EXT = {
     "NED": {"tv": (600_000, 30_000), "premio": 50_000_000, "caixa": 1.2, "peso": 0.95, "teto": 92},
     "USA": {"tv": (830_000, 28_000), "premio": 40_000_000, "caixa": 1.4, "peso": 0.90, "teto": 88},
     "SAU": {"tv": (700_000, 28_000), "premio": 60_000_000, "caixa": 2.5, "peso": 0.88, "teto": 88},
+    # America do Sul: bem abaixo da Europa, a Argentina um degrau acima dos vizinhos
+    "ARG": {"tv": (300_000, 7_800), "premio": 12_000_000, "caixa": 0.45, "peso": 0.90, "teto": 90},
+    "URU": {"tv": (190_000, 5_200), "premio": 4_000_000, "caixa": 0.25, "peso": 0.84, "teto": 86},
+    "PAR": {"tv": (200_000, 4_800), "premio": 4_000_000, "caixa": 0.25, "peso": 0.83, "teto": 85},
+    "CHI": {"tv": (175_000, 5_000), "premio": 4_500_000, "caixa": 0.28, "peso": 0.84, "teto": 86},
+    "COL": {"tv": (230_000, 5_600), "premio": 5_000_000, "caixa": 0.30, "peso": 0.85, "teto": 87},
+    "EQU": {"tv": (240_000, 5_300), "premio": 4_500_000, "caixa": 0.28, "peso": 0.84, "teto": 86},
+    "PER": {"tv": (155_000, 4_600), "premio": 2_500_000, "caixa": 0.20, "peso": 0.78, "teto": 83},
+    "BOL": {"tv": (130_000, 4_400), "premio": 2_000_000, "caixa": 0.18, "peso": 0.76, "teto": 82},
+    "VEN": {"tv": (125_000, 4_000), "premio": 2_000_000, "caixa": 0.18, "peso": 0.76, "teto": 82},
 }
 PERFIL_PADRAO = {"tv": (600_000, 20_000), "premio": 30_000_000, "caixa": 1.0, "peso": 0.9, "teto": 88}
 
@@ -555,6 +565,97 @@ CLUBES_SUL = [
     ("Melgar", "PER", "Monumental UNSA", 60000, 61),
     ("Cienciano", "PER", "Inca Garcilaso", 45000, 60),
 ]
+
+# ----------------------------------------------------------------------------
+# LIGAS SUL-AMERICANAS
+#
+# Os clubes de CLUBES_LIB, CLUBES_SUL e os sul-americanos do dados_mundo.py
+# entram na liga do pais; os que faltam para fechar a liga vem daqui, com nome
+# real e elenco gerado pela reputacao. As vagas da Libertadores e da
+# Sul-Americana saem da classificacao de cada liga no ano anterior.
+# ----------------------------------------------------------------------------
+
+# codigo (= pais), nome da liga, numero de clubes
+LIGAS_SUL = [
+    ("ARG", "Liga Profesional Argentina", 20),
+    ("URU", "Campeonato Uruguaio", 10),
+    ("PAR", "Campeonato Paraguaio", 10),
+    ("CHI", "Campeonato Chileno", 12),
+    ("COL", "Liga Colombiana", 12),
+    ("EQU", "LigaPro Equatoriana", 10),
+    ("PER", "Liga 1 Peruana", 10),
+    ("BOL", "Campeonato Boliviano", 10),
+    ("VEN", "Liga Venezuelana", 10),
+]
+CODIGOS_SUL = [k for k, _, _ in LIGAS_SUL]
+# 24 vagas de fora em cada copa (as outras 8 sao brasileiras)
+VAGAS_LIB = {"ARG": 5, "URU": 3, "PAR": 3, "CHI": 3, "COL": 3, "EQU": 3, "PER": 2, "BOL": 1, "VEN": 1}
+VAGAS_SULA = {"ARG": 4, "URU": 3, "PAR": 3, "CHI": 3, "COL": 3, "EQU": 3, "PER": 2, "BOL": 2, "VEN": 1}
+
+# na ordem em que entram, ate a liga fechar o numero de clubes
+CLUBES_LIGAS_SUL = {
+    "ARG": [("Godoy Cruz", "ARG", "Malvinas Argentinas", 42000, 64),
+            ("Gimnasia La Plata", "ARG", "Juan Carmelo Zerillo", 24544, 63),
+            ("Banfield", "ARG", "Florencio Sola", 34901, 62),
+            ("Union de Santa Fe", "ARG", "15 de Abril", 22852, 62),
+            ("Tigre", "ARG", "Jose Dellagiovanna", 26282, 61)],
+    "URU": [("Montevideo Wanderers", "URU", "Parque Alfredo Viera", 7420, 57),
+            ("Cerro Largo", "URU", "Antonio Ubilla", 9000, 54),
+            ("Plaza Colonia", "URU", "Profesor Alberto Suppici", 12000, 53),
+            ("Racing Montevideo", "URU", "Parque Roberto", 8500, 53),
+            ("Progreso", "URU", "Parque Abraham Paladino", 8000, 52),
+            ("Fenix", "URU", "Parque Capurro", 5500, 52)],
+    "PAR": [("Sportivo Luqueno", "PAR", "Feliciano Caceres", 24000, 55),
+            ("Sportivo Trinidense", "PAR", "Martin Torres", 3000, 52),
+            ("Tacuary", "PAR", "Roberto Bettega", 3000, 51),
+            ("Sportivo Ameliano", "PAR", "Jose Tomas Silva", 3000, 51),
+            ("General Caballero", "PAR", "Ka'arendy", 8000, 51),
+            ("Sportivo San Lorenzo", "PAR", "Gunther Vogel", 5000, 50)],
+    "CHI": [("Palestino", "CHI", "Municipal de La Cisterna", 12000, 58),
+            ("Everton de Vina", "CHI", "Sausalito", 22360, 57),
+            ("Union Espanola", "CHI", "Santa Laura", 19887, 57),
+            ("Cobresal", "CHI", "El Cobre", 12000, 55),
+            ("Nublense", "CHI", "Nelson Oyarzun", 12000, 55),
+            ("Union La Calera", "CHI", "Nicolas Chahuan", 9200, 55),
+            ("Deportes Iquique", "CHI", "Tierra de Campeones", 13171, 54)],
+    "COL": [("Independiente Medellin", "COL", "Atanasio Girardot", 40043, 64),
+            ("Atletico Bucaramanga", "COL", "Alfonso Lopez", 25000, 61),
+            ("Deportivo Pereira", "COL", "Hernan Ramirez Villegas", 30297, 59),
+            ("Envigado", "COL", "Polideportivo Sur", 11000, 55),
+            ("Deportivo Pasto", "COL", "Departamental Libertad", 20665, 55),
+            ("Alianza FC", "COL", "Armando Maestre", 11000, 54)],
+    "EQU": [("Emelec", "EQU", "George Capwell", 40020, 66),
+            ("Catolica del Ecuador", "EQU", "Olimpico Atahualpa", 35258, 58),
+            ("Delfin", "EQU", "Jocay", 17000, 58),
+            ("Orense", "EQU", "9 de Mayo", 16500, 56),
+            ("Deportivo Cuenca", "EQU", "Alejandro Serrano Aguilar", 16500, 56),
+            ("Mushuc Runa", "EQU", "Mushuc Runa", 8200, 54),
+            ("Tecnico Universitario", "EQU", "Bellavista", 16467, 53)],
+    "PER": [("Sport Huancayo", "PER", "Huancayo", 20000, 55),
+            ("Deportivo Garcilaso", "PER", "Garcilaso", 45000, 54),
+            ("ADT", "PER", "Union Tarma", 9000, 53),
+            ("Alianza Atletico", "PER", "Campeones del 36", 8000, 52),
+            ("Atletico Grau", "PER", "Miguel Grau", 25000, 52),
+            ("Comerciantes Unidos", "PER", "Juan Maldonado Gamarra", 5000, 51),
+            ("UTC", "PER", "Heroes de San Ramon", 18000, 51)],
+    "BOL": [("Blooming", "BOL", "Ramon Tahuichi Aguilera", 38000, 57),
+            ("Oriente Petrolero", "BOL", "Ramon Tahuichi Aguilera", 38000, 57),
+            ("Jorge Wilstermann", "BOL", "Felix Capriles", 32000, 57),
+            ("San Antonio Bulo Bulo", "BOL", "Carlos Villegas", 6000, 53),
+            ("Aurora", "BOL", "Felix Capriles", 32000, 52),
+            ("Real Tomayapo", "BOL", "IV Centenario", 15000, 51),
+            ("Guabira", "BOL", "Gilberto Parada", 13000, 51),
+            ("Universitario de Vinto", "BOL", "Municipal de Vinto", 5000, 50)],
+    "VEN": [("Caracas FC", "VEN", "Olimpico de la UCV", 23940, 58),
+            ("Monagas", "VEN", "Monumental de Maturin", 51796, 55),
+            ("Estudiantes de Merida", "VEN", "Metropolitano de Merida", 42200, 54),
+            ("Zamora", "VEN", "Agustin Tovar", 29800, 53),
+            ("Metropolitanos", "VEN", "Olimpico de la UCV", 23940, 53),
+            ("Portuguesa FC", "VEN", "Jose Antonio Paez", 18000, 52),
+            ("Rayo Zuliano", "VEN", "Pachencho Romero", 40800, 51),
+            ("Academia Puerto Cabello", "VEN", "Complejo Socialista", 7500, 51)],
+}
+
 
 # ----------------------------------------------------------------------------
 # GERADOR DE NOMES
@@ -969,6 +1070,7 @@ def criar_mundo(nome_tecnico):
     aplicar_elencos_reais(G, usados)
     # depois dos elencos brasileiros: a recalibracao deles nao pode mexer na Europa
     aplicar_mundo(G, usados, sul=True)
+    montar_ligas_sul(G, usados)
     for c in G["clubes"].values():
         if c["divisao"] == "EX":
             continue
@@ -1097,6 +1199,56 @@ def aplicar_mundo(G, usados, sul=False):
             trocar_elenco(G, por_nome[nome], lista, usados)
 
 
+def montar_ligas_sul(G, usados):
+    """Poe os sul-americanos "EX" na liga do pais e completa cada liga com os
+    clubes de CLUBES_LIGAS_SUL. Liga que ja existe no save nao muda. Devolve
+    os codigos criados."""
+    criadas = []
+    for codigo, nome, n in LIGAS_SUL:
+        if codigo in G["ligas"]:
+            continue
+        do_pais = sorted((c for c in G["clubes"].values()
+                          if c["divisao"] == "EX" and c["uf"] == codigo and not c.get("europeu")),
+                         key=lambda c: -c["reputacao"])
+        nomes = {c["nome"] for c in do_pais}
+        for dados in CLUBES_LIGAS_SUL.get(codigo, []):
+            if len(do_pais) >= n:
+                break
+            if dados[0] in nomes:
+                continue
+            do_pais.append(novo_clube(G, dados, codigo, usados))
+        if len(do_pais) < 4:
+            continue
+        ids = []
+        for c in do_pais:
+            if c["divisao"] == "EX":
+                # veio de fora das ligas: caixa na escala do pais
+                c["dinheiro"] = int(c["reputacao"] ** 2 * 3800 * perfil_liga(codigo)["caixa"]) \
+                    + rng.randint(200_000, 1_200_000)
+            c["divisao"] = codigo
+            c["liga_ext"] = codigo
+            ids.append(c["id"])
+        G["ligas"][codigo] = nova_liga_ext(codigo, nome, ids)
+        criadas.append(codigo)
+    return criadas
+
+
+def ligas_sul(G):
+    return [k for k in CODIGOS_SUL if k in G["ligas"]]
+
+
+def vagas_continentais_sul(G):
+    """As 24 vagas de fora da Libertadores e da Sul-Americana, pela liga de
+    cada pais (classificacao do ano anterior; no primeiro ano, reputacao)."""
+    lib, sula = [], []
+    for k in ligas_sul(G):
+        ordem = _ordem_liga_ext(G, k)
+        a, b = VAGAS_LIB.get(k, 0), VAGAS_SULA.get(k, 0)
+        lib += ordem[:a]
+        sula += ordem[a:a + b]
+    return lib, sula
+
+
 def falta_mundo(G):
     """O save ainda nao tem tudo o que o dados_mundo.py traz?"""
     m = mundo_embutido()
@@ -1159,7 +1311,15 @@ def montar_copas(G, primeira=False):
     ex = sorted((c["id"] for c in G["clubes"].values()
                  if c["divisao"] == "EX" and not c.get("liga_ext") and not c.get("europeu")),
                 key=lambda i: -G["clubes"][i]["reputacao"])
-    ex_lib, ex_sul = ex[:24], ex[24:48]
+    if ligas_sul(G):
+        # as vagas saem das ligas do continente; sobra de "EX" (save antigo) completa
+        ex_lib, ex_sul = vagas_continentais_sul(G)
+        resto = [i for i in ex if i not in ex_lib and i not in ex_sul]
+        ex_lib += resto[:max(0, 24 - len(ex_lib))]
+        resto = [i for i in resto if i not in ex_lib]
+        ex_sul += resto[:max(0, 24 - len(ex_sul))]
+    else:
+        ex_lib, ex_sul = ex[:24], ex[24:48]
     br_lib, br_sul = ordem[:8], ordem[8:16]
     # mundo sem estrangeiros bastantes: a Sul-Americana completa com brasileiros,
     # seguindo a Serie A e depois a Serie B por reputacao
@@ -1543,7 +1703,7 @@ def rendimento(j: Jogador, afinidade: float = 1.0) -> float:
     base *= (1.0 - PESO_JOGO_COND) + PESO_JOGO_COND * (j["cond"] / 100.0)
     base *= (1.0 - PESO_JOGO_FORMA) + PESO_JOGO_FORMA * (j["forma"] / 100.0)
     base *= (1.0 - PESO_JOGO_MORAL) + PESO_JOGO_MORAL * (j["moral"] / 100.0)
-    base *= (1.0 - PESO_JOGO_ENTROS) + PESO_JOGO_ENTROS * (entrosamento(j) / 100.0)
+    base *= (1.0 - PESO_JOGO_ENTROS) + PESO_JOGO_ENTROS * (j.get("entros", ENTROS_PADRAO) / 100.0)
     return base
 
 
@@ -1897,7 +2057,8 @@ def _chave_xi(G: Mundo, esc: List[int], form: Dict[str, int],
               fixas: Optional[Dict[int, str]]) -> Any:
     js = G["jogadores"]
     jogadores = tuple((pid, js[pid]["pos"], js[pid]["ovr"], js[pid]["cond"],
-                       js[pid]["forma"], js[pid]["moral"], entrosamento(js[pid])) for pid in esc)
+                       js[pid]["forma"], js[pid]["moral"], js[pid].get("entros", ENTROS_PADRAO))
+                      for pid in esc)
     return (tuple(sorted(form.items())), tuple(sorted((fixas or {}).items())), jogadores)
 
 
@@ -9028,6 +9189,10 @@ def migrar(G):
         G["seq_c"] = max([G.get("seq_c", 0)] + list(G["clubes"]))
         G["seq"] = max([G.get("seq", 0)] + list(G["jogadores"]))
         aplicar_mundo(G, {j["nome"] for j in G["jogadores"].values()})
+    if any(k not in G["ligas"] for k in CODIGOS_SUL):
+        G["seq_c"] = max([G.get("seq_c", 0)] + list(G["clubes"]))
+        G["seq"] = max([G.get("seq", 0)] + list(G["jogadores"]))
+        montar_ligas_sul(G, {j["nome"] for j in G["jogadores"].values()})
     for j in G["jogadores"].values():
         j.setdefault("dono", None)
         j.setdefault("emp_pct", 100)

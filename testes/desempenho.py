@@ -75,7 +75,8 @@ def rodar(seed, semanas):
     if os.path.exists(apoio.SAVE_TESTE):
         os.remove(apoio.SAVE_TESTE)
     eng.rng.seed(seed)
-    clubes = apoio.chamar("POST", "/api/novo", {"nome": "Harness"})["clubes"]
+    # sem demissao: a medida e de tempo, e uma demissao travaria a corrida no meio
+    clubes = apoio.chamar("POST", "/api/novo", {"nome": "Harness", "opcoes": {"sem_demissao": True}})["clubes"]
     apoio.chamar("POST", "/api/clube", {"id": [c for c in clubes if c["divisao"] == "A"][0]["id"]})
     G = apoio.SESSAO.G
     fora = []

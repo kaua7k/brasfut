@@ -27,7 +27,8 @@ class TestEuropa(unittest.TestCase):
 
     def test_mundo_novo_tem_as_ligas_e_elencos_reais(self):
         G = self.G
-        self.assertEqual(set(eng.ligas_ext(G)), {"ENG", "ESP", "GER", "ITA", "FRA", "POR", "NED", "USA", "SAU"})
+        self.assertEqual(set(eng.ligas_ext(G)), {"ENG", "ESP", "GER", "ITA", "FRA", "POR", "NED", "USA", "SAU"}
+                         | set(eng.CODIGOS_SUL))
         self.assertNotIn("ligas_ext", G)
         nomes_clubes = {c["nome"] for c in G["clubes"].values()}
         self.assertTrue({"Galatasaray", "Platense"} <= nomes_clubes, "clubes novos faltando")
@@ -42,7 +43,10 @@ class TestEuropa(unittest.TestCase):
         self.assertIn("Neymar Jr", {G["jogadores"][p]["nome"] for p in santos["elenco"]})
         # europeu nao entra nas copas sul-americanas nem no mercado
         for k in ("lib", "sul"):
-            self.assertFalse(any(G["clubes"][i].get("liga_ext") for i in G["copas"][k]["vivos"]))
+            # so brasileiros e as ligas sul-americanas (que tambem tem liga_ext)
+            self.assertTrue(all(G["clubes"][i]["divisao"] in eng.DIVISOES_BR + tuple(eng.CODIGOS_SUL)
+                                for i in G["copas"][k]["vivos"]))
+            self.assertFalse(any(G["clubes"][i].get("europeu") for i in G["copas"][k]["vivos"]))
 
     def test_champions_e_europa_league(self):
         G = self.G
