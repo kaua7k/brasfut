@@ -6821,9 +6821,12 @@ def fim_de_contrato(G):
             j["contrato"] = rng.randint(1, 3)
             j["salario"] = salario_de(j["ovr"])
             continue
-        if rng.random() < 0.88:
+        novo = salario_de(j["ovr"])
+        # renova so se o aumento cabe na folha: sem isto quem evoluiu era
+        # renovado mais caro todo ano e a folha das ligas de fora passava da receita
+        if rng.random() < 0.88 and (novo <= j["salario"] or cabe_na_folha(G, c, novo - j["salario"])):
             j["contrato"] = rng.randint(1, 4)
-            j["salario"] = salario_de(j["ovr"])     # renovou: salario de mercado
+            j["salario"] = novo                    # renovou: salario de mercado
         else:
             c["elenco"].remove(j["id"])
             if j["id"] in c.get("escalacao", []):
