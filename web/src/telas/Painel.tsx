@@ -411,7 +411,7 @@ function CardEscalacao({
       {ressalvas.length === 0 ? (
         <div className="sem-ressalva">
           {iconeDeEstado('ok', 14)}
-          Ninguem improvisado, desgastado ou pendurado no XI.
+          Ninguem improvisado ou desgastado no XI.
         </div>
       ) : (
         <div className="xi-lista mt-3">

@@ -2540,10 +2540,8 @@ def diagnostico_escalacao(G: Mundo, c: Optional[Clube] = None,
         estado = "atencao"
         titulo_aviso = "ELENCO CURTO - so %d jogadores aptos" % aptos
         detalhe = "Sem banco de verdade, a proxima lesao vira time incompleto."
-    elif len(pendurados) >= 3:
-        estado = "atencao"
-        titulo_aviso = "ESCALACAO COM RESSALVA - %s em campo" % plural(len(pendurados), "pendurado")
-        detalhe = "Mais um amarelo e eles ficam de fora da proxima rodada."
+    # pendurado nao vira mais faixa de alerta (pedido do testador, 26/09/2026):
+    # a marca discreta fica no jogador, em diagnostico["pendurados"] e na Escalacao
     elif caidos:
         estado = "atencao"
         titulo_aviso = "ESCALACAO REFEITA - %s fora" % plural(len(caidos), "titular", "titulares")
@@ -3971,6 +3969,7 @@ def _semana_estadual(G: Mundo) -> List[Dict[str, Any]]:
     for recado in executar_agendadas(G):
         noticia(G, recado)
     if G["semana_est"] % SEMANAS_POR_MES == 0:
+        pagar_parcela_credito(G)
         for pid, delta in progresso_mensal(G):
             j = G["jogadores"][pid]
             if delta > 0:
@@ -4629,6 +4628,7 @@ def avancar_semana(G):
     rodar_peneira(G)
     saneamento_ia(G)
     if G["semana"] % SEMANAS_POR_MES == 0:
+        pagar_parcela_credito(G)
         sondar_treinador(G)
         for pid, delta in progresso_mensal(G):
             j = G["jogadores"][pid]
@@ -7187,6 +7187,9 @@ def atualizar_confianca(G: Mundo, meus: List[Dict[str, Any]]) -> None:
             causas.append([puxao, txt])
     if c["dinheiro"] < 0:
         causas.append([-1, "caixa no vermelho"])
+    cr = credito(G)
+    if cr and cr.get("ultimo_atraso") is not None and cr["ultimo_atraso"] >= semana_absoluta(G) - 1:
+        causas.append([CREDITO_CONFIANCA_ATRASO, "parcela do credito atrasada"])
     mult = dificuldade(G)["diretoria"]
     for x in causas:
         if x[0] < 0:
@@ -8887,7 +8890,109 @@ EXTRATO = (
     ("treino", "Treino individual"), ("peneira", "Peneira da base"),
     ("compras", "Compra de jogadores"), ("rescisoes", "Rescisoes"),
     ("obras", "Obras no estadio"), ("infra", "Infraestrutura"),
+    ("credito", "Credito tomado"), ("credito_parcela", "Parcelas do credito"),
 )
+
+
+# ----------------------------------------------------------------------------
+# CREDITO DO CLUBE
+#
+# Emprestimo financeiro (nao o de jogador): o banco empresta ate 3 meses de
+# receita, a 2% ao mes, em parcelas fixas (tabela Price). Uma operacao por vez.
+# A parcela sai na virada do mes; sem caixa para ela, atrasa: o juro do mes
+# entra no saldo, a parcela ganha 2% de multa, o prazo anda um mes e a
+# diretoria cobra na confianca. So o clube do jogador toma credito.
+# ----------------------------------------------------------------------------
+
+CREDITO_JUROS = 0.02
+CREDITO_MESES_RECEITA = 3
+CREDITO_PRAZOS = (6, 12, 24)
+CREDITO_MINIMO = 100_000
+CREDITO_MULTA = 0.02
+CREDITO_CONFIANCA_ATRASO = -4
+
+
+def receita_mensal(G: Mundo, c: Clube) -> int:
+    return int(receita_semanal(G, c) * 4 + bilheteria_mensal_estimada(c))
+
+
+def credito(G: Mundo) -> Optional[Dict[str, Any]]:
+    return G.get("credito") or None
+
+
+def limite_credito(G: Mundo) -> int:
+    c = G["clubes"][G["clube"]]
+    if credito(G):
+        return 0                       # uma operacao por vez
+    return max(0, int(receita_mensal(G, c) * CREDITO_MESES_RECEITA / 1000) * 1000)
+
+
+def parcela_credito(valor: int, meses: int, juros: float = CREDITO_JUROS) -> int:
+    """Parcela fixa da tabela Price."""
+    if meses <= 0:
+        return int(valor)
+    return int(round(valor * juros / (1 - (1 + juros) ** -meses)))
+
+
+def tomar_credito(G: Mundo, valor: int, meses: int) -> Tuple[bool, str]:
+    c = G["clubes"][G["clube"]]
+    valor, meses = int(valor), int(meses)
+    if credito(G):
+        return False, "Ja existe um credito em aberto: quite antes de tomar outro."
+    if meses not in CREDITO_PRAZOS:
+        return False, "Prazo invalido: %s meses." % " / ".join(str(m) for m in CREDITO_PRAZOS)
+    limite = limite_credito(G)
+    if valor < CREDITO_MINIMO:
+        return False, "O banco nao opera abaixo de %s." % din(CREDITO_MINIMO)
+    if valor > limite:
+        return False, "O limite do clube e %s (3 meses de receita)." % din(limite)
+    parcela = parcela_credito(valor, meses)
+    G["credito"] = {"valor": valor, "saldo": valor, "parcela": parcela, "meses": meses,
+                    "restantes": meses, "atrasos": 0, "ultimo_atraso": None,
+                    "desde": [int(G["temporada"]), semana_absoluta(G)]}
+    lancar(G, c, valor, "credito")
+    noticia(G, "Credito de %s tomado em %d parcelas de %s." % (din(valor), meses, din(parcela)))
+    return True, ("Credito liberado: %s no caixa, %d parcelas de %s por mes (total %s)."
+                  % (din(valor), meses, din(parcela), din(parcela * meses)))
+
+
+def quitar_credito(G: Mundo) -> Tuple[bool, str]:
+    cr = credito(G)
+    if not cr:
+        return False, "Nao ha credito em aberto."
+    c = G["clubes"][G["clube"]]
+    saldo = int(cr["saldo"])
+    if c["dinheiro"] < saldo:
+        return False, "Quitar custa %s e o caixa tem %s." % (din(saldo), din(c["dinheiro"]))
+    lancar(G, c, -saldo, "credito_parcela")
+    G["credito"] = None
+    noticia(G, "Credito quitado antes do prazo (%s)." % din(saldo))
+    return True, "Credito quitado: %s pagos, sem mais parcelas." % din(saldo)
+
+
+def pagar_parcela_credito(G: Mundo) -> None:
+    """Virada do mes: a parcela sai do caixa, ou atrasa."""
+    cr = credito(G)
+    if not cr:
+        return
+    c = G["clubes"][G["clube"]]
+    juros = int(cr["saldo"] * CREDITO_JUROS)
+    parcela = min(int(cr["parcela"]), int(cr["saldo"]) + juros)
+    if c["dinheiro"] >= parcela:
+        lancar(G, c, -parcela, "credito_parcela")
+        cr["saldo"] = max(0, int(cr["saldo"]) + juros - parcela)
+        cr["restantes"] = max(0, int(cr["restantes"]) - 1)
+        if cr["restantes"] <= 0 or cr["saldo"] <= 0:
+            G["credito"] = None
+            noticia(G, "Ultima parcela do credito paga: divida zerada.")
+        return
+    # sem caixa: atrasa. O juro capitaliza, a multa entra e o prazo anda
+    cr["saldo"] = int(cr["saldo"]) + juros + int(cr["parcela"] * CREDITO_MULTA)
+    cr["atrasos"] = int(cr.get("atrasos", 0)) + 1
+    cr["ultimo_atraso"] = semana_absoluta(G)
+    cr["parcela"] = parcela_credito(cr["saldo"], max(1, int(cr["restantes"])))
+    noticia(G, "Parcela do credito ATRASADA: sem caixa para %s. Saldo devedor agora %s."
+            % (din(parcela), din(cr["saldo"])))
 
 
 def lancar(G: Mundo, c: Clube, valor: int, categoria: str) -> None:

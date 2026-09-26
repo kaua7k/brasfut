@@ -118,6 +118,9 @@ export const api = {
       ? pedir<{ tela: TelaCompeticoes }>('/api/competicoes')
       : pedir<{ tela: TelaCompeticoes }>('/api/competicoes', { alvo }),
   financas: () => pedir<{ tela: TelaFinancas }>('/api/financas'),
+  tomarCredito: (valor: number, meses: number) =>
+    pedir<{ recado: string; tela: TelaFinancas }>('/api/credito', { acao: 'tomar', valor, meses }),
+  quitarCredito: () => pedir<{ recado: string; tela: TelaFinancas }>('/api/credito', { acao: 'quitar' }),
   assinarPatrocinio: (espaco: string, indice: number) =>
     pedir<{ recado: string; tela: TelaFinancas }>('/api/patrocinio/assinar', { espaco, indice }),
   infra: () => pedir<{ tela: TelaInfra }>('/api/infra'),
