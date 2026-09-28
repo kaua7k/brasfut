@@ -32,7 +32,7 @@ Atas de decisão de roadmap: `docs/three-amigos/`.
 | `brasfut.py` | 10117 linhas | O motor inteiro + a interface de terminal original (`main()`, `loop()`, `tela_*`) | Só a faixa de linha da seção que precisa (ver índice abaixo) |
 | `brasfut_app.py` | 4552 linhas | Janela desktop (tkinter). Uma classe `Dialogo` por tela/ação | Só se a tarefa for na janela desktop — a maioria do trabalho novo vai para a web |
 | `dados_mundo.py` | 1181 linhas | Dados estáticos: clubes, ligas, seleções, nomes | Ao adicionar/corrigir liga, clube ou país |
-| `dados_clubes.py` | ~300 linhas | História real dos clubes brasileiros até 2025 (fundação, apelido, cidade, títulos com ano, soma do estadual). Editável à mão; só texto na tela do clube | Ao corrigir um título ou incluir um clube |
+| `dados_clubes.py` | ~420 linhas | História real dos clubes brasileiros até 2025 (fundação, apelido, cidade, títulos com ano, soma do estadual) e `ESCUDOS` (cores, padrão e sigla do escudo genérico de ~100 clubes). Editável à mão; só aparência | Ao corrigir um título, uma cor ou incluir um clube |
 | `server.py` | 156 linhas | `http.server` da stdlib; serve a API e `web/dist` | Infra do servidor, não regra de jogo |
 | `api/rotas.py` | ~350 linhas | `URL -> função`. Todas as rotas HTTP registradas com `@rota(metodo, caminho)` | Para achar/adicionar um endpoint |
 | `api/sessao.py` | — | Mantém o `G` vivo em memória, salva, dono do `threading.RLock`. Três slots de save (`caminho_slot`, `usar_slot`, `slots`; o slot 1 é o `brasfut_save.json`), e o motor grava um `.resumo` pequeno ao lado de cada save para o menu | Concorrência, save, trava de sessão |
@@ -42,7 +42,7 @@ Atas de decisão de roadmap: `docs/three-amigos/`.
 | `api/avanco.py` | — | Avançar em ritmos (jogo/semana/mês/janela/temporada) | Botão *Avançar*/*Simular* |
 | `api/campo.py` | — | Vaga (GOL, ZAG...) → ponto no campo, para as formações | Desenho do campo na Escalação |
 | `web/src/telas/*.tsx` | 15 arquivos | Uma tela por arquivo (Painel, Elenco, Escalação, Mercado, Financas, Clube, etc.) | Ao mexer numa tela específica |
-| `web/src/componentes/*.tsx` | 20 arquivos (`Ajuda.tsx`: ajuda e boas-vindas; `Partida.tsx`: resumo e detalhe da partida; `DialogoRenovar.tsx`: renovação em lote; `Celulas.tsx`: selo de posição, selo de overall e barra de físico das listas; `Resumo.tsx`: resumo da temporada) | Diálogos e peças reusáveis (Mesa, Grade, Campo, Ficha...) | Componente compartilhado entre telas |
+| `web/src/componentes/*.tsx` | 22 arquivos (`Ajuda.tsx`: ajuda e boas-vindas; `Partida.tsx`: resumo e detalhe da partida; `DialogoRenovar.tsx`: renovação em lote; `Celulas.tsx`: selo de posição, selo de overall e barra de físico das listas; `Resumo.tsx`: resumo da temporada; `Escudo.tsx`: escudo SVG de cada clube pelo nome, com o mapa de `/api/escudos`; `Plantao.tsx`: boletim do modo caos) | Diálogos e peças reusáveis (Mesa, Grade, Campo, Ficha...) | Componente compartilhado entre telas |
 | `web/src/api.ts`, `tipos.ts`, `formato.ts` | — | Cliente HTTP, tipos TS espelhando os DTOs, formatação (dinheiro, número) | Contrato front↔back |
 | `testes/*.py` | 44 arquivos (`desempenho.py`, `balanceamento.py` e `economia.py` são harness lentos, fora da suíte) | `unittest` da stdlib, sem dependência externa. `cd testes && python -m unittest -v` (~3 min, 194 testes) | Rodar antes de qualquer PR |
 | `docs/proxima-onda.md` | — | **Backlog da próxima onda**: o que espera decisão, o que espera exemplo do testador, o que está pronto para codar e como verificar | Antes de começar a próxima rodada |

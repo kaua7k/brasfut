@@ -350,6 +350,11 @@ modo Clássico nada disso acontece.
   copas e liga) e o acesso. Depois uma tabela só com os campeonatos que o clube jogou e onde
   parou em cada um. Por último o essencial: destaques do elenco, prêmios, dinheiro,
   mercado e quem sai ou chega para o ano seguinte.
+- **Escudos.** Cada clube tem o seu escudo no topo, no menu, no próximo jogo, na
+  classificação, na escolha de clube e nos slots: forma, listras ou faixas, cores do clube
+  e sigla. Não são os escudos oficiais (marca registrada), e sim escudos genéricos com as
+  cores de cada um; os de ~100 clubes ficam em `dados_clubes.py` (`ESCUDOS`) e podem ser
+  corrigidos à mão, e os demais ganham cores fixas sorteadas pelo nome.
 - **Listas de jogadores.** Posição num selo com a cor da linha (goleiro amarelo, defesa
   azul, meio verde, ataque vermelho), overall num selo com as mesmas faixas da cor do nome
   (roxo 80+, verde 70 a 79) e o físico com uma barrinha.

@@ -5,7 +5,8 @@
 // senao o Tab leva a um lugar que nao existe.
 
 import { porque, AGUARDE } from '../motivo'
-import { ICONES_MENU, Estrela, IconeAjuda, IconeMenu, IconeSalvar } from '../icones'
+import { ICONES_MENU, IconeAjuda, IconeMenu, IconeSalvar } from '../icones'
+import { Escudo } from './Escudo'
 import type { ItemMenu } from '../tipos'
 
 interface Props {
@@ -24,7 +25,7 @@ export function MenuLateral({ clube, itens, atual, aoTrocar, aoSalvar, aoMenu, s
   return (
     <nav className="lateral" aria-label="Telas do jogo">
       <div className="marca">
-        <div className="escudo"><Estrela /></div>
+        <Escudo nome={clube} tamanho={34} />
         <div>
           <div className="marca-nome">{clube}</div>
           <div className="marca-sub">Modo Carreira</div>

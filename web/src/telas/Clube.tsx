@@ -4,6 +4,7 @@
 // editavel a mao), e o do jogo, que o motor grava com a temporada em cada
 // titulo. O seletor do topo abre qualquer clube brasileiro, nao so o meu.
 
+import { Escudo } from '../componentes/Escudo'
 import { seloOvr, seloPos } from '../componentes/Celulas'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
 import type { TelaClube } from '../tipos'
@@ -38,7 +39,10 @@ export function Clube({ tela, aoAbrirFicha, aoTrocar }: Props) {
 
       <div className="clube-topo">
         <section className="painel enxuto">
-          <div className="painel-titulo mb-3">Identidade</div>
+          <div className="clube-identidade">
+            <Escudo nome={tela.titulo} tamanho={64} />
+            <div className="painel-titulo">Identidade</div>
+          </div>
           <dl className="clube-info">
             {tela.info.map((i) => (
               <div key={i.nome}>

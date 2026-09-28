@@ -1122,6 +1122,58 @@ def noticias():
             "itens": itens, "mundo": _mundo(G, 80)}
 
 
+# -------------------------------------------------------------------- escudo
+# pares de cores para quem nao tem escudo cadastrado (clube de fora, clube
+# pequeno): sorteio estavel pelo nome, sempre o mesmo escudo para o mesmo clube
+PALETA_ESCUDO = (("#0B3D91", "#FFFFFF"), ("#B00020", "#FFFFFF"), ("#1B5E20", "#FFFFFF"),
+                 ("#111111", "#E8B649"), ("#4A148C", "#FFFFFF"), ("#E65100", "#111111"),
+                 ("#006064", "#FFFFFF"), ("#FFFFFF", "#0B3D91"), ("#FFD100", "#0B3D91"),
+                 ("#7A1F3D", "#6CACE4"), ("#FFFFFF", "#B00020"), ("#263238", "#FFD100"))
+PADROES_ESCUDO = ("liso", "vertical", "horizontal", "diagonal", "metade")
+
+
+def _hash_nome(nome):
+    h = 0
+    for ch in nome:
+        h = (h * 131 + ord(ch)) % 1000003
+    return h
+
+
+def _sigla(nome):
+    partes = [p for p in re.split(r"[\s\-]+", nome) if p and p.lower() not in ("de", "da", "do", "dos", "das")]
+    if len(partes) >= 3:
+        return "".join(p[0] for p in partes[:3]).upper()
+    if len(partes) == 2:
+        return (partes[0][0] + partes[1][:2]).upper()
+    return partes[0][:3].upper() if partes else "?"
+
+
+def escudo_de(nome):
+    """O escudo de um clube pelo nome: cores do dados_clubes.ESCUDOS ou da
+    paleta, forma e padrao estaveis. So dado; o React desenha."""
+    h = _hash_nome(nome or "")
+    cad = dados_clubes.ESCUDOS.get(nome)
+    if cad:
+        cor1, cor2, padrao, sigla = cad
+    else:
+        cor1, cor2 = PALETA_ESCUDO[h % len(PALETA_ESCUDO)]
+        padrao = PADROES_ESCUDO[(h // 7) % len(PADROES_ESCUDO)]
+        sigla = _sigla(nome or "")
+    return {"nome": nome, "sigla": sigla, "cor1": cor1, "cor2": cor2, "padrao": padrao,
+            "forma": (h // 13) % 3}
+
+
+def escudos():
+    """Todos os escudos do mundo aberto (ou dos clubes brasileiros, sem mundo)."""
+    # na escolha do clube o mundo novo ainda nao e o da sessao
+    G = getattr(SESSAO, "_pendente_novo", None) or SESSAO.G
+    if G is not None:
+        nomes = [c["nome"] for c in G["clubes"].values()]
+    else:
+        nomes = [d[0] for d in eng.CLUBES_A + eng.CLUBES_B + eng.CLUBES_C + eng.CLUBES_D]
+    return [escudo_de(n) for n in sorted(set(nomes))]
+
+
 # --------------------------------------------------------------------- clube
 # ordem da sala de trofeus: mundo, continente, pais, e o resto (estadual,
 # regional) por ultimo
