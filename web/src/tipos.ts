@@ -434,7 +434,18 @@ export interface RespostaEstado {
   slot?: number
 }
 
+/** O escudo de um clube (api/dto.py, escudo_de): so dado, o Escudo desenha. */
+export interface DadosEscudo {
+  nome: string
+  sigla: string
+  cor1: string
+  cor2: string
+  padrao: 'liso' | 'vertical' | 'horizontal' | 'diagonal' | 'metade'
+  forma: number
+}
+
 export interface SlotSave {
+  escudo?: DadosEscudo
   slot: number
   vazio: boolean
   tecnico?: string

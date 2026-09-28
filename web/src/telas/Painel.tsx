@@ -10,7 +10,8 @@ import { Campo } from '../componentes/Campo'
 import { ResumoPartida } from '../componentes/Partida'
 import { plural } from '../formato'
 import { LegendaZonas, MarcaZona } from '../componentes/Zona'
-import { Estrela, EscudoRival, iconeDeEstado } from '../icones'
+import { EscudoRival, iconeDeEstado } from '../icones'
+import { Escudo } from '../componentes/Escudo'
 import type {
   AvisoContratos,
   Confianca,
@@ -288,7 +289,7 @@ function CardProximo({ proximo, meuClube }: { proximo: Proximo; meuClube: string
 
       <div className="confronto">
         <div className="confronto-lado">
-          <div className="escudo gg"><Estrela tamanho={26} /></div>
+          <Escudo nome={meuClube} tamanho={50} />
           <div className="confronto-nome">{meuClube}</div>
         </div>
 
@@ -302,9 +303,13 @@ function CardProximo({ proximo, meuClube }: { proximo: Proximo; meuClube: string
         </div>
 
         <div className="confronto-lado">
-          <div className={`escudo gg${temAdversario ? ' rival' : ''}`}>
-            <EscudoRival tamanho={24} />
-          </div>
+          {temAdversario ? (
+            <Escudo nome={proximo.adversario} tamanho={50} />
+          ) : (
+            <div className="escudo gg">
+              <EscudoRival tamanho={24} />
+            </div>
+          )}
           <div className={`confronto-nome${proximo.forte ? ' forte' : ''}`}>
             {proximo.adversario}
           </div>

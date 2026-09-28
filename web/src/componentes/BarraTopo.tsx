@@ -4,7 +4,8 @@
 // barra estourava e o caixa saia da tela. Salvar desceu para o pe do menu.
 
 import { porque, AGUARDE } from '../motivo'
-import { Estrela, IconeSeta } from '../icones'
+import { IconeSeta } from '../icones'
+import { Escudo } from './Escudo'
 import type { Cabecalho } from '../tipos'
 
 interface Props {
@@ -18,7 +19,7 @@ interface Props {
 export function BarraTopo({ cabecalho, aoAvancar, aoSimular, avancando }: Props) {
   return (
     <header className="topo">
-      <div className="escudo g"><Estrela tamanho={24} /></div>
+      <Escudo nome={cabecalho.clube} tamanho={40} />
       {/* o nome e o subtitulo cedem espaco (com reticencias) antes dos chips e
           do botao: o botao da acao nunca pode sair da tela */}
       <div className="topo-titulo">

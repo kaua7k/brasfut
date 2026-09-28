@@ -3,6 +3,7 @@
 // A tabela completa mora aqui; o Painel mostra so a minha vizinhanca, que e o
 // que importa de relance. Aqui e o lugar de olhar o torneio inteiro.
 
+import { Escudo } from '../componentes/Escudo'
 import { agrupar } from '../formato'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
 import { Grade, type Coluna } from '../componentes/Grade'
@@ -25,6 +26,7 @@ const COLUNAS: Coluna<LinhaClassificacao>[] = [
     render: (l) => (
       <span className="linha-flex">
         <MarcaZona zona={l.zona} texto={l.zona_texto} />
+        <Escudo nome={l.clube} tamanho={16} />
         {l.clube}
       </span>
     ),

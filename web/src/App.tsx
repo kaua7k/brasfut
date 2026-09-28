@@ -33,6 +33,7 @@ import { Noticias } from './telas/Noticias'
 import { Carreira } from './telas/Carreira'
 import { Clube } from './telas/Clube'
 import { Plantao } from './componentes/Plantao'
+import { guardarEscudos } from './componentes/Escudo'
 import { Painel } from './telas/Painel'
 import { Treino, type AcaoTreino } from './telas/Treino'
 import type {
@@ -212,6 +213,12 @@ export function App() {
       }),
     [comErro],
   )
+
+  // os escudos do mundo aberto: uma leitura por mundo, qualquer tela desenha pelo nome
+  useEffect(() => {
+    if (situacao === 'pronto' || situacao === 'escolher_clube')
+      api.escudos().then((r) => guardarEscudos(r.escudos)).catch(() => {})
+  }, [situacao])
 
   useEffect(() => {
     comErro(async () => {

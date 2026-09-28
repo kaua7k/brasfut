@@ -7,6 +7,7 @@
 // a ultima escolha; Configuracoes fica com a interface. So a escolha do clube
 // grava o save.
 
+import { Escudo } from '../componentes/Escudo'
 import { porque, AGUARDE } from '../motivo'
 import { useEffect, useState } from 'react'
 import { api } from '../api'
@@ -132,7 +133,10 @@ function Slots({ slots, ocupado, aoAbrir, aoApagar, aoNova, aoVoltar }: Props & 
                 Slot {s.slot}
                 {s.modo === 'caos' && <span className="slot-modo">modo caos</span>}
               </span>
-              <span className="slot-clube">{s.clube || 'sem clube'}</span>
+              <span className="slot-clube escudo-com-nome">
+                {s.escudo && <Escudo nome={s.escudo.nome} dados={s.escudo} tamanho={30} />}
+                <span>{s.clube || 'sem clube'}</span>
+              </span>
               <span className="slot-tecnico">{s.tecnico}</span>
               <span className="tag-fraco">
                 {s.divisao ? `Serie ${s.divisao} · ` : ''}temporada {s.temporada}
@@ -402,7 +406,10 @@ function EscolherClube({ clubes, erro, ocupado, aoEscolher }: Props) {
               disabled={ocupado}
               onClick={() => aoEscolher(c.id)}
             >
-              {c.nome}
+              <span className="escudo-com-nome">
+                <Escudo nome={c.nome} tamanho={22} />
+                <span>{c.nome}</span>
+              </span>
               <span className="serie">REP {c.reputacao}</span>
             </button>
           ))}

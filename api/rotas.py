@@ -32,8 +32,7 @@ class ErroDeUso(Exception):
 @rota("GET", "/api/estado")
 def estado(_corpo):
     """A primeira pergunta do cliente: da para jogar, e de onde comeco?"""
-    base = {"versao": eng.VERSAO, "config": config.ler(), "slots": SESSAO.slots(),
-            "slot": SESSAO.slot}
+    base = {"versao": eng.VERSAO, "config": config.ler(), "slots": _slots(), "slot": SESSAO.slot}
     if SESSAO.G is None:
         if SESSAO.tem_save():
             return dict(base, jogo="tem_save", save=_sobre_o_save())
@@ -50,6 +49,11 @@ def _sobre_o_save():
             return {"tecnico": s["tecnico"], "clube": s.get("clube", ""),
                     "temporada": s.get("temporada"), "semana": s.get("semana")}
     return None
+
+
+def _slots():
+    """Os tres slots, cada um com o escudo do clube para o menu."""
+    return [dict(s, escudo=dto.escudo_de(s["clube"])) if s.get("clube") else s for s in SESSAO.slots()]
 
 
 def _slot(corpo):
@@ -115,6 +119,12 @@ def novo(corpo):
         return {"jogo": "escolher_clube", "clubes": clubes}
 
 
+@rota("GET", "/api/escudos")
+def ver_escudos(_corpo):
+    with SESSAO.cadeado:
+        return {"escudos": dto.escudos()}
+
+
 @rota("POST", "/api/capitao")
 def definir_capitao(corpo):
     pid = (corpo or {}).get("id")
@@ -135,7 +145,7 @@ def apagar_slot(corpo):
             SESSAO.apagar_slot(_slot(corpo))
         except ValueError as e:
             raise ErroDeUso(str(e))
-        return {"slots": SESSAO.slots()}
+        return {"slots": _slots()}
 
 
 @rota("POST", "/api/menu")
@@ -145,7 +155,7 @@ def voltar_ao_menu(_corpo):
         if SESSAO.G is not None and not getattr(SESSAO, "_pendente_novo", None):
             SESSAO.salvar()
         SESSAO.fechar()
-        return {"jogo": "tem_save" if SESSAO.tem_save() else "sem_save", "slots": SESSAO.slots(),
+        return {"jogo": "tem_save" if SESSAO.tem_save() else "sem_save", "slots": _slots(),
                 "slot": SESSAO.slot, "save": _sobre_o_save()}
 
 

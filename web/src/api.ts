@@ -36,6 +36,7 @@ import type {
   RespostaAvanco,
   RespostaEstado,
   SlotSave,
+  DadosEscudo,
   TelaBase,
   TelaElenco,
   TelaEscalacao,
@@ -138,6 +139,7 @@ export const api = {
   responderProposta: (id: number, aceitar: boolean) =>
     pedir<{ recado: string; painel: DadosPainel }>('/api/carreira/proposta', { id, aceitar }),
   ficha: (id: number) => pedir<{ ficha: FichaJogador }>('/api/ficha', { id }),
+  escudos: () => pedir<{ escudos: DadosEscudo[] }>('/api/escudos'),
   capitao: (id: number) => pedir<{ recado: string; ficha: FichaJogador }>('/api/capitao', { id }),
 
   // ------------------------------------------------------------------- acoes
