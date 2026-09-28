@@ -42,7 +42,9 @@ class TestClube(unittest.TestCase):
         sala = self.sala(tela)
         self.assertEqual(sala["Libertadores"]["qtd"], 3)
         self.assertIn("2011", sala["Libertadores"]["anos"])
-        self.assertIn("Paulista", sala)
+        self.assertIn("Campeonato Paulista", sala)
+        self.assertNotIn("Paulista", sala)
+        self.assertTrue(sala["Campeonato Paulista"]["anos"].startswith("22 ate 2025"))
         self.assertIn({"nome": "Apelido", "valor": "Peixe"}, tela["info"])
 
     def test_titulo_do_jogo_entra_com_o_ano(self):
@@ -53,7 +55,8 @@ class TestClube(unittest.TestCase):
         t = self.sala(tela)["Copa do Brasil"]
         self.assertEqual(t["qtd"], antes + 1)
         self.assertTrue(t["no_jogo"])
-        self.assertIn("%d no jogo" % self.G["temporada"], t["anos"])
+        self.assertTrue(t["anos"].endswith(str(self.G["temporada"])))
+        self.assertNotIn("no jogo", t["anos"])
         self.assertIn({"nome": "Copa do Brasil", "temporada": int(self.G["temporada"])}, tela["no_jogo"])
 
     def test_save_antigo_sem_data(self):
@@ -61,7 +64,18 @@ class TestClube(unittest.TestCase):
         outro["titulos"]["Copa do Brasil"] = 2          # como vinha antes do titulos_hist
         tela = apoio.chamar("POST", "/api/clube/ficha", {"id": outro["id"]})["tela"]
         self.assertFalse(tela["meu"])
-        self.assertIn("2 no jogo, sem data", self.sala(tela)["Copa do Brasil"]["anos"])
+        self.assertEqual(self.sala(tela)["Copa do Brasil"]["anos"], "2 titulos")
+
+    def test_estadual_do_jogo_soma_no_real_e_data_vem_da_carreira(self):
+        G = self.G
+        c = G["clubes"][G["clube"]]
+        # como no save antigo: contagem sem titulos_hist, ano so na sala do treinador
+        antes = self.sala(apoio.chamar("GET", "/api/clube/ficha")["tela"])["Campeonato Paulista"]["qtd"]
+        c["titulos"]["Campeonato Paulista"] = c["titulos"].get("Campeonato Paulista", 0) + 1
+        eng.passagem_atual(G)["titulos"].append({"nome": "Campeonato Paulista", "temporada": 2030})
+        t = self.sala(apoio.chamar("GET", "/api/clube/ficha")["tela"])["Campeonato Paulista"]
+        self.assertEqual(t["qtd"], antes + 1)
+        self.assertEqual(t["anos"], "22 ate 2025, 2030")
 
     def test_clube_inexistente_e_400(self):
         with self.assertRaises(Exception):

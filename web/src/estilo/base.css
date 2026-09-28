@@ -1865,7 +1865,6 @@ ol.ajuda-lista { padding-left: 20px; max-height: none; }
 .clube-ovr { text-align: right; }
 .clube-sala { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
 .clube-sala li { display: grid; grid-template-columns: 48px 1fr; gap: 10px; align-items: center; padding: 10px 12px; background: var(--painel-alto); border: 1px solid var(--borda-forte); border-radius: var(--raio-m); }
-.clube-sala li.no-jogo { border-color: var(--conquista-borda); background: var(--conquista-fundo); }
 .clube-sala .qtd { font-family: var(--titulo); font-size: var(--fs-gg); font-weight: 700; color: var(--conquista); text-align: center; }
 .clube-sala .nome { font-weight: 700; font-size: var(--fs-m); }
 .clube-sala .anos { font-size: var(--fs-p); color: var(--txt-3); margin-top: 2px; line-height: 1.45; }
@@ -1894,3 +1893,41 @@ ol.ajuda-lista { padding-left: 20px; max-height: none; }
 .fisico.critico { color: var(--critico); }
 /* zebra com especificidade de uma classe so: marcada, eu e titular continuam valendo */
 .grade-linha:where(:nth-child(even):not(.cab)) { background: var(--poco); }
+
+/* ----------------------------------------------------------- carreira (v2) */
+.carreira-heroi { display: grid; grid-template-columns: auto 1fr minmax(220px, 300px); align-items: center; gap: 18px; padding: 18px 20px; }
+.carreira-avatar { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; background: var(--poco); border: 2px solid var(--conquista); color: var(--conquista); font-family: var(--titulo); font-weight: 700; font-size: var(--fs-g); }
+.carreira-rotulo { font-size: var(--fs-m); color: var(--txt-2); }
+.carreira-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.carreira-chip { display: inline-block; padding: 2px 8px; border-radius: 999px; background: var(--chip); border: 1px solid var(--borda-media); font-size: var(--fs-mini); color: var(--txt-3); }
+.carreira-chip.atual { border-color: var(--ok-fundo); color: var(--ok); }
+.carreira-chip.ruim { border-color: var(--critico-borda); color: var(--critico); }
+.carreira-rep { display: block; min-width: 0; }
+.carreira-rep-topo { display: flex; align-items: baseline; gap: 8px; }
+.carreira-rep-barra { position: relative; height: 8px; margin: 6px 0 4px; border-radius: 4px; background: var(--neutro); overflow: hidden; }
+.carreira-rep-barra > span { position: absolute; inset: 0 auto 0 0; background: var(--conquista); border-radius: 4px; }
+.carreira-rep-barra i { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--painel); }
+.carreira-rep-prox { font-size: var(--fs-p); }
+.carreira-linha { list-style: none; margin: 0; padding: 0 0 0 18px; border-left: 2px solid var(--divisor); display: grid; gap: 14px; }
+.carreira-passagem { position: relative; padding: 12px 14px; background: var(--painel-alto); border: 1px solid var(--borda-forte); border-radius: var(--raio-m); }
+.carreira-passagem::before { content: ''; position: absolute; left: -26px; top: 16px; width: 12px; height: 12px; border-radius: 50%; background: var(--neutro); border: 2px solid var(--painel); }
+.carreira-passagem.atual::before { background: var(--conquista); }
+.carreira-passagem-cab { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.carreira-passagem-cab strong { font-family: var(--titulo); font-size: var(--fs-g); }
+.carreira-passagem.atual .carreira-passagem-cab strong { color: var(--conquista); }
+.carreira-numeros { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.carreira-numeros > div { background: var(--poco); border-radius: 8px; padding: 8px 10px; display: grid; gap: 2px; }
+.carreira-numeros b { font-family: var(--titulo); font-size: var(--fs-g); font-variant-numeric: tabular-nums; }
+.carreira-numeros span { font-size: var(--fs-mini); text-transform: uppercase; letter-spacing: 0.05em; color: var(--fraco); }
+.carreira-numeros b span { font-size: inherit; text-transform: none; letter-spacing: 0; }
+.carreira-numeros b .tag-ok { color: var(--ok); }
+.carreira-numeros b .tag-critico { color: var(--critico); }
+.carreira-aprov-barra { display: block; height: 4px; border-radius: 2px; background: var(--neutro); overflow: hidden; margin-top: 4px; }
+.carreira-aprov-barra span { display: block; height: 100%; background: var(--ok); }
+.carreira-selos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.carreira-selo { padding: 3px 9px; border-radius: 999px; background: var(--conquista-fundo); border: 1px solid var(--conquista-borda); color: var(--conquista); font-size: var(--fs-p); font-weight: 700; }
+@media (max-width: 720px) {
+  .carreira-heroi { grid-template-columns: auto 1fr; }
+  .carreira-rep { grid-column: 1 / -1; }
+  .carreira-numeros { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

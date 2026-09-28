@@ -1130,45 +1130,69 @@ ORDEM_TROFEU = ["Mundial de Clubes", "Copa Intercontinental", "Libertadores", "S
                 "Copa Verde"]
 
 
+def _nome_trofeu(nome):
+    """Um nome por taca: "Paulista" da historia real e "Campeonato Paulista"
+    do jogo sao a mesma."""
+    if nome in eng.UF_NOME.values():
+        return "Campeonato " + nome
+    return nome
+
+
+def _titulos_no_jogo(G, c):
+    """{taca: [anos]} do que o clube ganhou na carreira. titulos_hist tem o ano;
+    save de antes dele so tem a contagem, e o ano sai da sala de trofeus do
+    treinador quando o titulo foi dele."""
+    jogo = {}
+    for h in c.get("titulos_hist") or []:
+        jogo.setdefault(_nome_trofeu(h["nome"]), []).append(int(h["temporada"]))
+    for p in eng.carreira(G):
+        if p.get("clube_id") != c["id"]:
+            continue
+        for t in p.get("titulos", []):
+            anos = jogo.setdefault(_nome_trofeu(t["nome"]), [])
+            if int(t["temporada"]) not in anos:
+                anos.append(int(t["temporada"]))
+    return jogo
+
+
 def _sala_do_clube(G, c, hist):
-    """Titulos reais (ate 2025) e do jogo, somados por competicao."""
+    """Titulos reais (ate 2025) e do jogo numa lista so por competicao: os
+    anos juntos, em ordem, sem separar o que foi ganho na carreira."""
     sala = {}
 
     def pegar(nome):
-        return sala.setdefault(nome, {"nome": nome, "qtd": 0, "reais": [], "reais_soma": 0,
-                                      "jogo": [], "sem_ano": 0})
+        nome = _nome_trofeu(nome)
+        return sala.setdefault(nome, {"nome": nome, "anos": [], "antes": 0, "sem_ano": 0, "no_jogo": False})
 
     for nome, anos in hist.get("titulos", []):
-        t = pegar(nome)
-        t["reais"] += list(anos)
-        t["qtd"] += len(anos)
+        pegar(nome)["anos"] += list(anos)
     est = hist.get("estadual")
     if est:
-        t = pegar(est[0])
-        t["reais_soma"] += est[1]
-        t["qtd"] += est[1]
-    datados = {}
-    for h in c.get("titulos_hist") or []:
-        pegar(h["nome"])["jogo"].append(h["temporada"])
-        datados[h["nome"]] = datados.get(h["nome"], 0) + 1
+        pegar(est[0])["antes"] += est[1]            # o estadual real so tem a soma
+    jogo = _titulos_no_jogo(G, c)
+    contagem = {}
     for nome, n in (c.get("titulos") or {}).items():
+        contagem[_nome_trofeu(nome)] = contagem.get(_nome_trofeu(nome), 0) + n
+    for nome in set(jogo) | set(contagem):
         t = pegar(nome)
-        t["qtd"] += n
-        # saves de antes do titulos_hist: o numero existe, a data nao
-        t["sem_ano"] += max(0, n - datados.get(nome, 0))
+        anos = jogo.get(nome, [])
+        t["anos"] += anos
+        t["sem_ano"] += max(0, contagem.get(nome, 0) - len(anos))
+        t["no_jogo"] = bool(anos or contagem.get(nome))
+
+    def total(t):
+        return len(t["anos"]) + t["antes"] + t["sem_ano"]
 
     def chave(t):
-        return (ORDEM_TROFEU.index(t["nome"]) if t["nome"] in ORDEM_TROFEU else len(ORDEM_TROFEU), -t["qtd"])
+        return (ORDEM_TROFEU.index(t["nome"]) if t["nome"] in ORDEM_TROFEU else len(ORDEM_TROFEU), -total(t))
     out = []
     for t in sorted(sala.values(), key=chave):
-        partes = [str(a) for a in t["reais"]]
-        if t["reais_soma"]:
-            partes.append("%s ate 2025" % eng.plural(t["reais_soma"], "titulo"))
-        partes += ["%d no jogo" % a for a in t["jogo"]]
+        partes = ["%d ate 2025" % t["antes"]] if t["antes"] else []
+        partes += [str(a) for a in sorted(t["anos"])]
+        anos = ", ".join(partes)
         if t["sem_ano"]:
-            partes.append("%d no jogo, sem data" % t["sem_ano"])
-        out.append({"nome": t["nome"], "qtd": t["qtd"], "anos": ", ".join(partes),
-                    "no_jogo": bool(t["jogo"] or t["sem_ano"])})
+            anos = "%s e mais %d" % (anos, t["sem_ano"]) if anos else eng.plural(t["sem_ano"], "titulo")
+        out.append({"nome": t["nome"], "qtd": total(t), "anos": anos, "no_jogo": t["no_jogo"]})
     return out
 
 
@@ -1189,8 +1213,8 @@ def clube(cid=None):
     jogou = liga and (liga["tabela"].get(str(cid)) or {}).get("j", 0) > 0
     pos = eng.posicao_na_liga(G, cid) if jogou else 0   # na pre-temporada a tabela esta zerada
     sala = _sala_do_clube(G, c, hist)
-    no_jogo = sorted(({"nome": h["nome"], "temporada": h["temporada"]} for h in c.get("titulos_hist") or []),
-                     key=lambda h: -h["temporada"])
+    no_jogo = sorted(({"nome": nome, "temporada": ano} for nome, anos in _titulos_no_jogo(G, c).items()
+                      for ano in anos), key=lambda h: (-h["temporada"], h["nome"]))
     info = []
     if hist.get("fundacao"):
         info.append({"nome": "Fundacao", "valor": "%d (%d anos)" % (hist["fundacao"], G["temporada"] - hist["fundacao"])})
@@ -1239,11 +1263,18 @@ def carreira():
     passagens = eng.carreira(G)
     rep = eng.rep_tecnico(G)
     trofeus = {}
+    # o clube so aparece ao lado do ano quando a carreira passou por mais de um
+    varios = len({p["clube_id"] for p in passagens}) > 1
     for p in passagens:
+        por_clube = {}
         for t in p["titulos"]:
             item = trofeus.setdefault(t["nome"], {"nome": t["nome"], "qtd": 0, "anos": []})
             item["qtd"] += 1
-            item["anos"].append("%d (%s)" % (t["temporada"], p["clube"]))
+            por_clube.setdefault(t["nome"], []).append(str(t["temporada"]))
+        # "2027, 2028 (Santos)": os anos de uma passagem juntos, o clube uma vez
+        for nome, anos in por_clube.items():
+            txt = ", ".join(anos)
+            trofeus[nome]["anos"].append("%s (%s)" % (txt, p["clube"]) if varios else txt)
     ordem = list(eng.PESO_TITULO)
     trofeus = sorted(trofeus.values(),
                      key=lambda t: (ordem.index(t["nome"]) if t["nome"] in ordem else 99, -t["qtd"]))
@@ -1270,7 +1301,7 @@ def carreira():
         "cabecalho": cabecalho(G), "titulo": "Carreira",
         "subtitulo": "sala de trofeus e historico do treinador",
         "tecnico": {"nome": G.get("tecnico") or "Tecnico", "reputacao": rep,
-                    "rotulo": _rotulo_rep(rep)},
+                    "rotulo": _rotulo_rep(rep), "proxima": _proxima_faixa(rep)},
         "totais": {"clubes": len({p["clube_id"] for p in passagens}), "temporadas": len(anos),
                    "titulos": sum(t["qtd"] for t in trofeus), **tot},
         "trofeus": trofeus,
@@ -1280,6 +1311,17 @@ def carreira():
         "propostas": _propostas_emprego(G),
         "pode_pedir_demissao": not SESSAO.pendencia,
     }
+
+
+FAIXAS_REP = (40, 55, 70, 85)
+
+
+def _proxima_faixa(rep):
+    """A proxima faixa de reputacao e quanto falta, ou None no topo."""
+    for limite in FAIXAS_REP:
+        if rep < limite:
+            return {"rotulo": _rotulo_rep(limite), "falta": limite - rep, "em": limite}
+    return None
 
 
 def _rotulo_rep(rep):

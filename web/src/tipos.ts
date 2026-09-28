@@ -273,7 +273,13 @@ export interface TelaCarreira {
   cabecalho: Cabecalho
   titulo: string
   subtitulo: string
-  tecnico: { nome: string; reputacao: number; rotulo: string }
+  tecnico: {
+    nome: string
+    reputacao: number
+    rotulo: string
+    /** a proxima faixa de reputacao; null no topo */
+    proxima: { rotulo: string; falta: number; em: number } | null
+  }
   totais: {
     clubes: number
     temporadas: number
