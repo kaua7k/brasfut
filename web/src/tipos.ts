@@ -416,6 +416,22 @@ export interface RespostaEstado {
   config?: Config
   /** quem esta no save, para o menu dizer o que Continuar abre */
   save?: { tecnico: string; clube: string; temporada: number; semana: number } | null
+  /** os tres slots de save, com o resumo de cada um */
+  slots?: SlotSave[]
+  slot?: number
+}
+
+export interface SlotSave {
+  slot: number
+  vazio: boolean
+  tecnico?: string
+  clube?: string
+  divisao?: string
+  temporada?: number
+  semana?: number
+  modo?: string
+  titulos?: number
+  salvo_em?: string
 }
 
 export type Dificuldade = 'facil' | 'normal' | 'dificil'

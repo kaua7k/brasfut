@@ -35,6 +35,7 @@ import type {
   RespostaAcao,
   RespostaAvanco,
   RespostaEstado,
+  SlotSave,
   TelaBase,
   TelaElenco,
   TelaEscalacao,
@@ -84,9 +85,11 @@ function acao<T>(caminho: string): Acao<T> {
 export const api = {
   // ------------------------------------------------------------------ inicio
   estado: () => pedir<RespostaEstado>('/api/estado'),
-  abrir: () => pedir<RespostaEstado>('/api/abrir', {}),
-  novo: (nome: string, opcoes: OpcoesCarreira) =>
-    pedir<RespostaEstado>('/api/novo', { nome, opcoes }),
+  abrir: (slot: number) => pedir<RespostaEstado>('/api/abrir', { slot }),
+  novo: (nome: string, opcoes: OpcoesCarreira, slot: number) =>
+    pedir<RespostaEstado>('/api/novo', { nome, opcoes, slot }),
+  apagarSlot: (slot: number) => pedir<{ slots: SlotSave[] }>('/api/slot/apagar', { slot }),
+  menu: () => pedir<RespostaEstado>('/api/menu', {}),
   config: () => pedir<{ config: Config; dificuldades: OpcaoDificuldade[] }>('/api/config'),
   gravarConfig: (mudanca: Partial<Config>) =>
     pedir<{ config: Config; dificuldades: OpcaoDificuldade[] }>('/api/config', mudanca),

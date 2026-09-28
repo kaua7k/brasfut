@@ -37,8 +37,16 @@ cru sem cor e `--sim 5` para assistir cinco temporadas rodando sozinhas.
 
 ## Save
 
-Grava sozinho ao fim de cada semana, no `brasfut_save.json` da pasta do jogo. Ao abrir,
-pergunta se quer continuar. O botão **Salvar** força a gravação quando quiser.
+São **três slots**, cada um com a sua carreira: `brasfut_save.json` (o slot 1, o save de
+sempre), `brasfut_save_2.json` e `brasfut_save_3.json`, na pasta do jogo. Em **Jogar**, o
+menu mostra os três: clube, técnico, temporada e quando foi salvo. Slot cheio tem
+**Continuar** e **Apagar** (com um segundo clique para confirmar); slot vazio começa uma
+carreira nova ali. Grava sozinho ao fim de cada semana; o botão **Salvar** força a gravação,
+e **Menu principal** (no rodapé do menu lateral) salva e volta aos slots.
+
+Dificuldade e modificadores (sem demissão, investidor) são escolhidos só ao criar a
+carreira, e a próxima carreira nova já vem marcada com a última escolha. Configurações
+ficou com a interface: tamanho e animações.
 
 ## O que muda a sua temporada
 

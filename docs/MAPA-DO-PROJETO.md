@@ -35,7 +35,7 @@ Atas de decisão de roadmap: `docs/three-amigos/`.
 | `dados_clubes.py` | ~300 linhas | História real dos clubes brasileiros até 2025 (fundação, apelido, cidade, títulos com ano, soma do estadual). Editável à mão; só texto na tela do clube | Ao corrigir um título ou incluir um clube |
 | `server.py` | 156 linhas | `http.server` da stdlib; serve a API e `web/dist` | Infra do servidor, não regra de jogo |
 | `api/rotas.py` | ~350 linhas | `URL -> função`. Todas as rotas HTTP registradas com `@rota(metodo, caminho)` | Para achar/adicionar um endpoint |
-| `api/sessao.py` | — | Mantém o `G` vivo em memória, salva, dono do `threading.RLock` | Concorrência, save, trava de sessão |
+| `api/sessao.py` | — | Mantém o `G` vivo em memória, salva, dono do `threading.RLock`. Três slots de save (`caminho_slot`, `usar_slot`, `slots`; o slot 1 é o `brasfut_save.json`), e o motor grava um `.resumo` pequeno ao lado de cada save para o menu | Concorrência, save, trava de sessão |
 | `api/dto.py` | — | Traduz `G` no formato de cada tela (uma função por tela) | Ao mudar o que uma tela recebe |
 | `api/mercado.py` | — | Mesa de negociação e regras de mercado do lado da API (maior arquivo de `api/`) | Compra/venda/empréstimo/renovação na web |
 | `api/competicoes.py` | — | Estaduais, séries, copas — montagem e leitura pela API | Telas de Classificação/Competições |

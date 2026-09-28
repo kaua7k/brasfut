@@ -1,42 +1,46 @@
 // Antes do Painel existir: o menu principal do jogo.
 //
-// Tres portas - Iniciar, Configuracoes, Sobre. Iniciar leva a continuar o save
-// que existe ou a uma carreira nova, que pede o nome do treinador e as opcoes
-// que valem pelo save inteiro (dificuldade, sem demissao, investidor) antes de
-// criar o mundo. So depois vem a escolha do clube, e so ela grava o save.
+// Tres portas - Jogar, Configuracoes, Sobre. Jogar mostra os tres slots de
+// save: slot cheio continua (ou apaga, com um segundo clique), slot vazio
+// comeca uma carreira nova. As opcoes da carreira (dificuldade, sem demissao,
+// investidor) moram so no formulario da carreira nova, que ja vem marcado com
+// a ultima escolha; Configuracoes fica com a interface. So a escolha do clube
+// grava o save.
 
 import { porque, AGUARDE } from '../motivo'
 import { useEffect, useState } from 'react'
 import { api } from '../api'
-import { Estrela } from '../icones'
+import { MarcaBrasfut } from '../icones'
 import type {
   ClubeOpcao,
   Config,
   OpcaoDificuldade,
   OpcoesCarreira,
-  RespostaEstado,
   SituacaoJogo,
+  SlotSave,
 } from '../tipos'
 
 interface Props {
   situacao: SituacaoJogo
   clubes: ClubeOpcao[]
   versao: string
-  save: RespostaEstado['save']
+  slots: SlotSave[]
   config: Config | null
   erro: string | null
   ocupado: boolean
-  aoAbrir: () => void
-  aoCriar: (nome: string, opcoes: OpcoesCarreira) => void
+  aoAbrir: (slot: number) => void
+  aoCriar: (nome: string, opcoes: OpcoesCarreira, slot: number) => void
+  aoApagar: (slot: number) => void
   aoEscolher: (id: number) => void
   aoConfig: (mudanca: Partial<Config>) => void
 }
 
-type Vista = 'menu' | 'iniciar' | 'nova' | 'config' | 'sobre'
+type Vista = 'menu' | 'slots' | 'nova' | 'config' | 'sobre'
 
 export function Abertura(props: Props) {
   const { situacao, erro } = props
   const [vista, setVista] = useState<Vista>('menu')
+  const [slotNovo, setSlotNovo] = useState(1)
   const [dificuldades, setDificuldades] = useState<OpcaoDificuldade[]>([])
 
   useEffect(() => {
@@ -47,17 +51,26 @@ export function Abertura(props: Props) {
 
   const voltar = () => setVista('menu')
   let corpo
-  if (vista === 'iniciar') corpo = <Iniciar {...props} aoNova={() => setVista('nova')} aoVoltar={voltar} />
+  if (vista === 'slots')
+    corpo = (
+      <Slots
+        {...props}
+        aoNova={(n) => {
+          setSlotNovo(n)
+          setVista('nova')
+        }}
+        aoVoltar={voltar}
+      />
+    )
   else if (vista === 'nova')
-    corpo = <NovaCarreira {...props} dificuldades={dificuldades} aoVoltar={() => setVista('iniciar')} />
-  else if (vista === 'config')
-    corpo = <Configuracoes {...props} dificuldades={dificuldades} aoVoltar={voltar} />
+    corpo = <NovaCarreira {...props} slot={slotNovo} dificuldades={dificuldades} aoVoltar={() => setVista('slots')} />
+  else if (vista === 'config') corpo = <Configuracoes {...props} aoVoltar={voltar} />
   else if (vista === 'sobre') corpo = <Sobre versao={props.versao} aoVoltar={voltar} />
   else
     corpo = (
       <nav className="menu-principal" aria-label="Menu principal">
-        <button type="button" className="bt-acao" onClick={() => setVista('iniciar')}>
-          Iniciar
+        <button type="button" className="bt-acao" onClick={() => setVista('slots')}>
+          Jogar
         </button>
         <button type="button" className="bt-fantasma" onClick={() => setVista('config')}>
           Configuracoes
@@ -69,46 +82,87 @@ export function Abertura(props: Props) {
     )
 
   return (
-    <div className="centro-tela">
-      <div className="cartao-centro abertura">
-        <div className="escudo gg centralizado">
-          <Estrela tamanho={26} />
-        </div>
-        <h1>BRASFUT</h1>
+    <div className="abertura-fundo">
+      <div className={`abertura-cartao${vista === 'slots' || vista === 'nova' ? ' largo' : ''}`}>
+        <header className="abertura-marca">
+          <MarcaBrasfut tamanho={vista === 'menu' ? 84 : 52} />
+          <div>
+            <h1>BRASFUT</h1>
+            {vista === 'menu' && <div className="abertura-lema">o futebol brasileiro inteiro na sua mao</div>}
+          </div>
+        </header>
         {corpo}
         {erro && <p className="erro mt-4">{erro}</p>}
+        <div className="abertura-versao">versao {props.versao}</div>
       </div>
     </div>
   )
 }
 
-// ------------------------------------------------------------------- iniciar
-function Iniciar({ situacao, save, ocupado, aoAbrir, aoNova, aoVoltar }: Props & {
-  aoNova: () => void
+// --------------------------------------------------------------------- slots
+function Slots({ slots, ocupado, aoAbrir, aoApagar, aoNova, aoVoltar }: Props & {
+  aoNova: (slot: number) => void
   aoVoltar: () => void
 }) {
-  const temSave = situacao === 'tem_save'
+  const [apagando, setApagando] = useState<number | null>(null)
   return (
     <>
-      <p>
-        {temSave && save
-          ? `Carreira salva: ${save.tecnico}, ${save.clube}, temporada ${save.temporada}. Continue de onde parou ou comece outra por cima dela.`
-          : temSave
-            ? 'Existe um jogo salvo nesta pasta. Continue de onde parou, ou comece uma carreira nova por cima dele.'
-            : 'Nenhum jogo salvo por aqui. Vamos criar um mundo novo e escolher o seu clube.'}
-      </p>
+      <div className="slots">
+        {slots.map((s) =>
+          s.vazio ? (
+            <button key={s.slot} type="button" className="slot vazio" onClick={() => aoNova(s.slot)}>
+              <span className="slot-num">Slot {s.slot}</span>
+              <span className="slot-mais" aria-hidden="true">+</span>
+              <span className="slot-clube">Carreira nova</span>
+              <span className="tag-fraco">vazio</span>
+            </button>
+          ) : (
+            <div key={s.slot} className="slot">
+              <span className="slot-num">
+                Slot {s.slot}
+                {s.modo === 'caos' && <span className="slot-modo">modo caos</span>}
+              </span>
+              <span className="slot-clube">{s.clube || 'sem clube'}</span>
+              <span className="slot-tecnico">{s.tecnico}</span>
+              <span className="tag-fraco">
+                {s.divisao ? `Serie ${s.divisao} · ` : ''}temporada {s.temporada}
+                {s.titulos ? ` · ${s.titulos} ${s.titulos === 1 ? 'titulo' : 'titulos'}` : ''}
+              </span>
+              {s.salvo_em && <span className="tag-fraco slot-data">salvo em {s.salvo_em}</span>}
+              {apagando === s.slot ? (
+                <div className="slot-acoes">
+                  <button type="button" className="bt-fantasma" onClick={() => setApagando(null)}>
+                    Manter
+                  </button>
+                  <button
+                    type="button"
+                    className="bt-acao bt-perigo"
+                    onClick={() => {
+                      setApagando(null)
+                      aoApagar(s.slot)
+                    }}
+                  >
+                    Apagar de vez
+                  </button>
+                </div>
+              ) : (
+                <div className="slot-acoes">
+                  <button type="button" className="bt-fantasma" onClick={() => setApagando(s.slot)}>
+                    Apagar
+                  </button>
+                  <button type="button" className="bt-acao" title={porque([[ocupado, AGUARDE]])}
+                  disabled={ocupado} onClick={() => aoAbrir(s.slot)}>
+                    {ocupado ? 'Abrindo…' : 'Continuar'}
+                  </button>
+                </div>
+              )}
+            </div>
+          ),
+        )}
+      </div>
       <div className="modal-acoes">
         <button type="button" className="bt-fantasma" onClick={aoVoltar}>
           Voltar
-        </button>
-        {temSave && (
-          <button type="button" className="bt-acao" title={porque([[ocupado, AGUARDE]])}
-          disabled={ocupado} onClick={aoAbrir}>
-            {ocupado ? 'Abrindo…' : 'Continuar carreira'}
-          </button>
-        )}
-        <button type="button" className={temSave ? 'bt-fantasma' : 'bt-acao'} onClick={aoNova}>
-          Carreira nova
         </button>
       </div>
     </>
@@ -116,7 +170,8 @@ function Iniciar({ situacao, save, ocupado, aoAbrir, aoNova, aoVoltar }: Props &
 }
 
 // ------------------------------------------------------------ carreira nova
-function NovaCarreira({ situacao, config, ocupado, dificuldades, aoCriar, aoVoltar }: Props & {
+function NovaCarreira({ config, ocupado, dificuldades, slot, aoCriar, aoVoltar }: Props & {
+  slot: number
   dificuldades: OpcaoDificuldade[]
   aoVoltar: () => void
 }) {
@@ -133,7 +188,7 @@ function NovaCarreira({ situacao, config, ocupado, dificuldades, aoCriar, aoVolt
       className="form-carreira"
       onSubmit={(e) => {
         e.preventDefault()
-        if (nomeLimpo) aoCriar(nomeLimpo, opcoes)
+        if (nomeLimpo) aoCriar(nomeLimpo, opcoes, slot)
       }}
     >
       <label className="campo-rotulo" htmlFor="nome-tecnico">
@@ -193,8 +248,8 @@ function NovaCarreira({ situacao, config, ocupado, dificuldades, aoCriar, aoVolt
       </fieldset>
 
       <p className="tag-fraco">
-        Estas escolhas valem pelo save inteiro.
-        {situacao === 'tem_save' && ' O save atual sera substituido quando voce escolher o clube.'}
+        Vai para o slot {slot}. Estas escolhas valem pelo save inteiro, e a proxima carreira nova ja vem marcada
+        com elas.
       </p>
       <div className="modal-acoes">
         <button type="button" className="bt-fantasma" onClick={aoVoltar}>
@@ -210,10 +265,7 @@ function NovaCarreira({ situacao, config, ocupado, dificuldades, aoCriar, aoVolt
 }
 
 // ------------------------------------------------------------ configuracoes
-function Configuracoes({ config, dificuldades, aoConfig, aoVoltar }: Props & {
-  dificuldades: OpcaoDificuldade[]
-  aoVoltar: () => void
-}) {
+function Configuracoes({ config, aoConfig, aoVoltar }: Props & { aoVoltar: () => void }) {
   if (!config) return null
   return (
     <div className="form-carreira">
@@ -244,40 +296,8 @@ function Configuracoes({ config, dificuldades, aoConfig, aoVoltar }: Props & {
           Reduzir animacoes
         </label>
       </fieldset>
-
-      <fieldset className="mesa-bloco">
-        <legend className="painel-titulo">Padrao para carreiras novas</legend>
-        {dificuldades.map((d) => (
-          <label key={d.id} className="avanco-opcao">
-            <input
-              type="radio"
-              name="dificuldade-padrao"
-              checked={config.dificuldade === d.id}
-              onChange={() => aoConfig({ dificuldade: d.id })}
-            />
-            <strong>{d.nome}</strong>
-            <span className="tag-fraco">{d.desc}</span>
-          </label>
-        ))}
-        <label className="avanco-parada">
-          <input
-            type="checkbox"
-            checked={config.sem_demissao}
-            onChange={(e) => aoConfig({ sem_demissao: e.target.checked })}
-          />
-          Sem demissao
-        </label>
-        <label className="avanco-parada">
-          <input
-            type="checkbox"
-            checked={config.investidor}
-            onChange={(e) => aoConfig({ investidor: e.target.checked })}
-          />
-          Investidor compra o clube
-        </label>
-      </fieldset>
       <p className="tag-fraco">
-        Salvo na hora. A dificuldade e os modificadores de uma carreira ja comecada nao mudam: sao do save.
+        Salvo na hora, vale para todos os slots. Dificuldade e modificadores sao escolhidos ao criar cada carreira.
       </p>
       <div className="modal-acoes">
         <button type="button" className="bt-acao" onClick={aoVoltar}>
@@ -299,8 +319,9 @@ function Sobre({ versao, aoVoltar }: { versao: string; aoVoltar: () => void }) {
         Sul-Americana, mercado com negociacao, emprestimos, estadio e categorias de base.
       </p>
       <p>
-        O jogo roda inteiro na sua maquina, sem internet e sem conta. O save fica no arquivo
-        brasfut_save.json, na pasta do jogo, e grava sozinho ao fim de cada semana.
+        O jogo roda inteiro na sua maquina, sem internet e sem conta. Sao tres slots de save na pasta do
+        jogo (brasfut_save.json, brasfut_save_2.json e brasfut_save_3.json), gravados sozinhos ao fim de cada
+        semana.
       </p>
       <p className="tag-fraco">
         Motor em Python, sem dependencias externas. Interface em React e TypeScript. Fontes Space Grotesk e

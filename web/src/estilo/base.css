@@ -72,6 +72,8 @@
   --conquista: #e8b649;
   --conquista-txt: #161616;
   --conquista-fundo: rgba(232, 182, 73, 0.1);
+  --abertura-luz: rgba(28, 92, 52, 0.55);      /* refletor sobre o gramado da abertura */
+  --abertura-linha: rgba(255, 255, 255, 0.022); /* faixas do gramado */
   --conquista-borda: #5a4a22;
 
   /* estado: verde bom, ambar atencao (so atencao), vermelho critico */
@@ -1931,3 +1933,43 @@ ol.ajuda-lista { padding-left: 20px; max-height: none; }
   .carreira-rep { grid-column: 1 / -1; }
   .carreira-numeros { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* ------------------------------------------------------------ abertura (v2) */
+.abertura-fundo {
+  min-height: 100%; display: flex; align-items: center; justify-content: center; padding: 32px 16px;
+  background:
+    radial-gradient(ellipse at 50% -10%, var(--abertura-luz), transparent 60%),
+    repeating-linear-gradient(90deg, var(--abertura-linha) 0 80px, transparent 80px 160px),
+    var(--fundo);
+}
+.abertura-cartao { width: 100%; max-width: 520px; background: var(--painel); border: 1px solid var(--borda-forte); border-radius: var(--raio-m); padding: 28px 28px 16px; box-shadow: var(--sombra-mesa); }
+.abertura-cartao.largo { max-width: 860px; }
+.abertura-marca { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; margin-bottom: 22px; }
+.abertura-cartao.largo .abertura-marca { flex-direction: row; justify-content: center; margin-bottom: 16px; }
+.abertura-marca h1 { margin: 0; font-family: var(--titulo); font-size: var(--fs-gg); letter-spacing: 0.18em; }
+.abertura-lema { color: var(--txt-3); font-size: var(--fs-m); margin-top: 2px; }
+.abertura-versao { text-align: center; font-size: var(--fs-mini); color: var(--apagado); margin-top: 18px; }
+.abertura-cartao .menu-principal { margin-top: 0; }
+.slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.slot { display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 14px; border-radius: var(--raio-m); background: var(--painel-alto); border: 1px solid var(--borda-forte); min-height: 190px; font: inherit; color: var(--txt); }
+.slot.vazio { align-items: center; justify-content: center; text-align: center; border-style: dashed; cursor: pointer; }
+.slot.vazio:hover { border-color: var(--acao-linha); }
+.slot-num { display: flex; justify-content: space-between; gap: 6px; font-size: var(--fs-mini); text-transform: uppercase; letter-spacing: 0.08em; color: var(--fraco); font-weight: 700; width: 100%; }
+.slot.vazio .slot-num { justify-content: center; }
+.slot-modo { color: var(--critico); }
+.slot-mais { font-family: var(--titulo); font-size: var(--fs-gg); color: var(--acao-linha); line-height: 1; margin: 8px 0 2px; }
+.slot-clube { font-family: var(--titulo); font-size: var(--fs-g); font-weight: 700; margin-top: 6px; }
+.slot-tecnico { font-size: var(--fs-m); color: var(--txt-2); }
+.slot-data { font-size: var(--fs-mini); }
+.slot-acoes { display: flex; gap: 6px; margin-top: auto; padding-top: 10px; }
+.slot-acoes button { flex: 1; }
+@media (max-width: 720px) {
+  .slots { grid-template-columns: 1fr; }
+  .slot { min-height: 0; }
+}
+.marca-brasfut .m-escudo { fill: var(--gramado-escuro); stroke: var(--conquista); stroke-width: 5; }
+.marca-brasfut .m-campo { fill: var(--gramado); }
+.marca-brasfut .m-ouro { fill: var(--conquista); }
+.marca-brasfut .m-bola { fill: var(--branco); stroke: var(--preto); stroke-width: 2; }
+.marca-brasfut .m-gomo { fill: var(--preto); }
+.marca-brasfut .m-costura { fill: none; stroke: var(--preto); stroke-width: 2; }
