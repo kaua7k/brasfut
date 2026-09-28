@@ -1,14 +1,14 @@
 # Mapa do projeto — BRASFUT
 
 > **Para quem (Claude Code) for trabalhar neste repo**: leia este arquivo
-> primeiro. Ele existe pra evitar reler `brasfut.py` (9,8k linhas) e
+> primeiro. Ele existe pra evitar reler `brasfut.py` (10k linhas) e
 > `brasfut_app.py` (4,5k linhas) inteiros toda vez. Abra os arquivos-fonte só
 > na faixa de linha indicada abaixo para a sua tarefa. Ao terminar um
 > trabalho que muda estrutura, adiciona arquivo, fecha um item do roadmap ou
 > descobre algo que devia estar aqui, **edite a seção correspondente deste
 > mapa** (não regenere o arquivo inteiro) — é assim que ele se paga.
 
-Última atualização: 2026-09-26 · commit de referência: `4d2e909`
+Última atualização: 2026-09-28 · commit de referência: `600918c`
 
 ## O que é
 
@@ -29,7 +29,7 @@ Atas de decisão de roadmap: `docs/three-amigos/`.
 
 | Arquivo / pasta | Tamanho | O que é | Quando abrir |
 |---|---|---|---|
-| `brasfut.py` | 9839 linhas | O motor inteiro + a interface de terminal original (`main()`, `loop()`, `tela_*`) | Só a faixa de linha da seção que precisa (ver índice abaixo) |
+| `brasfut.py` | 10117 linhas | O motor inteiro + a interface de terminal original (`main()`, `loop()`, `tela_*`) | Só a faixa de linha da seção que precisa (ver índice abaixo) |
 | `brasfut_app.py` | 4552 linhas | Janela desktop (tkinter). Uma classe `Dialogo` por tela/ação | Só se a tarefa for na janela desktop — a maioria do trabalho novo vai para a web |
 | `dados_mundo.py` | 1181 linhas | Dados estáticos: clubes, ligas, seleções, nomes | Ao adicionar/corrigir liga, clube ou país |
 | `server.py` | 156 linhas | `http.server` da stdlib; serve a API e `web/dist` | Infra do servidor, não regra de jogo |
@@ -43,7 +43,8 @@ Atas de decisão de roadmap: `docs/three-amigos/`.
 | `web/src/telas/*.tsx` | 14 arquivos | Uma tela por arquivo (Painel, Elenco, Escalação, Mercado, Financas, etc.) | Ao mexer numa tela específica |
 | `web/src/componentes/*.tsx` | 19 arquivos (`Ajuda.tsx`: ajuda e boas-vindas; `Partida.tsx`: resumo e detalhe da partida; `DialogoRenovar.tsx`: renovação em lote) | Diálogos e peças reusáveis (Mesa, Grade, Campo, Ficha...) | Componente compartilhado entre telas |
 | `web/src/api.ts`, `tipos.ts`, `formato.ts` | — | Cliente HTTP, tipos TS espelhando os DTOs, formatação (dinheiro, número) | Contrato front↔back |
-| `testes/*.py` | 39 arquivos (`desempenho.py` e `balanceamento.py` são harness lentos, fora da suíte) | `unittest` da stdlib, sem dependência externa. `cd testes && python -m unittest -v` (~3 min, 177 testes) | Rodar antes de qualquer PR |
+| `testes/*.py` | 42 arquivos (`desempenho.py`, `balanceamento.py` e `economia.py` são harness lentos, fora da suíte) | `unittest` da stdlib, sem dependência externa. `cd testes && python -m unittest -v` (~3 min, 184 testes) | Rodar antes de qualquer PR |
+| `docs/proxima-onda.md` | — | **Backlog da próxima onda**: o que espera decisão, o que espera exemplo do testador, o que está pronto para codar e como verificar | Antes de começar a próxima rodada |
 | `.github/workflows/testes.yml` | — | CI (GitHub Actions): a cada push na `main` e em toda PR roda a suíte `unittest` e o `npm run build` da web; avisa se `web/dist` ficou velho | Ao mudar o que a suíte ou o build precisam |
 | `ferramentas/capturas.py` | — | Capturas das 13 telas em 5 resoluções (Edge headless, cópia isolada) e comparação por pixel | Antes/depois de mexer em CSS ou tela |
 | `ferramentas/importar_elencos.py` | — | Importa elencos reais (football-data.org / API-Football) | Atualização de temporada real |
@@ -80,6 +81,8 @@ achar o nome exato, ou abra só a faixa abaixo:
 classe `Brasfut(tk.Tk)` (566–2994) é a janela principal; as demais
 (`Negociar`, `Vitrine`, `Avancar`, `ResumoTemporada`...) são diálogos
 modais. `main()` na linha 4531.
+
+> **Começando uma rodada nova?** O backlog atualizado está em `docs/proxima-onda.md`.
 
 ## Status do roadmap (fonte: `docs/three-amigos/2026-09-24-rodada-de-melhorias.md`)
 
@@ -124,14 +127,19 @@ decisões em `docs/three-amigos/2026-09-25-onda-2-decisoes.md`):
   XI (`test_entrosamento.py`).
 - Economia com escolhas, mercado disputado, olheiros, Copinha, história do clube.
 
+**Economia 2 — concluída** (PRs #12–#13, 2026-09-26/28): crédito do clube
+(3 meses de receita, 2% ao mês, `tomar_credito`), IA só renova se couber na
+folha, e sete espaços de patrocínio (`espacos_do_clube`, naming rights com
+estádio de 20 mil+) com título pesando até x1,70. Harness `testes/economia.py`.
+
 **Feedback do testador (Okumura) — 2026-09-26**: cartões (expulso sai de
 campo, 2º amarelo = vermelho), mercado (acerto trava propostas, estadual
 renova ofertas, livre sem revenda por 8 semanas), confiança do líder,
 público com momento, renovação com idade, avisos no Painel, e a folha da IA
 (contratação só se couber em 85% da receita — acabou com as "contratações
 fantasmas" e com a Série D quebrando em 5 anos). Em aberto: ver as
-perguntas da PR (economia das ligas de fora, crédito para clube, aviso de
-pendurado, notícia de gol).
+`docs/proxima-onda.md` (notícia de gol e o exemplo das contratações
+fantasmas, com o testador).
 
 **Mundo — concluído** (2026-09-26): nove ligas sul-americanas (ARG 20,
 URU, PAR, CHI, COL, EQU, PER, BOL, VEN) com as vagas da Libertadores e da
@@ -168,6 +176,7 @@ cd testes && python -m unittest -v   # testes, ~2 min, sem pip/npm
 python server.py --sem-abrir    # API sozinha (dev)
 cd web && npm run dev           # Vite com proxy /api (dev)
 cd web && npm run build         # gera web/dist (versionado)
+cd testes && python economia.py # caixa da IA em 12 temporadas (lento)
 ```
 
 O CI (`.github/workflows/testes.yml`) roda a suíte e o build em toda PR; os

@@ -9,6 +9,9 @@ abra só a faixa de linha que o mapa indica para o que você precisa, e
 use `grep -n "^def \|^class " brasfut.py` quando precisar do número
 exato de uma função específica.
 
+Começando uma rodada nova de melhorias, o backlog (o que espera decisão, o
+que está pronto para codar, como verificar) está em `docs/proxima-onda.md`.
+
 Para o que envolve a migração web, `ARQUITETURA-WEB.md` é a referência
 completa (o mapa só aponta pra lá, não duplica). Para regra de jogo,
 `COMO-JOGAR.md`. Para decisões de roadmap já tomadas, `docs/three-amigos/`.
