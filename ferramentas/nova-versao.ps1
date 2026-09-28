@@ -17,7 +17,10 @@ param(
 $ErrorActionPreference = "Stop"
 $Repo = "https://github.com/kaua7k/brasfut"
 # o que e da carreira, e nao do codigo: vai junto para a pasta nova
-$Levar = @("brasfut_save.json", "brasfut_config.json", "elencos.json")
+$Levar = @("brasfut_save.json", "brasfut_save.json.resumo",
+           "brasfut_save_2.json", "brasfut_save_2.json.resumo",
+           "brasfut_save_3.json", "brasfut_save_3.json.resumo",
+           "brasfut_config.json", "elencos.json")
 
 New-Item -ItemType Directory -Force -Path $Destino | Out-Null
 

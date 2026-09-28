@@ -42,7 +42,7 @@ import type {
   ClubeOpcao,
   Config,
   OpcoesCarreira,
-  RespostaEstado,
+  SlotSave,
   Confirmar,
   DadosPainel,
   FichaJogador,
@@ -96,7 +96,7 @@ export function App() {
   const [situacao, setSituacao] = useState<SituacaoJogo | null>(null)
   const [clubes, setClubes] = useState<ClubeOpcao[]>([])
   const [versao, setVersao] = useState('')
-  const [save, setSave] = useState<RespostaEstado['save']>(null)
+  const [slots, setSlots] = useState<SlotSave[]>([])
   const [config, setConfig] = useState<Config | null>(null)
 
   // escala e animacoes valem para o jogo inteiro, nao so para o menu
@@ -215,7 +215,7 @@ export function App() {
       const r = await api.estado()
       setSituacao(r.jogo)
       setVersao(r.versao ?? '')
-      setSave(r.save ?? null)
+      setSlots(r.slots ?? [])
       if (r.config) setConfig(r.config)
       // a pendencia (demissao) vai no save: reabrir o jogo tem que mostra-la
       if (r.pendencia) setPendencia(r.pendencia)
@@ -241,11 +241,11 @@ export function App() {
   }, [irPara, situacao])
 
   // ------------------------------------------------------------------ abertura
-  const abrir = () =>
+  const abrir = (slot: number) =>
     comErro(async () => {
       setOcupado(true)
       try {
-        const r = await api.abrir()
+        const r = await api.abrir(slot)
         if (r.pendencia) setPendencia(r.pendencia)
       } finally {
         setOcupado(false)
@@ -253,11 +253,32 @@ export function App() {
       await irPara('painel')
     })
 
-  const criar = (nome: string, opcoes: OpcoesCarreira) =>
+  const apagarSlot = (slot: number) =>
+    comErro(async () => {
+      setSlots((await api.apagarSlot(slot)).slots)
+    })
+
+  // salva e fecha a carreira: o menu principal volta com os slots
+  const voltarAoMenu = () =>
     comErro(async () => {
       setOcupado(true)
       try {
-        const r = await api.novo(nome, opcoes)
+        const r = await api.menu()
+        setSlots(r.slots ?? [])
+        setConteudo(null)
+        setPendencia(null)
+        setSituacao(r.jogo)
+        window.location.hash = ''
+      } finally {
+        setOcupado(false)
+      }
+    })
+
+  const criar = (nome: string, opcoes: OpcoesCarreira, slot: number) =>
+    comErro(async () => {
+      setOcupado(true)
+      try {
+        const r = await api.novo(nome, opcoes, slot)
         setClubes(r.clubes ?? [])
         setSituacao('escolher_clube')
       } finally {
@@ -596,12 +617,13 @@ export function App() {
         situacao={situacao}
         clubes={clubes}
         versao={versao}
-        save={save}
+        slots={slots}
         config={config}
         erro={erro}
         ocupado={ocupado}
         aoAbrir={abrir}
         aoCriar={criar}
+        aoApagar={apagarSlot}
         aoEscolher={escolherClube}
         aoConfig={gravarConfig}
       />
@@ -618,6 +640,7 @@ export function App() {
         atual={conteudo.tipo}
         aoTrocar={(id) => irPara(id)}
         aoSalvar={salvar}
+        aoMenu={voltarAoMenu}
         salvando={salvando}
         aoAjuda={abrirAjuda}
       />

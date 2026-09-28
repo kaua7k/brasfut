@@ -217,7 +217,42 @@ export function EscudoRival({ tamanho = 24 }: Props) {
   )
 }
 
+/** A marca do jogo: escudo com faixa verde e amarela, estrela e bola. */
+export function MarcaBrasfut({ tamanho = 64 }: Props) {
+  return (
+    <svg width={tamanho} height={tamanho * 1.15} viewBox="0 0 100 115" aria-hidden="true" className="marca-brasfut">
+      <path className="m-escudo" d="M50 3 L93 16 V56 C93 84 74 102 50 112 C26 102 7 84 7 56 V16 Z" />
+      <path className="m-campo" d="M13 22 L50 11 L87 22 V40 H13 Z" />
+      <path className="m-ouro" d="M13 40 H87 V52 H13 Z" />
+      <path className="m-ouro" d="M50 16 l3.3 10 h10.4 l-8.4 6.2 3.2 10 -8.5-6.2 -8.5 6.2 3.2-10 -8.4-6.2 h10.4z" />
+      <circle className="m-bola" cx="50" cy="78" r="17" />
+      <path className="m-gomo" d="M50 67 l7 5 -2.7 8.2 h-8.6 L43 72z" />
+      <path className="m-costura" d="M50 61 V67 M57 72 L65 69 M54.3 80.2 L59 87 M45.7 80.2 L41 87 M43 72 L35 69" />
+    </svg>
+  )
+}
+
+export function IconeClube({ tamanho = 18 }: Props) {
+  return (
+    <svg {...base(tamanho)}>
+      <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" />
+      <path d="M9 11l2 2 4-4" />
+    </svg>
+  )
+}
+
+export function IconeMenu({ tamanho = 18 }: Props) {
+  return (
+    <svg {...base(tamanho)}>
+      <path d="M10 4H5v16h5" />
+      <path d="M14 8l4 4-4 4" />
+      <path d="M8 12h10" />
+    </svg>
+  )
+}
+
 export const ICONES_MENU: Record<string, (p: Props) => ReactElement> = {
+  clube: IconeClube,
   painel: IconePainel,
   elenco: IconeElenco,
   base: IconeBase,

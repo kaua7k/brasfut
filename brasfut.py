@@ -5,7 +5,7 @@ BRASFUT 1.0 - gerenciador de futebol brasileiro, 100% em texto.
 Sem dependencias externas. Rodar: python3 brasfut.py
 """
 
-import base64, dataclasses, json, os, random, re, sys, zlib
+import base64, dataclasses, json, os, random, re, sys, time, zlib
 from typing import Any, Dict, List, Optional, Tuple
 from math import exp
 
@@ -9986,7 +9986,44 @@ def salvar(G, caminho=None):
     with open(tmp, "w", encoding="utf-8") as f:
         f.write(texto)
     os.replace(tmp, caminho)
+    try:
+        with open(caminho_resumo_save(caminho), "w", encoding="utf-8") as f:
+            json.dump(resumo_save(G), f)
+    except OSError:
+        pass           # o resumo e so para o menu: sem ele o save continua valendo
     return caminho
+
+
+def caminho_resumo_save(caminho):
+    return caminho + ".resumo"
+
+
+def resumo_save(G):
+    """O que o menu mostra de um save sem abrir os 8 MB dele."""
+    c = G["clubes"].get(G.get("clube")) if G.get("clube") is not None else None
+    return {"tecnico": G.get("tecnico") or "Tecnico", "clube": c["nome"] if c else "",
+            "divisao": c["divisao"] if c else "", "temporada": G.get("temporada"),
+            "semana": G.get("semana"), "modo": (G.get("opcoes") or {}).get("modo", "classico"),
+            "titulos": len([t for p in G.get("carreira") or [] for t in p.get("titulos", [])]),
+            "salvo_em": time.strftime("%d/%m/%Y %H:%M")}
+
+
+def ler_resumo_save(caminho):
+    """O resumo gravado ao lado do save; sem ele (save antigo), abre o save uma
+    vez e grava o resumo para as proximas."""
+    try:
+        with open(caminho_resumo_save(caminho), encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        pass
+    try:
+        meta = resumo_save(carregar(caminho))
+        meta["salvo_em"] = time.strftime("%d/%m/%Y %H:%M", time.localtime(os.path.getmtime(caminho)))
+        with open(caminho_resumo_save(caminho), "w", encoding="utf-8") as f:
+            json.dump(meta, f)
+        return meta
+    except Exception:
+        return None
 
 
 def carregar(caminho=None):

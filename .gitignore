@@ -9,3 +9,5 @@ testes/_tmp/
 brasfut_config.json
 .env
 ferramentas/cache/
+brasfut_save_*.json
+brasfut_save_*.json.*

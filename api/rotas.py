@@ -7,9 +7,10 @@ jogo perdido por causa disso seria culpa da arquitetura, nao do usuario.
 """
 
 import json
+import os
 import traceback
 
-from . import avanco, competicoes, config, dto, mercado
+from . import avanco, competicoes, config, dto, mercado, sessao
 from .sessao import SESSAO, SemJogo
 import brasfut as eng
 
@@ -31,7 +32,8 @@ class ErroDeUso(Exception):
 @rota("GET", "/api/estado")
 def estado(_corpo):
     """A primeira pergunta do cliente: da para jogar, e de onde comeco?"""
-    base = {"versao": eng.VERSAO, "config": config.ler()}
+    base = {"versao": eng.VERSAO, "config": config.ler(), "slots": SESSAO.slots(),
+            "slot": SESSAO.slot}
     if SESSAO.G is None:
         if SESSAO.tem_save():
             return dict(base, jogo="tem_save", save=_sobre_o_save())
@@ -43,13 +45,19 @@ def estado(_corpo):
 def _sobre_o_save():
     """Quem esta no save, para o menu dizer o que 'Continuar' abre. Le o
     arquivo sem adotar o mundo: abrir continua sendo decisao do usuario."""
-    try:
-        G = eng.carregar()
-    except Exception:
-        return None
-    c = G["clubes"].get(G.get("clube"))
-    return {"tecnico": G.get("tecnico") or "Tecnico", "clube": c["nome"] if c else "",
-            "temporada": G.get("temporada"), "semana": G.get("semana")}
+    for s in SESSAO.slots():
+        if not s["vazio"] and s.get("tecnico"):
+            return {"tecnico": s["tecnico"], "clube": s.get("clube", ""),
+                    "temporada": s.get("temporada"), "semana": s.get("semana")}
+    return None
+
+
+def _slot(corpo):
+    """O slot pedido (1 a 3), ou o atual se o cliente nao disse."""
+    n = (corpo or {}).get("slot", SESSAO.slot)
+    if n not in sessao.SLOTS:
+        raise ErroDeUso("slot invalido")
+    return n
 
 
 @rota("GET", "/api/config")
@@ -74,9 +82,13 @@ def painel(_corpo):
 
 # -------------------------------------------------------------------- inicio
 @rota("POST", "/api/abrir")
-def abrir(_corpo):
-    """Continua o jogo salvo."""
+def abrir(corpo):
+    """Continua o jogo salvo no slot pedido (padrao: o atual)."""
     with SESSAO.cadeado:
+        n = _slot(corpo)
+        if not os.path.exists(SESSAO.caminho_slot(n)):
+            raise ErroDeUso("esse slot esta vazio")
+        SESSAO.usar_slot(n)
         SESSAO.carregar()
         return {"jogo": "pronto", "cabecalho": dto.cabecalho(SESSAO.exigir()),
                 "pendencia": SESSAO.pendencia}
@@ -88,6 +100,12 @@ def novo(corpo):
     Leva o nome do tecnico e as opcoes da carreira (dificuldade, sem demissao,
     investidor), que valem pelo save inteiro."""
     with SESSAO.cadeado:
+        # o slot so passa a valer quando o clube for escolhido: desistir aqui
+        # nao pode fazer a carreira aberta gravar por cima de outro slot
+        SESSAO.slot_novo = _slot(corpo)
+        # o que foi escolhido vira o padrao da proxima carreira nova (o
+        # formulario ja vem marcado assim); Configuracoes nao repete as opcoes
+        config.gravar(corpo.get("opcoes") or {})
         G = SESSAO.mundo_novo(corpo.get("nome"), corpo.get("opcoes"))
         ordem = list(eng.DIVISOES_BR) + list(eng.ligas_ext(G))
         clubes = [{"id": cid, "nome": c["nome"], "divisao": c["divisao"],
@@ -95,6 +113,27 @@ def novo(corpo):
                   for cid, c in G["clubes"].items() if c["divisao"] in G["ligas"]]
         clubes.sort(key=lambda x: (ordem.index(x["divisao"]), -x["reputacao"]))
         return {"jogo": "escolher_clube", "clubes": clubes}
+
+
+@rota("POST", "/api/slot/apagar")
+def apagar_slot(corpo):
+    with SESSAO.cadeado:
+        try:
+            SESSAO.apagar_slot(_slot(corpo))
+        except ValueError as e:
+            raise ErroDeUso(str(e))
+        return {"slots": SESSAO.slots()}
+
+
+@rota("POST", "/api/menu")
+def voltar_ao_menu(_corpo):
+    """Salva e fecha a carreira aberta: o menu volta a mostrar os slots."""
+    with SESSAO.cadeado:
+        if SESSAO.G is not None and not getattr(SESSAO, "_pendente_novo", None):
+            SESSAO.salvar()
+        SESSAO.fechar()
+        return {"jogo": "tem_save" if SESSAO.tem_save() else "sem_save", "slots": SESSAO.slots(),
+                "slot": SESSAO.slot, "save": _sobre_o_save()}
 
 
 @rota("POST", "/api/clube")

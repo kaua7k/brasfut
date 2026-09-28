@@ -5,7 +5,7 @@
 // senao o Tab leva a um lugar que nao existe.
 
 import { porque, AGUARDE } from '../motivo'
-import { ICONES_MENU, Estrela, IconeAjuda, IconeSalvar } from '../icones'
+import { ICONES_MENU, Estrela, IconeAjuda, IconeMenu, IconeSalvar } from '../icones'
 import type { ItemMenu } from '../tipos'
 
 interface Props {
@@ -14,11 +14,13 @@ interface Props {
   atual: string
   aoTrocar: (id: string) => void
   aoSalvar: () => void
+  /** salva e volta ao menu principal (trocar de slot) */
+  aoMenu: () => void
   salvando: boolean
   aoAjuda: () => void
 }
 
-export function MenuLateral({ clube, itens, atual, aoTrocar, aoSalvar, salvando, aoAjuda }: Props) {
+export function MenuLateral({ clube, itens, atual, aoTrocar, aoSalvar, aoMenu, salvando, aoAjuda }: Props) {
   return (
     <nav className="lateral" aria-label="Telas do jogo">
       <div className="marca">
@@ -68,6 +70,11 @@ export function MenuLateral({ clube, itens, atual, aoTrocar, aoSalvar, salvando,
         <button type="button" className="navitem" onClick={aoAjuda} aria-label="Ajuda" title="Ajuda">
           <IconeAjuda />
           <span className="rotulo-nav">Ajuda</span>
+        </button>
+        <button type="button" className="navitem" onClick={aoMenu} aria-label="Menu principal"
+        title="Salva e volta ao menu principal (trocar de slot)" disabled={salvando}>
+          <IconeMenu />
+          <span className="rotulo-nav">Menu principal</span>
         </button>
       </div>
     </nav>

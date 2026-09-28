@@ -36,6 +36,9 @@ def capturar(func, *a, **kw):
     return ret, buf.getvalue()
 
 
+SLOTS = (1, 2, 3)
+
+
 class SemJogo(Exception):
     """Pediram uma tela antes de existir mundo carregado."""
 
@@ -53,6 +56,11 @@ class Sessao(object):
         self.nova_vaga = []    # quem mudou de vaga na ultima troca de formacao
         # mesas de negociacao da semana: tentativas gastas e o que foi dito
         self.mesas = {}
+        # tres saves lado a lado: o slot 1 e o brasfut_save.json de sempre (o
+        # save antigo continua abrindo), 2 e 3 ganham _2 e _3 no nome
+        self._save_base = None
+        self.slot = 1
+        self.slot_novo = None     # slot pedido na carreira nova, ate o clube sair
 
     # ------------------------------------------------------------------ estado
     def exigir(self):
@@ -87,9 +95,58 @@ class Sessao(object):
         if texto and texto.strip():
             self.log = (self.log + [texto.strip()])[-40:]
 
+    # ------------------------------------------------------------------- slots
+    def caminho_slot(self, n):
+        if self._save_base is None:
+            self._save_base = eng.SAVE
+        raiz, ext = os.path.splitext(self._save_base)
+        return self._save_base if int(n) == 1 else "%s_%d%s" % (raiz, int(n), ext)
+
+    def usar_slot(self, n):
+        """Aponta o motor para o arquivo do slot: salvar e carregar seguem."""
+        n = int(n)
+        if n not in SLOTS:
+            raise ValueError("slot %r nao existe" % (n,))
+        eng.SAVE = self.caminho_slot(n)
+        self.slot = n
+
+    def slots(self):
+        """O que ha em cada slot, pelo resumo pequeno que o motor grava ao lado
+        do save (ler tres saves de 8 MB so para o menu seria lento)."""
+        out = []
+        for n in SLOTS:
+            caminho = self.caminho_slot(n)
+            if not os.path.exists(caminho):
+                out.append({"slot": n, "vazio": True})
+                continue
+            meta = eng.ler_resumo_save(caminho)
+            out.append(dict(meta or {}, slot=n, vazio=False))
+        return out
+
+    def fechar(self):
+        """Solta a carreira aberta (o menu principal volta)."""
+        self.G = None
+        self._pendente_novo = None
+        self.pendencia = None
+        self.invalidar()
+        self.esquecer_desfazer()
+        self.mesas = {}
+        self.log = []
+
+    def apagar_slot(self, n):
+        n = int(n)
+        if n not in SLOTS:
+            raise ValueError("slot %r nao existe" % (n,))
+        if self.G is not None and n == self.slot:
+            raise ValueError("esse save esta aberto agora")
+        caminho = self.caminho_slot(n)
+        for arq in (caminho, eng.caminho_resumo_save(caminho)):
+            if os.path.exists(arq):
+                os.remove(arq)
+
     # ------------------------------------------------------------------ inicio
     def tem_save(self):
-        return os.path.exists(eng.SAVE)
+        return any(os.path.exists(self.caminho_slot(n)) for n in SLOTS)
 
     def carregar(self):
         G = eng.carregar()
@@ -127,6 +184,8 @@ class Sessao(object):
         G = novo or self.exigir()
         if cid not in G["clubes"]:
             raise ValueError("clube %r nao existe" % (cid,))
+        if novo is not None:
+            self.usar_slot(self.slot_novo or self.slot)
         G["clube"] = cid
         if novo is not None:
             eng.comecar_no_clube(G, G["clubes"][cid])
