@@ -1865,7 +1865,6 @@ ol.ajuda-lista { padding-left: 20px; max-height: none; }
 .clube-ovr { text-align: right; }
 .clube-sala { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
 .clube-sala li { display: grid; grid-template-columns: 48px 1fr; gap: 10px; align-items: center; padding: 10px 12px; background: var(--painel-alto); border: 1px solid var(--borda-forte); border-radius: var(--raio-m); }
-.clube-sala li.no-jogo { border-color: var(--conquista-borda); background: var(--conquista-fundo); }
 .clube-sala .qtd { font-family: var(--titulo); font-size: var(--fs-gg); font-weight: 700; color: var(--conquista); text-align: center; }
 .clube-sala .nome { font-weight: 700; font-size: var(--fs-m); }
 .clube-sala .anos { font-size: var(--fs-p); color: var(--txt-3); margin-top: 2px; line-height: 1.45; }

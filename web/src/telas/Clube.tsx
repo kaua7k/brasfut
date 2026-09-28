@@ -78,7 +78,7 @@ export function Clube({ tela, aoAbrirFicha, aoTrocar }: Props) {
         ) : (
           <ul className="clube-sala">
             {tela.sala.map((t) => (
-              <li key={t.nome} className={t.no_jogo ? 'no-jogo' : ''}>
+              <li key={t.nome}>
                 <span className="qtd">{t.qtd}</span>
                 <div>
                   <div className="nome">{t.nome}</div>
@@ -90,7 +90,7 @@ export function Clube({ tela, aoAbrirFicha, aoTrocar }: Props) {
         )}
         <div className="tag-fraco mt-2">
           {tela.tem_historia
-            ? 'Historia real ate 2025; o que tem "no jogo" foi ganho na sua carreira.'
+            ? 'Historia real ate 2025 somada ao que o clube ganhou na sua carreira.'
             : 'Sem historia real cadastrada para este clube: aqui entra so o que ele ganhar no jogo.'}
         </div>
       </section>
