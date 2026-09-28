@@ -301,6 +301,13 @@ quando você está indo bem.
   clube ganhar no jogo, marcado "no jogo" e com a temporada. O seletor do topo abre
   qualquer clube brasileiro. A história real fica em `dados_clubes.py` e pode ser corrigida
   à mão.
+- **Sala de troféus do clube.** Um card por taça, com todos os anos numa lista só: o
+  "Paulista" da história real e o "Campeonato Paulista" do jogo são a mesma taça. Em save
+  antigo, o ano de cada título vem da sua sala de troféus de treinador.
+- **Carreira.** O técnico ganha um cartão com a reputação numa barra dividida pelas faixas
+  (e quanto falta para a próxima). A sala de troféus usa os mesmos cards da tela Clube, e
+  cada clube dirigido vira um ponto numa linha do tempo, com jogos, V-E-D, gols,
+  aproveitamento e os títulos em selos.
 - **Resumo da temporada.** Primeiro o que você ganhou, em destaque: títulos (estadual,
   copas e liga) e o acesso. Depois uma tabela só com os campeonatos que o clube jogou e onde
   parou em cada um. Por último o essencial: destaques do elenco, prêmios, dinheiro,

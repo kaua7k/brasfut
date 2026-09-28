@@ -40,25 +40,43 @@ export function Carreira({ tela, ocupado, aoPedirDemissao, aoResponderProposta }
         ]}
       />
 
-      <section className="painel carreira-tecnico">
-        <div>
+      <section className="painel carreira-heroi">
+        <div className="carreira-avatar" aria-hidden="true">
+          {tecnico.nome.slice(0, 2).toUpperCase()}
+        </div>
+        <div className="encolhe">
           <div className="carreira-nome">{tecnico.nome}</div>
-          <div className="tag-fraco">
-            {tecnico.rotulo} · {modificadores.join(' · ')}
+          <div className="carreira-rotulo">{tecnico.rotulo}</div>
+          <div className="carreira-chips">
+            {modificadores.map((m) => (
+              <span key={String(m)} className="carreira-chip">
+                {m}
+              </span>
+            ))}
           </div>
         </div>
         <div className="carreira-rep" aria-label={`Reputacao ${tecnico.reputacao} de 99`}>
-          <span className="valor">{tecnico.reputacao}</span>
-          <span className="tag-fraco">reputacao</span>
-          <progress max={99} value={tecnico.reputacao} />
+          <div className="carreira-rep-topo">
+            <span className="valor">{tecnico.reputacao}</span>
+            <span className="tag-fraco">reputacao</span>
+          </div>
+          <div className="carreira-rep-barra">
+            <span style={{ width: `${Math.min(100, (100 * tecnico.reputacao) / 99)}%` }} />
+            {[40, 55, 70, 85].map((f) => (
+              <i key={f} style={{ left: `${(100 * f) / 99}%` }} />
+            ))}
+          </div>
+          <div className="tag-fraco carreira-rep-prox">
+            {tecnico.proxima
+              ? `faltam ${tecnico.proxima.falta} para "${tecnico.proxima.rotulo}"`
+              : 'no topo da escada'}
+          </div>
         </div>
       </section>
 
       {tela.propostas.length > 0 && (
-        <section className="painel enxuto">
-          <div className="painel-titulo mb-2">
-            Propostas de emprego
-          </div>
+        <section className="painel enxuto carreira-propostas">
+          <div className="painel-titulo mb-2">Propostas de emprego</div>
           {tela.propostas.map((o) => (
             <LinhaProposta key={o.id} proposta={o} ocupado={ocupado} aoResponder={aoResponderProposta} />
           ))}
@@ -66,20 +84,20 @@ export function Carreira({ tela, ocupado, aoPedirDemissao, aoResponderProposta }
       )}
 
       <section className="painel enxuto">
-        <div className="painel-titulo mb-3">
-          Sala de trofeus
-        </div>
+        <div className="painel-titulo mb-3">Sala de trofeus</div>
         {trofeus.length === 0 ? (
           <div className="vazio justo">
             Nenhuma taca ainda. Estadual, Copa, Serie, continental: tudo que voce ganhar fica aqui para sempre.
           </div>
         ) : (
-          <ul className="trofeus">
+          <ul className="clube-sala">
             {trofeus.map((t) => (
-              <li key={t.nome} className="trofeu">
-                <span className="trofeu-qtd">{t.qtd}x</span>
-                <span className="trofeu-nome">{t.nome}</span>
-                <span className="tag-fraco">{t.anos.join(', ')}</span>
+              <li key={t.nome}>
+                <span className="qtd">{t.qtd}</span>
+                <div>
+                  <div className="nome">{t.nome}</div>
+                  <div className="anos">{t.anos.join(', ')}</div>
+                </div>
               </li>
             ))}
           </ul>
@@ -87,12 +105,12 @@ export function Carreira({ tela, ocupado, aoPedirDemissao, aoResponderProposta }
       </section>
 
       <section className="painel enxuto">
-        <div className="painel-titulo mb-3">
-          Clubes dirigidos
-        </div>
-        {passagens.map((p, i) => (
-          <Passagem key={i} p={p} />
-        ))}
+        <div className="painel-titulo mb-3">Clubes dirigidos</div>
+        <ol className="carreira-linha">
+          {passagens.map((p, i) => (
+            <Passagem key={i} p={p} />
+          ))}
+        </ol>
       </section>
 
       <SairDoClube pode={tela.pode_pedir_demissao} ocupado={ocupado} clube={passagens[0]?.clube} aoSair={aoPedirDemissao} />
@@ -101,20 +119,50 @@ export function Carreira({ tela, ocupado, aoPedirDemissao, aoResponderProposta }
 }
 
 function Passagem({ p }: { p: PassagemCarreira }) {
+  const saidaRuim = p.saida === 'demitido'
   return (
-    <div className={`passagem${p.atual ? ' atual' : ''}`}>
-      <div className="passagem-cab">
+    <li className={`carreira-passagem${p.atual ? ' atual' : ''}`}>
+      <div className="carreira-passagem-cab">
         <strong>{p.clube}</strong>
-        <span className="tag-fraco">
-          {p.liga} · {p.periodo}
-          {p.saida && ` · saiu: ${p.saida}`}
-        </span>
+        <span className="carreira-chip">{p.liga}</span>
+        <span className="tag-fraco">{p.periodo}</span>
+        {p.atual && <span className="carreira-chip atual">atual</span>}
+        {p.saida && <span className={`carreira-chip ${saidaRuim ? 'ruim' : ''}`}>{p.saida}</span>}
       </div>
-      <div className="passagem-numeros">
-        {p.j} jogos · {p.v}V {p.e}E {p.d}D · {p.gp} gols pro, {p.gc} contra
-        {p.aproveitamento !== null && ` · ${p.aproveitamento}% de aproveitamento`}
+      <div className="carreira-numeros">
+        <div>
+          <b>{p.j}</b>
+          <span>jogos</span>
+        </div>
+        <div>
+          <b>
+            <span className="tag-ok">{p.v}</span>-{p.e}-<span className="tag-critico">{p.d}</span>
+          </b>
+          <span>V-E-D</span>
+        </div>
+        <div>
+          <b>
+            {p.gp}:{p.gc}
+          </b>
+          <span>gols</span>
+        </div>
+        <div className="carreira-aprov">
+          <b>{p.aproveitamento === null ? '-' : `${p.aproveitamento}%`}</b>
+          <span>aproveitamento</span>
+          <span className="carreira-aprov-barra" aria-hidden="true">
+            <span style={{ width: `${p.aproveitamento ?? 0}%` }} />
+          </span>
+        </div>
       </div>
-      {p.titulos.length > 0 && <div className="passagem-titulos">{p.titulos.join(' · ')}</div>}
+      {p.titulos.length > 0 && (
+        <div className="carreira-selos">
+          {p.titulos.map((t) => (
+            <span key={t} className="carreira-selo">
+              ★ {t}
+            </span>
+          ))}
+        </div>
+      )}
       {p.marcos.length > 0 && (
         <ul className="passagem-marcos">
           {p.marcos.map((m, i) => (
@@ -125,7 +173,7 @@ function Passagem({ p }: { p: PassagemCarreira }) {
       {p.parcial && (
         <div className="tag-fraco">O registro desta passagem comeca na versao 2.5: o que veio antes nao foi guardado.</div>
       )}
-    </div>
+    </li>
   )
 }
 

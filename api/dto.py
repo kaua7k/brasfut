@@ -1263,11 +1263,18 @@ def carreira():
     passagens = eng.carreira(G)
     rep = eng.rep_tecnico(G)
     trofeus = {}
+    # o clube so aparece ao lado do ano quando a carreira passou por mais de um
+    varios = len({p["clube_id"] for p in passagens}) > 1
     for p in passagens:
+        por_clube = {}
         for t in p["titulos"]:
             item = trofeus.setdefault(t["nome"], {"nome": t["nome"], "qtd": 0, "anos": []})
             item["qtd"] += 1
-            item["anos"].append("%d (%s)" % (t["temporada"], p["clube"]))
+            por_clube.setdefault(t["nome"], []).append(str(t["temporada"]))
+        # "2027, 2028 (Santos)": os anos de uma passagem juntos, o clube uma vez
+        for nome, anos in por_clube.items():
+            txt = ", ".join(anos)
+            trofeus[nome]["anos"].append("%s (%s)" % (txt, p["clube"]) if varios else txt)
     ordem = list(eng.PESO_TITULO)
     trofeus = sorted(trofeus.values(),
                      key=lambda t: (ordem.index(t["nome"]) if t["nome"] in ordem else 99, -t["qtd"]))
@@ -1294,7 +1301,7 @@ def carreira():
         "cabecalho": cabecalho(G), "titulo": "Carreira",
         "subtitulo": "sala de trofeus e historico do treinador",
         "tecnico": {"nome": G.get("tecnico") or "Tecnico", "reputacao": rep,
-                    "rotulo": _rotulo_rep(rep)},
+                    "rotulo": _rotulo_rep(rep), "proxima": _proxima_faixa(rep)},
         "totais": {"clubes": len({p["clube_id"] for p in passagens}), "temporadas": len(anos),
                    "titulos": sum(t["qtd"] for t in trofeus), **tot},
         "trofeus": trofeus,
@@ -1304,6 +1311,17 @@ def carreira():
         "propostas": _propostas_emprego(G),
         "pode_pedir_demissao": not SESSAO.pendencia,
     }
+
+
+FAIXAS_REP = (40, 55, 70, 85)
+
+
+def _proxima_faixa(rep):
+    """A proxima faixa de reputacao e quanto falta, ou None no topo."""
+    for limite in FAIXAS_REP:
+        if rep < limite:
+            return {"rotulo": _rotulo_rep(limite), "falta": limite - rep, "em": limite}
+    return None
 
 
 def _rotulo_rep(rep):
