@@ -336,6 +336,23 @@ def ver_infra(_corpo):
         return {"tela": dto.infra()}
 
 
+@rota("GET", "/api/clube/ficha")
+def ver_clube(corpo):
+    cid = (corpo or {}).get("id")
+    if cid is not None and not isinstance(cid, int):
+        raise ErroDeUso("id invalido")
+    with SESSAO.cadeado:
+        try:
+            return {"tela": dto.clube(cid)}
+        except KeyError as e:
+            raise ErroDeUso(str(e))
+
+
+@rota("POST", "/api/clube/ficha")
+def ver_clube_post(corpo):
+    return ver_clube(corpo)
+
+
 @rota("GET", "/api/carreira")
 def ver_carreira(_corpo):
     with SESSAO.cadeado:

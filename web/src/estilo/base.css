@@ -1850,3 +1850,28 @@ ol.ajuda-lista { padding-left: 20px; max-height: none; }
 .partida-semana-jogo.critico { border-color: var(--critico); }
 .partida-semana-jogo.atencao { border-color: var(--atencao); }
 .partida-semana-jogo.ativa { background: var(--painel-alto); }
+
+/* -------------------------------------------------------------------- clube */
+.clube-seletor { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: var(--fs-p); }
+.clube-seletor select { background: var(--chip); color: var(--txt); border: 1px solid var(--borda-controle); border-radius: 6px; padding: 4px 8px; font: inherit; }
+.clube-topo { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+.clube-info { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; margin: 0; }
+.clube-info dt { font-size: var(--fs-mini); text-transform: uppercase; letter-spacing: 0.06em; color: var(--fraco); }
+.clube-info dd { margin: 2px 0 0; font-size: var(--fs-m); font-weight: 700; color: var(--txt); }
+.clube-destaques { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.clube-destaques .bt-link { display: grid; grid-template-columns: 42px 1fr auto 34px; align-items: center; gap: 10px; width: 100%; padding: 6px 4px; color: var(--txt); font-size: var(--fs-m); text-align: left; border-radius: 6px; }
+.clube-destaques .bt-link:hover { background: var(--painel-alto); text-decoration: none; }
+.clube-pos { font-size: var(--fs-mini); font-weight: 700; color: var(--txt-3); background: var(--chip); border: 1px solid var(--borda-media); border-radius: 4px; text-align: center; padding: 2px 0; }
+.clube-jogador { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.clube-ovr { font-family: var(--titulo); font-weight: 700; font-size: var(--fs-base); text-align: right; color: var(--acao-linha); }
+.clube-sala { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+.clube-sala li { display: grid; grid-template-columns: 48px 1fr; gap: 10px; align-items: center; padding: 10px 12px; background: var(--painel-alto); border: 1px solid var(--borda-forte); border-radius: var(--raio-m); }
+.clube-sala li.no-jogo { border-color: var(--conquista-borda); background: var(--conquista-fundo); }
+.clube-sala .qtd { font-family: var(--titulo); font-size: var(--fs-gg); font-weight: 700; color: var(--conquista); text-align: center; }
+.clube-sala .nome { font-weight: 700; font-size: var(--fs-m); }
+.clube-sala .anos { font-size: var(--fs-p); color: var(--txt-3); margin-top: 2px; line-height: 1.45; }
+.clube-linha-tempo { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.clube-linha-tempo li { display: flex; gap: 12px; align-items: baseline; padding: 4px 0; border-top: 1px solid var(--divisor); font-size: var(--fs-m); }
+.clube-linha-tempo li:first-child { border-top: 0; }
+.clube-linha-tempo .ano { font-family: var(--titulo); font-weight: 700; color: var(--txt-3); min-width: 44px; }
+.clube-linha-tempo .nome { color: var(--conquista); font-weight: 700; }

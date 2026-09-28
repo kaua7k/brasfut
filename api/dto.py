@@ -15,6 +15,7 @@ import re
 from . import campo
 from .sessao import SESSAO
 import brasfut as eng
+import dados_clubes
 
 LIMPA_COR = re.compile(r"\033\[[0-9;]*m")
 
@@ -26,7 +27,7 @@ MENU = [
     ("tabela", "Classificacao", True), ("copas", "Competicoes", True),
     ("mercado", "Mercado", True), ("financas", "Financas", True),
     ("estadio", "Estadio", True), ("infra", "Infraestrutura", True),
-    ("noticias", "Noticias", True), ("carreira", "Carreira", True),
+    ("noticias", "Noticias", True), ("clube", "Clube", True), ("carreira", "Carreira", True),
 ]
 
 
@@ -1115,6 +1116,114 @@ def noticias():
             "itens": itens, "mundo": _mundo(G, 80)}
 
 
+# --------------------------------------------------------------------- clube
+# ordem da sala de trofeus: mundo, continente, pais, e o resto (estadual,
+# regional) por ultimo
+ORDEM_TROFEU = ["Mundial de Clubes", "Copa Intercontinental", "Libertadores", "Supercopa Libertadores",
+                "Recopa Sul-Americana", "Sul-Americana", "Copa Conmebol", "Copa Mercosul",
+                "Brasileirao Serie A", "Copa do Brasil", "Supercopa do Brasil", "Copa dos Campeoes",
+                "Brasileirao Serie B", "Brasileirao Serie C", "Brasileirao Serie D", "Copa do Nordeste",
+                "Copa Verde"]
+
+
+def _sala_do_clube(G, c, hist):
+    """Titulos reais (ate 2025) e do jogo, somados por competicao."""
+    sala = {}
+
+    def pegar(nome):
+        return sala.setdefault(nome, {"nome": nome, "qtd": 0, "reais": [], "reais_soma": 0,
+                                      "jogo": [], "sem_ano": 0})
+
+    for nome, anos in hist.get("titulos", []):
+        t = pegar(nome)
+        t["reais"] += list(anos)
+        t["qtd"] += len(anos)
+    est = hist.get("estadual")
+    if est:
+        t = pegar(est[0])
+        t["reais_soma"] += est[1]
+        t["qtd"] += est[1]
+    datados = {}
+    for h in c.get("titulos_hist") or []:
+        pegar(h["nome"])["jogo"].append(h["temporada"])
+        datados[h["nome"]] = datados.get(h["nome"], 0) + 1
+    for nome, n in (c.get("titulos") or {}).items():
+        t = pegar(nome)
+        t["qtd"] += n
+        # saves de antes do titulos_hist: o numero existe, a data nao
+        t["sem_ano"] += max(0, n - datados.get(nome, 0))
+
+    def chave(t):
+        return (ORDEM_TROFEU.index(t["nome"]) if t["nome"] in ORDEM_TROFEU else len(ORDEM_TROFEU), -t["qtd"])
+    out = []
+    for t in sorted(sala.values(), key=chave):
+        partes = [str(a) for a in t["reais"]]
+        if t["reais_soma"]:
+            partes.append("%s ate 2025" % eng.plural(t["reais_soma"], "titulo"))
+        partes += ["%d no jogo" % a for a in t["jogo"]]
+        if t["sem_ano"]:
+            partes.append("%d no jogo, sem data" % t["sem_ano"])
+        out.append({"nome": t["nome"], "qtd": t["qtd"], "anos": ", ".join(partes),
+                    "no_jogo": bool(t["jogo"] or t["sem_ano"])})
+    return out
+
+
+def clube(cid=None):
+    """A tela do clube: quem ele e, como esta agora e o que ja ganhou."""
+    G = SESSAO.exigir()
+    cid = int(cid) if cid is not None else G["clube"]
+    if cid not in G["clubes"]:
+        raise KeyError("clube %s nao existe" % cid)
+    c = G["clubes"][cid]
+    hist = dados_clubes.HISTORIA.get(c["nome"], {})
+    elenco = [G["jogadores"][p] for p in c["elenco"] if p in G["jogadores"]]
+    pros = [j for j in elenco if not eng.da_base(j)] or elenco
+    top = sorted(pros, key=lambda j: -j["ovr"])
+    onze = top[:11]
+    artilheiro = max(elenco, key=lambda j: (j["g"], -j["j"]), default=None)
+    liga = G["ligas"].get(c["divisao"])
+    jogou = liga and (liga["tabela"].get(str(cid)) or {}).get("j", 0) > 0
+    pos = eng.posicao_na_liga(G, cid) if jogou else 0   # na pre-temporada a tabela esta zerada
+    sala = _sala_do_clube(G, c, hist)
+    no_jogo = sorted(({"nome": h["nome"], "temporada": h["temporada"]} for h in c.get("titulos_hist") or []),
+                     key=lambda h: -h["temporada"])
+    info = []
+    if hist.get("fundacao"):
+        info.append({"nome": "Fundacao", "valor": "%d (%d anos)" % (hist["fundacao"], G["temporada"] - hist["fundacao"])})
+    info.append({"nome": "Cidade", "valor": "%s, %s" % (hist["cidade"], c["uf"]) if hist.get("cidade") else c["uf"]})
+    if hist.get("apelido"):
+        info.append({"nome": "Apelido", "valor": hist["apelido"]})
+    info += [
+        {"nome": "Estadio", "valor": "%s, %s lugares" % (c["estadio"], "{:,}".format(c["capacidade"]).replace(",", "."))},
+        {"nome": "Socios", "valor": "{:,}".format(int(c.get("socios", 0))).replace(",", ".")},
+        {"nome": "Reputacao", "valor": "%d de 99" % c["reputacao"]},
+    ]
+    brasileiros = sorted((x for x in G["clubes"].values() if x["divisao"] in eng.DIVISOES_BR),
+                         key=lambda x: (x["divisao"], x["nome"]))
+    return {
+        "cabecalho": cabecalho(G), "titulo": c["nome"],
+        "subtitulo": "%s%s" % (eng.nome_da_liga(G, c["divisao"]),
+                               " · %do de %d" % (pos, len(liga["times"])) if pos and liga else ""),
+        "id": cid, "meu": cid == G["clube"],
+        "info": info,
+        "metricas": [
+            {"nome": "titulos", "valor": str(sum(t["qtd"] for t in sala)), "estado": "ok" if sala else None},
+            {"nome": "no jogo", "valor": str(len(no_jogo)), "estado": "ok" if no_jogo else None},
+            {"nome": "overall do time", "valor": "%.0f" % (sum(j["ovr"] for j in onze) / len(onze)) if onze else "-"},
+            {"nome": "valor do elenco", "valor": eng.din(sum(j["valor"] for j in elenco))},
+            {"nome": "caixa", "valor": eng.din(c["dinheiro"]), "estado": "ok" if c["dinheiro"] >= 0 else "critico"},
+        ],
+        "destaques": [{"id": j["id"], "nome": j["nome"], "pos": j["pos"], "ovr": j["ovr"], "idade": j["idade"]}
+                      for j in top[:5]],
+        "artilheiro": ({"nome": artilheiro["nome"], "gols": artilheiro["g"], "jogos": artilheiro["j"]}
+                       if artilheiro and artilheiro["g"] else None),
+        "sala": sala,
+        "no_jogo": no_jogo,
+        "tem_historia": bool(hist.get("titulos") or hist.get("estadual")),
+        "clubes": [{"id": x["id"], "nome": x["nome"], "divisao": x["divisao"]} for x in brasileiros],
+    }
+
+
 # ------------------------------------------------------------------ carreira
 SAIDAS = {"demitido": "demitido", "pediu demissao": "pediu demissao",
           "encerrou a carreira": "encerrou a carreira"}
@@ -1804,6 +1913,8 @@ def ajuda():
         "infra": "CT, departamento medico e academia de base: o que faz o elenco evoluir e "
                  "se machucar menos.",
         "noticias": "O que aconteceu no clube e no resto do futebol.",
+        "clube": "O clube por dentro: cidade, estadio, numeros de agora e a sala de trofeus, "
+                 "com a historia real ate 2025 e o que ele ganhou no jogo.",
         "carreira": "Sua trajetoria de treinador: clubes, titulos, marcos e propostas de emprego.",
     }
     termos = [

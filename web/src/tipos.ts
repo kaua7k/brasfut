@@ -251,6 +251,24 @@ export interface PassagemCarreira {
   parcial: boolean
 }
 
+export interface TelaClube {
+  cabecalho: Cabecalho
+  titulo: string
+  subtitulo: string
+  id: number
+  /** o clube do treinador (os outros aparecem pelo seletor) */
+  meu: boolean
+  info: { nome: string; valor: string }[]
+  metricas: Metrica[]
+  destaques: { id: number; nome: string; pos: string; ovr: number; idade: number }[]
+  artilheiro: { nome: string; gols: number; jogos: number } | null
+  /** real ate 2025 e do jogo somados; anos ja vem em texto */
+  sala: { nome: string; qtd: number; anos: string; no_jogo: boolean }[]
+  no_jogo: { nome: string; temporada: number }[]
+  tem_historia: boolean
+  clubes: { id: number; nome: string; divisao: string }[]
+}
+
 export interface TelaCarreira {
   cabecalho: Cabecalho
   titulo: string
