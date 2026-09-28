@@ -370,6 +370,14 @@ def perfil_liga(div):
     return PERFIL_LIGA_EXT.get(div, PERFIL_PADRAO)
 
 
+# Quanto a folha de cada liga de fora encolheu com o salario achatado acima de
+# 75 (2026-09-28), medido no mundo novo. A receita (e com ela a estrutura, que
+# e proporcional) encolhe junto: a margem fica como era. Sem isto o caixa
+# mediano da Premier League ia de R$ 180 mi para R$ 3,5 bi em oito anos.
+ESCALA_EXT = {"ENG": 0.70, "ESP": 0.70, "GER": 0.76, "ITA": 0.78, "FRA": 0.82, "POR": 0.92,
+              "NED": 0.96, "SAU": 0.96, "USA": 0.98, "ARG": 0.97, "URU": 0.95}
+
+
 def brasileiro(c):
     """Clube das series brasileiras (joga estadual e Copa do Brasil)."""
     return c["divisao"] in DIVISOES_BR
@@ -832,8 +840,23 @@ def gerar_nome(usados):
     return n
 
 
+def _curva_mercado(ovr):
+    """A curva antiga, que dobra a cada ~5 de overall. Segue valendo para o
+    valor do passe (valor_de): o que ficou mais barato foi o salario."""
+    return max(8_000, 1500 * (1.16 ** (ovr - 40)))
+
+
+SALARIO_JOELHO = 75       # ate este overall o salario segue a curva de mercado
+SALARIO_CRESCE = 1.068    # acima dele, cada ponto a mais custa 6,8% (antes 16%)
+
+
 def salario_de(ovr):
-    return int(max(8_000, 1500 * (1.16 ** (ovr - 40))))
+    """Salario mensal de mercado pelo overall. Achatado acima de 75 (decidido
+    em 2026-09-28): 80 = ~R$ 375 mil, 85 = ~R$ 520 mil, 90 = ~R$ 720 mil. Antes
+    90 pedia R$ 2,5 mi e um craque livre levava ate 46% da folha do Santos."""
+    if ovr <= SALARIO_JOELHO:
+        return int(_curva_mercado(ovr))
+    return int(_curva_mercado(SALARIO_JOELHO) * SALARIO_CRESCE ** (ovr - SALARIO_JOELHO))
 
 
 def fator_idade(idade):
@@ -853,7 +876,7 @@ def fator_idade(idade):
 
 
 def valor_de(ovr, idade, pot):
-    base = salario_de(ovr) * 30.0
+    base = _curva_mercado(ovr) * 30.0
     base *= fator_idade(idade)
     base *= 1.0 + max(0, pot - ovr) * 0.035
     return int(base / 1000) * 1000
@@ -1094,7 +1117,7 @@ def nova_liga(G, div):
 
 
 def criar_mundo(nome_tecnico):
-    G = {"versao": VERSAO, "temporada": 2026, "semana": 1, "seq": 0, "seq_c": 0,
+    G = {"versao": VERSAO, "econ_estrelas": True, "temporada": 2026, "semana": 1, "seq": 0, "seq_c": 0,
          "clubes": {}, "jogadores": {}, "livres": [], "noticias": [], "historico": [],
          "tecnico": nome_tecnico, "clube": None, "auto": False, "fase": "liga",
          "objetivo": "", "log_semana": [], "artilharia_temp": {},
@@ -4021,7 +4044,7 @@ def _receita_base(c):
     """A receita fixa que o clube tinha antes de o patrocinio existir: a regua
     de TV e patrocinio juntos, por serie e reputacao."""
     base, por_rep = TV.get(c["divisao"]) or perfil_liga(c["divisao"])["tv"]
-    return base + por_rep * c["reputacao"]
+    return int((base + por_rep * c["reputacao"]) * ESCALA_EXT.get(c["divisao"], 1.0))
 
 
 # a regua antiga dividida: 60% vira cota de TV, 40% patrocinio (master 28%,
@@ -4110,14 +4133,24 @@ def fator_campanha(G, c):
     return 1.12 if r.get("objetivo_ok") else 0.92
 
 
+def fator_marca(c):
+    """Quanto a marca do clube vale para as empresas, pela reputacao: ~+50% na
+    media, puxado para os grandes (rep 40 = 1,15; 70 = 1,53; 92 = 1,84).
+    Decidido em 2026-09-28, so para o futebol brasileiro: fora, a receita ja
+    era calibrada pela liga (e com isto o caixa europeu explodia)."""
+    if not brasileiro(c):
+        return 1.0
+    return max(1.15, 0.55 + 0.0140 * c["reputacao"])
+
+
 def patrocinio_base(G, c, espaco):
     """O valor semanal de referencia deste espaco para este clube hoje."""
-    return int(_receita_base(c) * FATIA_PATROCINIO[espaco] * fator_campanha(G, c))
+    return int(_receita_base(c) * FATIA_PATROCINIO[espaco] * fator_marca(c) * fator_campanha(G, c))
 
 
 def patrocinio_semanal(G, c):
     if c["id"] != G.get("clube"):
-        return sum(int(_receita_base(c) * FATIA_PATROCINIO[e]) for e in espacos_do_clube(c))
+        return sum(int(_receita_base(c) * FATIA_PATROCINIO[e] * fator_marca(c)) for e in espacos_do_clube(c))
     contratos = c.get("patrocinios") or {}
     return sum(int(contratos[e]["semanal"]) for e in espacos_do_clube(c) if contratos.get(e))
 
@@ -4227,7 +4260,8 @@ def folha_semanal(G, c):
 # - operacional (comissao, viagens, impostos) sobe de 45% para 60%;
 # - cada jogo em casa custa 45% da renda (seguranca, staff, arbitragem).
 CUSTO_NIVEL = 0.011
-CUSTO_OPERACIONAL = 0.60
+CUSTO_OPERACIONAL = 0.40       # era 0,60: comia quase a cota de TV inteira (2026-09-28)
+CUSTO_OPERACIONAL_EXT = 0.60   # fora do Brasil segue o de antes (a margem de la ja fechava)
 CUSTO_JOGO_CASA = 0.45
 
 
@@ -4236,7 +4270,7 @@ def custo_estrutura(c):
     base = _receita_base(c)
     fixo = (c["ct"] + c["base"] + c["medico"]) * base * CUSTO_NIVEL
     fixo += c["capacidade"] * manutencao_por_lugar(c)
-    operacional = base * CUSTO_OPERACIONAL
+    operacional = base * (CUSTO_OPERACIONAL if brasileiro(c) else CUSTO_OPERACIONAL_EXT)
     return int(fixo + operacional) + custo_treino(c)
 
 
@@ -4278,6 +4312,7 @@ def reserva_custos(G: Mundo, c: Clube, salario_novo: int = 0) -> int:
 
 
 TETO_FOLHA_RECEITA = 0.85   # folha que um clube da IA aceita, em fracao da receita do mes
+TETO_UM_SALARIO = 0.25      # e um contrato sozinho, no maximo (craque nao cai na Serie D)
 
 
 def cabe_na_folha(G: Mundo, c: Clube, salario_mes: int) -> bool:
@@ -4285,6 +4320,8 @@ def cabe_na_folha(G: Mundo, c: Clube, salario_mes: int) -> bool:
     ela, craque europeu livre caia na Serie D pelo mercado do overall (R$ 2 a 3
     mi por mes com receita de R$ 700 mil) e a divisao inteira quebrava."""
     receita_mes = receita_semanal(G, c) * 4 + bilheteria_mensal_estimada(c)
+    if int(salario_mes) > receita_mes * TETO_UM_SALARIO:
+        return False
     return folha_semanal(G, c) * 4 + max(0, int(salario_mes)) <= receita_mes * TETO_FOLHA_RECEITA
 
 
@@ -7012,7 +7049,7 @@ def investimentos_ia(G):
 
 def premio_liga(div: str, posicao: int) -> int:
     """O que a liga paga a quem termina nesta posicao (1 = campeao)."""
-    total = PREMIO.get(div) or perfil_liga(div)["premio"]
+    total = PREMIO.get(div) or int(perfil_liga(div)["premio"] * ESCALA_EXT.get(div, 1.0))
     return int(total * (0.55 ** ((posicao - 1) * 0.30)))
 
 
@@ -9786,6 +9823,25 @@ def migrar_prazos(G):
             converter(k, CANDIDATO_VALE)
 
 
+def migrar_economia_estrelas(G):
+    """Save de antes da curva achatada e do patrocinio novo (2026-09-28), uma
+    vez: salario de quem passa de 75 cai na mesma proporcao da curva nova, e
+    contrato de patrocinio abaixo do valor novo sobe para a proposta
+    equilibrada de hoje (quem ja ganha mais fica como esta)."""
+    if G.get("econ_estrelas"):
+        return
+    G["econ_estrelas"] = True
+    for j in G["jogadores"].values():
+        if j["ovr"] > SALARIO_JOELHO and j.get("salario"):
+            fator = salario_de(j["ovr"]) / _curva_mercado(j["ovr"])
+            j["salario"] = int(j["salario"] * fator)
+    c = G["clubes"].get(G.get("clube"))
+    if c:
+        for espaco, k in (c.get("patrocinios") or {}).items():
+            if k and espaco in FATIA_PATROCINIO:
+                k["semanal"] = max(int(k["semanal"]), int(patrocinio_base(G, c, espaco) * 0.96 / 100) * 100)
+
+
 def migrar(G):
     ja = {c["nome"] for c in G["clubes"].values() if c["divisao"] == "EX"}
     faltam = [d for d in CLUBES_LIB + CLUBES_SUL if d[0] not in ja]
@@ -9883,6 +9939,7 @@ def migrar(G):
     G.setdefault("agendadas", [])
     G.setdefault("semana_est", 0)
     migrar_prazos(G)
+    migrar_economia_estrelas(G)
     if not isinstance(G.get("emp_ofertas"), dict):
         G["emp_ofertas"] = {"stamp": "", "itens": []}
     if not isinstance(G.get("estaduais"), dict):
