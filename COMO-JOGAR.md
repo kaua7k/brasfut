@@ -647,6 +647,14 @@ fadiga por período e o puxão de moral guardavam float no jogador, e a tabela i
 número cru. Agora são inteiros na origem — 2020 dos 3525 jogadores do mundo estavam com
 valor quebrado.
 
+## Atualizar para a versão nova
+
+Dois cliques em `baixar-nova-versao.bat` (na pasta do jogo): ele baixa a versão mais nova
+já extraída em `Documents\bras2.0`, numa pasta com o próximo número (11.0, 12.0...), e
+copia o save, as preferências e os elencos editados da pasta mais recente. A pasta antiga
+fica como está. Com git instalado ele clona o repositório; sem git, baixa o .zip (só
+funciona com o repositório público).
+
 ## Gerar o executável (opcional)
 
 Dois cliques no `build-windows.bat`. Sai o `dist\BRASFUT.exe`, que roda em qualquer

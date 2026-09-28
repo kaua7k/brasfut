@@ -36,3 +36,9 @@ Rodar os testes antes de considerar algo pronto:
 - A PR segue `.github/pull_request_template.md` e so entra com o CI verde
   (`.github/workflows/testes.yml`).
 - Depois do merge, apagar o branch.
+- Com o CI verde, o merge e feito direto, sem esperar confirmacao (pedido do
+  Kaua em 2026-09-28). Vermelho: corrigir e esperar o verde de novo.
+- A copia local do Kaua fica em `C:\Users\KauaLima\Documents\bras2.0\<N>.0`
+  (11.0, 12.0...). A sessao na nuvem nao alcanca o PC dele: a cada atualizacao
+  mergeada, lembrar de rodar `baixar-nova-versao.bat`, que baixa a `main` ja
+  extraida na proxima pasta e leva o save junto.

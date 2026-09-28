@@ -48,6 +48,7 @@ Atas de decisão de roadmap: `docs/three-amigos/`.
 | `docs/proxima-onda.md` | — | **Backlog da próxima onda**: o que espera decisão, o que espera exemplo do testador, o que está pronto para codar e como verificar | Antes de começar a próxima rodada |
 | `.github/workflows/testes.yml` | — | CI (GitHub Actions): a cada push na `main` e em toda PR roda a suíte `unittest` e o `npm run build` da web; avisa se `web/dist` ficou velho | Ao mudar o que a suíte ou o build precisam |
 | `ferramentas/capturas.py` | — | Capturas das 13 telas em 5 resoluções (Edge headless, cópia isolada) e comparação por pixel | Antes/depois de mexer em CSS ou tela |
+| `baixar-nova-versao.bat` + `ferramentas/nova-versao.ps1` | — | Baixa a `main` já extraída em `Documents\bras2.0\<N>.0` (próximo número) e copia save, config e elencos da pasta anterior | Para atualizar a cópia local do Kauã |
 | `ferramentas/importar_elencos.py` | — | Importa elencos reais (football-data.org / API-Football) | Atualização de temporada real |
 | `.github/pull_request_template.md` | — | Modelo de PR (o que muda, por que, testes, docs); convenções de branch e título no `CLAUDE.md` | Ao abrir PR |
 
