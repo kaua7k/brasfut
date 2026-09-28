@@ -18,6 +18,7 @@ PADRAO = {
     "dificuldade": "normal",    # padroes da tela de carreira nova
     "sem_demissao": False,
     "investidor": False,
+    "modo": "classico",
 }
 ESCALAS = (90, 100, 110, 125)
 
@@ -53,6 +54,8 @@ def _limpo(d):
         fora["escala"] = d["escala"]
     if d.get("dificuldade") in eng.DIFICULDADES:
         fora["dificuldade"] = d["dificuldade"]
+    if d.get("modo") in eng.MODOS:
+        fora["modo"] = d["modo"]
     for k in ("reduzir_animacoes", "sem_demissao", "investidor"):
         if k in d:
             fora[k] = bool(d[k])

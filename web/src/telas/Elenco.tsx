@@ -29,7 +29,12 @@ const COLUNAS: Coluna<JogadorElenco>[] = [
     rotulo: 'Jogador',
     largura: 'minmax(140px, 1.6fr)',
     classe: 'corta',
-    render: (j) => <span className={`tag-${j.tag}`}>{j.nome}</span>,
+    render: (j) => (
+      <>
+        <span className={`tag-${j.tag}`}>{j.nome}</span>
+        {j.capitao && <span className="selo-capitao" title="Capitao">C</span>}
+      </>
+    ),
   },
   { chave: 'idade', rotulo: 'Idade', largura: '52px', classe: 'num', render: (j) => j.idade },
   { chave: 'ovr', rotulo: 'Ovr', largura: '44px', classe: 'num', render: (j) => seloOvr(j.ovr) },

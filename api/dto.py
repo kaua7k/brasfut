@@ -516,7 +516,7 @@ def _propostas_emprego(G):
 ROTULO_FEED = {"resultado": "Resultado", "tabela": "Classificacao", "copa": "Copa",
                "titulo": "Titulo", "mercado": "Mercado", "lesao": "Lesao",
                "abertura": "Brasileirao", "tecnico": "Treinador",
-               "premio": "Premio"}
+               "premio": "Premio", "caos": "Plantao"}
 
 
 def _mundo(G, quantas):
@@ -603,12 +603,14 @@ def _linha_elenco(G, j):
         "situacao": sit, "listado": bool(j["listado"]),
         "emprestado_aqui": bool(j.get("dono")),
         "estado": estado, "tag": _tag_ovr(j["ovr"]),
+        "capitao": bool(j["clube"] is not None and G["clubes"][j["clube"]].get("capitao") == j["id"]),
     }
 
 
 def elenco():
     G = SESSAO.exigir()
     c = G["clubes"][G["clube"]]
+    eng.capitao_de(G, c)
     jogs = G["jogadores"]
     ordem = sorted(c["elenco"], key=lambda p: (eng.POS.index(jogs[p]["pos"]), -jogs[p]["ovr"]))
     na_vitrine = sum(1 for p in c["elenco"] if jogs[p]["listado"])
@@ -1381,7 +1383,11 @@ def ficha(pid):
         notas.append("Em treino individual: evolui 50% mais rapido.")
 
     clube = G["clubes"].get(j["clube"])
+    capitao = bool(clube and eng.capitao_de(G, clube) == j["id"])
     return {
+        "capitao": capitao,
+        "pode_capitao": bool(clube and clube["id"] == G["clube"] and not capitao and not j.get("dono")
+                             and not eng.da_base(j) and j["id"] in clube["elenco"]),
         "id": j["id"], "nome": j["nome"], "pos": j["pos"],
         "posicao_nome": eng.NOME_POS[j["pos"]], "idade": j["idade"],
         "clube": clube["nome"] if clube else "sem clube",

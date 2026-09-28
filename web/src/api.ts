@@ -138,6 +138,7 @@ export const api = {
   responderProposta: (id: number, aceitar: boolean) =>
     pedir<{ recado: string; painel: DadosPainel }>('/api/carreira/proposta', { id, aceitar }),
   ficha: (id: number) => pedir<{ ficha: FichaJogador }>('/api/ficha', { id }),
+  capitao: (id: number) => pedir<{ recado: string; ficha: FichaJogador }>('/api/capitao', { id }),
 
   // ------------------------------------------------------------------- acoes
   tirarDaVitrine: acao<TelaElenco>('/api/elenco/tirar-vitrine'),

@@ -13,12 +13,13 @@ import { useEffect, useRef, useState } from 'react'
 import { api, ErroDaApi } from '../api'
 import { plural } from '../formato'
 import { iconeDeEstado } from '../icones'
-import type { OpcaoAvanco, Paradas, Partida, Pendencia, RelatoSemana } from '../tipos'
+import type { EventoCaos, OpcaoAvanco, Paradas, Partida, Pendencia, RelatoSemana } from '../tipos'
 import { ResumoPartida } from './Partida'
 
 interface Props {
   /** houve = pelo menos uma semana andou; a tela de tras precisa se refazer. */
-  aoFechar: (houve: boolean, pendencia: Pendencia | null) => void
+  /** eventos = plantoes do modo caos acumulados no pulo */
+  aoFechar: (houve: boolean, pendencia: Pendencia | null, eventos: EventoCaos[]) => void
   aoAbrirEscalacao: () => void
 }
 
@@ -62,6 +63,7 @@ export function DialogoAvanco({ aoFechar, aoAbrirEscalacao }: Props) {
   const pedirParada = useRef(false)
   const houve = useRef(false)
   const pendencia = useRef<Pendencia | null>(null)
+  const plantao = useRef<EventoCaos[]>([])
   const fimDoLog = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -126,6 +128,11 @@ export function DialogoAvanco({ aoFechar, aoAbrirEscalacao }: Props) {
         if (r.partidas?.length) setPartidas((p) => [...p, ...r.partidas!].slice(-5))
         if (r.opcoes) setOpcoes(r.opcoes)
         if (r.pendencia) pendencia.current = r.pendencia
+        if (r.plantao?.length) plantao.current = [...plantao.current, ...r.plantao]
+        if (r.plantao?.some((ev) => ev.meu)) {
+          fim = 'plantao no seu clube'
+          break
+        }
         if (r.parar) {
           fim = r.parar
           break
@@ -140,11 +147,11 @@ export function DialogoAvanco({ aoFechar, aoAbrirEscalacao }: Props) {
     } finally {
       setRodando(false)
       setMotivo(fim || null)
-      if (pendencia.current) aoFechar(true, pendencia.current)
+      if (pendencia.current) aoFechar(true, pendencia.current, plantao.current)
     }
   }
 
-  const fechar = () => !rodando && aoFechar(houve.current, pendencia.current)
+  const fechar = () => !rodando && aoFechar(houve.current, pendencia.current, plantao.current)
 
   return (
     <div

@@ -301,6 +301,36 @@ quando você está indo bem.
   seleção do campeonato (4-3-3). Contam jogos de todas as competições. O prêmio fica na
   ficha do jogador e valoriza o passe até a virada seguinte.
 
+## Capitão
+
+Todo clube tem um capitão, marcado com um **C** dourado no Elenco e na ficha. Sem escolha
+sua, a braçadeira fica com o mais experiente entre os melhores; para trocar, abra a ficha
+e use **Tornar capitão** (o novo ganha moral, o antigo perde um pouco). Na derrota, o
+capitão em campo segura um ponto da queda de moral de quem jogou com ele.
+
+## Modo Caos
+
+Escolhido ao criar a carreira, ao lado do Clássico. Toda semana de liga pode estourar um
+**plantão** no futebol brasileiro, e o boletim "AO VIVO" abre depois do avanço (no
+Simular, o pulo para se o plantão for no seu clube). Tudo também vai para Notícias, com o
+rótulo Plantão. Alguns exemplos, do sério ao absurdo:
+
+- **Tragédia aérea**: o avião do líder de uma série cai na reta final; o clube recomeça
+  com a base e reforços de emergência (uma vez por carreira, nunca com o seu clube).
+- **Doping**: um time do meio da tabela vira outro da noite para o dia. Temporadas depois,
+  os exames guardados confirmam: título cassado, 15 pontos a menos, multa e reputação.
+- **Dinheiro sujo**: um fundo misterioso injeta milhões; um a três anos depois vem o fair
+  play financeiro, com 12 pontos a menos e multa.
+- **Capitão preso**, **presidente foge com o caixa**, **gato** (a promessa tinha 12 anos a
+  mais), **esquema de apostas**, **greve por salário atrasado**, **racha no vestiário**,
+  **patrocinador que quebra**, **filho do presidente contratado**.
+- **Xeique compra clube da Série D**, **herança de torcedor**, **joia de 15 anos**, **a
+  lenda de 41 anos que volta**, **benzedeira**, **goleiro que vira centroavante**,
+  **meteorito no gramado**, **OVNI parando o jogo**.
+
+O dinheiro que esses eventos movem aparece no extrato como "Imprevistos (modo caos)". No
+modo Clássico nada disso acontece.
+
 ## O clube e o fim do ano
 
 - **Tela Clube.** No menu, entre Notícias e Carreira: fundação, cidade, apelido, estádio,

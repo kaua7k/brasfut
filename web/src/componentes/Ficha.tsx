@@ -33,7 +33,10 @@ export function Ficha({ ficha, aoFechar, acoes }: Props) {
         <div className="ficha-topo">
           <div className="ficha-ovr">{ficha.ovr}</div>
           <div className="encolhe">
-            <h2>{ficha.nome}</h2>
+            <h2>
+              {ficha.nome}
+              {ficha.capitao && <span className="selo-capitao" title="Capitao">C</span>}
+            </h2>
             <div className="sub txt-fraco txt-p">
               {ficha.posicao_nome}, {ficha.idade} anos · {ficha.clube} · joga {ficha.papel}
             </div>

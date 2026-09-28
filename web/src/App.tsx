@@ -32,6 +32,7 @@ import { Mercado, type AcaoMercado } from './telas/Mercado'
 import { Noticias } from './telas/Noticias'
 import { Carreira } from './telas/Carreira'
 import { Clube } from './telas/Clube'
+import { Plantao } from './componentes/Plantao'
 import { Painel } from './telas/Painel'
 import { Treino, type AcaoTreino } from './telas/Treino'
 import type {
@@ -43,6 +44,7 @@ import type {
   Config,
   OpcoesCarreira,
   SlotSave,
+  EventoCaos,
   Confirmar,
   DadosPainel,
   FichaJogador,
@@ -97,6 +99,7 @@ export function App() {
   const [clubes, setClubes] = useState<ClubeOpcao[]>([])
   const [versao, setVersao] = useState('')
   const [slots, setSlots] = useState<SlotSave[]>([])
+  const [plantao, setPlantao] = useState<EventoCaos[]>([])
   const [config, setConfig] = useState<Config | null>(null)
 
   // escala e animacoes valem para o jogo inteiro, nao so para o menu
@@ -352,6 +355,7 @@ export function App() {
           return
         }
         setPergunta(null)
+        if (r.plantao?.length) setPlantao(r.plantao)
         if (r.painel) setConteudo({ tipo: 'painel', dados: r.painel })
         if (r.resumo) setResumo(r.resumo)
         if (r.pendencia) setPendencia(r.pendencia)
@@ -606,6 +610,14 @@ export function App() {
       setFicha((await api.ficha(id)).ficha)
     })
 
+  const tornarCapitao = (id: number) =>
+    comErro(async () => {
+      const r = await api.capitao(id)
+      setFicha(r.ficha)
+      setRecado(r.recado)
+      if (conteudo?.tipo === 'elenco') irPara('elenco')
+    })
+
   // --------------------------------------------------------------------- telas
   if (situacao === null) {
     return <div className="centro-tela"><span className="carregando">abrindo o jogo…</span></div>
@@ -791,7 +803,9 @@ export function App() {
           aoFechar={() => setFicha(null)}
           acoes={
             conteudo.tipo !== 'mercado' || conteudo.dados.aba === 'vitrine'
-              ? undefined
+              ? ficha.pode_capitao
+                ? [{ rotulo: 'Tornar capitao', aoClicar: () => tornarCapitao(ficha.id) }]
+                : undefined
               : conteudo.dados.aba === 'emprestimo'
                 ? [{ rotulo: 'Pegar emprestado', principal: true,
                      aoClicar: () => { setFicha(null); setMesa({ tipo: 'emprestimo', id: ficha.id }) } }]
@@ -814,9 +828,10 @@ export function App() {
             setSimulando(false)
             irPara('escalacao')
           }}
-          aoFechar={(houve, p) => {
+          aoFechar={(houve, p, eventos) => {
             setSimulando(false)
             if (p) setPendencia(p)
+            if (eventos?.length) setPlantao(eventos)
             // o mundo andou: a tela de tras (e o topo) se refazem
             if (houve && conteudo) {
               if (conteudo.tipo === 'mercado') recarregarAtual()
@@ -924,6 +939,8 @@ export function App() {
           aoFechar={() => setResumo(null)}
         />
       )}
+
+      {plantao.length > 0 && !resumo && <Plantao eventos={plantao} aoFechar={() => setPlantao([])} />}
 
       {boasVindas && (
         <BoasVindas

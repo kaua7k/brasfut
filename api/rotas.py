@@ -115,6 +115,19 @@ def novo(corpo):
         return {"jogo": "escolher_clube", "clubes": clubes}
 
 
+@rota("POST", "/api/capitao")
+def definir_capitao(corpo):
+    pid = (corpo or {}).get("id")
+    if not isinstance(pid, int):
+        raise ErroDeUso("falta o id do jogador")
+    with SESSAO.cadeado:
+        G = SESSAO.exigir()
+        ok, recado = eng.definir_capitao(G, pid)
+        if not ok:
+            raise ErroDeUso(recado)
+        return {"recado": recado, "ficha": dto.ficha(pid)}
+
+
 @rota("POST", "/api/slot/apagar")
 def apagar_slot(corpo):
     with SESSAO.cadeado:
@@ -233,6 +246,8 @@ def avancar(corpo):
             fora["painel"] = dto.painel()
         fora["cabecalho"] = dto.cabecalho(G)
         fora["pendencia"] = SESSAO.pendencia
+        # modo caos: os plantoes desta semana, para a tela abrir o boletim
+        fora["plantao"] = list((G.get("caos") or {}).get("plantao") or []) if eng.modo_caos(G) else []
         return fora
 
 
