@@ -28,6 +28,10 @@ começar. Decisões já tomadas continuam em `docs/three-amigos/`; o mapa do có
 
 ## 4. Pontos para acompanhar numa carreira longa
 
+- **Economia de 2026-09-28** (salário achatado acima de 75, marca no patrocínio brasileiro,
+  operacional 40%): em 8 temporadas a Série A dobra o caixa mediano e a Europa fica perto do
+  de antes. Ver se o clube do jogador não fica rico demais cedo e se a IA brasileira não
+  passa a pagar mais que a europeia.
 - **Mundo mais rico depois do patrocínio novo** (PR #13): em 12 temporadas ninguém quebra, mas os caixas sobem e depois descem devagar pela folha. Ver se a IA não passa a comprar demais.
 - **Tempo da semana**: ~0,48 s de média na semana de liga (limite 0,6 s); o pior caso já passou de 0,6 s uma vez. Qualquer competição nova precisa medir.
 - **Save antigo**: cada onda adicionou migração em `migrar`; carreira nova é sempre a referência dos testes.

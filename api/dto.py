@@ -1010,7 +1010,10 @@ def financas():
     rec = eng.receita_semanal(G, c)
     folha = eng.folha_semanal(G, c)
     est = eng.custo_estrutura(c)
-    saldo = rec - folha - est
+    # bilheteria entra pela media (dois jogos em casa por mes): sem ela o saldo
+    # da semana ficava vermelho para quase todo clube grande
+    bilh = eng.bilheteria_mensal_estimada(c) // 4
+    saldo = rec + bilh - folha - est
 
     maiores = []
     for j in sorted([G["jogadores"][p] for p in c["elenco"]], key=lambda x: -x["salario"])[:6]:
@@ -1028,9 +1031,10 @@ def financas():
         "linhas": [
             {"nome": "Cotas de TV", "valor": eng.din(eng.tv_semanal(c)), "estado": ""},
             {"nome": "Patrocinio", "valor": eng.din(rec - eng.tv_semanal(c)), "estado": ""},
+            {"nome": "Bilheteria (media por semana)", "valor": eng.din(bilh), "estado": ""},
             {"nome": "Folha salarial", "valor": eng.din(-folha), "estado": "critico"},
             {"nome": "Estrutura e operacao", "valor": eng.din(-est), "estado": "critico"},
-            {"nome": "Saldo fixo da semana", "valor": eng.din(saldo),
+            {"nome": "Saldo medio da semana", "valor": eng.din(saldo),
              "estado": "ok" if saldo >= 0 else "critico", "destaque": True},
         ],
         "premiacao": _premiacao_em_jogo(G, c),

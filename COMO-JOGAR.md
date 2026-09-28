@@ -168,6 +168,21 @@ da Série D vive no limite, levemente no vermelho. Quem gasta em salário além 
 fecha o ano no prejuízo. A venda de jogadores continua sendo o melhor dinheiro que um
 clube brasileiro faz.
 
+**Salário de estrela (2026-09-28).** Até 75 de overall o salário segue o mercado; acima
+disso cresce bem mais devagar: um 80 custa uns R$ 375 mil por mês, um 85 uns R$ 520 mil e
+um 90 uns R$ 720 mil (antes eram R$ 570 mil, R$ 1,2 mi e R$ 2,5 mi). O valor do passe não
+mudou. Nenhum clube da máquina aceita um contrato que passe de 25% da receita do mês, então
+craque continua sem cair na Série D. Na tela Finanças, o saldo da semana agora inclui a
+média de bilheteria (dois jogos em casa por mês), e o custo operacional dos clubes
+brasileiros caiu de 60% para 40% da receita-base. Nas ligas de fora, a receita encolheu na
+mesma proporção da folha de cada uma (Premier League e LaLiga 30%), para a Europa não
+acumular caixa sem fim. Medido em 8 temporadas: o caixa mediano da Série A dobrou (de
+R$ 57 mi para R$ 115 mi), o da B também, e o da Premier League ficou perto do de antes.
+
+**Save antigo.** Ao carregar um save de antes dessa mudança, uma vez só: o salário de quem
+passa de 75 cai na mesma proporção da curva nova, e contrato de patrocínio abaixo do valor
+novo sobe para o da proposta equilibrada de hoje.
+
 **Público e momento.** A lotação acompanha a fase do time: os pontos nos últimos 5 jogos de
 liga e a posição na tabela mexem no público de 20% a menos até 20% a mais. No começo do
 ano o efeito é neutro. A tela do Estádio mostra o momento atual.
@@ -192,7 +207,8 @@ pré-temporada traz três propostas, e o Painel avisa:
 - **Aposta** — o menor fixo, três temporadas, e um bônus grande se for campeão da liga
   (nas Séries B a D, se subir de divisão).
 
-A campanha do ano anterior pesa, e muito: objetivo cumprido vale 12% a mais nas propostas;
+A marca do clube pesa: no futebol brasileiro, cada espaço vale mais quanto maior a
+reputação (reputação 40 paga 15% a mais que a tabela; 70, uns 53%; o Flamengo, uns 84%). A campanha do ano anterior pesa, e muito: objetivo cumprido vale 12% a mais nas propostas;
 um título, 35%; dois títulos, 50%; três ou mais, 70%. Ano ruim tira 8%. Se você não escolher, a equilibrada é assinada quando a bola rolar. Em
 Finanças, a TV e o patrocínio aparecem separados, e cada contrato mostra quanto rende no
 ano.

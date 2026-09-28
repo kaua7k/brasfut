@@ -91,9 +91,11 @@ class TestPatrocinio(unittest.TestCase):
         self.assertNotIn("patrocinios", antigo)
         self.assertEqual(eng.espacos_vagos(G, novo), [])
         self.assertEqual(novo["patrocinios"]["master"]["perfil"], "herdado")
-        # a maquina recebe a TV e a soma das fatias de patrocinio dos espacos dela
-        esperado = eng.tv_semanal(antigo) + sum(int(eng._receita_base(antigo) * eng.FATIA_PATROCINIO[e])
-                                                 for e in eng.espacos_do_clube(antigo))
+        # a maquina recebe a TV e a soma das fatias de patrocinio dos espacos
+        # dela, com o peso da marca (reputacao)
+        esperado = eng.tv_semanal(antigo) + sum(
+            int(eng._receita_base(antigo) * eng.FATIA_PATROCINIO[e] * eng.fator_marca(antigo))
+            for e in eng.espacos_do_clube(antigo))
         self.assertAlmostEqual(eng.receita_semanal(G, antigo), esperado, delta=esperado * 0.01)
 
     def test_save_antigo_ganha_contratos_herdados(self):
