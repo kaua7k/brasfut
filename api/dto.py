@@ -1615,25 +1615,45 @@ def previa_esquema(cont):
 
 
 # ------------------------------------------------------------ resumo do ano
-def resumo(r, previa=False):
-    """O fim do ano em campos, do jeito que a janela tkinter mostrava.
+def _campanhas_do_resumo(r):
+    """Os campeonatos do ano no resumo. Resumo gravado antes das campanhas (save
+    antigo) so tem a liga e as copas que o clube ganhou."""
+    if r.get("campanhas"):
+        return r["campanhas"]
+    pos = r.get("posicao") or 0
+    fora = [{"nome": eng.liga_do_resumo(r), "tipo": "liga",
+             "resultado": "Campeao" if pos == 1 else "%do de %d" % (pos, r.get("total") or 0),
+             "estado": "titulo" if pos == 1 else "neutro"}]
+    fora += [{"nome": t, "tipo": "copa", "resultado": "Campeao", "estado": "titulo"}
+             for t in r.get("titulos", []) if t != fora[0]["nome"]]
+    return fora
 
-    previa=True e o resumo antes da virada (apurar_temporada): posicao,
-    campanha, titulos e dinheiro ja estao fechados; diretoria, acesso, base e
-    contratos so se decidem quando o ano vira, e a tela diz isso.
+
+def resumo(r, previa=False):
+    """O fim do ano: o que o clube ganhou em destaque, os campeonatos que ele
+    jogou com o resultado de cada um, e o essencial de elenco e dinheiro.
+
+    Antes a tela listava o campeao das ~30 copas do mundo e deixava o estadual
+    fora dos titulos. previa=True e o resumo antes da virada: acesso,
+    diretoria, base e contratos so se decidem quando o ano vira.
     """
     cam, fin = r["campanha"], r["financas"]
     saldo = fin["caixa_fim"] - fin["caixa_ini"]
+    campanhas = _campanhas_do_resumo(r)
+
+    # conquistas: titulos (liga, estadual, copas, supercopas) e o acesso
+    conquistas = [{"nome": t, "tipo": "titulo"} for t in r.get("titulos", [])]
+    mov = r.get("movimento")
+    if mov and mov[0] == "acesso":
+        conquistas.append({"nome": "Acesso a Serie %s" % mov[2], "tipo": "acesso"})
+    elif not mov and previa and any(c["tipo"] == "liga" and (c.get("acesso") or "acesso" in c["resultado"])
+                                        for c in campanhas):
+        conquistas.append({"nome": "Acesso (confirmado na virada)", "tipo": "acesso"})
+
     vereditos = []
-    if r["titulos"]:
-        vereditos.append({"texto": "CAMPEAO: " + ", ".join(r["titulos"]), "estado": "ok"})
-    if r.get("movimento"):
-        tipo, de, para = r["movimento"]
-        vereditos.append(
-            {"texto": "ACESSO: o clube sobe da Serie %s para a Serie %s" % (de, para), "estado": "ok"}
-            if tipo == "acesso" else
-            {"texto": "REBAIXAMENTO: o clube cai da Serie %s para a Serie %s" % (de, para),
-             "estado": "critico"})
+    if mov and mov[0] != "acesso":
+        vereditos.append({"texto": "Rebaixado: da Serie %s para a Serie %s" % (mov[1], mov[2]),
+                          "estado": "critico"})
     vereditos.append({"texto": "Objetivo cumprido" if r["objetivo_ok"] else "Objetivo nao cumprido",
                       "estado": "ok" if r["objetivo_ok"] else "atencao"})
     if not previa and r.get("diretoria"):
@@ -1650,8 +1670,6 @@ def resumo(r, previa=False):
     def item(texto, estado="neutro"):
         return {"texto": texto, "estado": estado}
 
-    secao("Como terminou", [item("Campeao da %s: %s" % (eng.liga_do_resumo(r), r["campeao"]), "ok")]
-          + [item("%s: %s" % (nome, dono)) for nome, dono in r["copas"]])
     destaques = []
     if r["artilheiro"]:
         nome, g, jj = r["artilheiro"]
@@ -1660,96 +1678,78 @@ def resumo(r, previa=False):
     if r["garcom"]:
         nome, a, jj = r["garcom"]
         destaques.append(item("Mais assistencias: %s, %d em %s" % (nome, a, eng.plural(jj, "jogo")), "ok"))
-    for nome, pos, j, g, a in r.get("destaques", []):
-        destaques.append(item("%s (%s): %d jogos, %d gols, %d assistencias" % (nome, pos, j, g, a)))
-    secao("Seus destaques", destaques or [item("Ninguem marcou nesta temporada.")])
+    for nome, d, o in (r.get("evolucao") or [])[:3]:
+        destaques.append(item("%s cresceu %+d e chegou a %d de overall" % (nome, d, o)))
+    secao("Destaques do elenco", destaques)
+
     pr = r.get("premios_ano")
     if pr:
-        # os premios da liga do clube; na previa ja estao decididos, so nao
-        # foram entregues (historico e valor mudam na virada)
         meu = r.get("clube")
-
-        def estado(g):
-            return "ok" if g["clube"] == meu else "neutro"
-
         linhas = []
         for chave, rotulo in (("melhor", "Melhor jogador"), ("artilheiro", "Artilheiro"),
-                              ("revelacao", "Revelacao (ate 21 anos)")):
+                              ("revelacao", "Revelacao")):
             g = pr.get(chave)
-            if not g:
-                continue
-            numero = (eng.plural(g["gols"], "gol") if chave == "artilheiro"
-                      else "media %.2f" % g["media"])
-            linhas.append(item("%s: %s (%s, %s), %s em %s" % (
-                rotulo, g["nome"], g["pos"], g["clube"], numero, eng.plural(g["jogos"], "jogo")), estado(g)))
-        if pr.get("selecao"):
-            linhas.append(item("Selecao do campeonato: " + ", ".join(
-                "%s %s (%s)" % (g["pos"], g["nome"], g["clube"]) for g in pr["selecao"])))
-            nossos = [g["nome"] for g in pr["selecao"] if g["clube"] == meu]
-            if nossos:
-                linhas.append(item("Seus na selecao: " + ", ".join(nossos), "ok"))
-        linhas.append(item("Contam jogos de todas as competicoes; media de nota exige %s."
-                           % eng.plural(pr.get("minimo", 0), "jogo com nota")))
+            if g:
+                numero = eng.plural(g["gols"], "gol") if chave == "artilheiro" else "media %.2f" % g["media"]
+                linhas.append(item("%s: %s (%s), %s" % (rotulo, g["nome"], g["clube"], numero),
+                                   "ok" if g["clube"] == meu else "neutro"))
+        nossos = [g["nome"] for g in pr.get("selecao", []) if g["clube"] == meu]
+        if nossos:
+            linhas.append(item("Na selecao do campeonato: " + ", ".join(nossos), "ok"))
         secao("Premios da %s" % pr["liga"], linhas)
-    if "extrato" in r:
-        # o extrato do ano: uma linha por categoria, e a soma fecha com o caixa
-        resultado = fin["caixa_fim"] - fin["caixa_ini"]
-        linhas = [item("Caixa: %s no comeco, %s no fim (%s%s no ano)" % (
-            eng.din(fin["caixa_ini"]), eng.din(fin["caixa_fim"]),
-            "+" if resultado >= 0 else "-", eng.din(abs(resultado))),
-            "ok" if resultado >= 0 else "critico")]
-        for chave, rotulo in eng.EXTRATO:
-            v = int(r["extrato"].get(chave, 0))
-            if v:
-                linhas.append(item("%s: %s" % (rotulo, eng.din(v)), "ok" if v > 0 else "critico"))
-        antes = resultado - sum(int(v) for v in r["extrato"].values())
-        if antes:
-            linhas.append(item("Antes do extrato (save de versao anterior): %s" % eng.din(antes)))
-        if previa:
-            linhas.append(item("A premiacao da liga entra quando o ano virar."))
-        secao("Dinheiro no ano", linhas)
-    else:
-        # resumo de save antigo, sem extrato: a bilheteria ja esta dentro da receita
-        secao("Dinheiro no ano", [
-            item("Caixa: %s no comeco, %s no fim" % (eng.din(fin["caixa_ini"]), eng.din(fin["caixa_fim"]))),
-            item("Entrou: %s de receita (dos quais %s de bilheteria)%s" % (
-                eng.din(fin["receita"]), eng.din(fin["renda_jogos"]),
-                "" if previa else ", mais %s de premiacao" % eng.din(fin["premios"]))),
-            item("Saiu: %s entre folha, estrutura e treino" % eng.din(fin["gasto"])),
-            item("Vendas: %s em %s · Compras: %s em %s" % (
-                eng.din(fin["vendido"]), eng.plural(len(r["vendas"]), "negocio"),
-                eng.din(fin["comprado"]), eng.plural(len(r["compras"]), "negocio"))),
-        ])
-    secao("Mercado", [item("vendeu %s ao %s por %s" % (n, cl, eng.din(v)), "ok") for n, cl, v in r["vendas"]]
-          + [item("comprou %s do %s por %s" % (n, cl, eng.din(v)), "atencao") for n, cl, v in r["compras"]])
-    secao("Quem cresceu", [item("%s: +%d de overall, chegou a %d" % (n, d, o), "ok")
-                           for n, d, o in r["evolucao"]]
-          or [item("Ninguem evoluiu de forma relevante. Olhe o regime de treino.")])
+
+    # dinheiro em tres linhas: o resultado, o que mais entrou e o que mais saiu
+    ex = r.get("extrato") or {}
+    dinheiro = [item("Caixa: %s no comeco, %s no fim (%s%s no ano)" % (
+        eng.din(fin["caixa_ini"]), eng.din(fin["caixa_fim"]), "+" if saldo >= 0 else "-", eng.din(abs(saldo))),
+        "ok" if saldo >= 0 else "critico")]
+    rotulos = dict(eng.EXTRATO)
+    entradas = sorted(((v, k) for k, v in ex.items() if v > 0), reverse=True)[:3]
+    saidas = sorted((v, k) for k, v in ex.items() if v < 0)[:3]
+    if entradas:
+        dinheiro.append(item("Mais entrou: " + ", ".join("%s %s" % (rotulos.get(k, k), eng.din(v))
+                                                        for v, k in entradas), "ok"))
+    if saidas:
+        dinheiro.append(item("Mais saiu: " + ", ".join("%s %s" % (rotulos.get(k, k), eng.din(-v))
+                                                      for v, k in saidas), "critico"))
+    if previa:
+        dinheiro.append(item("A premiacao da liga entra quando o ano virar."))
+    elif ex.get("premio_liga", 0) > 0 and "premio_liga" not in [k for _, k in entradas]:
+        dinheiro.append(item("%s: %s" % (rotulos.get("premio_liga", "Premiacao da liga"),
+                                         eng.din(ex["premio_liga"])), "ok"))
+    secao("Dinheiro no ano", dinheiro)
+
+    negocios = ([item("Vendeu %s ao %s por %s" % (n, cl, eng.din(v)), "ok") for n, cl, v in r["vendas"][:3]]
+                + [item("Comprou %s do %s por %s" % (n, cl, eng.din(v))) for n, cl, v in r["compras"][:3]])
+    extra = len(r["vendas"]) + len(r["compras"]) - len(negocios)
+    if extra > 0:
+        negocios.append(item("e mais %s" % eng.plural(extra, "negocio")))
+    secao("Mercado", negocios)
+
     if not previa:
-        secao("Teto revisado", [item("%s: %+d, agora %d" % (n, d, p), "ok" if d > 0 else "critico")
-                                for n, d, p in r["tetos"]])
-        secao("Base", [item("safra nova: %s (%s, %d anos, overall %d)" % tuple(x), "ok") for x in r["safra"]]
-              + [item("%s completou a idade e subiu ao profissional" % n, "ok") for n in r["base_subiu"]]
-              + [item("%s passou da idade sem nivel e foi liberado" % n, "atencao") for n in r["base_saiu"]]
-              or [item("A academia nao formou ninguem: suba o nivel da base na Infraestrutura.")])
+        # so o que pede acao ou muda o elenco de verdade
         mexidas = []
-        if r["voltando"]:
-            mexidas.append(item("voltam do emprestimo: " + ", ".join(r["voltando"])))
-        if r["saindo"]:
-            mexidas.append(item("fim do emprestimo, voltam aos donos: " + ", ".join(r["saindo"]), "atencao"))
-        if r["aposentados"]:
-            mexidas.append(item("pararam de jogar: " + ", ".join(r["aposentados"]), "atencao"))
         if r["fim_contrato"]:
-            mexidas.append(item("CONTRATO VENCIDO, saem de graca se voce nao renovar na pre-temporada: "
+            mexidas.append(item("Contrato vencido, saem de graca se voce nao renovar: "
                                 + ", ".join(r["fim_contrato"]), "critico"))
-        secao("Mexidas no elenco", mexidas)
+        if r["base_subiu"]:
+            mexidas.append(item("Subiram da base: " + ", ".join(r["base_subiu"]), "ok"))
+        if r["aposentados"]:
+            mexidas.append(item("Pararam de jogar: " + ", ".join(r["aposentados"])))
+        if r["saindo"]:
+            mexidas.append(item("Voltam aos donos (fim de emprestimo): " + ", ".join(r["saindo"])))
+        secao("Elenco para o ano que vem", mexidas)
 
     return {
         "previa": previa,
         "temporada": r["temporada"],
-        "titulo": "Temporada %d encerrada" % r["temporada"],
+        "titulo": "Temporada %d" % r["temporada"],
         "subtitulo": "%s · %s · %do lugar de %d · meta era top %d" % (
             r["clube"], eng.liga_do_resumo(r), r["posicao"], r["total"], r["alvo"]),
+        "conquistas": conquistas,
+        "campanhas": [{"nome": c["nome"], "resultado": c["resultado"],
+                       "estado": "ok" if c["estado"] == "titulo" else c["estado"],
+                       "titulo": c["estado"] == "titulo"} for c in campanhas],
         "vereditos": vereditos,
         "tiles": [
             {"nome": "Posicao", "valor": "%do" % r["posicao"],
@@ -1757,15 +1757,12 @@ def resumo(r, previa=False):
              "estado": "ok" if r["objetivo_ok"] else "atencao"},
             {"nome": "Campanha", "valor": "%d pts" % cam["p"],
              "sub": "%dV %dE %dD em %d jogos" % (cam["v"], cam["e"], cam["d"], cam["j"]), "estado": "neutro"},
-            {"nome": "Titulos", "valor": str(len(r["titulos"])),
-             "sub": ", ".join(r["titulos"]) if r["titulos"] else "nenhum nesta temporada",
-             "estado": "ok" if r["titulos"] else "neutro"},
             {"nome": "Caixa no ano", "valor": ("+" if saldo >= 0 else "") + eng.din(saldo),
              "sub": "%s no fim" % eng.din(fin["caixa_fim"]), "estado": "ok" if saldo >= 0 else "critico"},
         ],
         "secoes": secoes,
-        "nota": ("Diretoria, acesso e rebaixamento, fim de contratos, base e premiacao se "
-                 "decidem na virada: clique em Comecar o ano %d." % (r["temporada"] + 1)) if previa else
+        "nota": ("Acesso, diretoria, fim de contratos, base e premiacao se decidem na virada: "
+                 "clique em Comecar o ano %d." % (r["temporada"] + 1)) if previa else
                 "O mercado ja esta aberto e o estadual so comeca quando voce mandar.",
     }
 

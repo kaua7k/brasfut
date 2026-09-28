@@ -304,6 +304,10 @@ export interface ResumoTemporada {
   temporada: number
   titulo: string
   subtitulo: string
+  /** o que foi ganho no ano: titulos e acesso, em destaque no topo */
+  conquistas: { nome: string; tipo: 'titulo' | 'acesso' }[]
+  /** so os campeonatos que o clube jogou, com onde parou em cada um */
+  campanhas: { nome: string; resultado: string; estado: Estado; titulo: boolean }[]
   vereditos: { texto: string; estado: Estado }[]
   tiles: { nome: string; valor: string; sub: string; estado: Estado }[]
   secoes: { titulo: string; itens: { texto: string; estado: Estado }[] }[]

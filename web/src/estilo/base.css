@@ -71,6 +71,8 @@
      reputacao, overall da ficha). Nunca botao, nunca aviso. */
   --conquista: #e8b649;
   --conquista-txt: #161616;
+  --conquista-fundo: rgba(232, 182, 73, 0.1);
+  --conquista-borda: #5a4a22;
 
   /* estado: verde bom, ambar atencao (so atencao), vermelho critico */
   --ok: #4ade80;
@@ -1544,6 +1546,20 @@ button.jogador:hover .disco, button.jogador:focus-visible .disco { transform: sc
 .resumo-tile { background: var(--painel-alto); border: 1px solid var(--borda-forte); border-radius: var(--raio-m); padding: 10px 12px; }
 .resumo-valor { font-family: var(--titulo); font-size: var(--fs-gg); font-weight: 700; margin-top: 2px; }
 .resumo-sub { font-size: var(--fs-p); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.resumo-conquistas { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; margin: 14px 0 4px; }
+.resumo-conquista { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--conquista-borda); background: var(--conquista-fundo); border-radius: var(--raio-m); }
+.resumo-conquista .icone { font-size: var(--fs-gg); line-height: 1; }
+.resumo-conquista .nome { font-family: var(--titulo); font-weight: 700; font-size: var(--fs-base); color: var(--conquista); }
+.resumo-conquista .tipo { font-size: var(--fs-mini); text-transform: uppercase; letter-spacing: 0.06em; color: var(--txt-3); }
+.resumo-conquista.acesso { border-color: var(--ok-fundo); background: var(--ok-brilho); }
+.resumo-conquista.acesso .nome { color: var(--ok); }
+.resumo-sem-titulo { margin: 14px 0 4px; font-size: var(--fs-m); color: var(--fraco); }
+.resumo-campanhas { margin: 10px 0 12px; }
+.resumo-campanhas table { width: 100%; border-collapse: collapse; font-size: var(--fs-m); margin-top: 6px; }
+.resumo-campanhas td { padding: 6px 8px; border-top: 1px solid var(--divisor); }
+.resumo-campanhas td:last-child { text-align: right; font-weight: 700; }
+.resumo-campanhas tr.titulo td { color: var(--conquista); }
+.resumo-campanhas tr.titulo td:first-child { font-weight: 700; }
 .resumo-secoes { margin-top: 12px; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px 20px; }
 .resumo-secoes ul { list-style: none; padding: 0; margin: 6px 0 0; font-size: var(--fs-p); line-height: 1.55; }
 .clube-oferta { flex-direction: column; align-items: flex-start; gap: 4px; }
