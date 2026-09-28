@@ -23,7 +23,7 @@ começar. Decisões já tomadas continuam em `docs/three-amigos/`; o mapa do có
 
 - **Partida lance a lance na web** — só existe na janela tkinter (`ARQUITETURA-WEB.md`, pontas soltas).
 - **Testes do React** — hoje só a API tem teste; o CI já roda `npm run build`, falta ao menos um teste de fumaça das telas.
-- **Onda 3 sem spike** (`docs/three-amigos/2026-09-24-rodada-de-melhorias.md`, item 18): mercado disputado e pré-contrato, olheiros e lista de observação, Copinha e convocações, história do clube. Economia com escolhas já andou (crédito e sete espaços de patrocínio); falta sócio-torcedor e bicho por vitória.
+- **Onda 3 sem spike** (`docs/three-amigos/2026-09-24-rodada-de-melhorias.md`, item 18): mercado disputado e pré-contrato, olheiros e lista de observação, Copinha e convocações. História do clube já saiu (tela Clube); falta conferir os números de `dados_clubes.py`. Economia com escolhas já andou (crédito e sete espaços de patrocínio); falta sócio-torcedor e bicho por vitória.
 - **Atalho de patrocínio** — com sete espaços, a Finanças ficou longa: um botão "assinar as equilibradas de todos os espaços" resolve.
 
 ## 4. Pontos para acompanhar numa carreira longa

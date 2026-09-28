@@ -4,6 +4,7 @@
 // editavel a mao), e o do jogo, que o motor grava com a temporada em cada
 // titulo. O seletor do topo abre qualquer clube brasileiro, nao so o meu.
 
+import { seloOvr, seloPos } from '../componentes/Celulas'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
 import type { TelaClube } from '../tipos'
 
@@ -54,10 +55,10 @@ export function Clube({ tela, aoAbrirFicha, aoTrocar }: Props) {
             {tela.destaques.map((j) => (
               <li key={j.id}>
                 <button type="button" className="bt-link" onClick={() => aoAbrirFicha(j.id)}>
-                  <span className="clube-pos">{j.pos}</span>
+                  {seloPos(j.pos)}
                   <span className="clube-jogador">{j.nome}</span>
                   <span className="tag-fraco">{j.idade} anos</span>
-                  <span className="clube-ovr">{j.ovr}</span>
+                  <span className="clube-ovr">{seloOvr(j.ovr)}</span>
                 </button>
               </li>
             ))}

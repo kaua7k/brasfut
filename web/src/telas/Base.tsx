@@ -5,6 +5,7 @@
 
 import { porque, AGUARDE, MARQUE } from '../motivo'
 import { useEffect, useState } from 'react'
+import { seloOvr, seloPos } from '../componentes/Celulas'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
 import { alternarMarca, Grade, type Coluna } from '../componentes/Grade'
 import { plural } from '../formato'
@@ -26,7 +27,7 @@ interface Props {
 type Aba = 'garotos' | 'peneira' | 'revelados'
 
 const COLUNAS: Coluna<Garoto>[] = [
-  { chave: 'pos', rotulo: 'Pos', largura: '46px', classe: 'centro', render: (j) => j.pos },
+  { chave: 'pos', rotulo: 'Pos', largura: '46px', classe: 'centro', render: (j) => seloPos(j.pos) },
   {
     chave: 'nome',
     rotulo: 'Jogador',
@@ -35,7 +36,7 @@ const COLUNAS: Coluna<Garoto>[] = [
     render: (j) => <span className={`tag-${j.tag}`}>{j.nome}</span>,
   },
   { chave: 'idade', rotulo: 'Idade', largura: '52px', classe: 'num', render: (j) => j.idade },
-  { chave: 'ovr', rotulo: 'Ovr', largura: '44px', classe: 'num', render: (j) => j.ovr },
+  { chave: 'ovr', rotulo: 'Ovr', largura: '44px', classe: 'num', render: (j) => seloOvr(j.ovr) },
   {
     chave: 'teto',
     rotulo: 'Teto',

@@ -6,6 +6,7 @@
 
 import { porque, AGUARDE, MARQUE } from '../motivo'
 import { useEffect, useMemo, useState } from 'react'
+import { barraFisico, seloOvr, seloPos } from '../componentes/Celulas'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
 import { alternarMarca, Grade, type Coluna } from '../componentes/Grade'
 import { dinheiro, plural } from '../formato'
@@ -22,7 +23,7 @@ interface Props {
 }
 
 const COLUNAS: Coluna<JogadorElenco>[] = [
-  { chave: 'pos', rotulo: 'Pos', largura: '46px', classe: 'centro', render: (j) => j.pos },
+  { chave: 'pos', rotulo: 'Pos', largura: '46px', classe: 'centro', render: (j) => seloPos(j.pos) },
   {
     chave: 'nome',
     rotulo: 'Jogador',
@@ -31,17 +32,13 @@ const COLUNAS: Coluna<JogadorElenco>[] = [
     render: (j) => <span className={`tag-${j.tag}`}>{j.nome}</span>,
   },
   { chave: 'idade', rotulo: 'Idade', largura: '52px', classe: 'num', render: (j) => j.idade },
-  { chave: 'ovr', rotulo: 'Ovr', largura: '44px', classe: 'num', render: (j) => j.ovr },
+  { chave: 'ovr', rotulo: 'Ovr', largura: '44px', classe: 'num', render: (j) => seloOvr(j.ovr) },
   {
     chave: 'fis',
     rotulo: 'Fisico',
-    largura: '52px',
+    largura: '72px',
     classe: 'num',
-    render: (j) => (
-      <span className={j.cond < 45 ? 'linha-critica' : j.cond < 65 ? 'tag-fraco' : undefined}>
-        {j.cond}
-      </span>
-    ),
+    render: (j) => barraFisico(j.cond),
   },
   { chave: 'sal', rotulo: 'Salario', largura: '92px', classe: 'num', render: (j) => j.salario, ordem: (j) => j.salario_num },
   { chave: 'val', rotulo: 'Valor', largura: '92px', classe: 'num', render: (j) => j.valor, ordem: (j) => j.valor_num },
@@ -74,8 +71,8 @@ const COLUNAS_CEDIDOS: Coluna<Cedido>[] = [
     classe: 'corta',
     render: (j) => <span className={`tag-${j.tag}`}>{j.nome}</span>,
   },
-  { chave: 'pos', rotulo: 'Pos', largura: '46px', classe: 'centro', render: (j) => j.pos },
-  { chave: 'ovr', rotulo: 'Ovr', largura: '44px', classe: 'num', render: (j) => j.ovr },
+  { chave: 'pos', rotulo: 'Pos', largura: '46px', classe: 'centro', render: (j) => seloPos(j.pos) },
+  { chave: 'ovr', rotulo: 'Ovr', largura: '44px', classe: 'num', render: (j) => seloOvr(j.ovr) },
   { chave: 'clube', rotulo: 'Esta no', largura: 'minmax(110px, 1.2fr)', classe: 'corta', render: (j) => j.clube },
   { chave: 'pct', rotulo: 'Eles pagam', largura: '86px', classe: 'centro', render: (j) => `${j.emp_pct}%` },
   { chave: 'custo', rotulo: 'Custa a voce', largura: '96px', classe: 'num', render: (j) => j.custo },

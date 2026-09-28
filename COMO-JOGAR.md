@@ -277,6 +277,22 @@ quando você está indo bem.
   seleção do campeonato (4-3-3). Contam jogos de todas as competições. O prêmio fica na
   ficha do jogador e valoriza o passe até a virada seguinte.
 
+## O clube e o fim do ano
+
+- **Tela Clube.** No menu, entre Notícias e Carreira: fundação, cidade, apelido, estádio,
+  sócios, os cinco melhores do elenco e a sala de troféus. A sala soma a história real até
+  2025 (títulos nacionais e internacionais com o ano, e o total do estadual) com o que o
+  clube ganhar no jogo, marcado "no jogo" e com a temporada. O seletor do topo abre
+  qualquer clube brasileiro. A história real fica em `dados_clubes.py` e pode ser corrigida
+  à mão.
+- **Resumo da temporada.** Primeiro o que você ganhou, em destaque: títulos (estadual,
+  copas e liga) e o acesso. Depois uma tabela só com os campeonatos que o clube jogou e onde
+  parou em cada um. Por último o essencial: destaques do elenco, prêmios, dinheiro,
+  mercado e quem sai ou chega para o ano seguinte.
+- **Listas de jogadores.** Posição num selo com a cor da linha (goleiro amarelo, defesa
+  azul, meio verde, ataque vermelho), overall num selo com as mesmas faixas da cor do nome
+  (roxo 80+, verde 70 a 79) e o físico com uma barrinha.
+
 ## O que a varredura encontrou e o que mudou
 
 - **Empréstimo era porta dos fundos.** A exigência passava de 100% para jogador bom, mas o
