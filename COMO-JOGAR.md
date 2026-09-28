@@ -179,7 +179,9 @@ saldo, o prazo anda um mês e a diretoria perde 4 de confiança.
 
 ## Patrocínio
 
-O clube tem dois contratos de patrocínio: o **master** e o **fornecedor de uniforme**. Cada
+O clube vende até sete espaços de patrocínio: **master**, **fornecedor de uniforme**,
+**costas da camisa**, **manga**, **calção**, **patrocínio de treino** e, com estádio de 20 mil
+lugares ou mais, **naming rights do estádio** (contrato com o dobro de temporadas). Cada
 um paga um valor por semana, dura algumas temporadas e pode ter um bônus por meta, pago
 na virada do ano. Quando um espaço fica vago (contrato vencido, começo de carreira), a
 pré-temporada traz três propostas, e o Painel avisa:
@@ -190,8 +192,8 @@ pré-temporada traz três propostas, e o Painel avisa:
 - **Aposta** — o menor fixo, três temporadas, e um bônus grande se for campeão da liga
   (nas Séries B a D, se subir de divisão).
 
-A campanha do ano anterior pesa: objetivo cumprido ou título deixam as empresas mais
-generosas. Se você não escolher, a equilibrada é assinada quando a bola rolar. Em
+A campanha do ano anterior pesa, e muito: objetivo cumprido vale 12% a mais nas propostas;
+um título, 35%; dois títulos, 50%; três ou mais, 70%. Ano ruim tira 8%. Se você não escolher, a equilibrada é assinada quando a bola rolar. Em
 Finanças, a TV e o patrocínio aparecem separados, e cada contrato mostra quanto rende no
 ano.
 
