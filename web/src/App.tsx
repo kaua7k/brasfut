@@ -31,6 +31,7 @@ import { Infra } from './telas/Infra'
 import { Mercado, type AcaoMercado } from './telas/Mercado'
 import { Noticias } from './telas/Noticias'
 import { Carreira } from './telas/Carreira'
+import { Clube } from './telas/Clube'
 import { Painel } from './telas/Painel'
 import { Treino, type AcaoTreino } from './telas/Treino'
 import type {
@@ -52,6 +53,7 @@ import type {
   SituacaoJogo,
   TelaBase,
   TelaCarreira,
+  TelaClube,
   TelaCompeticoes,
   TelaElenco,
   TelaEscalacao,
@@ -76,6 +78,7 @@ type Conteudo =
   | { tipo: 'infra'; dados: TelaInfra }
   | { tipo: 'noticias'; dados: TelaNoticias }
   | { tipo: 'carreira'; dados: TelaCarreira }
+  | { tipo: 'clube'; dados: TelaClube }
   | { tipo: 'escalacao'; dados: TelaEscalacao }
   | { tipo: 'treino'; dados: TelaTreino }
   | { tipo: 'estadio'; dados: TelaEstadio }
@@ -175,6 +178,9 @@ export function App() {
               break
             case 'noticias':
               setConteudo({ tipo: 'noticias', dados: (await api.noticias()).tela })
+              break
+            case 'clube':
+              setConteudo({ tipo: 'clube', dados: (await api.clube(alvo ? Number(alvo) : undefined)).tela })
               break
             case 'carreira':
               setConteudo({ tipo: 'carreira', dados: (await api.carreira()).tela })
@@ -724,6 +730,9 @@ export function App() {
           <Infra tela={conteudo.dados} ocupado={ocupado} aoInvestir={investir} />
         )}
         {conteudo.tipo === 'noticias' && <Noticias tela={conteudo.dados} />}
+        {conteudo.tipo === 'clube' && (
+          <Clube tela={conteudo.dados} aoAbrirFicha={abrirFicha} aoTrocar={(id) => irPara('clube', String(id))} />
+        )}
         {conteudo.tipo === 'carreira' && (
           <Carreira
             tela={conteudo.dados}

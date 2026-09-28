@@ -9,6 +9,7 @@ import type {
   BoasVindas,
   ResumoTemporada,
   TelaCarreira,
+  TelaClube,
   Config,
   OpcaoDificuldade,
   OpcoesCarreira,
@@ -126,6 +127,10 @@ export const api = {
   infra: () => pedir<{ tela: TelaInfra }>('/api/infra'),
   noticias: () => pedir<{ tela: TelaNoticias }>('/api/noticias'),
   carreira: () => pedir<{ tela: TelaCarreira }>('/api/carreira'),
+  clube: (id?: number) =>
+    id === undefined
+      ? pedir<{ tela: TelaClube }>('/api/clube/ficha')
+      : pedir<{ tela: TelaClube }>('/api/clube/ficha', { id }),
   pedirDemissao: () => pedir<{ pendencia: Pendencia; cabecalho: Cabecalho }>('/api/carreira/demitir', {}),
   responderProposta: (id: number, aceitar: boolean) =>
     pedir<{ recado: string; painel: DadosPainel }>('/api/carreira/proposta', { id, aceitar }),

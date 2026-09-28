@@ -10,6 +10,7 @@
 
 import { porque, AGUARDE } from '../motivo'
 import { useEffect, useState } from 'react'
+import { seloOvr, seloPos } from '../componentes/Celulas'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
 import { CampoDinheiro } from '../componentes/CampoDinheiro'
 import { alternarMarca, Grade, type Coluna } from '../componentes/Grade'
@@ -50,7 +51,7 @@ interface Props {
 const MARCA: Record<string, string> = { a_venda: ' *', intocavel: ' !' }
 
 const BASE: Coluna<LinhaMercado>[] = [
-  { chave: 'pos', rotulo: 'Pos', largura: '46px', classe: 'centro', render: (j) => j.pos },
+  { chave: 'pos', rotulo: 'Pos', largura: '46px', classe: 'centro', render: (j) => seloPos(j.pos) },
   {
     chave: 'nome',
     rotulo: 'Jogador',
@@ -64,7 +65,7 @@ const BASE: Coluna<LinhaMercado>[] = [
     ),
   },
   { chave: 'idade', rotulo: 'Idade', largura: '50px', classe: 'num', render: (j) => j.idade },
-  { chave: 'ovr', rotulo: 'Ovr', largura: '42px', classe: 'num', render: (j) => j.ovr },
+  { chave: 'ovr', rotulo: 'Ovr', largura: '42px', classe: 'num', render: (j) => seloOvr(j.ovr) },
   { chave: 'teto', rotulo: 'Teto', largura: '70px', classe: 'centro', render: (j) => j.teto },
   { chave: 'clube', rotulo: 'Clube', largura: 'minmax(100px, 1fr)', classe: 'corta', render: (j) => j.clube },
   { chave: 'sal', rotulo: 'Salario', largura: '88px', classe: 'num', render: (j) => j.salario },
@@ -104,8 +105,8 @@ const COLUNAS_VITRINE: Coluna<LinhaVitrine>[] = [
     classe: 'corta',
     render: (j) => <span className={`tag-${j.tag}`}>{j.nome}</span>,
   },
-  { chave: 'pos', rotulo: 'Pos', largura: '46px', classe: 'centro', render: (j) => j.pos },
-  { chave: 'ovr', rotulo: 'Ovr', largura: '42px', classe: 'num', render: (j) => j.ovr },
+  { chave: 'pos', rotulo: 'Pos', largura: '46px', classe: 'centro', render: (j) => seloPos(j.pos) },
+  { chave: 'ovr', rotulo: 'Ovr', largura: '42px', classe: 'num', render: (j) => seloOvr(j.ovr) },
   { chave: 'sal', rotulo: 'Salario', largura: '88px', classe: 'num', render: (j) => j.salario },
   { chave: 'val', rotulo: 'Valor', largura: '92px', classe: 'num', render: (j) => j.valor },
   { chave: 'ped', rotulo: 'Voce pede', largura: '96px', classe: 'num', render: (j) => j.pede },
@@ -121,8 +122,8 @@ const COLUNAS_VITRINE: Coluna<LinhaVitrine>[] = [
 
 const COLUNAS_OFERTAS: Coluna<OfertaRecebida & { indice: number }>[] = [
   { chave: 'nome', rotulo: 'Jogador', largura: 'minmax(120px, 1.2fr)', classe: 'corta', render: (o) => o.nome },
-  { chave: 'pos', rotulo: 'Pos', largura: '46px', classe: 'centro', render: (o) => o.pos },
-  { chave: 'ovr', rotulo: 'Ovr', largura: '42px', classe: 'num', render: (o) => o.ovr },
+  { chave: 'pos', rotulo: 'Pos', largura: '46px', classe: 'centro', render: (o) => seloPos(o.pos) },
+  { chave: 'ovr', rotulo: 'Ovr', largura: '42px', classe: 'num', render: (o) => seloOvr(o.ovr) },
   { chave: 'clube', rotulo: 'Interessado', largura: 'minmax(110px, 1fr)', classe: 'corta', render: (o) => `${o.clube} (${o.divisao})` },
   { chave: 'val', rotulo: 'Valor dele', largura: '96px', classe: 'num', render: (o) => o.valor },
   { chave: 'of', rotulo: 'Oferta', largura: '96px', classe: 'num', render: (o) => <strong>{o.oferta}</strong> },
@@ -163,8 +164,8 @@ const COLUNAS_CONTRATOS: Coluna<ContratoAcabando>[] = [
     classe: 'corta',
     render: (j) => <span className={`tag-${j.tag}`}>{j.nome}</span>,
   },
-  { chave: 'pos', rotulo: 'Pos', largura: '46px', classe: 'centro', render: (j) => j.pos },
-  { chave: 'ovr', rotulo: 'Ovr', largura: '42px', classe: 'num', render: (j) => j.ovr },
+  { chave: 'pos', rotulo: 'Pos', largura: '46px', classe: 'centro', render: (j) => seloPos(j.pos) },
+  { chave: 'ovr', rotulo: 'Ovr', largura: '42px', classe: 'num', render: (j) => seloOvr(j.ovr) },
   { chave: 'idade', rotulo: 'Idade', largura: '50px', classe: 'num', render: (j) => j.idade },
   {
     chave: 'quando',

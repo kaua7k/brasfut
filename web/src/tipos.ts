@@ -251,6 +251,24 @@ export interface PassagemCarreira {
   parcial: boolean
 }
 
+export interface TelaClube {
+  cabecalho: Cabecalho
+  titulo: string
+  subtitulo: string
+  id: number
+  /** o clube do treinador (os outros aparecem pelo seletor) */
+  meu: boolean
+  info: { nome: string; valor: string }[]
+  metricas: Metrica[]
+  destaques: { id: number; nome: string; pos: string; ovr: number; idade: number }[]
+  artilheiro: { nome: string; gols: number; jogos: number } | null
+  /** real ate 2025 e do jogo somados; anos ja vem em texto */
+  sala: { nome: string; qtd: number; anos: string; no_jogo: boolean }[]
+  no_jogo: { nome: string; temporada: number }[]
+  tem_historia: boolean
+  clubes: { id: number; nome: string; divisao: string }[]
+}
+
 export interface TelaCarreira {
   cabecalho: Cabecalho
   titulo: string
@@ -304,6 +322,10 @@ export interface ResumoTemporada {
   temporada: number
   titulo: string
   subtitulo: string
+  /** o que foi ganho no ano: titulos e acesso, em destaque no topo */
+  conquistas: { nome: string; tipo: 'titulo' | 'acesso' }[]
+  /** so os campeonatos que o clube jogou, com onde parou em cada um */
+  campanhas: { nome: string; resultado: string; estado: Estado; titulo: boolean }[]
   vereditos: { texto: string; estado: Estado }[]
   tiles: { nome: string; valor: string; sub: string; estado: Estado }[]
   secoes: { titulo: string; itens: { texto: string; estado: Estado }[] }[]

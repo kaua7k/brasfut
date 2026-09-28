@@ -6,6 +6,7 @@
 
 import { porque, AGUARDE, MARQUE } from '../motivo'
 import { useEffect, useState } from 'react'
+import { seloPos } from '../componentes/Celulas'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
 import { alternarMarca, Grade, type Coluna } from '../componentes/Grade'
 import type { JogadorTreino, TelaTreino } from '../tipos'
@@ -30,7 +31,7 @@ const COLUNAS: Coluna<JogadorTreino>[] = [
     classe: 'centro',
     render: (j) => (j.em_foco ? <span className="tag-ok">sim</span> : '-'),
   },
-  { chave: 'pos', rotulo: 'Pos', largura: '46px', classe: 'centro', render: (j) => j.pos },
+  { chave: 'pos', rotulo: 'Pos', largura: '46px', classe: 'centro', render: (j) => seloPos(j.pos) },
   {
     chave: 'nome',
     rotulo: 'Jogador',

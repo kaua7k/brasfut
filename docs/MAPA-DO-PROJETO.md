@@ -32,6 +32,7 @@ Atas de decisão de roadmap: `docs/three-amigos/`.
 | `brasfut.py` | 10117 linhas | O motor inteiro + a interface de terminal original (`main()`, `loop()`, `tela_*`) | Só a faixa de linha da seção que precisa (ver índice abaixo) |
 | `brasfut_app.py` | 4552 linhas | Janela desktop (tkinter). Uma classe `Dialogo` por tela/ação | Só se a tarefa for na janela desktop — a maioria do trabalho novo vai para a web |
 | `dados_mundo.py` | 1181 linhas | Dados estáticos: clubes, ligas, seleções, nomes | Ao adicionar/corrigir liga, clube ou país |
+| `dados_clubes.py` | ~300 linhas | História real dos clubes brasileiros até 2025 (fundação, apelido, cidade, títulos com ano, soma do estadual). Editável à mão; só texto na tela do clube | Ao corrigir um título ou incluir um clube |
 | `server.py` | 156 linhas | `http.server` da stdlib; serve a API e `web/dist` | Infra do servidor, não regra de jogo |
 | `api/rotas.py` | ~350 linhas | `URL -> função`. Todas as rotas HTTP registradas com `@rota(metodo, caminho)` | Para achar/adicionar um endpoint |
 | `api/sessao.py` | — | Mantém o `G` vivo em memória, salva, dono do `threading.RLock` | Concorrência, save, trava de sessão |
@@ -40,10 +41,10 @@ Atas de decisão de roadmap: `docs/three-amigos/`.
 | `api/competicoes.py` | — | Estaduais, séries, copas — montagem e leitura pela API | Telas de Classificação/Competições |
 | `api/avanco.py` | — | Avançar em ritmos (jogo/semana/mês/janela/temporada) | Botão *Avançar*/*Simular* |
 | `api/campo.py` | — | Vaga (GOL, ZAG...) → ponto no campo, para as formações | Desenho do campo na Escalação |
-| `web/src/telas/*.tsx` | 14 arquivos | Uma tela por arquivo (Painel, Elenco, Escalação, Mercado, Financas, etc.) | Ao mexer numa tela específica |
-| `web/src/componentes/*.tsx` | 19 arquivos (`Ajuda.tsx`: ajuda e boas-vindas; `Partida.tsx`: resumo e detalhe da partida; `DialogoRenovar.tsx`: renovação em lote) | Diálogos e peças reusáveis (Mesa, Grade, Campo, Ficha...) | Componente compartilhado entre telas |
+| `web/src/telas/*.tsx` | 15 arquivos | Uma tela por arquivo (Painel, Elenco, Escalação, Mercado, Financas, Clube, etc.) | Ao mexer numa tela específica |
+| `web/src/componentes/*.tsx` | 20 arquivos (`Ajuda.tsx`: ajuda e boas-vindas; `Partida.tsx`: resumo e detalhe da partida; `DialogoRenovar.tsx`: renovação em lote; `Celulas.tsx`: selo de posição, selo de overall e barra de físico das listas; `Resumo.tsx`: resumo da temporada) | Diálogos e peças reusáveis (Mesa, Grade, Campo, Ficha...) | Componente compartilhado entre telas |
 | `web/src/api.ts`, `tipos.ts`, `formato.ts` | — | Cliente HTTP, tipos TS espelhando os DTOs, formatação (dinheiro, número) | Contrato front↔back |
-| `testes/*.py` | 42 arquivos (`desempenho.py`, `balanceamento.py` e `economia.py` são harness lentos, fora da suíte) | `unittest` da stdlib, sem dependência externa. `cd testes && python -m unittest -v` (~3 min, 184 testes) | Rodar antes de qualquer PR |
+| `testes/*.py` | 44 arquivos (`desempenho.py`, `balanceamento.py` e `economia.py` são harness lentos, fora da suíte) | `unittest` da stdlib, sem dependência externa. `cd testes && python -m unittest -v` (~3 min, 194 testes) | Rodar antes de qualquer PR |
 | `docs/proxima-onda.md` | — | **Backlog da próxima onda**: o que espera decisão, o que espera exemplo do testador, o que está pronto para codar e como verificar | Antes de começar a próxima rodada |
 | `.github/workflows/testes.yml` | — | CI (GitHub Actions): a cada push na `main` e em toda PR roda a suíte `unittest` e o `npm run build` da web; avisa se `web/dist` ficou velho | Ao mudar o que a suíte ou o build precisam |
 | `ferramentas/capturas.py` | — | Capturas das 13 telas em 5 resoluções (Edge headless, cópia isolada) e comparação por pixel | Antes/depois de mexer em CSS ou tela |
@@ -73,7 +74,7 @@ achar o nome exato, ou abra só a faixa abaixo:
 | 6500–7000 | Teto de potencial, IA (livres, investimentos, rebaixamento, premiação), prêmios do ano |
 | 7000–7670 | Diretoria (**confiança semanal**, `ia_demite_tecnicos`), carreira do técnico |
 | 7670–8760 | **Interface de terminal original** (`tela_elenco`, `tela_mercado`, `jogar_semana` do modo texto — não confundir com `brasfut_app.py`) |
-| 8760–9400 | Estatísticas do ano, relatório e resumo de temporada (`apurar_temporada`, `encerrar_temporada`) |
+| 8760–9480 | Estatísticas do ano, relatório e resumo de temporada (`campanhas_do_ano`, `titulos_da_temporada`, `apurar_temporada`, `encerrar_temporada`) |
 | 9400–9839 | Save/load (`salvar`, `carregar`, `migrar`), trava de save, `loop()` principal, `main()` |
 
 `brasfut_app.py`: além dos helpers de UI (linhas 1–560), cada tela/diálogo
@@ -125,7 +126,7 @@ decisões em `docs/three-amigos/2026-09-25-onda-2-decisoes.md`):
 - ~~Entrosamento~~ — feito: `j["entros"]` (padrão 80, chegada 35, volta 60,
   +5 por jogo), `PESO_JOGO_ENTROS` em `rendimento`, entra na chave do memo do
   XI (`test_entrosamento.py`).
-- Economia com escolhas, mercado disputado, olheiros, Copinha, história do clube.
+- Economia com escolhas, mercado disputado, olheiros, Copinha. História do clube: feita (tela Clube, `dados_clubes.py` + `titulos_hist`).
 
 **Economia 2 — concluída** (PRs #12–#13, 2026-09-26/28): crédito do clube
 (3 meses de receita, 2% ao mês, `tomar_credito`), IA só renova se couber na

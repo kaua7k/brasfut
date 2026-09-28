@@ -1,4 +1,5 @@
-// O fim do ano em uma tela: onde terminou, o que ganhou, quanto sobrou.
+// O fim do ano em uma tela: o que ganhou, onde parou em cada campeonato que
+// jogou, e quanto sobrou.
 //
 // Abre sozinho logo depois da virada - antes ate da escolha de clube novo,
 // porque ninguem entende uma demissao sem ver a temporada que a causou. Com a
@@ -37,6 +38,24 @@ export function Resumo({ resumo, rotuloFechar, aoFechar }: Props) {
         </h2>
         <div className="mesa-sub">{resumo.subtitulo}</div>
 
+        {resumo.conquistas.length > 0 ? (
+          <div className="resumo-conquistas" aria-label="Conquistas do ano">
+            {resumo.conquistas.map((c) => (
+              <div key={c.nome} className={`resumo-conquista ${c.tipo}`}>
+                <span className="icone" aria-hidden="true">
+                  {c.tipo === 'titulo' ? '★' : '▲'}
+                </span>
+                <div>
+                  <div className="tipo">{c.tipo === 'titulo' ? 'Campeao' : 'Acesso'}</div>
+                  <div className="nome">{c.nome}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="resumo-sem-titulo">Nenhum titulo nesta temporada.</div>
+        )}
+
         <div className="resumo-vereditos">
           {resumo.vereditos.map((v) => (
             <div key={v.texto} className={`resumo-veredito ${v.estado}`}>
@@ -44,6 +63,25 @@ export function Resumo({ resumo, rotuloFechar, aoFechar }: Props) {
             </div>
           ))}
         </div>
+
+        {resumo.campanhas.length > 0 && (
+          <section className="resumo-campanhas">
+            <div className="painel-titulo">Seus campeonatos</div>
+            <table>
+              <tbody>
+                {resumo.campanhas.map((c) => (
+                  <tr key={c.nome} className={c.titulo ? 'titulo' : ''}>
+                    <td>
+                      {c.titulo && <span aria-hidden="true">★ </span>}
+                      {c.nome}
+                    </td>
+                    <td className={c.titulo ? '' : `tag-${c.estado}`}>{c.resultado}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        )}
 
         <div className="resumo-tiles">
           {resumo.tiles.map((t) => (

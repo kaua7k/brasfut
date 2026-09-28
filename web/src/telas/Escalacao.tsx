@@ -21,6 +21,7 @@
 
 import { porque, AGUARDE } from '../motivo'
 import { useRef, useState } from 'react'
+import { barraFisico, seloOvr } from '../componentes/Celulas'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
 import { Campo } from '../componentes/Campo'
 import { EditorFormacao } from '../componentes/EditorFormacao'
@@ -92,13 +93,13 @@ function colunasXi(novaVaga: Set<number>): Coluna<JogadorEmCampo>[] {
         </>
       ),
     },
-    { chave: 'ovr', rotulo: 'Ovr', largura: '40px', classe: 'num', render: (j) => <strong>{j.ovr}</strong> },
+    { chave: 'ovr', rotulo: 'Ovr', largura: '40px', classe: 'num', render: (j) => seloOvr(j.ovr) },
     {
       chave: 'fis',
       rotulo: 'Fis',
-      largura: '40px',
+      largura: '64px',
       classe: 'num',
-      render: (j) => <span className={j.cond < 45 ? 'linha-critica' : undefined}>{j.cond}</span>,
+      render: (j) => barraFisico(j.cond),
     },
     {
       chave: 'obs',
@@ -114,13 +115,13 @@ function colunasXi(novaVaga: Set<number>): Coluna<JogadorEmCampo>[] {
 const COLUNAS_BANCO: Coluna<JogadorBanco>[] = [
   { chave: 'pos', rotulo: 'Pos', largura: '72px', classe: 'centro', render: (j) => j.pos },
   { chave: 'nome', rotulo: 'Jogador', largura: 'minmax(110px, 1fr)', classe: 'corta', render: (j) => j.nome },
-  { chave: 'ovr', rotulo: 'Ovr', largura: '40px', classe: 'num', render: (j) => j.ovr },
+  { chave: 'ovr', rotulo: 'Ovr', largura: '40px', classe: 'num', render: (j) => seloOvr(j.ovr) },
   {
     chave: 'fis',
     rotulo: 'Fis',
-    largura: '40px',
+    largura: '64px',
     classe: 'num',
-    render: (j) => <span className={j.cond < 45 ? 'linha-critica' : undefined}>{j.cond}</span>,
+    render: (j) => barraFisico(j.cond),
   },
   { chave: 'sit', rotulo: 'Situacao', largura: '92px', classe: 'corta', render: (j) => j.situacao },
 ]

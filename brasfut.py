@@ -7436,6 +7436,7 @@ def contar_jogo_na_carreira(G: Mundo, gm: int, gs: int) -> None:
 def dar_titulo(G: Mundo, cl: Clube, nome: str) -> None:
     """Conta a taca para o clube e, se for o meu, para a sala de trofeus."""
     cl["titulos"][nome] = cl["titulos"].get(nome, 0) + 1
+    cl.setdefault("titulos_hist", []).append({"nome": nome, "temporada": int(G["temporada"])})
     manchete(G, "titulo", "%s e campeao: %s %d." % (cl["nome"], nome, int(G["temporada"])))
     if cl["id"] != G.get("clube"):
         return
@@ -9316,6 +9317,88 @@ def premiar_ano(G: Mundo) -> List[Dict[str, Any]]:
     return todos
 
 
+def campanha_na_copa(cp: Dict[str, Any], cid: int) -> Optional[Tuple[str, str]]:
+    """(resultado, estado) do clube numa copa, ou None se ele nao jogou.
+    estado: "titulo", "ok" (foi longe), "neutro" ou "critico" (caiu cedo)."""
+    if cp.get("campeao") == cid:
+        return "Campeao", "titulo"
+    hist = cp.get("historico") or []
+    ultimo = None
+    for k, h in enumerate(hist):
+        for j in h["jogos"]:
+            if cid in (j["a"], j["b"]):
+                ultimo = (k, h, j)
+    if ultimo:
+        k, h, j = ultimo
+        if j.get("venc") == cid:
+            # passou da ultima fase que o historico tem: segue vivo
+            return "Em andamento", "neutro"
+        final = cp.get("campeao") is not None and k == len(hist) - 1
+        if final or str(h["fase"]).upper() == "FINAL":
+            return "Vice-campeao", "ok"
+        fase = str(h["fase"])
+        estado = "ok" if fase.lower().startswith(("semi", "quartas")) else "critico"
+        return "Eliminado %s" % _na_fase(fase.lower()), estado
+    if grupo_de(cp, cid) is not None:
+        nome = FASE_LIGA if cp.get("formato") == "suico" else FASE_GRUPOS
+        if cp.get("grupos_fechados"):
+            return "Eliminado na %s" % nome.lower(), "critico"
+        return "Em andamento", "neutro"
+    if cid in cp.get("vivos", []) or cid in cp.get("espera", []):
+        return "Em andamento", "neutro"
+    return None
+
+
+def campanhas_do_ano(G: Mundo, cid: int) -> List[Dict[str, Any]]:
+    """Os campeonatos que o clube jogou no ano, com o resultado de cada um:
+    liga, estadual e as copas em que ele entrou (nao o mundo inteiro)."""
+    c = G["clubes"][cid]
+    out = []
+    liga = G["ligas"].get(c["divisao"])
+    if liga:
+        ordem = classificacao(G, liga)
+        pos = ordem.index(cid) + 1 if cid in ordem else 0
+        nome = "Brasileirao Serie %s" % c["divisao"] if c["divisao"] in DIVISOES_BR else liga["nome"]
+        total = len(ordem)
+        if pos == 1:
+            res, est = "Campeao", "titulo"
+        elif c["divisao"] in DIVISOES_BR and c["divisao"] != "A" and pos <= 4:
+            res, est = "%do lugar, acesso" % pos, "ok"
+        elif tem_rebaixamento(c["divisao"]) and pos > total - 4:
+            res, est = "%do lugar, rebaixado" % pos, "critico"
+        else:
+            res, est = "%do de %d" % (pos, total), "neutro"
+        sobe = c["divisao"] in DIVISOES_BR and c["divisao"] != "A" and 0 < pos <= 4
+        out.append({"nome": nome, "resultado": res, "estado": est, "tipo": "liga", "acesso": sobe})
+    for est_ in estaduais(G).values():
+        if cid in est_["times"]:
+            txt = campanha_estadual(G, est_, cid)
+            estado = ("titulo" if txt == "campeao" else "ok" if txt == "vice-campeao"
+                      else "critico" if txt.startswith("eliminado") or "fora do mata" in txt else "neutro")
+            out.append({"nome": est_["nome"], "resultado": txt[:1].upper() + txt[1:], "estado": estado,
+                        "tipo": "estadual"})
+    for chave, cp in (G.get("copas") or {}).items():
+        r = campanha_na_copa(cp, cid)
+        if r:
+            out.append({"nome": cp["nome"], "resultado": r[0], "estado": r[1], "tipo": "copa"})
+    return out
+
+
+def titulos_da_temporada(G: Mundo, cid: int) -> List[str]:
+    """Titulos do clube no ano: o que a sala de trofeus ja registrou (estadual,
+    copas, supercopas) mais a liga, que so e entregue na virada."""
+    temporada = int(G["temporada"])
+    nomes = [t["nome"] for t in (G["clubes"][cid].get("titulos_hist") or []) if t["temporada"] == temporada]
+    p = passagem_atual(G) if cid == G.get("clube") else None
+    for t in (p or {}).get("titulos", []):          # save de antes do titulos_hist
+        if t["temporada"] == temporada and t["nome"] not in nomes:
+            nomes.append(t["nome"])
+    for camp in campanhas_do_ano(G, cid):
+        if camp["estado"] == "titulo" and camp["nome"] not in nomes:
+            nomes.append(camp["nome"])
+    return nomes
+
+
 def apurar_temporada(G: Mundo) -> Dict[str, Any]:
     """Fecha a conta do ano que acabou. Nao muda nada no mundo."""
     c = G["clubes"][G["clube"]]
@@ -9326,15 +9409,13 @@ def apurar_temporada(G: Mundo) -> Dict[str, Any]:
     t = dict(liga["tabela"].get(str(c["id"])) or {})
     alvo = int(G.get("objetivo_alvo", 16))
 
-    titulos_meus = []
-    if pos == 1:
-        titulos_meus.append("Brasileirao Serie %s" % div if div in DIVISOES_BR else nome_da_liga(G, div))
-    copas = []
-    for cp in G["copas"].values():
-        if cp["campeao"]:
-            copas.append([cp["nome"], G["clubes"][cp["campeao"]]["nome"]])
-            if cp["campeao"] == c["id"]:
-                titulos_meus.append(cp["nome"])
+    # titulos: estadual, copas e liga (antes o estadual nunca entrava)
+    titulos_meus = titulos_da_temporada(G, c["id"])
+    campanhas = campanhas_do_ano(G, c["id"])
+    # so as copas que o clube jogou; antes vinham as ~30 do mundo inteiro
+    jogadas = {x["nome"] for x in campanhas if x["tipo"] == "copa"}
+    copas = [[cp["nome"], G["clubes"][cp["campeao"]]["nome"]] for cp in G["copas"].values()
+             if cp["campeao"] and cp["nome"] in jogadas]
 
     meus = [G["jogadores"][p] for p in c["elenco"] if p in G["jogadores"]]
     meus += [G["jogadores"][p] for p in c.get("emprestados", []) if p in G["jogadores"]]
@@ -9353,7 +9434,7 @@ def apurar_temporada(G: Mundo) -> Dict[str, Any]:
         "liga": nome_da_liga(G, div), "posicao": pos, "total": len(ordem), "objetivo": G.get("objetivo", ""),
         "alvo": alvo, "objetivo_ok": bool(pos and pos <= alvo),
         "campeao": G["clubes"][ordem[0]]["nome"] if ordem else "",
-        "copas": copas, "titulos": titulos_meus,
+        "copas": copas, "titulos": titulos_meus, "campanhas": campanhas,
         "campanha": {"j": t.get("j", 0), "v": t.get("v", 0), "e": t.get("e", 0),
                      "d": t.get("d", 0), "gp": t.get("gp", 0), "gc": t.get("gc", 0),
                      "p": t.get("p", 0)},
