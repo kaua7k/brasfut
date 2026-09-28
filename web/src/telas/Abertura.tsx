@@ -14,6 +14,7 @@ import { MarcaBrasfut } from '../icones'
 import type {
   ClubeOpcao,
   Config,
+  ModoCarreira,
   OpcaoDificuldade,
   OpcoesCarreira,
   SituacaoJogo,
@@ -36,6 +37,15 @@ interface Props {
 }
 
 type Vista = 'menu' | 'slots' | 'nova' | 'config' | 'sobre'
+
+const MODOS: { id: ModoCarreira; nome: string; desc: string }[] = [
+  { id: 'classico', nome: 'Classico', desc: 'O futebol como ele e: tabela, mercado, diretoria e torcida.' },
+  {
+    id: 'caos',
+    nome: 'Caos',
+    desc: 'Plantao ao vivo toda semana: doping descoberto anos depois, dinheiro sujo pego no fair play, capitao preso, xeique comprando clube da Serie D, meteorito no gramado. Nada e seguro, nem o seu clube.',
+  },
+]
 
 export function Abertura(props: Props) {
   const { situacao, erro } = props
@@ -180,6 +190,7 @@ function NovaCarreira({ config, ocupado, dificuldades, slot, aoCriar, aoVoltar }
     dificuldade: config?.dificuldade ?? 'normal',
     sem_demissao: config?.sem_demissao ?? false,
     investidor: config?.investidor ?? false,
+    modo: config?.modo ?? 'classico',
   })
   const nomeLimpo = nome.trim()
 
@@ -204,6 +215,24 @@ function NovaCarreira({ config, ocupado, dificuldades, slot, aoCriar, aoVoltar }
         placeholder="Como a imprensa vai te chamar"
         onChange={(e) => setNome(e.target.value)}
       />
+
+      <fieldset className="mesa-bloco">
+        <legend className="painel-titulo">Modo de jogo</legend>
+        <div className="modos">
+          {MODOS.map((m) => (
+            <label key={m.id} className={`modo-opcao ${m.id}${opcoes.modo === m.id ? ' ativo' : ''}`}>
+              <input
+                type="radio"
+                name="modo"
+                checked={opcoes.modo === m.id}
+                onChange={() => setOpcoes({ ...opcoes, modo: m.id })}
+              />
+              <strong>{m.nome}</strong>
+              <span>{m.desc}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
 
       <fieldset className="mesa-bloco">
         <legend className="painel-titulo">Dificuldade</legend>

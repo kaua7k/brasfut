@@ -394,6 +394,19 @@ export interface RespostaAvanco {
   cabecalho?: Cabecalho
   /** veio na virada do ano: a tela abre o resumo antes de qualquer outra coisa */
   resumo?: ResumoTemporada
+  /** modo caos: os plantoes da semana */
+  plantao?: EventoCaos[]
+}
+
+export interface EventoCaos {
+  id?: string
+  titulo: string
+  texto: string
+  gravidade: 'leve' | 'grave' | 'tragedia'
+  clube: string
+  meu: boolean
+  temporada: number
+  semana: number
 }
 
 export interface ClubeOpcao {
@@ -444,6 +457,7 @@ export interface Config {
   dificuldade: Dificuldade
   sem_demissao: boolean
   investidor: boolean
+  modo: ModoCarreira
 }
 
 export interface OpcaoDificuldade {
@@ -453,10 +467,13 @@ export interface OpcaoDificuldade {
 }
 
 /** O que vale pelo save inteiro, escolhido na carreira nova. */
+export type ModoCarreira = 'classico' | 'caos'
+
 export interface OpcoesCarreira {
   dificuldade: Dificuldade
   sem_demissao: boolean
   investidor: boolean
+  modo: ModoCarreira
 }
 
 // ============================================================================
@@ -491,6 +508,7 @@ export interface JogadorElenco {
   id: number
   pos: string
   nome: string
+  capitao: boolean
   idade: number
   ovr: number
   cond: number
@@ -722,6 +740,10 @@ export interface TelaNoticias {
 export interface FichaJogador {
   id: number
   nome: string
+  /** usa a bracadeira no clube dele */
+  capitao: boolean
+  /** e do meu elenco e pode receber a bracadeira */
+  pode_capitao: boolean
   pos: string
   posicao_nome: string
   idade: number

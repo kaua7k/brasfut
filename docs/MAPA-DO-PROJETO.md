@@ -76,7 +76,8 @@ achar o nome exato, ou abra só a faixa abaixo:
 | 7000–7670 | Diretoria (**confiança semanal**, `ia_demite_tecnicos`), carreira do técnico |
 | 7670–8760 | **Interface de terminal original** (`tela_elenco`, `tela_mercado`, `jogar_semana` do modo texto — não confundir com `brasfut_app.py`) |
 | 8760–9480 | Estatísticas do ano, relatório e resumo de temporada (`campanhas_do_ano`, `titulos_da_temporada`, `apurar_temporada`, `encerrar_temporada`) |
-| 9400–9839 | Save/load (`salvar`, `carregar`, `migrar`), trava de save, `loop()` principal, `main()` |
+| 9810–10500 | **Capitão** (`capitao_de`, `definir_capitao`) e **Modo Caos** (`MODOS`, `EVENTOS_CAOS` com ~25 eventos `ev_*`, bombas-relógio em `BOMBAS_CAOS`, `eventos_caos` chamado no fim de `avancar_semana`, `soltar_presos` na virada) |
+| 10500–10990 | Save/load (`salvar` com o `.resumo` do menu, `carregar`, `migrar`), trava de save, `loop()` principal, `main()` |
 
 `brasfut_app.py`: além dos helpers de UI (linhas 1–560), cada tela/diálogo
 é uma classe (`class NomeDoDialogo(Dialogo)`) a partir da linha 566 — a
