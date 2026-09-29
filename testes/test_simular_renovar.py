@@ -95,10 +95,14 @@ class TestSimularERenovar(unittest.TestCase):
         c = G["clubes"][G["clube"]]
         ids = [p for p in c["elenco"] if not G["jogadores"][p].get("dono")][4:10]
         pedidos = {p: eng.exigencia_renovacao(G, G["jogadores"][p], 3) for p in ids}
+        # o pedido e referencia: quem, por dentro, quer mais que ele fica de fora
+        # do lote (vai para a mesa); quem aceita renova exatamente pelo pedido
+        aceitam = [p for p in ids if eng.limite_de_aceite(G, G["jogadores"][p], c, pedidos[p],
+                                                          "renovacao") <= pedidos[p]]
+        self.assertTrue(aceitam)
         r = apoio.chamar("POST", "/api/mercado/renovar-lote", {"ids": ids, "anos": 3})
-        self.assertEqual(len(r["feitos"]), len(ids))
-        self.assertIn("renovados por 3 anos", r["recado"])
-        for p in ids:
+        self.assertEqual(sorted(r["feitos"]), sorted(G["jogadores"][p]["nome"] for p in aceitam))
+        for p in aceitam:
             j = G["jogadores"][p]
             self.assertEqual((j["contrato"], j["salario"]), (3, pedidos[p]))
 

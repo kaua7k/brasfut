@@ -5162,12 +5162,31 @@ def avaliar_clube(G: Mundo, prop: Proposta) -> Resposta:
     return Resposta(False, recado, pedido)
 
 
+# Limite de aceite escondido (decidido em 2026-09-29): o pedido que o
+# empresario diz e referencia, nao corte seco. Cada jogador tem, por janela, um
+# limite entre 7% abaixo e 7% acima dele - 5% abaixo as vezes fecha, 100% as
+# vezes nao. O livre e mais flexivel, e mais ainda quanto mais tempo parado.
+LIMITE_ACEITE = (0.93, 1.07)
+LIMITE_ACEITE_LIVRE = (0.86, 1.03)
+
+
+def limite_de_aceite(G: Mundo, j: Jogador, destino: Clube, exig: int, tipo: str = "contrato") -> int:
+    """O menor salario que ele aceita de verdade. Estavel na janela: repetir a
+    mesma oferta nao vira sorteio."""
+    lo, hi = LIMITE_ACEITE_LIVRE if j["clube"] is None else LIMITE_ACEITE
+    if j["clube"] is None:
+        # parado ha semanas, baixa ainda mais a guarda (ate 4 pontos)
+        lo -= 0.04 * min(1.0, semanas_sem_clube(G, j) / float(LIVRE_SEMANAS_MAX))
+    fator = _ruido("aceite-%s-%d-%d-%s" % (tipo, j["id"], destino["id"], _janela(G)), lo, hi)
+    return int(exig * fator / 100.0) * 100
+
+
 def avaliar_jogador(G: Mundo, prop: Proposta) -> Resposta:
     """O jogador aceita o salario, a duracao e o tamanho do clube?"""
     j = G["jogadores"][prop.jogador]
     destino = G["clubes"][prop.comprador]
     exig = exigencia_salarial(G, j, destino, prop.anos)
-    if prop.salario >= exig:
+    if prop.salario >= limite_de_aceite(G, j, destino, exig):
         return Resposta(True, "Acertado: %s por mes, %s." % (din(prop.salario), plural(prop.anos, "ano")), exig)
     if prop.salario < exig * 0.60:
         return Resposta(False, "Ele nem levou a proposta ao empresario.", exig, True)
@@ -5441,7 +5460,7 @@ def avaliar_renovacao(G: Mundo, prop: Proposta) -> Resposta:
     if j["clube"] != prop.comprador:
         return Resposta(False, "Ele nao e do seu clube.", 0, True)
     exig = exigencia_renovacao(G, j, prop.anos)
-    if prop.salario >= exig:
+    if prop.salario >= limite_de_aceite(G, j, G["clubes"][j["clube"]], exig, "renovacao"):
         return Resposta(True, "Acertado: %s por mes, %s." % (din(prop.salario), plural(prop.anos, "ano")),
                         exig)
     if prop.salario < exig * 0.72:

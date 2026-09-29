@@ -42,9 +42,11 @@ amarelo).
   direto diz "vermelho direto". A suspensão já era diferente (1 jogo x 1 a 3).
 
 **Negociações e contratos**
-- Oferta 5% abaixo do pedido não deveria ser sempre recusada por jovens, e oferta de 100%
-  não deveria garantir a contratação.
-- Mais flexibilidade para negociar com agente livre.
+- ~~Oferta 5% abaixo x 100%~~ feito: limite de aceite escondido entre 7% abaixo e 7% acima
+  do pedido, fixo na janela (`limite_de_aceite`); vale para contratação e renovação, e a
+  renovação em lote deixa de fora quem quer mais que o pedido.
+- ~~Flexibilidade com agente livre~~ feito junto: o livre aceita de 14% abaixo a 3% acima,
+  e até 4 pontos a menos quanto mais tempo parado.
 - Propostas recebidas irreais por jogadores de divisões baixas (ex.: Série D).
 
 **Funcionalidades novas**
@@ -52,6 +54,13 @@ amarelo).
   Sofascore.
 - Sócios: hoje o número existe e não gera receita. Decidir se entra como receita (programa
   de sócio-torcedor, que já está no item 3) ou se fica claro na tela que é futuro.
+
+**Modo Caos (pedido depois da lista, com print de 5 plantões)**
+- Mais diversidade: eventos novos e mais variações de texto em cada um (o print teve dois
+  "gato descoberto" seguidos, com o mesmo texto).
+- Evitar repetir o mesmo evento em sequência (ex.: não sortear de novo o mesmo tipo nas
+  próximas semanas).
+- Frequência em níveis, escolhida ao criar a carreira (ex.: calmo, normal, caótico).
 
 **Fora do jogo**
 - Observação sobre páginas do Santos fazendo campanha por um patch no uniforme em
