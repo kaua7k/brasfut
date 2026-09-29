@@ -470,6 +470,7 @@ export interface SlotSave {
   temporada?: number
   semana?: number
   modo?: string
+  caos_nivel?: NivelCaos
   titulos?: number
   salvo_em?: string
 }
@@ -485,6 +486,7 @@ export interface Config {
   sem_demissao: boolean
   investidor: boolean
   modo: ModoCarreira
+  caos_nivel: NivelCaos
 }
 
 export interface OpcaoDificuldade {
@@ -496,11 +498,15 @@ export interface OpcaoDificuldade {
 /** O que vale pelo save inteiro, escolhido na carreira nova. */
 export type ModoCarreira = 'classico' | 'caos'
 
+/** Frequencia dos plantoes do modo caos. */
+export type NivelCaos = 'calmo' | 'normal' | 'caotico'
+
 export interface OpcoesCarreira {
   dificuldade: Dificuldade
   sem_demissao: boolean
   investidor: boolean
   modo: ModoCarreira
+  caos_nivel: NivelCaos
 }
 
 // ============================================================================

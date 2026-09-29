@@ -338,6 +338,14 @@ rótulo Plantão. Alguns exemplos, do sério ao absurdo:
 - **Xeique compra clube da Série D**, **herança de torcedor**, **joia de 15 anos**, **a
   lenda de 41 anos que volta**, **benzedeira**, **goleiro que vira centroavante**,
   **meteorito no gramado**, **OVNI parando o jogo**.
+- **Cachorro mascote**, **jogador no reality**, **ataque hacker**, **vaquinha da torcida**,
+  **veterano que rejuvenesce**, **enchente**, **portões fechados**, **tatuagem do rival**,
+  **vidente**, **folha salarial vazada**, **churrasco que acaba com o físico**.
+
+O mesmo tipo de plantão não se repete por 10 semanas, e cada um tem mais de um texto. A
+**frequência** também é escolhida na carreira nova: **calmo** (um plantão a cada três
+semanas, em média), **normal** (a cada duas) ou **caótico** (quase toda semana, às vezes
+dois).
 
 O dinheiro que esses eventos movem aparece no extrato como "Imprevistos (modo caos)". No
 modo Clássico nada disso acontece.
