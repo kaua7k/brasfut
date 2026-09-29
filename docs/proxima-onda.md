@@ -31,7 +31,8 @@ amarelo).
   verde-água).
 - ~~Coluna Situação~~ feito: no Elenco virou **Jogo** (lesão, suspenso, pendurado) e
   **Mercado** (sem contrato, à venda, emprestado, disponível para empréstimo).
-- Mercado: filtro de jogadores melhor.
+- ~~Mercado: filtro melhor~~ feito: idade mínima, teto mínimo (pelo olheiro, sem revelar o
+  potencial), região (Brasil, América do Sul, Europa, outras), só à venda e Limpar.
 
 **Mecânicas**
 - Capitão: pedido de escolher o capitão. Já existe desde a PR #20 (Tornar capitão, na

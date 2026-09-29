@@ -280,6 +280,10 @@ export function Mercado({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
   const [ovr, setOvr] = useState(tela.filtros.ovr ? String(tela.filtros.ovr) : '')
   const [idade, setIdade] = useState(tela.filtros.idade ? String(tela.filtros.idade) : '')
   const [teto, setTeto] = useState(tela.filtros.teto ?? 0)
+  const [idadeMin, setIdadeMin] = useState(tela.filtros.idade_min ? String(tela.filtros.idade_min) : '')
+  const [potMin, setPotMin] = useState(tela.filtros.pot_min ? String(tela.filtros.pot_min) : '')
+  const [regiao, setRegiao] = useState(tela.filtros.regiao ?? '')
+  const [soVenda, setSoVenda] = useState(tela.filtros.so_venda ?? false)
 
   // a tela voltou do servidor (outra aba, negocio fechado): marcacoes antigas
   // podem apontar para quem ja saiu
@@ -296,7 +300,22 @@ export function Mercado({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
     ovr: ovr ? Number(ovr) : null,
     idade: idade ? Number(idade) : null,
     teto: teto || null,
+    idade_min: idadeMin ? Number(idadeMin) : null,
+    pot_min: potMin ? Number(potMin) : null,
+    regiao: regiao || null,
+    so_venda: soVenda,
   })
+  const limpar = () => {
+    setPos('')
+    setOvr('')
+    setIdade('')
+    setTeto(0)
+    setIdadeMin('')
+    setPotMin('')
+    setRegiao('')
+    setSoVenda(false)
+    aoAgir({ tipo: 'buscar', aba, filtros: {} })
+  }
 
   const aba = tela.aba
   const alvo = tela.jogadores.find((j) => j.id === marcado) ?? null
@@ -363,6 +382,15 @@ export function Mercado({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
               />
             </label>
             <label className="campo-rotulo">
+              Idade min
+              <input
+                className="seletor entrada entrada-curta"
+                inputMode="numeric"
+                value={idadeMin}
+                onChange={(e) => setIdadeMin(e.target.value.replace(/\D/g, '').slice(0, 2))}
+              />
+            </label>
+            <label className="campo-rotulo">
               Idade max
               <input
                 className="seletor entrada entrada-curta"
@@ -371,7 +399,38 @@ export function Mercado({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
                 onChange={(e) => setIdade(e.target.value.replace(/\D/g, '').slice(0, 2))}
               />
             </label>
+            <label className="campo-rotulo" title="Pelo que o seu olheiro enxerga: o potencial real e escondido">
+              Teto min
+              <input
+                className="seletor entrada entrada-curta"
+                inputMode="numeric"
+                value={potMin}
+                onChange={(e) => setPotMin(e.target.value.replace(/\D/g, '').slice(0, 2))}
+              />
+            </label>
+            {aba !== 'livres' && (
+              <label className="campo-rotulo">
+                Regiao
+                <select className="seletor" value={regiao} onChange={(e) => setRegiao(e.target.value)}>
+                  <option value="">Todas</option>
+                  {tela.regioes.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.nome}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             {aba !== 'livres' && <CampoDinheiro rotulo="Pedido ate" valor={teto} aoMudar={setTeto} />}
+            {aba === 'compra' && (
+              <label className="avanco-parada">
+                <input type="checkbox" checked={soVenda} onChange={(e) => setSoVenda(e.target.checked)} />
+                So a venda
+              </label>
+            )}
+            <button type="button" className="bt-fantasma bt-media" disabled={ocupado} onClick={limpar}>
+              Limpar
+            </button>
             <button type="submit" className="bt-acao bt-media" title={porque([[ocupado, AGUARDE]])}
             disabled={ocupado}>
               Buscar

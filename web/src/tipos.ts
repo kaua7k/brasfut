@@ -936,6 +936,11 @@ export interface FiltrosMercado {
   ovr: number | null
   idade: number | null
   teto: number | null
+  idade_min: number | null
+  /** teto minimo, pelo que o olheiro enxerga */
+  pot_min: number | null
+  regiao: string | null
+  so_venda: boolean
 }
 
 export interface LinhaMercado {
@@ -1047,6 +1052,7 @@ export interface TelaMercado {
   abas: { id: AbaMercado; nome: string; contador: number | null }[]
   aba: AbaMercado
   filtros: FiltrosMercado
+  regioes: { id: string; nome: string }[]
   posicoes: string[]
   caixa_num: number
   jogadores: LinhaMercado[]
