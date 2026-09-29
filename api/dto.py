@@ -975,6 +975,7 @@ DICA_EXTRATO = {
     "patrocinio": "contratos master e de uniforme, por semana (veja Patrocinio)",
     "patrocinio_bonus": "pago na virada a quem bateu a meta do contrato",
     "bilheteria": "jogos em casa: publico vezes ingresso (veja Estadio)",
+    "socios": "mensalidade do socio-torcedor, por semana: numero de socios vezes o valor da serie",
     "premio_liga": "paga na virada do ano, pela posicao final",
     "premio_estadual": "so o campeao recebe",
     "premio_copa": "passar de fase, vice e campeao das copas",
@@ -1148,6 +1149,7 @@ def _verba_mensal(G, c):
             {"nome": "TV e patrocinio", "valor": eng.din(orc["tv"]), "estado": ""},
             {"nome": "Bilheteria (estimada, 2 jogos em casa)", "valor": eng.din(orc["bilheteria"]),
              "estado": ""},
+            {"nome": "Socios", "valor": eng.din(orc["socios"]), "estado": ""},
             {"nome": "Folha salarial", "valor": eng.din(-orc["folha"]), "estado": "critico"},
             {"nome": "Estrutura e operacao", "valor": eng.din(-orc["estrutura"]), "estado": "critico"},
             {"nome": "Saldo do mes", "valor": eng.din(orc["saldo"]),
@@ -1366,7 +1368,8 @@ def clube(cid=None):
         info.append({"nome": "Apelido", "valor": hist["apelido"]})
     info += [
         {"nome": "Estadio", "valor": "%s, %s lugares" % (c["estadio"], "{:,}".format(c["capacidade"]).replace(",", "."))},
-        {"nome": "Socios", "valor": "{:,}".format(int(c.get("socios", 0))).replace(",", ".")},
+        {"nome": "Socios", "valor": "{:,}".format(int(c.get("socios", 0))).replace(",", ".") +
+         (", %s por mes" % eng.din(eng.socios_mensal(c)) if eng.socios_mensal(c) else "")},
         {"nome": "Reputacao", "valor": "%d de 99" % c["reputacao"]},
     ]
     brasileiros = sorted((x for x in G["clubes"].values() if x["divisao"] in eng.DIVISOES_BR),

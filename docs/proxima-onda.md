@@ -62,8 +62,9 @@ amarelo).
   assistências, participação em gols, nota média (mínimo de metade das rodadas, com cor),
   amarelos, vermelhos, melhor ataque e melhor defesa. Os números são do ano em todas as
   competições (o jogo guarda o total por jogador, não por competição).
-- Sócios: hoje o número existe e não gera receita. Decidir se entra como receita (programa
-  de sócio-torcedor, que já está no item 3) ou se fica claro na tela que é futuro.
+- ~~Sócios~~ feito: o número passa a pagar mensalidade por série (R$ 50 na A, 30 na B, 20
+  na C, 12 na D), perto de 6% da receita do mês; linha própria no extrato e no mês de
+  Finanças. Fica para depois: o número de sócios reagir a resultado e preço.
 
 **Modo Caos (pedido depois da lista, com print de 5 plantões)**
 - Mais diversidade: eventos novos e mais variações de texto em cada um (o print teve dois

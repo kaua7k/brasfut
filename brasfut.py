@@ -4303,9 +4303,10 @@ def orcamento_mensal(G: Mundo, c: Clube) -> Dict[str, int]:
     bilheteria = bilheteria_mensal_estimada(c)
     folha = folha_semanal(G, c) * 4
     estrutura = custo_estrutura(c) * 4
-    return {"tv": int(tv), "bilheteria": bilheteria, "folha": int(folha),
+    socios = socios_mensal(c) // 4 * 4
+    return {"tv": int(tv), "bilheteria": bilheteria, "socios": socios, "folha": int(folha),
             "estrutura": int(estrutura), "custos": int(folha + estrutura),
-            "saldo": int(tv + bilheteria - folha - estrutura)}
+            "saldo": int(tv + bilheteria + socios - folha - estrutura)}
 
 
 def reserva_custos(G: Mundo, c: Clube, salario_novo: int = 0) -> int:
@@ -4387,20 +4388,36 @@ def saneamento_ia(G):
         G["livres"].append(pid)
 
 
+# Socios: o numero vem do sorteio do clube (15% a 55% da capacidade) e agora
+# paga mensalidade, por divisao (decidido em 2026-09-29). Soma perto de 6% da
+# receita do mes em todas as series. So no Brasil: a economia de fora ja fecha.
+MENSALIDADE_SOCIO = {"A": 50, "B": 30, "C": 20, "D": 12}
+
+
+def socios_mensal(c) -> int:
+    """O que os socios pagam por mes ao clube."""
+    if not brasileiro(c):
+        return 0
+    return int(c.get("socios", 0)) * MENSALIDADE_SOCIO.get(c["divisao"], 0)
+
+
 def economia_semanal(G):
     for c in G["clubes"].values():
         if c["divisao"] == "EX":
             continue
         rec, folha, est = receita_semanal(G, c), folha_semanal(G, c), custo_estrutura(c)
+        socios = socios_mensal(c) // 4
         if c["id"] == G.get("clube"):
             st = stats_ano(G)
-            st["receita"] = int(st.get("receita", 0)) + int(rec)
+            st["receita"] = int(st.get("receita", 0)) + int(rec + socios)
             st["gasto"] = int(st.get("gasto", 0)) + int(folha + est)
         treino = custo_treino(c)
         tv = tv_semanal(c)
         lancar(G, c, tv, "tv")
         if rec - tv:
             lancar(G, c, rec - tv, "patrocinio")
+        if socios:
+            lancar(G, c, socios, "socios")
         lancar(G, c, -folha, "folha")
         lancar(G, c, -(est - treino), "estrutura")
         if treino:
@@ -9010,6 +9027,7 @@ def novo_ano_stats(G: Mundo) -> Dict[str, Any]:
 EXTRATO = (
     ("tv", "Cotas de TV"), ("patrocinio", "Patrocinio"),
     ("patrocinio_bonus", "Bonus de patrocinio"), ("bilheteria", "Bilheteria"),
+    ("socios", "Socios"),
     ("premio_liga", "Premiacao da liga"), ("premio_estadual", "Premio do estadual"),
     ("premio_copa", "Premio de copa"), ("premio_grupo", "Vitorias na fase de grupos"),
     ("vendas", "Venda de jogadores"), ("emprestimos", "Taxas de emprestimo"),
