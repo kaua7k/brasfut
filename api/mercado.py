@@ -13,6 +13,7 @@ na sessao e vale pela semana - "nao adianta insistir" passa a ser verdade.
 
 from .sessao import SESSAO
 from . import dto
+import re
 import brasfut as eng
 
 ABAS = [("compra", "Comprar"), ("emprestimo", "Emprestimos"),
@@ -35,8 +36,45 @@ def _filtros(f):
             return None
         return v or None
     pos = f.get("pos") if f.get("pos") in eng.POS else None
+    regiao = f.get("regiao") if f.get("regiao") in REGIOES else None
     return {"pos": pos, "ovr": inteiro("ovr"), "idade": inteiro("idade"),
-            "teto": inteiro("teto")}
+            "teto": inteiro("teto"), "idade_min": inteiro("idade_min"),
+            "pot_min": inteiro("pot_min"), "regiao": regiao, "so_venda": bool(f.get("so_venda"))}
+
+
+# regioes do filtro do mercado: a liga de onde o jogador viria
+REGIOES = {"br": "Brasil", "sul": "America do Sul", "europa": "Europa", "outros": "Outras ligas"}
+EUROPA = ("ENG", "ESP", "GER", "ITA", "FRA", "POR", "NED")
+
+
+def regiao_de(G, j):
+    if j["clube"] is None:
+        return None
+    div = G["clubes"][j["clube"]]["divisao"]
+    if div in eng.DIVISOES_BR:
+        return "br"
+    if div in eng.CODIGOS_SUL:
+        return "sul"
+    return "europa" if div in EUROPA else "outros"
+
+
+def teto_visto(G, j):
+    """O teto que o MEU olheiro enxerga (o meio da faixa): o filtro nao pode
+    revelar o potencial escondido."""
+    nums = [int(n) for n in re.findall(r"\d+", eng.scout(G, j))]
+    return sum(nums) // len(nums) if nums else j["ovr"]
+
+
+def _passa(G, j, f):
+    if f["idade_min"] and j["idade"] < f["idade_min"]:
+        return False
+    if f["regiao"] and regiao_de(G, j) != f["regiao"]:
+        return False
+    if f["so_venda"] and not j["listado"]:
+        return False
+    if f["pot_min"] and teto_visto(G, j) < f["pot_min"]:
+        return False
+    return True
 
 
 def acertados(G):
@@ -95,13 +133,16 @@ def _busca(G, c, aba, f):
         achados = [j for j in (G["jogadores"][p] for p in G["livres"])
                    if (not f["pos"] or j["pos"] == f["pos"])
                    and (not f["ovr"] or j["ovr"] >= f["ovr"])
-                   and (not f["idade"] or j["idade"] <= f["idade"])]
+                   and (not f["idade"] or j["idade"] <= f["idade"])
+                   and _passa(G, j, dict(f, regiao=None, so_venda=False))]
         achados.sort(key=lambda j: -j["ovr"])
         achados = achados[:LIMITE_BUSCA]
     else:
+        # os filtros extras cortam antes do limite: senao sobravam 3 dos 25
         achados = eng.buscar(G, pos=f["pos"], ovr=f["ovr"], idade=f["idade"],
                              teto=f["teto"], so_emprestimo=(aba == "emprestimo"),
-                             limite=LIMITE_BUSCA)
+                             limite=10 ** 6)
+        achados = [j for j in achados if _passa(G, j, f)][:LIMITE_BUSCA]
     pendentes = acertados(G)
     return [_linha_busca(G, c, j, aba, pendentes) for j in achados]
 
@@ -222,6 +263,7 @@ def tela(aba="compra", filtros=None):
                  for k, n in ABAS],
         "aba": aba,
         "filtros": f,
+        "regioes": [{"id": k, "nome": n} for k, n in REGIOES.items()],
         "posicoes": list(eng.POS),
         "caixa_num": int(c["dinheiro"]),
         "financeiro": financeiro(G, c),
