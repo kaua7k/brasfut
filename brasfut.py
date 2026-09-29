@@ -5758,13 +5758,27 @@ def executar_agendadas(G: Mundo) -> List[str]:
 SONDAGEM_MIN, SONDAGEM_MAX = 0.82, 1.12
 
 
+NIVEL_COMPRADOR = 3      # o jogador tem que chegar a 3 pontos da media do elenco de quem compra
+
+
+def serve_para(G: Mundo, j: Jogador, cl: Clube) -> bool:
+    """Ele entra no elenco deste clube? Sem isto Leverkusen e Ajax mandavam
+    proposta por jogador de 50 de overall da Serie D (2026-09-29). Promessa
+    jovem vale pelo teto, nao pelo overall de hoje."""
+    media = media_elenco(G, cl)
+    if j["ovr"] >= media - NIVEL_COMPRADOR:
+        return True
+    return j["idade"] <= 21 and j["pot"] >= media + 2
+
+
 def _compradores_possiveis(G: Mundo, j: Jogador, preco: int) -> List[Clube]:
     meu = G.get("clube")
     return [cl for cl in G["clubes"].values()
             if cl["divisao"] != "EX" and cl["id"] != meu
             and not elenco_cheio(G, cl)
             and verba_contratacao(G, cl, j["salario"]) >= preco
-            and cl["reputacao"] > j["ovr"] - 26]
+            and cl["reputacao"] > j["ovr"] - 26
+            and serve_para(G, j, cl)]
 
 
 def _comprador_interessado(G: Mundo, j: Jogador, candidatos: List[Clube]) -> Optional[Clube]:

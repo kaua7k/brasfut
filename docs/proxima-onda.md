@@ -47,7 +47,11 @@ amarelo).
   renovação em lote deixa de fora quem quer mais que o pedido.
 - ~~Flexibilidade com agente livre~~ feito junto: o livre aceita de 14% abaixo a 3% acima,
   e até 4 pontos a menos quanto mais tempo parado.
-- Propostas recebidas irreais por jogadores de divisões baixas (ex.: Série D).
+- ~~Propostas irreais por jogador de divisão baixa~~ feito: medido num clube da Série D,
+  quem sondava eram Leverkusen, Ajax, Atalanta e Benfica por jogadores de 46 a 54 de
+  overall. Agora o comprador precisa querer o jogador no elenco (`serve_para`: até 3
+  pontos abaixo da média dele, ou promessa com teto acima dela); as propostas passam a vir
+  da C, da D e de sul-americanos menores.
 
 **Funcionalidades novas**
 - Guia de estatísticas do campeonato: artilharia, assistências, cartões e notas no estilo
