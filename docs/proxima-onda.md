@@ -67,11 +67,12 @@ amarelo).
   Finanças. Fica para depois: o número de sócios reagir a resultado e preço.
 
 **Modo Caos (pedido depois da lista, com print de 5 plantões)**
-- Mais diversidade: eventos novos e mais variações de texto em cada um (o print teve dois
-  "gato descoberto" seguidos, com o mesmo texto).
-- Evitar repetir o mesmo evento em sequência (ex.: não sortear de novo o mesmo tipo nas
-  próximas semanas).
-- Frequência em níveis, escolhida ao criar a carreira (ex.: calmo, normal, caótico).
+- ~~Mais diversidade~~ feito: 11 eventos novos (36 no total: cachorro mascote, reality,
+  hacker, vaquinha, veterano que rejuvenesce, enchente, portões fechados, tatuagem do rival,
+  vidente, folha vazada, churrasco) e duas a quatro variações de texto na maioria.
+- ~~Evitar repetir~~ feito: o mesmo tipo não é sorteado de novo por 10 semanas.
+- ~~Frequência em níveis~~ feito: calmo, normal ou caótico, escolhido na carreira nova
+  (aparece no slot do save).
 
 **Fora do jogo**
 - Observação sobre páginas do Santos fazendo campanha por um patch no uniforme em

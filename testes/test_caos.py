@@ -227,5 +227,96 @@ class TestCaos(unittest.TestCase):
         self.assertTrue(feed)
 
 
+class TestCaosVariedade(unittest.TestCase):
+    """Pedido de 2026-09-29: niveis de frequencia, sem repetir o mesmo evento
+    em sequencia, e mais eventos e textos."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.hash_antes = apoio.hash_do_save_real()
+        if os.path.exists(apoio.SAVE_TESTE):
+            os.remove(apoio.SAVE_TESTE)
+        eng.rng.seed(703)
+        clubes = apoio.chamar("POST", "/api/novo", {"nome": "Teste Caos Nivel",
+                                                    "opcoes": {"modo": "caos", "caos_nivel": "caotico"}})["clubes"]
+        apoio.chamar("POST", "/api/clube", {"id": next(c["id"] for c in clubes if c["nome"] == "Santos")})
+        cls.G = SESSAO.G
+
+    @classmethod
+    def tearDownClass(cls):
+        assert apoio.hash_do_save_real() == cls.hash_antes, "teste mexeu no save real"
+
+    def test_nivel_fica_no_save_e_muda_a_chance(self):
+        G = self.G
+        self.assertEqual(G["opcoes"]["caos_nivel"], "caotico")
+        self.assertEqual(eng.resumo_save(G)["caos_nivel"], "caotico")
+        chances = {}
+        for nivel in eng.NIVEIS_CAOS:
+            G["opcoes"]["caos_nivel"] = nivel
+            chances[nivel] = eng.chances_caos(G)
+        G["opcoes"]["caos_nivel"] = "caotico"
+        self.assertLess(chances["calmo"][0], chances["normal"][0])
+        self.assertLess(chances["normal"][0], chances["caotico"][0])
+        self.assertLess(chances["calmo"][1], chances["caotico"][1])
+        self.assertEqual(chances["normal"], (eng.CHANCE_CAOS, eng.CHANCE_CAOS_DUPLO))
+        self.assertTrue(all(0 < a <= 1 and 0 < b <= 1 for a, b in chances.values()))
+        # nivel desconhecido (save editado a mao) cai no normal
+        self.assertEqual(eng.definir_opcoes_carreira({}, {"modo": "caos", "caos_nivel": "x"})["caos_nivel"],
+                         "normal")
+
+    def test_mesmo_evento_nao_repete_na_janela(self):
+        G = self.G
+        est = eng.estado_caos(G)
+        est["pendentes"] = []
+        eng.CHANCE_CAOS, chance = 1.0, eng.CHANCE_CAOS
+        vistos = []
+        try:
+            eng.rng.seed(11)
+            for _ in range(40):
+                G["semana_abs"] = eng.semana_absoluta(G) + 1
+                vistos.append([(e["id"], eng.semana_absoluta(G)) for e in eng.eventos_caos(G) if "id" in e])
+        finally:
+            eng.CHANCE_CAOS = chance
+        ultima = {}
+        for semana in vistos:
+            for ident, quando in semana:
+                if ident in ultima:
+                    self.assertGreaterEqual(quando - ultima[ident], eng.JANELA_REPETE_CAOS, ident)
+                ultima[ident] = quando
+        self.assertGreater(len(ultima), 15, "40 semanas no caotico deviam variar bastante")
+
+    def test_eventos_novos_rodam(self):
+        G = self.G
+        novos = ("cachorro", "reality", "hacker", "vaquinha", "pacto", "enchente",
+                 "portoes_fechados", "tatuagem", "vidente", "vazamento", "churrasco")
+        tabela = {e[0]: e[2] for e in eng.EVENTOS_CAOS}
+        self.assertEqual(len(tabela), len(eng.EVENTOS_CAOS), "id repetido na tabela")
+        self.assertGreaterEqual(len(tabela), 36)
+        rodaram = 0
+        meu = G["clubes"][G["clube"]]
+        for ident in novos:
+            # vaquinha so vale para caixa negativo
+            if ident == "vaquinha":
+                meu["dinheiro"], caixa = -1_000_000, meu["dinheiro"]
+            ev = tabela[ident](G)
+            if ident == "vaquinha":
+                meu["dinheiro"] += caixa + 1_000_000
+            if ev:
+                rodaram += 1
+                self.assertTrue(ev["titulo"] and ev["texto"], ident)
+                self.assertNotRegex(ev["texto"], r"%[sd(]", ident)
+        self.assertGreaterEqual(rodaram, len(novos) - 1)
+
+    def test_texto_varia(self):
+        G = self.G
+        textos = set()
+        for semente in range(12):
+            eng.rng.seed(semente)
+            ev = eng.ev_invasao(G) or eng.ev_benzedeira(G)
+            if ev:
+                textos.add(ev["texto"].split(G["clubes"][G["clube"]]["nome"])[0][:25])
+        self.assertGreater(len(textos), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -16,6 +16,7 @@ import type {
   ClubeOpcao,
   Config,
   ModoCarreira,
+  NivelCaos,
   OpcaoDificuldade,
   OpcoesCarreira,
   SituacaoJogo,
@@ -46,6 +47,12 @@ const MODOS: { id: ModoCarreira; nome: string; desc: string }[] = [
     nome: 'Caos',
     desc: 'Plantao ao vivo toda semana: doping descoberto anos depois, dinheiro sujo pego no fair play, capitao preso, xeique comprando clube da Serie D, meteorito no gramado. Nada e seguro, nem o seu clube.',
   },
+]
+
+const NIVEIS_CAOS: { id: NivelCaos; nome: string; desc: string }[] = [
+  { id: 'calmo', nome: 'Calmo', desc: 'um plantao a cada tres semanas' },
+  { id: 'normal', nome: 'Normal', desc: 'um plantao a cada duas semanas' },
+  { id: 'caotico', nome: 'Caotico', desc: 'quase toda semana, as vezes dois' },
 ]
 
 export function Abertura(props: Props) {
@@ -131,7 +138,11 @@ function Slots({ slots, ocupado, aoAbrir, aoApagar, aoNova, aoVoltar }: Props & 
             <div key={s.slot} className="slot">
               <span className="slot-num">
                 Slot {s.slot}
-                {s.modo === 'caos' && <span className="slot-modo">modo caos</span>}
+                {s.modo === 'caos' && (
+                  <span className="slot-modo">
+                    modo caos{s.caos_nivel && s.caos_nivel !== 'normal' ? ` · ${s.caos_nivel}` : ''}
+                  </span>
+                )}
               </span>
               <span className="slot-clube escudo-com-nome">
                 {s.escudo && <Escudo nome={s.escudo.nome} dados={s.escudo} tamanho={30} />}
@@ -195,6 +206,7 @@ function NovaCarreira({ config, ocupado, dificuldades, slot, aoCriar, aoVoltar }
     sem_demissao: config?.sem_demissao ?? false,
     investidor: config?.investidor ?? false,
     modo: config?.modo ?? 'classico',
+    caos_nivel: config?.caos_nivel ?? 'normal',
   })
   const nomeLimpo = nome.trim()
 
@@ -236,6 +248,23 @@ function NovaCarreira({ config, ocupado, dificuldades, slot, aoCriar, aoVoltar }
             </label>
           ))}
         </div>
+        {opcoes.modo === 'caos' && (
+          <div className="niveis-caos" role="radiogroup" aria-label="Frequencia dos plantoes">
+            <span className="tag-fraco">Frequencia dos plantoes</span>
+            {NIVEIS_CAOS.map((n) => (
+              <label key={n.id} className={`nivel-caos${opcoes.caos_nivel === n.id ? ' ativo' : ''}`}>
+                <input
+                  type="radio"
+                  name="caos_nivel"
+                  checked={opcoes.caos_nivel === n.id}
+                  onChange={() => setOpcoes({ ...opcoes, caos_nivel: n.id })}
+                />
+                <strong>{n.nome}</strong>
+                <span>{n.desc}</span>
+              </label>
+            ))}
+          </div>
+        )}
       </fieldset>
 
       <fieldset className="mesa-bloco">

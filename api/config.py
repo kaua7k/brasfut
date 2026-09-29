@@ -19,6 +19,7 @@ PADRAO = {
     "sem_demissao": False,
     "investidor": False,
     "modo": "classico",
+    "caos_nivel": "normal",
 }
 ESCALAS = (90, 100, 110, 125)
 
@@ -56,6 +57,8 @@ def _limpo(d):
         fora["dificuldade"] = d["dificuldade"]
     if d.get("modo") in eng.MODOS:
         fora["modo"] = d["modo"]
+    if d.get("caos_nivel") in eng.NIVEIS_CAOS:
+        fora["caos_nivel"] = d["caos_nivel"]
     for k in ("reduzir_animacoes", "sem_demissao", "investidor"):
         if k in d:
             fora[k] = bool(d[k])

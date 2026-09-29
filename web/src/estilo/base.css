@@ -1993,6 +1993,15 @@ ol.ajuda-lista { padding-left: 20px; max-height: none; }
 .modo-opcao.caos strong { color: var(--critico); }
 .modo-opcao:focus-within { outline: 2px solid var(--acao-linha); outline-offset: 2px; }
 @media (max-width: 720px) { .modos { grid-template-columns: 1fr; } }
+.niveis-caos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
+.niveis-caos > .tag-fraco { grid-column: 1 / -1; }
+.nivel-caos { position: relative; display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: var(--raio-m); border: 1px solid var(--borda-forte); background: var(--painel-alto); cursor: pointer; font-size: var(--fs-p); color: var(--txt-3); }
+.nivel-caos input { position: absolute; opacity: 0; pointer-events: none; }
+.nivel-caos strong { color: var(--txt); }
+.nivel-caos.ativo { border-color: var(--critico); background: var(--critico-brilho); }
+.nivel-caos.ativo strong { color: var(--critico); }
+.nivel-caos:focus-within { outline: 2px solid var(--acao-linha); outline-offset: 2px; }
+@media (max-width: 720px) { .niveis-caos { grid-template-columns: 1fr; } }
 
 /* ------------------------------------------------------------ plantao (caos) */
 .modal.plantao { max-width: 720px; padding: 0; overflow: hidden; }

@@ -38,7 +38,7 @@ class TestCarreiraNova(unittest.TestCase):
         self.assertEqual(G["tecnico"], "Treinador Novo")
         self.assertEqual(eng.opcoes_carreira(G),
                          {"dificuldade": "dificil", "sem_demissao": True, "investidor": False,
-                          "modo": "classico"})
+                          "modo": "classico", "caos_nivel": "normal"})
 
     def test_investidor_poe_o_aporte_da_serie(self):
         clubes = criar(investidor=True)
