@@ -157,7 +157,9 @@ function Lances({ p, lado }: { p: Partida; lado: Lado }) {
               <span className="tag-fraco"> · {l.extra}</span>
             ) : (
               <>
-                <span className="so-leitor"> ({l.tipo === 'gol' ? 'gol' : `cartao ${l.tipo}`})</span>
+                <span className="so-leitor"> ({l.tipo === 'gol' ? 'gol' : `cartao ${l.tipo.replace('_', ' ')}`})</span>
+                {l.tipo === 'segundo_amarelo' && <span className="tag-critico"> · 2o amarelo, expulso</span>}
+                {l.tipo === 'vermelho' && <span className="tag-critico"> · vermelho direto</span>}
                 {l.extra && <span className="tag-fraco"> · assist. {l.extra}</span>}
               </>
             )}

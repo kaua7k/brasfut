@@ -170,7 +170,7 @@ export interface Partida {
   times: [string, string]
   placar: [number, number]
   gols: { minuto: number; lado: Lado; autor: string; assist: string }[]
-  cartoes: { minuto: number; lado: Lado; tipo: 'amarelo' | 'vermelho'; nome: string }[]
+  cartoes: { minuto: number; lado: Lado; tipo: 'amarelo' | 'vermelho' | 'segundo_amarelo'; nome: string }[]
   /** trocas de mentalidade em campo (instrucao condicional ou a regra da maquina) */
   instrucoes: { minuto: number; lado: Lado; tatica: string; motivo: string }[]
   posse: [number, number]

@@ -77,6 +77,18 @@ class TestCartoes(unittest.TestCase):
                     self.assertEqual(vermelho[pid], ms[1])
         self.assertGreater(casos, 0, "nenhum segundo amarelo nos jogos do teste")
 
+    def test_registro_mostra_segundo_amarelo_como_um_cartao(self):
+        casos = 0
+        for r in self.jogos:
+            reg = eng.registro_partida(self.G, r)
+            pares = [c for c in reg["cartoes"] if c[2] == "segundo_amarelo"]
+            casos += len(pares)
+            for m, lado, tipo, nome in pares:
+                # nem o amarelo nem o vermelho do mesmo lance ficam soltos
+                self.assertFalse([c for c in reg["cartoes"] if c[3] == nome and c[0] == m
+                                  and c[2] in ("amarelo", "vermelho")])
+        self.assertGreater(casos, 0, "nenhum segundo amarelo nos jogos do teste")
+
     def test_segundo_amarelo_nao_conta_no_acumulado(self):
         G = self.G
         casa, fora = self.pares[0]
