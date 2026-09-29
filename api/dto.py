@@ -609,8 +609,6 @@ def _situacao_mercado(j):
         return "emprestado a nos"
     if j["listado"]:
         return "a venda por %s" % eng.din(j["listado"])
-    if j.get("emp_listado"):
-        return "disponivel p/ emprestimo"
     return ""
 
 

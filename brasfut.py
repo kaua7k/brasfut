@@ -1117,7 +1117,7 @@ def nova_liga(G, div):
 
 
 def criar_mundo(nome_tecnico):
-    G = {"versao": VERSAO, "econ_estrelas": True, "temporada": 2026, "semana": 1, "seq": 0, "seq_c": 0,
+    G = {"versao": VERSAO, "econ_estrelas": True, "cedivel_limpo": True, "temporada": 2026, "semana": 1, "seq": 0, "seq_c": 0,
          "clubes": {}, "jogadores": {}, "livres": [], "noticias": [], "historico": [],
          "tecnico": nome_tecnico, "clube": None, "auto": False, "fase": "liga",
          "objetivo": "", "log_semana": [], "artilharia_temp": {},
@@ -7423,9 +7423,22 @@ def definir_opcoes_carreira(G: Mundo, opcoes: Dict[str, Any]) -> Dict[str, Any]:
     return limpo
 
 
+def limpar_vitrine_herdada(G: Mundo, c: Clube, a_venda: bool = True) -> None:
+    """O mundo e sorteado antes da escolha do clube: a IA ja tinha posto
+    jogadores a venda e marcado cediveis (a marca que alimenta a aba de
+    emprestimos dela). No clube do treinador isso vira ruido - a vitrine e
+    decisao dele, e ceder e pelo botao Ceder. Limpa ao assumir."""
+    for p in c["elenco"]:
+        j = G["jogadores"][p]
+        j["emp_listado"] = 0
+        if a_venda:
+            j["listado"] = 0
+
+
 def comecar_no_clube(G: Mundo, c: Clube) -> List[str]:
     """O primeiro clube da carreira recebe o que as opcoes prometem: caixa da
     dificuldade e, com investidor, o aporte. Devolve as noticias do dia."""
+    limpar_vitrine_herdada(G, c)
     op = opcoes_carreira(G)
     recados = []
     mult = DIFICULDADES[op["dificuldade"]]["caixa"]
@@ -7548,6 +7561,7 @@ def assumir_clube(G: Mundo, cid: int, saida: str) -> None:
     antigo = G["clubes"][G["clube"]]
     _fechar_passagem(G, saida)
     largar_clube(antigo)
+    limpar_vitrine_herdada(G, G["clubes"][cid])
     G["clube"] = cid
     herdar_preferencias(G, antigo)
     definir_objetivo(G)
@@ -10680,6 +10694,11 @@ def migrar(G):
     G.setdefault("semana_est", 0)
     migrar_prazos(G)
     migrar_economia_estrelas(G)
+    # save antigo: a marca de cedivel herdada da IA nao faz nada no meu clube
+    # (a venda fica: pode ter sido escolha do treinador)
+    if G.get("clube") in G.get("clubes", {}) and not G.get("cedivel_limpo"):
+        limpar_vitrine_herdada(G, G["clubes"][G["clube"]], a_venda=False)
+        G["cedivel_limpo"] = True
     if not isinstance(G.get("emp_ofertas"), dict):
         G["emp_ofertas"] = {"stamp": "", "itens": []}
     if not isinstance(G.get("estaduais"), dict):
