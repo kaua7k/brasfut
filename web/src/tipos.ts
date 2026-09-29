@@ -251,6 +251,22 @@ export interface PassagemCarreira {
   parcial: boolean
 }
 
+export interface RankingEstat {
+  id: string
+  titulo: string
+  sub?: string
+  itens: { id: number; nome: string; pos: string; clube: string; meu: boolean; jogos: number; valor: string; num: number }[]
+}
+
+export interface TelaEstatisticas {
+  cabecalho: Cabecalho
+  titulo: string
+  subtitulo: string
+  alvo: string
+  torneios: { id: string; nome: string; grupo: string }[]
+  rankings: RankingEstat[]
+}
+
 export interface TelaClube {
   cabecalho: Cabecalho
   titulo: string

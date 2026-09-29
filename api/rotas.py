@@ -119,6 +119,18 @@ def novo(corpo):
         return {"jogo": "escolher_clube", "clubes": clubes}
 
 
+@rota("GET", "/api/estatisticas")
+def ver_estatisticas(corpo):
+    with SESSAO.cadeado:
+        return {"tela": dto.estatisticas(_alvo(corpo))}
+
+
+@rota("POST", "/api/estatisticas")
+def ver_estatisticas_alvo(corpo):
+    with SESSAO.cadeado:
+        return {"tela": dto.estatisticas(_alvo(corpo))}
+
+
 @rota("GET", "/api/escudos")
 def ver_escudos(_corpo):
     with SESSAO.cadeado:

@@ -301,6 +301,14 @@ quando você está indo bem.
   seleção do campeonato (4-3-3). Contam jogos de todas as competições. O prêmio fica na
   ficha do jogador e valoriza o passe até a virada seguinte.
 
+## Estatísticas
+
+No menu, **Estatísticas** mostra os números de cada liga (troque no seletor): artilharia,
+assistências, participação em gols, nota média (só quem jogou metade das rodadas; a cor
+vai de vermelho, abaixo de 6,5, a azul, 8 ou mais), cartões amarelos e vermelhos, melhor
+ataque e melhor defesa. Os números de jogador somam o ano inteiro, em todas as
+competições. Clique no nome para abrir a ficha.
+
 ## Capitão
 
 Todo clube tem um capitão, marcado com um **C** dourado no Elenco e na ficha. Sem escolha

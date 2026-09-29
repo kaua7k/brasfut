@@ -251,8 +251,17 @@ export function IconeMenu({ tamanho = 18 }: Props) {
   )
 }
 
+export function IconeEstatisticas({ tamanho = 18 }: Props) {
+  return (
+    <svg {...base(tamanho)}>
+      <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+    </svg>
+  )
+}
+
 export const ICONES_MENU: Record<string, (p: Props) => ReactElement> = {
   clube: IconeClube,
+  estatisticas: IconeEstatisticas,
   painel: IconePainel,
   elenco: IconeElenco,
   base: IconeBase,
