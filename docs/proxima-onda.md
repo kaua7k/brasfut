@@ -19,6 +19,43 @@ começar. Decisões já tomadas continuam em `docs/three-amigos/`; o mapa do có
 | 7. Notícia de gol estranha | O texto exato ou um print. Sem isso é chute (`manchetes_da_semana`, `noticia`). |
 | 3. Contratações fantasmas | Confirmar se eram craques caindo em clube pequeno na virada. Esse caso foi corrigido na PR #11 (`cabe_na_folha`); se era outra coisa, precisa do exemplo. |
 
+## 2b. Lista de 2026-09-29 (anotada, nada feito ainda)
+
+Veio com dois prints: a coluna Situação do Elenco (mistura "a venda" com "pendurado liga"
+e "gancho liga") e a lista de cartões de uma partida (dois amarelos do mesmo jogador
+aparecem como amarelo, amarelo e vermelho, sem dizer que o vermelho veio do segundo
+amarelo).
+
+**Interface e navegação**
+- Selo de posição: separar as cores de ZAG e LAT, e de VOL e MEI (hoje só há quatro cores
+  por linha do campo, em `Celulas.tsx`).
+- Coluna Situação: separar o status de transferência (à venda, emprestado, cedível) da
+  situação de jogo (lesão, pendurado, suspenso).
+- Mercado: filtro de jogadores melhor.
+
+**Mecânicas**
+- Capitão: pedido de escolher o capitão. Já existe desde a PR #20 (Tornar capitão, na
+  ficha); talvez falte deixar isso visível, por exemplo na Escalação.
+- Reavaliar se "cedível" faz sentido na dinâmica atual.
+- Cartões: diferenciar expulsão por dois amarelos de vermelho direto (no relato, na lista
+  de cartões e na suspensão).
+
+**Negociações e contratos**
+- Oferta 5% abaixo do pedido não deveria ser sempre recusada por jovens, e oferta de 100%
+  não deveria garantir a contratação.
+- Mais flexibilidade para negociar com agente livre.
+- Propostas recebidas irreais por jogadores de divisões baixas (ex.: Série D).
+
+**Funcionalidades novas**
+- Guia de estatísticas do campeonato: artilharia, assistências, cartões e notas no estilo
+  Sofascore.
+- Sócios: hoje o número existe e não gera receita. Decidir se entra como receita (programa
+  de sócio-torcedor, que já está no item 3) ou se fica claro na tela que é futuro.
+
+**Fora do jogo**
+- Observação sobre páginas do Santos fazendo campanha por um patch no uniforme em
+  homenagem a uma mulher falecida. Só registro, sem ação no jogo.
+
 ## 3. Pronto para codar (sem decisão pendente)
 
 - **Partida lance a lance na web** — só existe na janela tkinter (`ARQUITETURA-WEB.md`, pontas soltas).
