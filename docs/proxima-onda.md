@@ -27,10 +27,10 @@ aparecem como amarelo, amarelo e vermelho, sem dizer que o vermelho veio do segu
 amarelo).
 
 **Interface e navegação**
-- Selo de posição: separar as cores de ZAG e LAT, e de VOL e MEI (hoje só há quatro cores
-  por linha do campo, em `Celulas.tsx`).
-- Coluna Situação: separar o status de transferência (à venda, emprestado, cedível) da
-  situação de jogo (lesão, pendurado, suspenso).
+- ~~Selo de posição: separar ZAG/LAT e VOL/MEI~~ feito (lateral azul claro, volante
+  verde-água).
+- ~~Coluna Situação~~ feito: no Elenco virou **Jogo** (lesão, suspenso, pendurado) e
+  **Mercado** (sem contrato, à venda, emprestado, disponível para empréstimo).
 - Mercado: filtro de jogadores melhor.
 
 **Mecânicas**

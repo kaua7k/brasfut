@@ -516,6 +516,10 @@ export interface RespostaAcao<T> {
 }
 
 export interface JogadorElenco {
+  /** lesao, suspensao, pendurado */
+  jogo: string
+  /** contrato e vitrine: sem contrato, a venda, emprestado */
+  mercado: string
   id: number
   pos: string
   nome: string

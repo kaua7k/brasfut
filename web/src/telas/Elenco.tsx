@@ -60,11 +60,18 @@ const COLUNAS: Coluna<JogadorElenco>[] = [
     ),
   },
   {
-    chave: 'sit',
-    rotulo: 'Situacao',
-    largura: 'minmax(110px, 1.2fr)',
+    chave: 'jogo',
+    rotulo: 'Jogo',
+    largura: 'minmax(110px, 1fr)',
     classe: 'corta',
-    render: (j) => j.situacao,
+    render: (j) => <span className={j.jogo.startsWith('pendurado') ? 'tag-atencao' : 'tag-critico'}>{j.jogo}</span>,
+  },
+  {
+    chave: 'mercado',
+    rotulo: 'Mercado',
+    largura: 'minmax(110px, 1fr)',
+    classe: 'corta',
+    render: (j) => j.mercado,
   },
 ]
 

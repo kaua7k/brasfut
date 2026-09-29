@@ -5,7 +5,8 @@
 // esconderia o valor dentro das props.
 
 // a linha do campo pela posicao principal ("ZAG/LAT" conta como ZAG)
-const LINHA: Record<string, string> = { GOL: 'gol', ZAG: 'def', LAT: 'def', VOL: 'mei', MEI: 'mei', ATA: 'ata' }
+// zagueiro e lateral, volante e meia: mesma familia de cor, tons diferentes
+const LINHA: Record<string, string> = { GOL: 'gol', ZAG: 'def', LAT: 'lat', VOL: 'vol', MEI: 'mei', ATA: 'ata' }
 
 /** "ATA" num selo com a cor da linha do campo. */
 export function seloPos(pos: string) {
