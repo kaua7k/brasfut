@@ -37,7 +37,10 @@ amarelo).
 **Mecânicas**
 - Capitão: pedido de escolher o capitão. Já existe desde a PR #20 (Tornar capitão, na
   ficha); talvez falte deixar isso visível, por exemplo na Escalação.
-- Reavaliar se "cedível" faz sentido na dinâmica atual.
+- ~~"Cedível"~~ resolvido: é a marca da IA para quem ela aceita emprestar (alimenta a aba
+  Empréstimos). O mundo é sorteado antes da escolha do clube, então o elenco do treinador
+  herdava "cedível" e até "à venda" que ele nunca pôs. Agora assumir um clube limpa essas
+  marcas (`limpar_vitrine_herdada`); save antigo perde só o "cedível", uma vez.
 - ~~Cartões: dois amarelos x vermelho direto~~ feito na lista de lances: o segundo amarelo
   vira um cartão só (metade amarelo, metade vermelho, "2o amarelo, expulso") e o vermelho
   direto diz "vermelho direto". A suspensão já era diferente (1 jogo x 1 a 3).
