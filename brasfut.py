@@ -9188,6 +9188,14 @@ def registro_partida(G: Mundo, r: Dict[str, Any]) -> Dict[str, Any]:
         if tipo == "gol":
             gols.append([minuto, lado, nome(pid), nome(extra)])
         elif tipo in ("amarelo", "vermelho"):
+            ant = cartoes[-1] if cartoes else None
+            # o segundo amarelo vem colado no vermelho (mesmo minuto, mesmo
+            # jogador): vira um cartao so, "segundo_amarelo", para a tela nao
+            # mostrar amarelo e vermelho como se fossem lances diferentes
+            if (tipo == "vermelho" and ant and ant[2] == "amarelo" and ant[0] == minuto
+                    and ant[1] == lado and ant[3] == nome(pid)):
+                ant[2] = "segundo_amarelo"
+                continue
             cartoes.append([minuto, lado, tipo, nome(pid)])
         elif tipo == "substituicao":
             subs.append([minuto, lado, nome(pid), nome(extra)])

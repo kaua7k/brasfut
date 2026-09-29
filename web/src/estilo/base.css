@@ -1727,6 +1727,8 @@ button.forma-badge { border: 0; padding: 0; cursor: pointer; }
 .lance-marca.gol { background: var(--txt); }
 .lance-marca.amarelo { width: 7px; height: 10px; border-radius: 1px; background: var(--atencao); }
 .lance-marca.vermelho { width: 7px; height: 10px; border-radius: 1px; background: var(--critico); }
+/* segundo amarelo: o cartao metade amarelo, metade vermelho */
+.lance-marca.segundo_amarelo { width: 7px; height: 10px; border-radius: 1px; background: linear-gradient(135deg, var(--atencao) 50%, var(--critico) 50%); }
 .lance-texto { min-width: 0; }
 .lance-marca.instrucao { width: 10px; height: 2px; border-radius: 1px; background: var(--acao-linha); }
 .condicionais { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--divisor); }

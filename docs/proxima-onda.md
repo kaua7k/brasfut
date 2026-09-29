@@ -37,8 +37,9 @@ amarelo).
 - Capitão: pedido de escolher o capitão. Já existe desde a PR #20 (Tornar capitão, na
   ficha); talvez falte deixar isso visível, por exemplo na Escalação.
 - Reavaliar se "cedível" faz sentido na dinâmica atual.
-- Cartões: diferenciar expulsão por dois amarelos de vermelho direto (no relato, na lista
-  de cartões e na suspensão).
+- ~~Cartões: dois amarelos x vermelho direto~~ feito na lista de lances: o segundo amarelo
+  vira um cartão só (metade amarelo, metade vermelho, "2o amarelo, expulso") e o vermelho
+  direto diz "vermelho direto". A suspensão já era diferente (1 jogo x 1 a 3).
 
 **Negociações e contratos**
 - Oferta 5% abaixo do pedido não deveria ser sempre recusada por jovens, e oferta de 100%
