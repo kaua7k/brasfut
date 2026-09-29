@@ -96,6 +96,8 @@
   /* titular na lista da Escalacao: o mesmo roxo do "top" da janela tkinter
      (6.9:1 sobre o painel), longe do azul que marca selecao */
   --titular: #a78bfa;
+  --pos-lat: #38bdf8;       /* lateral: azul claro, ao lado do zagueiro */
+  --pos-vol: #2dd4bf;       /* volante: verde-agua, ao lado do meia */
   --titular-fundo: rgba(167, 139, 250, 0.07);
 
   /* sombra */
@@ -1880,6 +1882,8 @@ ol.ajuda-lista { padding-left: 20px; max-height: none; }
 .selo-pos { display: inline-block; min-width: 34px; padding: 1px 4px; border: 1px solid currentColor; border-radius: 4px; font-size: var(--fs-mini); font-weight: 700; letter-spacing: 0.04em; text-align: center; color: var(--txt-3); }
 .selo-pos.gol { color: var(--atencao); }
 .selo-pos.def { color: var(--acao-linha); }
+.selo-pos.lat { color: var(--pos-lat); }
+.selo-pos.vol { color: var(--pos-vol); }
 .selo-pos.mei { color: var(--ok); }
 .selo-pos.ata { color: var(--critico); }
 .selo-ovr { display: inline-block; min-width: 28px; padding: 2px 4px; border-radius: 4px; font-family: var(--titulo); font-weight: 700; font-size: var(--fs-m); text-align: center; font-variant-numeric: tabular-nums; }

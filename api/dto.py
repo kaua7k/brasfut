@@ -588,6 +588,36 @@ def _tag_ovr(ovr):
 
 
 # --------------------------------------------------------------------- elenco
+def _situacao_jogo(j):
+    """O que tira ou ameaca tirar o jogador do proximo jogo."""
+    if j["lesao"] > 0:
+        return "lesionado, %s" % eng.plural(j["lesao"], "semana")
+    if j["suspensao"] > 0:
+        comps = [NOME_COMP_CURTO.get(k, k) for k in eng.COMPETICOES if j.get("susp", {}).get(k, 0) > 0]
+        return "suspenso (%s)" % ", ".join(comps)
+    pend = [NOME_COMP_CURTO.get(k, k) for k, v in (j.get("amar") or {}).items() if v == 2]
+    if pend:
+        return "pendurado (%s)" % ", ".join(pend)
+    return ""
+
+
+def _situacao_mercado(j):
+    """Contrato e vitrine: o que o mercado ve dele."""
+    if j["contrato"] <= 0 and not j.get("dono"):
+        return "sem contrato"
+    if j.get("dono"):
+        return "emprestado a nos"
+    if j["listado"]:
+        return "a venda por %s" % eng.din(j["listado"])
+    if j.get("emp_listado"):
+        return "disponivel p/ emprestimo"
+    return ""
+
+
+NOME_COMP_CURTO = {"liga": "liga", "copa": "Copa do Brasil", "lib": "Libertadores",
+                   "sul": "Sul-Americana", "estadual": "estadual", "ext": "liga"}
+
+
 def _linha_elenco(G, j):
     sit = _limpo(eng.situacao(G, j))
     if not sit and j["listado"]:
@@ -601,6 +631,7 @@ def _linha_elenco(G, j):
         "valor": eng.din(j["valor"]), "valor_num": int(j["valor"]),
         "contrato": j["contrato"], "ultimo_ano": ultimo_ano,
         "situacao": sit, "listado": bool(j["listado"]),
+        "jogo": _situacao_jogo(j), "mercado": _situacao_mercado(j),
         "emprestado_aqui": bool(j.get("dono")),
         "estado": estado, "tag": _tag_ovr(j["ovr"]),
         "capitao": bool(j["clube"] is not None and G["clubes"][j["clube"]].get("capitao") == j["id"]),
