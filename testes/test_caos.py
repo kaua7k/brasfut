@@ -307,6 +307,27 @@ class TestCaosVariedade(unittest.TestCase):
                 self.assertNotRegex(ev["texto"], r"%[sd(]", ident)
         self.assertGreaterEqual(rodaram, len(novos) - 1)
 
+    def test_plantao_velho_nao_volta_no_avanco(self):
+        # bug de 2026-09-29: semana sem sorteio devolvia o plantao da anterior
+        G = self.G
+        eng.estado_caos(G)["plantao"] = [{"titulo": "Velho", "texto": "x", "meu": True}]
+        eng.CHANCE_CAOS, chance = 0.0, eng.CHANCE_CAOS
+        pendentes, G["caos"]["pendentes"] = G["caos"]["pendentes"], []
+        try:
+            r = apoio.avancar({"leve": True})
+        finally:
+            eng.CHANCE_CAOS = chance
+            G["caos"]["pendentes"] = pendentes
+        self.assertEqual(r.get("plantao"), [])
+
+    def test_sem_de_o_nos_textos(self):
+        G = self.G
+        for semente in range(20):
+            eng.rng.seed(semente)
+            ev = eng.ev_virose(G)
+            if ev:
+                self.assertNotRegex(ev["texto"], r"\bde (o|a|os|as) ", ev["texto"])
+
     def test_texto_varia(self):
         G = self.G
         textos = set()

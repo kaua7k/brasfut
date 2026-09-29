@@ -246,6 +246,10 @@ def avancar(corpo):
                 "destino": "escalacao"}}
         antes = avanco.foto(G)
         virada = eng.temporada_encerrada(G)
+        # o boletim e so desta semana: semana sem sorteio (estadual, pre-temporada)
+        # devolvia o plantao da anterior e o alerta se repetia (bug de 2026-09-29)
+        if G.get("caos"):
+            G["caos"]["plantao"] = []
         fora = SESSAO.avancar()
         eng.salvar_auto(G, forcar=True)
         # a virada acabou de acontecer: o resumo vem junto, para a tela abrir
