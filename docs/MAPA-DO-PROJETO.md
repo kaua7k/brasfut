@@ -41,7 +41,7 @@ Atas de decisão de roadmap: `docs/three-amigos/`.
 | `api/competicoes.py` | — | Estaduais, séries, copas — montagem e leitura pela API | Telas de Classificação/Competições |
 | `api/avanco.py` | — | Avançar em ritmos (jogo/semana/mês/janela/temporada) | Botão *Avançar*/*Simular* |
 | `api/campo.py` | — | Vaga (GOL, ZAG...) → ponto no campo, para as formações | Desenho do campo na Escalação |
-| `web/src/telas/*.tsx` | 15 arquivos | Uma tela por arquivo (Painel, Elenco, Escalação, Mercado, Financas, Clube, etc.) | Ao mexer numa tela específica |
+| `web/src/telas/*.tsx` | 16 arquivos | Uma tela por arquivo (Painel, Elenco, Escalação, Mercado, Financas, Clube, Estatísticas, etc.) | Ao mexer numa tela específica |
 | `web/src/componentes/*.tsx` | 22 arquivos (`Ajuda.tsx`: ajuda e boas-vindas; `Partida.tsx`: resumo e detalhe da partida; `DialogoRenovar.tsx`: renovação em lote; `Celulas.tsx`: selo de posição, selo de overall e barra de físico das listas; `Resumo.tsx`: resumo da temporada; `Escudo.tsx`: escudo SVG de cada clube pelo nome, com o mapa de `/api/escudos`; `Plantao.tsx`: boletim do modo caos) | Diálogos e peças reusáveis (Mesa, Grade, Campo, Ficha...) | Componente compartilhado entre telas |
 | `web/src/api.ts`, `tipos.ts`, `formato.ts` | — | Cliente HTTP, tipos TS espelhando os DTOs, formatação (dinheiro, número) | Contrato front↔back |
 | `testes/*.py` | 44 arquivos (`desempenho.py`, `balanceamento.py` e `economia.py` são harness lentos, fora da suíte) | `unittest` da stdlib, sem dependência externa. `cd testes && python -m unittest -v` (~3 min, 194 testes) | Rodar antes de qualquer PR |

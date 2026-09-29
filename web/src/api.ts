@@ -10,6 +10,7 @@ import type {
   ResumoTemporada,
   TelaCarreira,
   TelaClube,
+  TelaEstatisticas,
   Config,
   OpcaoDificuldade,
   OpcoesCarreira,
@@ -139,6 +140,10 @@ export const api = {
   responderProposta: (id: number, aceitar: boolean) =>
     pedir<{ recado: string; painel: DadosPainel }>('/api/carreira/proposta', { id, aceitar }),
   ficha: (id: number) => pedir<{ ficha: FichaJogador }>('/api/ficha', { id }),
+  estatisticas: (alvo?: string) =>
+    alvo === undefined
+      ? pedir<{ tela: TelaEstatisticas }>('/api/estatisticas')
+      : pedir<{ tela: TelaEstatisticas }>('/api/estatisticas', { alvo }),
   escudos: () => pedir<{ escudos: DadosEscudo[] }>('/api/escudos'),
   capitao: (id: number) => pedir<{ recado: string; ficha: FichaJogador }>('/api/capitao', { id }),
 

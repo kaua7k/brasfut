@@ -58,8 +58,10 @@ amarelo).
   da C, da D e de sul-americanos menores.
 
 **Funcionalidades novas**
-- Guia de estatísticas do campeonato: artilharia, assistências, cartões e notas no estilo
-  Sofascore.
+- ~~Guia de estatísticas~~ feito: tela Estatísticas (menu), liga por liga: artilharia,
+  assistências, participação em gols, nota média (mínimo de metade das rodadas, com cor),
+  amarelos, vermelhos, melhor ataque e melhor defesa. Os números são do ano em todas as
+  competições (o jogo guarda o total por jogador, não por competição).
 - Sócios: hoje o número existe e não gera receita. Decidir se entra como receita (programa
   de sócio-torcedor, que já está no item 3) ou se fica claro na tela que é futuro.
 

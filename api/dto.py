@@ -27,7 +27,7 @@ MENU = [
     ("tabela", "Classificacao", True), ("copas", "Competicoes", True),
     ("mercado", "Mercado", True), ("financas", "Financas", True),
     ("estadio", "Estadio", True), ("infra", "Infraestrutura", True),
-    ("noticias", "Noticias", True), ("clube", "Clube", True), ("carreira", "Carreira", True),
+    ("noticias", "Noticias", True), ("estatisticas", "Estatisticas", True), ("clube", "Clube", True), ("carreira", "Carreira", True),
 ]
 
 
@@ -811,6 +811,66 @@ def _liga_por_id(G, alvo):
     if div not in G["ligas"]:
         div = G["clubes"][G["clube"]]["divisao"]
     return G["ligas"][div]
+
+
+# --------------------------------------------------------------- estatisticas
+TOP_ESTAT = 10
+
+
+def estatisticas(alvo=None):
+    """O guia do campeonato: artilharia, assistencias, participacoes, nota
+    media (so quem jogou metade das rodadas, como os premios), cartoes e os
+    ataques e defesas. Os numeros de jogador sao do ano inteiro (liga,
+    estadual e copas), de quem esta hoje nos clubes da liga."""
+    G = SESSAO.exigir()
+    liga = _liga_por_id(G, alvo if alvo and alvo.startswith("liga:") else None)
+    div = next((d for d, l in G["ligas"].items() if l is liga), G["clubes"][G["clube"]]["divisao"])
+    rodadas = max((int(t.get("j", 0)) for t in liga["tabela"].values()), default=0)
+    minimo = max(1, (rodadas + 1) // 2)
+    jogadores = []
+    for cid in liga["times"]:
+        cl = G["clubes"][cid]
+        for pid in cl["elenco"]:
+            j = G["jogadores"].get(pid)
+            if j and not eng.da_base(j) and int(j.get("j", 0)) > 0:
+                jogadores.append((j, cl))
+
+    def ranking(chave, valor, filtro=lambda j: True, fmt=str):
+        lista = sorted((x for x in jogadores if filtro(x[0]) and valor(x[0]) > 0),
+                       key=lambda x: (-valor(x[0]), int(x[0]["j"]), x[0]["nome"]))[:TOP_ESTAT]
+        return {"id": chave, "itens": [{"id": j["id"], "nome": j["nome"], "pos": j["pos"], "clube": cl["nome"],
+                                        "meu": cl["id"] == G["clube"], "jogos": int(j["j"]),
+                                        "valor": fmt(valor(j)), "num": valor(j)} for j, cl in lista]}
+
+    rankings = [
+        dict(ranking("gols", lambda j: int(j["g"])), titulo="Artilharia"),
+        dict(ranking("assist", lambda j: int(j["a"])), titulo="Assistencias"),
+        dict(ranking("participa", lambda j: int(j["g"]) + int(j["a"])), titulo="Participacao em gols"),
+        dict(ranking("nota", lambda j: eng.media_nota(j) or 0.0,
+                     filtro=lambda j: int(j.get("nota_j", 0)) >= minimo, fmt=lambda v: "%.2f" % v),
+             titulo="Nota media", sub="minimo de %s" % eng.plural(minimo, "jogo")),
+        dict(ranking("amarelos", lambda j: int(j["ca"])), titulo="Cartoes amarelos"),
+        dict(ranking("vermelhos", lambda j: int(j["cv"])), titulo="Cartoes vermelhos"),
+    ]
+    times = [(G["clubes"][int(k)], t) for k, t in liga["tabela"].items() if int(k) in G["clubes"]]
+
+    def ranking_time(chave, titulo, valor, crescente=False):
+        lista = sorted(times, key=lambda x: (valor(x[1]) if crescente else -valor(x[1]), x[0]["nome"]))[:TOP_ESTAT]
+        return {"id": chave, "titulo": titulo, "itens": [
+            {"id": cl["id"], "nome": cl["nome"], "pos": "", "clube": cl["nome"], "meu": cl["id"] == G["clube"],
+             "jogos": int(t.get("j", 0)), "valor": str(valor(t)), "num": valor(t)} for cl, t in lista]}
+
+    if rodadas:
+        rankings.append(ranking_time("ataque", "Melhor ataque", lambda t: int(t.get("gp", 0))))
+        rankings.append(ranking_time("defesa", "Melhor defesa", lambda t: int(t.get("gc", 0)), crescente=True))
+    return {
+        "cabecalho": cabecalho(G), "titulo": "Estatisticas",
+        "subtitulo": "%s · %s · numeros do ano em todas as competicoes" % (
+            eng.nome_da_liga(G, div), eng.plural(rodadas, "rodada")),
+        "alvo": "liga:" + div,
+        "torneios": [t for t in _torneios(G) if t["id"].startswith("liga:")],
+        "rankings": rankings,
+    }
 
 
 def _chave_do_meu_estadual(G):
@@ -2046,6 +2106,8 @@ def ajuda():
         "infra": "CT, departamento medico e academia de base: o que faz o elenco evoluir e "
                  "se machucar menos.",
         "noticias": "O que aconteceu no clube e no resto do futebol.",
+        "estatisticas": "Os numeros do campeonato: artilharia, assistencias, nota media, cartoes, "
+                        "melhor ataque e melhor defesa, liga por liga.",
         "clube": "O clube por dentro: cidade, estadio, numeros de agora e a sala de trofeus, "
                  "com a historia real ate 2025 e o que ele ganhou no jogo.",
         "carreira": "Sua trajetoria de treinador: clubes, titulos, marcos e propostas de emprego.",
