@@ -128,11 +128,8 @@ export function DialogoAvanco({ aoFechar, aoAbrirEscalacao }: Props) {
         if (r.partidas?.length) setPartidas((p) => [...p, ...r.partidas!].slice(-5))
         if (r.opcoes) setOpcoes(r.opcoes)
         if (r.pendencia) pendencia.current = r.pendencia
+        // o Simular nao para por plantao: junta tudo e o boletim abre no fim
         if (r.plantao?.length) plantao.current = [...plantao.current, ...r.plantao]
-        if (r.plantao?.some((ev) => ev.meu)) {
-          fim = 'plantao no seu clube'
-          break
-        }
         if (r.parar) {
           fim = r.parar
           break

@@ -87,22 +87,24 @@ class TestSimularERenovar(unittest.TestCase):
         for pid in ids:
             self.assertIsNone(linhas[pid]["motivo"])
             self.assertEqual(linhas[pid]["pede"],
-                             eng.din(eng.exigencia_renovacao(G, G["jogadores"][pid], 5)))
+                             eng.din(eng.pedido_renovacao_lote(G, G["jogadores"][pid], 5)))
         self.assertIsNotNone(linhas[emprestado["id"]]["motivo"])
 
     def test_lote_renova_todos_de_uma_vez_pelo_pedido(self):
         G = self.G
         c = G["clubes"][G["clube"]]
         ids = [p for p in c["elenco"] if not G["jogadores"][p].get("dono")][4:10]
-        pedidos = {p: eng.exigencia_renovacao(G, G["jogadores"][p], 3) for p in ids}
-        # o pedido e referencia: quem, por dentro, quer mais que ele fica de fora
-        # do lote (vai para a mesa); quem aceita renova exatamente pelo pedido
-        aceitam = [p for p in ids if eng.limite_de_aceite(G, G["jogadores"][p], c, pedidos[p],
-                                                          "renovacao") <= pedidos[p]]
-        self.assertTrue(aceitam)
+        pedidos = {p: eng.pedido_renovacao_lote(G, G["jogadores"][p], 3) for p in ids}
+        # bug de 2026-09-29: quem tinha o limite escondido acima do pedido era
+        # recusado em silencio. No lote todos renovam pelo que a previa mostra
+        for p in ids:
+            j = G["jogadores"][p]
+            exig = eng.exigencia_renovacao(G, j, 3)
+            self.assertGreaterEqual(pedidos[p], exig)
+            self.assertGreaterEqual(pedidos[p], eng.limite_de_aceite(G, j, c, exig, "renovacao"))
         r = apoio.chamar("POST", "/api/mercado/renovar-lote", {"ids": ids, "anos": 3})
-        self.assertEqual(sorted(r["feitos"]), sorted(G["jogadores"][p]["nome"] for p in aceitam))
-        for p in aceitam:
+        self.assertEqual(sorted(r["feitos"]), sorted(G["jogadores"][p]["nome"] for p in ids))
+        for p in ids:
             j = G["jogadores"][p]
             self.assertEqual((j["contrato"], j["salario"]), (3, pedidos[p]))
 

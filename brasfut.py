@@ -5485,6 +5485,16 @@ def avaliar_renovacao(G: Mundo, prop: Proposta) -> Resposta:
     return Resposta(False, "O empresario insiste em algo perto de %s por mes." % din(exig), exig)
 
 
+def pedido_renovacao_lote(G: Mundo, j: Jogador, anos: int) -> int:
+    """O salario da renovacao em lote: o pedido, ou o limite escondido quando
+    ele fica acima do pedido (ate 7%). Sem isto metade do lote era recusada em
+    silencio (bug de 2026-09-29): no lote o jogador sempre aceita o que a tela
+    mostra; pechinchar e na mesa, um por um."""
+    c = G["clubes"][j["clube"]]
+    exig = exigencia_renovacao(G, j, anos)
+    return max(exig, limite_de_aceite(G, j, c, exig, "renovacao"))
+
+
 def fechar_renovacao(G: Mundo, prop: Proposta) -> str:
     """Grava a renovacao ja aceita pelas duas pontas."""
     j = G["jogadores"][prop.jogador]
@@ -10332,15 +10342,16 @@ def ev_virose(G):
     alvos = rng.sample(_pros(G, c), min(len(_pros(G, c)), rng.randint(6, 9)))
     for j in alvos:
         j["lesao"] = max(j["lesao"], rng.randint(1, 3))
-    prato = rng.choice(["uma feijoada estragada", "o sushi do rodizio da concentracao",
-                        "o bolo de aniversario do roupeiro", "a agua do bebedouro novo",
-                        "o churrasco de gato do posto da estrada", "a maionese do almoco de domingo",
-                        "o cachorro-quente do vendedor da porta do CT"])
+    # ja com a preposicao: "depois do sushi", nunca "depois de o sushi"
+    prato = rng.choice(["de uma feijoada estragada", "do sushi do rodizio da concentracao",
+                        "do bolo de aniversario do roupeiro", "da agua do bebedouro novo",
+                        "do churrasquinho do posto da estrada", "da maionese do almoco de domingo",
+                        "do cachorro-quente do vendedor da porta do CT"])
     return _evento(G, c, "Surto no elenco", _um(
-        "%d jogadores do %s foram parar no hospital depois de %s. Ficam de 1 a 3 semanas fora.",
-        "Fila no banheiro do CT: %d jogadores do %s passaram mal depois de %s. De 1 a 3 semanas "
+        "%d jogadores do %s foram parar no hospital depois %s. Ficam de 1 a 3 semanas fora.",
+        "Fila no banheiro do CT: %d jogadores do %s passaram mal depois %s. De 1 a 3 semanas "
         "fora.",
-        "A concentracao virou enfermaria: %d atletas do %s intoxicados por %s. Voltam em 1 a 3 "
+        "A concentracao virou enfermaria: %d atletas do %s intoxicados depois %s. Voltam em 1 a 3 "
         "semanas.") % (len(alvos), c["nome"], prato))
 
 
@@ -10517,15 +10528,22 @@ def ev_racha(G):
         return None
     for j in top:
         mexer_moral(G, j, -30, "briga no vestiario")
-    motivo = rng.choice(["a vaga no estacionamento", "quem bate o penalti",
-                         "uma dancinha de comemoracao", "a playlist do vestiario",
-                         "a ex-namorada de um deles", "um jogo de truco na concentracao",
-                         "a ultima fatia da pizza"])
+    # (o motivo, e o mesmo ja com "por causa de" contraido)
+    motivo, por_causa = rng.choice([
+        ("a vaga no estacionamento", "por causa da vaga no estacionamento"),
+        ("quem bate o penalti", "por causa de quem bate o penalti"),
+        ("uma dancinha de comemoracao", "por causa de uma dancinha de comemoracao"),
+        ("a playlist do vestiario", "por causa da playlist do vestiario"),
+        ("a ex-namorada de um deles", "por causa da ex-namorada de um deles"),
+        ("um jogo de truco na concentracao", "por causa de um jogo de truco na concentracao"),
+        ("a ultima fatia da pizza", "por causa da ultima fatia da pizza")])
+    a, b = top[0]["nome"], top[1]["nome"]
     return _evento(G, c, "Racha no vestiario", _um(
-        "%s e %s, do %s, sairam no soco por causa de %s. Nenhum dos dois fala com o outro.",
-        "%s e %s, os melhores do %s, precisaram ser separados pela comissao tecnica. O motivo: %s.",
-        "Um video mostra %s e %s, do %s, rolando no chao do vestiario por %s. Clima pesado.") %
-        (top[0]["nome"], top[1]["nome"], c["nome"], motivo))
+        "%s e %s, do %s, sairam no soco %s. Nenhum dos dois fala com o outro." % (a, b, c["nome"], por_causa),
+        "%s e %s, os melhores do %s, precisaram ser separados pela comissao tecnica. O motivo: %s."
+        % (a, b, c["nome"], motivo),
+        "Um video mostra %s e %s, do %s, rolando no chao do vestiario %s. Clima pesado."
+        % (a, b, c["nome"], por_causa)))
 
 
 def ev_patrocinador(G):
@@ -10577,7 +10595,7 @@ def ev_sumiu(G):
     j["lesao"] = max(j["lesao"], 4)
     mexer_moral(G, j, -10, "sumiu depois da festa")
     lugar = rng.choice(["Ibiza", "um baile funk em Parada de Lucas", "Las Vegas", "um cruzeiro de pagode",
-                        "um festival de musica eletronica no deserto", "a festa de pe-de-serra em Caruaru",
+                        "um festival de musica eletronica no deserto", "uma festa de pe-de-serra em Caruaru",
                         "um camarote do carnaval de Salvador"])
     return _evento(G, c, "Desaparecido", _um(
         "%s, do %s, foi visto pela ultima vez em %s. Reapareceu 4 dias depois dizendo que 'perdeu "

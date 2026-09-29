@@ -597,7 +597,7 @@ def linhas_renovacao(ids, anos):
         if not j:
             continue
         motivo = _motivo_sem_renovacao(G, c, j)
-        pede = 0 if motivo else eng.exigencia_renovacao(G, j, anos)
+        pede = 0 if motivo else eng.pedido_renovacao_lote(G, j, anos)
         if not motivo:
             soma += pede - j["salario"]
         linhas.append({"id": j["id"], "nome": j["nome"], "pos": j["pos"], "ovr": j["ovr"],
@@ -627,10 +627,12 @@ def renovar_lote(ids, anos):
             pulados.append("%s (%s)" % (j["nome"], motivo))
             continue
         prop = eng.Proposta(jogador=j["id"], comprador=c["id"], anos=anos, tipo=eng.TIPO_RENOVACAO,
-                            salario=eng.exigencia_renovacao(G, j, anos))
+                            salario=eng.pedido_renovacao_lote(G, j, anos))
         if eng.avaliar_renovacao(G, prop).aceita:
             eng.fechar_renovacao(G, prop)
             feitos.append(j["nome"])
+        else:
+            pulados.append("%s (recusou)" % j["nome"])
     return feitos, pulados, anos
 
 
