@@ -154,8 +154,11 @@ negociação, com três tentativas.
 
 ## Dinheiro do clube
 
-O clube vive de quatro receitas: **cotas de TV** (fixas por semana, pela série e pela
-reputação), **patrocínio** (os contratos, abaixo), **bilheteria** e **premiação**. Os custos
+O clube vive de cinco receitas: **cotas de TV** (fixas por semana, pela série e pela
+reputação), **patrocínio** (os contratos, abaixo), **bilheteria**, **sócios** e
+**premiação**. Cada sócio paga uma mensalidade pela série do clube (R$ 50 na A, 30 na B,
+20 na C e 12 na D), que entra toda semana e soma perto de 6% da receita; o número de
+sócios está na tela do clube. Nas ligas de fora não há mensalidade. Os custos
 são a folha, a estrutura (comissão, viagens, impostos e a manutenção do CT, da base, do
 departamento médico e de cada lugar do estádio) e a operação de cada jogo em casa, que
 leva 45% da renda.
