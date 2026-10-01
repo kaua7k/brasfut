@@ -13,6 +13,7 @@
 @import './telas-a.css';
 @import './telas-b.css';
 @import './telas-c.css';
+@import './telas-abertura.css';
 
 :root {
   /* Todo valor visual do jogo mora aqui. Fora deste bloco o CSS e o TSX so
@@ -75,8 +76,6 @@
   --conquista: #e8b649;
   --conquista-txt: #161616;
   --conquista-fundo: rgba(232, 182, 73, 0.1);
-  --abertura-luz: rgba(28, 92, 52, 0.55);      /* refletor sobre o gramado da abertura */
-  --abertura-linha: rgba(255, 255, 255, 0.022); /* faixas do gramado */
   --conquista-borda: #5a4a22;
 
   /* estado: verde bom, ambar atencao (so atencao), vermelho critico */
@@ -125,6 +124,37 @@
   --pad: 18px;
   --pad-meio: 12px;
   --pad-mini: 6px;
+
+  /* tela de abertura no jeito Apple (2026-10-01): vidro fosco, cores de
+     sistema do macOS/iOS no escuro, cinzas das listas agrupadas */
+  --ab-fonte: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Manrope', 'Segoe UI', system-ui, sans-serif;
+  --ab-fundo: #000000;
+  --ab-vidro: rgba(30, 30, 32, 0.62);
+  --ab-vidro-borda: rgba(255, 255, 255, 0.09);
+  --ab-lista: rgba(44, 44, 46, 0.62);
+  --ab-lista-hover: rgba(58, 58, 60, 0.72);
+  --ab-separador: rgba(84, 84, 88, 0.5);
+  --ab-segmento: rgba(118, 118, 128, 0.24);
+  --ab-segmento-ativo: #636366;
+  --ab-cinza-bt: rgba(120, 120, 128, 0.28);
+  --ab-cinza-bt-hover: rgba(120, 120, 128, 0.4);
+  --ab-azul: #0a84ff;
+  --ab-azul-hover: #409cff;
+  --ab-verde: #30d158;
+  --ab-vermelho: #ff453a;
+  --ab-vermelho-leve: rgba(255, 69, 58, 0.16);
+  --ab-txt: #f5f5f7;
+  --ab-txt-2: rgba(235, 235, 245, 0.62);
+  --ab-txt-3: rgba(235, 235, 245, 0.36);
+  --ab-luz-1: rgba(10, 132, 255, 0.42);
+  --ab-luz-2: rgba(48, 209, 88, 0.26);
+  --ab-luz-3: rgba(232, 182, 73, 0.22);
+  --ab-sombra: 0 30px 80px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.35);
+  --ab-sombra-icone: 0 14px 32px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  --ab-sombra-segmento: 0 3px 8px rgba(0, 0, 0, 0.28), 0 1px 1px rgba(0, 0, 0, 0.2);
+  --ab-icone-fundo: linear-gradient(160deg, #1f6b3d 0%, #0f3a22 100%);
+  --ab-raio-janela: 26px;
+  --ab-raio-lista: 12px;
 
   --titulo: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
   --corpo: 'Manrope', 'Segoe UI', system-ui, sans-serif;
@@ -1601,12 +1631,6 @@ button.jogador:hover .disco, button.jogador:focus-visible .disco { transform: sc
 .verba-explica { padding: 10px 18px 14px; font-size: var(--fs-p); color: var(--txt-3); line-height: 1.5; }
 
 /* ------------------------------------------------------------ menu principal */
-.cartao-centro.abertura { max-width: 520px; width: 100%; }
-.menu-principal { display: flex; flex-direction: column; gap: 10px; max-width: 280px; margin: 8px auto 0; }
-.menu-principal button { width: 100%; margin: 0; height: 46px; padding: 0 18px; font-size: var(--fs-base); justify-content: center; border-radius: var(--raio-m); }
-.form-carreira { text-align: left; display: flex; flex-direction: column; gap: 14px; }
-.form-carreira .modal-acoes { justify-content: flex-end; }
-.form-carreira > p.tag-fraco { margin: 0; }
 .campo-rotulo { font-size: var(--fs-p); font-weight: 700; color: var(--txt-2); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: -8px; }
 .campo-texto {
   background: var(--painel); border: 1px solid var(--borda-controle); border-radius: 10px;
@@ -1943,39 +1967,6 @@ ol.ajuda-lista { padding-left: 20px; max-height: none; }
   .carreira-numeros { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* ------------------------------------------------------------ abertura (v2) */
-.abertura-fundo {
-  min-height: 100%; display: flex; align-items: center; justify-content: center; padding: 32px 16px;
-  background:
-    radial-gradient(ellipse at 50% -10%, var(--abertura-luz), transparent 60%),
-    repeating-linear-gradient(90deg, var(--abertura-linha) 0 80px, transparent 80px 160px),
-    var(--fundo);
-}
-.abertura-cartao { width: 100%; max-width: 520px; background: var(--painel); border: 1px solid var(--borda-forte); border-radius: var(--raio-m); padding: 28px 28px 16px; box-shadow: var(--sombra-mesa); }
-.abertura-cartao.largo { max-width: 860px; }
-.abertura-marca { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; margin-bottom: 22px; }
-.abertura-cartao.largo .abertura-marca { flex-direction: row; justify-content: center; margin-bottom: 16px; }
-.abertura-marca h1 { margin: 0; font-family: var(--titulo); font-size: var(--fs-gg); letter-spacing: 0.18em; }
-.abertura-lema { color: var(--txt-3); font-size: var(--fs-m); margin-top: 2px; }
-.abertura-versao { text-align: center; font-size: var(--fs-mini); color: var(--apagado); margin-top: 18px; }
-.abertura-cartao .menu-principal { margin-top: 0; }
-.slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
-.slot { display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 14px; border-radius: var(--raio-m); background: var(--painel-alto); border: 1px solid var(--borda-forte); min-height: 190px; font: inherit; color: var(--txt); }
-.slot.vazio { align-items: center; justify-content: center; text-align: center; border-style: dashed; cursor: pointer; }
-.slot.vazio:hover { border-color: var(--acao-linha); }
-.slot-num { display: flex; justify-content: space-between; gap: 6px; font-size: var(--fs-mini); text-transform: uppercase; letter-spacing: 0.08em; color: var(--fraco); font-weight: 700; width: 100%; }
-.slot.vazio .slot-num { justify-content: center; }
-.slot-modo { color: var(--critico); }
-.slot-mais { font-family: var(--titulo); font-size: var(--fs-gg); color: var(--acao-linha); line-height: 1; margin: 8px 0 2px; }
-.slot-clube { font-family: var(--titulo); font-size: var(--fs-g); font-weight: 700; margin-top: 6px; }
-.slot-tecnico { font-size: var(--fs-m); color: var(--txt-2); }
-.slot-data { font-size: var(--fs-mini); }
-.slot-acoes { display: flex; gap: 6px; margin-top: auto; padding-top: 10px; }
-.slot-acoes button { flex: 1; }
-@media (max-width: 720px) {
-  .slots { grid-template-columns: 1fr; }
-  .slot { min-height: 0; }
-}
 .marca-brasfut .m-escudo { fill: var(--gramado-escuro); stroke: var(--conquista); stroke-width: 5; }
 .marca-brasfut .m-campo { fill: var(--gramado); }
 .marca-brasfut .m-ouro { fill: var(--conquista); }
@@ -1985,26 +1976,6 @@ ol.ajuda-lista { padding-left: 20px; max-height: none; }
 
 /* ------------------------------------------------------------------ capitao */
 .selo-capitao { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-left: 6px; border-radius: 4px; background: var(--conquista); color: var(--conquista-txt); font-size: var(--fs-mini); font-weight: 700; vertical-align: middle; }
-
-/* ------------------------------------------------------- modo de jogo (novo) */
-.modos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.modo-opcao { display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: var(--raio-m); border: 1px solid var(--borda-forte); background: var(--painel-alto); cursor: pointer; font-size: var(--fs-p); color: var(--txt-3); }
-.modo-opcao input { position: absolute; opacity: 0; pointer-events: none; }
-.modo-opcao strong { font-family: var(--titulo); font-size: var(--fs-base); color: var(--txt); }
-.modo-opcao.ativo { border-color: var(--acao-linha); background: var(--acao-leve); }
-.modo-opcao.caos.ativo { border-color: var(--critico); background: var(--critico-brilho); }
-.modo-opcao.caos strong { color: var(--critico); }
-.modo-opcao:focus-within { outline: 2px solid var(--acao-linha); outline-offset: 2px; }
-@media (max-width: 720px) { .modos { grid-template-columns: 1fr; } }
-.niveis-caos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
-.niveis-caos > .tag-fraco { grid-column: 1 / -1; }
-.nivel-caos { position: relative; display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: var(--raio-m); border: 1px solid var(--borda-forte); background: var(--painel-alto); cursor: pointer; font-size: var(--fs-p); color: var(--txt-3); }
-.nivel-caos input { position: absolute; opacity: 0; pointer-events: none; }
-.nivel-caos strong { color: var(--txt); }
-.nivel-caos.ativo { border-color: var(--critico); background: var(--critico-brilho); }
-.nivel-caos.ativo strong { color: var(--critico); }
-.nivel-caos:focus-within { outline: 2px solid var(--acao-linha); outline-offset: 2px; }
-@media (max-width: 720px) { .niveis-caos { grid-template-columns: 1fr; } }
 
 /* ------------------------------------------------------------ plantao (caos) */
 .modal.plantao { max-width: 720px; padding: 0; overflow: hidden; }
