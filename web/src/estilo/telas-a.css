@@ -1,0 +1,3 @@
+/* Refinos visuais do grupo a de telas (2026-10-01). Mesmas regras de
+ * base.css: so var(--...) dos tokens do :root de base.css, nada de hex, rgba
+ * ou font-size solto. Teste: testes/test_tokens.py. */

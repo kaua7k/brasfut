@@ -22,12 +22,20 @@ FONTE_SOLTA = re.compile(r"font-size:\s*[0-9.]+(px|rem|em)")
 ESTILO = re.compile(r"style=\{\{(.*?)\}\}", re.S)
 
 
+# os refinos por grupo de telas seguem as mesmas regras de base.css
+EXTRAS = sorted(glob.glob(os.path.join(RAIZ, "web", "src", "estilo", "telas-*.css")))
+
+
 def _css():
     with open(CSS, encoding="utf-8") as f:
         s = f.read()
     ini = s.index(":root {")
     fim = s.index("\n}", ini) + 2
-    return s[ini:fim], s[fim:]
+    corpo = s[fim:]
+    for caminho in EXTRAS:
+        with open(caminho, encoding="utf-8") as f:
+            corpo += "\n" + f.read()
+    return s[ini:fim], corpo
 
 
 def _sem_comentario(css):

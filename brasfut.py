@@ -9943,7 +9943,8 @@ def definir_capitao(G: Mundo, pid: int) -> Tuple[bool, str]:
 # MODO CAOS
 #
 # Carreira alternativa (G["opcoes"]["modo"] == "caos"): toda semana de liga
-# pode estourar um plantao no futebol brasileiro - do escandalo que mexe na
+# pode estourar um plantao na liga que o jogador treina (as series brasileiras ou
+# a liga do pais dele, ver _liga) - do escandalo que mexe na
 # tabela ao absurdo que so vira manchete. Alguns eventos plantam uma
 # bomba-relogio (doping, dinheiro ilegal) que so explode temporadas depois,
 # com titulo cassado e pontos perdidos. Nada disto roda no modo classico, e o
@@ -9993,8 +9994,77 @@ def estado_caos(G: Mundo) -> Dict[str, Any]:
                                  "presos": []})
 
 
-def _br(G: Mundo, divs: str = "ABCD") -> List[Clube]:
-    return [c for c in G["clubes"].values() if c["divisao"] in DIVISOES_BR and c["divisao"] in divs]
+def _divs_caos(G: Mundo) -> Tuple[str, ...]:
+    """As divisoes onde os plantoes acontecem: a liga do clube do jogador. Quem
+    treina no Brasil ve as quatro series; quem treina fora ve so a liga do
+    pais dele (cada liga de fora e uma divisao so)."""
+    meu = G["clubes"].get(G.get("clube"))
+    if meu and de_liga_ext(meu) and meu["divisao"] in G["ligas"]:
+        return (meu["divisao"],)
+    return DIVISOES_BR
+
+
+def _eh_br(G: Mundo) -> bool:
+    return _divs_caos(G) == DIVISOES_BR
+
+
+def _liga(G: Mundo, faixa: str = "todos") -> List[Clube]:
+    """Os clubes onde o plantao pode cair. A faixa vale em qualquer liga:
+    "todos"; "topo" (Series A e B, ou a metade de cima por reputacao fora);
+    "base" (Series C e D, ou a metade de baixo); "nao_fundo" (tudo menos a D,
+    que fora do Brasil e a liga inteira)."""
+    divs = _divs_caos(G)
+    clubes = [c for c in G["clubes"].values() if c["divisao"] in divs]
+    if divs == DIVISOES_BR:
+        letras = {"todos": "ABCD", "topo": "AB", "base": "CD", "nao_fundo": "ABC"}[faixa]
+        return [c for c in clubes if c["divisao"] in letras]
+    if faixa in ("todos", "nao_fundo"):
+        return clubes
+    ordem = sorted(clubes, key=lambda c: (-c["reputacao"], c["id"]))
+    meio = len(ordem) // 2
+    return ordem[:meio] if faixa == "topo" else ordem[meio:]
+
+
+def _da_liga(G: Mundo, c: Clube) -> str:
+    """"da Serie A" no Brasil, "da liga (Premier League)" fora: o nome de liga
+    nao tem genero certo (Campeonato Uruguaio, La Liga), entao vem entre parenteses."""
+    if c["divisao"] in DIVISOES_BR:
+        return "da %s" % nome_da_liga(G, c["divisao"])
+    return "da liga (%s)" % nome_da_liga(G, c["divisao"])
+
+
+def _escala_din(G: Mundo, c: Clube) -> float:
+    """Quanto valem, na liga do clube, os valores que os plantoes escrevem em
+    reais brasileiros: a TV semanal da liga (com o encolhimento da folha) sobre
+    a da Serie A. No Brasil, 1: os valores seguem como sempre foram."""
+    div = c["divisao"]
+    if div in DIVISOES_BR:
+        return 1.0
+    ref = 65
+    tv0, tv1 = perfil_liga(div)["tv"]
+    return clamp((tv0 + tv1 * ref) * ESCALA_EXT.get(div, 1.0) / (TV["A"][0] + TV["A"][1] * ref), 0.25, 4.0)
+
+
+def _gr(G: Mundo, c: Clube, valor: float) -> int:
+    """O valor do plantao ajustado a economia da liga do clube."""
+    esc = _escala_din(G, c)
+    if esc == 1.0:
+        return int(valor)
+    return int(round(valor * esc / 10_000.0)) * 10_000
+
+
+def _rival_de(G: Mundo, c: Clube) -> Optional[Clube]:
+    """Um rival na mesma liga, de preferencia do mesmo estado/cidade."""
+    liga = _liga(G)
+    rivais = [x for x in liga if x["uf"] == c["uf"] and x["id"] != c["id"]] or \
+             [x for x in liga if x["id"] != c["id"]]
+    return rng.choice(rivais) if rivais else None
+
+
+def _lista(G: Mundo, comuns: Any, br: Any = (), ext: Any = ()) -> List[str]:
+    """Opcoes de texto: as que servem em qualquer liga, mais as que so fazem
+    sentido no Brasil ou so fora dele."""
+    return list(comuns) + list(br if _eh_br(G) else ext)
 
 
 def _pos_liga(G: Mundo, c: Clube) -> int:
@@ -10113,10 +10183,13 @@ def _um(*opcoes: str) -> str:
 
 
 # ------------------------------------------------------------------ eventos
+# Os plantoes caem na liga do clube do jogador (_liga): as quatro series para
+# quem treina no Brasil, a liga do pais para quem treina fora. Valores em
+# dinheiro passam por _gr, que ajusta a economia da liga.
 def ev_aviao(G):
     if G["semana"] < 26 or estado_caos(G)["usados"].get("aviao"):
         return None
-    lideres_ = [G["clubes"][cid] for d in DIVISOES_BR
+    lideres_ = [G["clubes"][cid] for d in _divs_caos(G) if d in G["ligas"]
                 for cid in classificacao(G, G["ligas"][d])[:1] if cid != G.get("clube")]
     if not lideres_:
         return None
@@ -10131,18 +10204,24 @@ def ev_aviao(G):
         c["elenco"].append(pid)
         subiram.append(j["nome"])
     _completar_elenco(G, c, 30 + c["reputacao"] * 0.3)
-    lancar(G, c, 40_000_000, "imprevistos")
+    seguro = _gr(G, c, 40_000_000)
+    lancar(G, c, seguro, "imprevistos")
     for j in _pros(G, c):
         mexer_moral(G, j, 20, "luto e reconstrucao")
-    return _evento(G, c, "Tragedia no ar",
-                   "O aviao do %s, lider da Serie %s, caiu a caminho da rodada %d. O elenco "
-                   "profissional nao sobreviveu. So restam os garotos da base (%d subiram as "
-                   "pressas) e reforcos de emergencia. O seguro paga R$ 40 mi." %
-                   (c["nome"], c["divisao"], G["semana"], len(subiram)), "tragedia")
+    return _evento(G, c, "Tragedia no ar", _um(
+        "O aviao do %s, lider %s, caiu a caminho da rodada %d. O elenco profissional nao "
+        "sobreviveu. So restam os garotos da base (%d subiram as pressas) e reforcos de "
+        "emergencia. O seguro paga %s.",
+        "Luto no futebol: o voo fretado do %s, lider %s, caiu antes da rodada %d. Nao houve "
+        "sobreviventes entre os profissionais. %d jovens da base assumem o time e o seguro de %s "
+        "banca os reforcos de emergencia.",
+        "O %s, lider %s, perdeu todo o elenco principal num acidente de aviao antes da rodada %d. "
+        "Os %d garotos da base sobem as pressas e o seguro libera %s para remontar o time.") %
+        (c["nome"], _da_liga(G, c), G["semana"], len(subiram), din(seguro)), "tragedia")
 
 
 def ev_doping(G):
-    cands = [c for c in _br(G, "AB") if 3 <= _pos_liga(G, c) <= 8 and not c.get("doping")]
+    cands = [c for c in _liga(G, "topo") if 3 <= _pos_liga(G, c) <= 8 and not c.get("doping")]
     c = _alvo(G, cands, meu_pode=False)
     if not c:
         return None
@@ -10183,24 +10262,28 @@ def ev_doping_pego(G, p):
         return None
     temporada = int(p["temporada"])
     tirados = _cassar_titulos(G, c, temporada)
-    multa = int(max(5_000_000, abs(c["dinheiro"]) * 0.25))
+    multa = int(max(_gr(G, c, 5_000_000), abs(c["dinheiro"]) * 0.25))
     lancar(G, c, -multa, "imprevistos")
     c["reputacao"] = max(5, c["reputacao"] - 8)
     _tirar_pontos(G, c, 15)
     c.pop("doping", None)
-    return _evento(G, c, "Escandalo de doping",
-                   "Exames guardados de %d confirmam: o %s usou anabolizantes. Perde %s, leva "
-                   "multa de %s, perde 15 pontos na tabela atual e 8 de reputacao." %
-                   (temporada, c["nome"], ", ".join(tirados) if tirados else "o que conquistou naquele ano",
-                    din(multa)), "grave")
+    return _evento(G, c, "Escandalo de doping", _um(
+        "Exames guardados de %d confirmam: o %s usou anabolizantes. Perde %s, leva multa de %s, "
+        "perde 15 pontos na tabela atual e 8 de reputacao.",
+        "A contraprova de %d saiu do cofre do laboratorio: o %s estava dopado. Perde %s, paga %s "
+        "de multa, perde 15 pontos na tabela atual e 8 de reputacao.",
+        "Um ex-funcionario do laboratorio entregou os frascos de %d: o %s se dopou. A punicao: "
+        "perde %s, multa de %s, 15 pontos a menos na tabela atual e 8 de reputacao.") %
+        (temporada, c["nome"], ", ".join(tirados) if tirados else "o que conquistou naquele ano",
+         din(multa)), "grave")
 
 
 def ev_dinheiro_sujo(G):
-    cands = [c for c in _br(G, "ABC") if not c.get("dinheiro_sujo")]
+    cands = [c for c in _liga(G, "nao_fundo") if not c.get("dinheiro_sujo")]
     c = _alvo(G, cands, meu_pode=False)
     if not c:
         return None
-    valor = int(c["reputacao"] * rng.uniform(1.2, 2.2) * 1_000_000)
+    valor = _gr(G, c, c["reputacao"] * rng.uniform(1.2, 2.2) * 1_000_000)
     lancar(G, c, valor, "imprevistos")
     c["dinheiro_sujo"] = int(G["temporada"])
     _agendar(G, rng.randint(1, 3) * (SEMANAS_LIGA + 12) + rng.randint(-6, 6), "fair_play", clube=c["id"],
@@ -10222,15 +10305,23 @@ def ev_fair_play(G, p):
     _tirar_pontos(G, c, 12)
     c["reputacao"] = max(5, c["reputacao"] - 5)
     c.pop("dinheiro_sujo", None)
+    fisco = ("A Receita seguiu o dinheiro que salvou o %s e achou um doleiro. Punicao: 12 pontos "
+             "a menos, multa de %s e 5 de reputacao." if brasileiro(c) else
+             "O fisco seguiu o dinheiro que salvou o %s ate um laranja num paraiso fiscal. "
+             "Punicao: 12 pontos a menos, multa de %s e 5 de reputacao.")
     return _evento(G, c, "Pego no fair play financeiro", _um(
         "A investigacao chegou ao fundo que bancou o %s: dinheiro sem origem. Punicao: "
         "12 pontos a menos, multa de %s e 5 de reputacao.",
-        "A Receita seguiu o dinheiro que salvou o %s e achou um doleiro. Punicao: 12 pontos a "
-        "menos, multa de %s e 5 de reputacao.") % (c["nome"], din(multa)), "grave")
+        fisco,
+        "Os auditores da liga cruzaram os balancos do %s e acharam um buraco disfarcado de "
+        "patrocinio. Punicao: 12 pontos a menos, multa de %s e 5 de reputacao.",
+        "Um delator abriu o jogo: o dinheiro que sustentou o %s vinha de uma empresa de fachada. "
+        "A federacao tirou 12 pontos, cobrou %s de multa e tirou 5 de reputacao.") %
+        (c["nome"], din(multa)), "grave")
 
 
 def ev_capitao_preso(G):
-    cands = [c for c in _br(G) if capitao_de(G, c)]
+    cands = [c for c in _liga(G) if capitao_de(G, c)]
     c = _alvo(G, cands)
     if not c:
         return None
@@ -10242,18 +10333,31 @@ def ev_capitao_preso(G):
     capitao_de(G, c)
     for o in _pros(G, c):
         mexer_moral(G, o, -8, "o capitao foi preso")
-    crime = rng.choice(["traficava na encolha, usando o onibus do clube",
-                        "comandava um esquema de rifas falsas com a camisa do time",
-                        "vendia ingressos do proprio jogo a preco de final de Copa",
-                        "lavava dinheiro de bicheiro numa rede de pastelarias",
-                        "clonava cartao de credito dos companheiros no vestiario",
-                        "contrabandeava papagaio na mala da concentracao",
-                        "vendia cordoes de ouro falso na porta do estadio"])
-    return _evento(G, c, "Capitao preso", _um(
-        "A policia prendeu %s, capitao do %s, no CT: ele %s. Pegou %s e o contrato foi rompido. "
-        "A bracadeira passa adiante.",
-        "Operacao da Policia Federal as 6 da manha: %s, capitao do %s, %s. Condenado a %s, teve o "
-        "contrato rescindido. O time escolhe outro capitao.") %
+    crime = rng.choice(_lista(
+        G,
+        ["vendia ingressos do proprio jogo a preco de final de Copa",
+         "clonava cartao de credito dos companheiros no vestiario",
+         "contrabandeava papagaio na mala da concentracao",
+         "vendia cordoes de ouro falso na porta do estadio",
+         "organizava rinhas de galo no estacionamento do CT"],
+        br=["traficava na encolha, usando o onibus do clube",
+            "comandava um esquema de rifas falsas com a camisa do time",
+            "lavava dinheiro de bicheiro numa rede de pastelarias"],
+        ext=["levava dinheiro de uma quadrilha local em sacolas do clube",
+             "vendia informacao do time a casas de apostas clandestinas",
+             "lavava dinheiro de um agiota numa rede de lavanderias"]))
+    return _evento(G, c, "Capitao preso", _um(*_lista(
+        G,
+        ["A policia prendeu %s, capitao do %s, no CT: ele %s. Pegou %s e o contrato foi rompido. "
+         "A bracadeira passa adiante.",
+         "Mandado de prisao no estacionamento do CT: %s, capitao do %s, %s. A pena de %s encerra o "
+         "contrato; a bracadeira ja tem novo dono.",
+         "Capitao na cadeia: %s, do %s, %s. Sentenca de %s, contrato rescindido e vestiario em "
+         "silencio."],
+        br=["Operacao da Policia Federal as 6 da manha: %s, capitao do %s, %s. Condenado a %s, teve o "
+            "contrato rescindido. O time escolhe outro capitao."],
+        ext=["Operacao conjunta da policia as 6 da manha: %s, capitao do %s, %s. Condenado a %s, teve "
+             "o contrato rescindido. O time escolhe outro capitao."])) %
         (j["nome"], c["nome"], crime, plural(anos, "ano")), "grave")
 
 
@@ -10275,7 +10379,7 @@ def soltar_presos(G: Mundo) -> None:
 
 
 def ev_presidente_foge(G):
-    cands = [c for c in _br(G) if c["dinheiro"] > 3_000_000]
+    cands = [c for c in _liga(G) if c["dinheiro"] > 3_000_000]
     c = _alvo(G, cands)
     if not c:
         return None
@@ -10293,28 +10397,36 @@ def ev_presidente_foge(G):
 
 
 def ev_abandona(G):
-    cands = [j for c in _br(G) for j in _pros(G, c) if j["ovr"] >= 68 and j["idade"] <= 30]
+    cands = [j for c in _liga(G) for j in _pros(G, c) if j["ovr"] >= 68 and j["idade"] <= 30]
     if not cands:
         return None
     meus = [j for j in cands if j["clube"] == G.get("clube")]
     j = rng.choice(meus) if meus and rng.random() < CHANCE_MEU_CLUBE else rng.choice(cands)
     c = G["clubes"][j["clube"]]
-    motivo = rng.choice(["ganhou sozinho na Mega-Sena da Virada e comprou uma fazenda de bufalos",
-                         "largou tudo para virar cantor de sertanejo universitario",
-                         "virou influenciador de cripto e diz que 'futebol e coisa do passado'",
-                         "entrou para um mosteiro no Tibete e fez voto de silencio",
-                         "decidiu ser astronauta e se inscreveu num programa privado",
-                         "foi viver de surfe na Indonesia e jogou o celular no mar",
-                         "virou campeao de pesca esportiva e diz que la ninguem o vaia",
-                         "abriu uma franquia de acai e jura que ganha mais que no futebol"])
+    motivo = rng.choice(_lista(
+        G,
+        ["virou influenciador de cripto e diz que 'futebol e coisa do passado'",
+         "entrou para um mosteiro no Tibete e fez voto de silencio",
+         "decidiu ser astronauta e se inscreveu num programa privado",
+         "foi viver de surfe na Indonesia e jogou o celular no mar",
+         "virou campeao de pesca esportiva e diz que la ninguem o vaia"],
+        br=["ganhou sozinho na Mega-Sena da Virada e comprou uma fazenda de bufalos",
+            "largou tudo para virar cantor de sertanejo universitario",
+            "abriu uma franquia de acai e jura que ganha mais que no futebol"],
+        ext=["ganhou na loteria e comprou um vinhedo no interior",
+             "largou tudo para abrir uma cafeteria de gatos",
+             "virou DJ residente numa boate de Ibiza",
+             "decidiu ser pastor de ovelhas nas montanhas"]))
     _remover_do_mundo(G, j["id"])
-    return _evento(G, c, "Pendurou as chuteiras",
-                   "%s (%d anos, %d de overall), do %s, %s. Nao volta mais." %
-                   (j["nome"], j["idade"], j["ovr"], c["nome"], motivo))
+    return _evento(G, c, "Pendurou as chuteiras", _um(
+        "%s (%d anos, %d de overall), do %s, %s. Nao volta mais.",
+        "Bomba no mercado: %s, %d anos e %d de overall, do %s, %s. Ja avisou que nao volta mais.",
+        "Sem aviso previo: %s, %d anos, %d de overall, do %s, %s. O contrato foi rasgado e a vaga "
+        "esta aberta.") % (j["nome"], j["idade"], j["ovr"], c["nome"], motivo))
 
 
 def ev_gato(G):
-    cands = [j for c in _br(G) for j in _pros(G, c) if j["idade"] <= 21 and j["pot"] - j["ovr"] >= 8]
+    cands = [j for c in _liga(G) for j in _pros(G, c) if j["idade"] <= 21 and j["pot"] - j["ovr"] >= 8]
     if not cands:
         return None
     j = rng.choice(cands)
@@ -10336,17 +10448,20 @@ def ev_gato(G):
 
 
 def ev_virose(G):
-    c = _alvo(G, _br(G))
+    c = _alvo(G, _liga(G))
     if not c:
         return None
     alvos = rng.sample(_pros(G, c), min(len(_pros(G, c)), rng.randint(6, 9)))
     for j in alvos:
         j["lesao"] = max(j["lesao"], rng.randint(1, 3))
     # ja com a preposicao: "depois do sushi", nunca "depois de o sushi"
-    prato = rng.choice(["de uma feijoada estragada", "do sushi do rodizio da concentracao",
-                        "do bolo de aniversario do roupeiro", "da agua do bebedouro novo",
-                        "do churrasquinho do posto da estrada", "da maionese do almoco de domingo",
-                        "do cachorro-quente do vendedor da porta do CT"])
+    prato = rng.choice(_lista(
+        G,
+        ["do sushi do rodizio da concentracao", "do bolo de aniversario do roupeiro",
+         "da agua do bebedouro novo", "do churrasquinho do posto da estrada",
+         "do cachorro-quente do vendedor da porta do CT"],
+        br=["de uma feijoada estragada", "da maionese do almoco de domingo"],
+        ext=["de um kebab de madrugada", "de uma paella requentada", "do hamburguer do aeroporto"]))
     return _evento(G, c, "Surto no elenco", _um(
         "%d jogadores do %s foram parar no hospital depois %s. Ficam de 1 a 3 semanas fora.",
         "Fila no banheiro do CT: %d jogadores do %s passaram mal depois %s. De 1 a 3 semanas "
@@ -10356,7 +10471,7 @@ def ev_virose(G):
 
 
 def ev_invasao(G):
-    cands = [c for c in _br(G) if _pos_liga(G, c) > len(G["ligas"][c["divisao"]]["times"]) // 2]
+    cands = [c for c in _liga(G) if _pos_liga(G, c) > len(G["ligas"][c["divisao"]]["times"]) // 2]
     c = _alvo(G, cands)
     if not c:
         return None
@@ -10372,16 +10487,17 @@ def ev_invasao(G):
 
 
 def ev_xeique(G):
-    cands = [c for c in _br(G, "CD")]
-    c = _alvo(G, cands)
+    c = _alvo(G, _liga(G, "base"))
     if not c:
         return None
-    valor = rng.randint(120, 220) * 1_000_000
+    valor = _gr(G, c, rng.randint(120, 220) * 1_000_000)
     lancar(G, c, valor, "imprevistos")
     c["reputacao"] = min(95, c["reputacao"] + 8)
     return _evento(G, c, "Xeique compra o clube", _um(
         "Um xeique que viu um video do %s no TikTok comprou o clube e depositou %s. Promete "
-        "Libertadores em tres anos.",
+        "Libertadores em tres anos." if brasileiro(c) else
+        "Um xeique que viu um video do %s no TikTok comprou o clube e depositou %s. Promete "
+        "vaga na Champions em tres anos.",
         "Um bilionario do petroleo jogou o %s num videogame, se apaixonou e comprou o clube de "
         "verdade: %s na conta.",
         "Um principe do Golfo comprou o %s de presente de aniversario para o filho: %s de aporte "
@@ -10389,10 +10505,10 @@ def ev_xeique(G):
 
 
 def ev_heranca(G):
-    c = _alvo(G, _br(G))
+    c = _alvo(G, _liga(G))
     if not c:
         return None
-    valor = rng.randint(15, 60) * 1_000_000
+    valor = _gr(G, c, rng.randint(15, 60) * 1_000_000)
     lancar(G, c, valor, "imprevistos")
     return _evento(G, c, "Heranca de torcedor", _um(
         "Um torcedor fanatico do %s morreu aos 104 anos e deixou tudo para o clube: %s e uma "
@@ -10420,31 +10536,39 @@ def ev_estadio_volta(G, p):
 
 
 def ev_interdicao(G):
-    c = _alvo(G, [c for c in _br(G) if not c.get("cap_original")])
+    c = _alvo(G, [c for c in _liga(G) if not c.get("cap_original")])
     if not c or not _interditar(G, c, 0.3, 6):
         return None
     motivo = rng.choice(["rachaduras na arquibancada", "cupim na cobertura",
                          "a iluminacao pegando fogo no ultimo jogo", "saidas de emergencia trancadas"])
-    return _evento(G, c, "Estadio interditado",
-                   "Um laudo apontou %s no estadio do %s. Por 6 semanas, so 30%% da capacidade pode "
-                   "entrar." % (motivo, c["nome"]))
+    return _evento(G, c, "Estadio interditado", _um(
+        "Um laudo apontou %s no estadio do %s. Por 6 semanas, so 30%% da capacidade pode entrar.",
+        "Uma vistoria surpresa encontrou %s no estadio do %s. O alvara caiu: por 6 semanas, so 30%% "
+        "da capacidade pode entrar.",
+        "Depois de uma denuncia anonima, a inspecao confirmou %s no estadio do %s. Por 6 semanas, "
+        "o publico fica limitado a 30%% da capacidade.") % (motivo, c["nome"]))
 
 
 def ev_meteoro(G):
     if estado_caos(G)["usados"].get("meteoro", 0) >= 2:
         return None
-    c = _alvo(G, [c for c in _br(G) if not c.get("cap_original")])
+    c = _alvo(G, [c for c in _liga(G) if not c.get("cap_original")])
     if not c or not _interditar(G, c, 0.55, 10):
         return None
     c["reputacao"] = min(95, c["reputacao"] + 3)
-    return _evento(G, c, "Meteorito no gramado",
-                   "Um meteorito do tamanho de uma geladeira caiu no meio-campo do %s durante a "
-                   "madrugada. Ninguem se feriu, a cratera virou ponto turistico e metade do estadio "
-                   "fica fechada por 10 semanas." % c["nome"], "grave")
+    return _evento(G, c, "Meteorito no gramado", _um(
+        "Um meteorito do tamanho de uma geladeira caiu no meio-campo do %s durante a "
+        "madrugada. Ninguem se feriu, a cratera virou ponto turistico e metade do estadio "
+        "fica fechada por 10 semanas.",
+        "Um meteorito rasgou o gramado do %s e abriu uma cratera na grande area. Ninguem se "
+        "machucou, a NASA pediu amostras da grama e metade do estadio fica fechada por 10 semanas.",
+        "Barulho de madrugada e fumaca no gramado: um meteorito caiu na area do %s. A cratera "
+        "atrai turistas, os cientistas atrapalham o treino e so metade do estadio abre pelas "
+        "proximas 10 semanas.") % c["nome"], "grave")
 
 
 def ev_manipulacao(G):
-    c = _alvo(G, _br(G))
+    c = _alvo(G, _liga(G))
     if not c:
         return None
     resto = max(2, SEMANAS_LIGA - int(G["semana"]) + 1)
@@ -10455,12 +10579,17 @@ def ev_manipulacao(G):
         "A policia descobriu que %s, do %s, forcavam cartoes para apostadores. Afastados ate o fim "
         "da temporada.",
         "Mensagens vazadas mostram %s, do %s, combinando escanteios com uma casa de apostas. "
-        "Suspensos ate o fim do ano.") % (", ".join(j["nome"] for j in alvos), c["nome"]), "grave")
+        "Suspensos ate o fim do ano.",
+        "Um grampo da policia flagrou %s, do %s, combinando lances com apostadores. Afastados ate "
+        "o fim da temporada.",
+        "A federacao abriu processo contra %s, do %s, por manipular cartoes e escanteios. "
+        "Suspensos preventivamente ate o fim do ano.") % (", ".join(j["nome"] for j in alvos), c["nome"]),
+        "grave")
 
 
 def ev_prodigio(G):
     meu = G["clubes"].get(G.get("clube"))
-    cands = _br(G, "CD")
+    cands = _liga(G, "base")
     c = meu if meu and rng.random() < 0.2 else (rng.choice(cands) if cands else None)
     if not c:
         return None
@@ -10468,13 +10597,16 @@ def ev_prodigio(G):
     j["pot"] = rng.randint(92, 97)
     j["ovr"] = max(j["ovr"], 55)
     j["valor"] = valor_jogador(j)
-    return _evento(G, c, "Joia descoberta", _um(
-        "Um olheiro filmou %s, 15 anos, dando caneta em tres zagueiros num campo de terra. Ja esta "
-        "na base do %s. Dizem que e o novo Pele.",
-        "O video de %s, 15 anos, fazendo 400 embaixadinhas com uma laranja viralizou. O %s levou "
-        "o garoto para a base no mesmo dia.",
-        "Numa peneira com 3 mil garotos, so um fez o treinador chorar: %s, 15 anos, agora na base "
-        "do %s.") % (j["nome"], c["nome"]))
+    return _evento(G, c, "Joia descoberta", _um(*_lista(
+        G,
+        ["O video de %s, 15 anos, fazendo 400 embaixadinhas com uma laranja viralizou. O %s levou "
+         "o garoto para a base no mesmo dia.",
+         "Numa peneira com 3 mil garotos, so um fez o treinador chorar: %s, 15 anos, agora na base "
+         "do %s."],
+        br=["Um olheiro filmou %s, 15 anos, dando caneta em tres zagueiros num campo de terra. Ja esta "
+            "na base do %s. Dizem que e o novo Pele."],
+        ext=["Um olheiro filmou %s, 15 anos, dando caneta em tres zagueiros num campo de terra batida. "
+             "Ja esta na base do %s. Dizem que e o novo Messi."])) % (j["nome"], c["nome"]))
 
 
 def ev_lenda(G):
@@ -10487,11 +10619,15 @@ def ev_lenda(G):
         "Aos 41 anos, %s desistiu da aposentadoria depois de um sonho. Esta livre no mercado, com "
         "%d de overall e muita historia pra contar.",
         "%s, 41 anos, cansou de ser comentarista e quer voltar a jogar. Esta livre, com %d de "
-        "overall e a barriga de quem comentou por anos.") % (j["nome"], j["ovr"]))
+        "overall e a barriga de quem comentou por anos.",
+        "Depois de um ano sabatico pescando, %s, 41 anos, pediu para voltar. Esta livre no mercado, "
+        "com %d de overall e a promessa de 'jogar so pelo prazer'.",
+        "Um video de %s, 41 anos, treinando sozinho viralizou. Esta livre, com %d de overall, e a "
+        "torcida de meio mundo ja pede a contratacao.") % (j["nome"], j["ovr"]))
 
 
 def ev_greve(G):
-    cands = [c for c in _br(G) if c["dinheiro"] < 0]
+    cands = [c for c in _liga(G) if c["dinheiro"] < 0]
     c = _alvo(G, cands)
     if not c:
         return None
@@ -10507,22 +10643,31 @@ def ev_greve(G):
 
 
 def ev_benzedeira(G):
-    c = _alvo(G, _br(G))
+    c = _alvo(G, _liga(G))
     if not c:
         return None
     for j in _pros(G, c):
         mexer_moral(G, j, 20, "o trabalho da benzedeira")
-    return _evento(G, c, "Trabalho espiritual", _um(
-        "A diretoria do %s trouxe uma benzedeira de Minas, enterrou um sapo atras do gol e jura "
-        "que a zica acabou. O elenco acredita.",
-        "Um pai de santo lavou as traves do %s com agua de cheiro e mandou todo mundo entrar com o "
-        "pe direito. O vestiario esta confiante.",
-        "O %s levou o elenco inteiro para uma romaria a pe ate o santuario. Voltaram com bolhas "
-        "nos pes e fe no coracao.") % c["nome"])
+    return _evento(G, c, "Trabalho espiritual", _um(*_lista(
+        G,
+        ["O %s levou o elenco inteiro para uma romaria a pe ate o santuario. Voltaram com bolhas "
+         "nos pes e fe no coracao.",
+         "O %s contratou um guru de meditacao que mandou o elenco treinar descalco na grama ao "
+         "amanhecer. Ninguem entendeu, mas o clima melhorou.",
+         "Um padre benzeu o vestiario do %s com agua benta e um ramo de alecrim. O elenco jura que "
+         "o ambiente ficou mais leve."],
+        br=["A diretoria do %s trouxe uma benzedeira de Minas, enterrou um sapo atras do gol e jura "
+            "que a zica acabou. O elenco acredita.",
+            "Um pai de santo lavou as traves do %s com agua de cheiro e mandou todo mundo entrar com o "
+            "pe direito. O vestiario esta confiante."],
+        ext=["Uma cartomante local foi contratada pelo %s e enterrou uma moeda sob cada trave. O "
+             "elenco acredita.",
+             "Um xama convidado pelo %s defumou o vestiario com ervas e mandou todo mundo entrar "
+             "com o pe direito. O vestiario esta confiante."])) % c["nome"])
 
 
 def ev_racha(G):
-    c = _alvo(G, _br(G))
+    c = _alvo(G, _liga(G))
     top = sorted(_pros(G, c), key=lambda j: -j["ovr"])[:2] if c else []
     if len(top) < 2:
         return None
@@ -10535,7 +10680,7 @@ def ev_racha(G):
         ("uma dancinha de comemoracao", "por causa de uma dancinha de comemoracao"),
         ("a playlist do vestiario", "por causa da playlist do vestiario"),
         ("a ex-namorada de um deles", "por causa da ex-namorada de um deles"),
-        ("um jogo de truco na concentracao", "por causa de um jogo de truco na concentracao"),
+        ("um jogo de cartas na concentracao", "por causa de um jogo de cartas na concentracao"),
         ("a ultima fatia da pizza", "por causa da ultima fatia da pizza")])
     a, b = top[0]["nome"], top[1]["nome"]
     return _evento(G, c, "Racha no vestiario", _um(
@@ -10547,7 +10692,7 @@ def ev_racha(G):
 
 
 def ev_patrocinador(G):
-    c = _alvo(G, _br(G, "AB"))
+    c = _alvo(G, _liga(G, "topo"))
     if not c:
         return None
     if c["id"] == G.get("clube"):
@@ -10556,8 +10701,12 @@ def ev_patrocinador(G):
             return None
         empresa = k["empresa"]
         c["patrocinios"]["master"] = None
-        texto = ("%s, patrocinadora master do %s, faliu da noite para o dia. O espaco na camisa "
-                 "esta vago: ha propostas novas em Financas." % (empresa, c["nome"]))
+        texto = _um("%s, patrocinadora master do %s, faliu da noite para o dia. O espaco na camisa "
+                    "esta vago: ha propostas novas em Financas.",
+                    "O contrato da %s, patrocinadora master do %s, foi rescindido por falencia. A "
+                    "camisa ficou sem nome e novas propostas aguardam em Financas.",
+                    "%s, que estampava a camisa master do %s, pediu falencia e saiu do contrato. O "
+                    "espaco esta vago: veja as propostas em Financas.") % (empresa, c["nome"])
     else:
         perda = int(patrocinio_semanal(G, c) * 6)
         lancar(G, c, -perda, "imprevistos")
@@ -10569,7 +10718,7 @@ def ev_patrocinador(G):
 
 
 def ev_pastor(G):
-    cands = [c for c in _br(G) if capitao_de(G, c)]
+    cands = [c for c in _liga(G) if capitao_de(G, c)]
     c = _alvo(G, cands)
     if not c:
         return None
@@ -10586,7 +10735,7 @@ def ev_pastor(G):
 
 
 def ev_sumiu(G):
-    cands = [j for c in _br(G) for j in _pros(G, c) if j["ovr"] >= 65]
+    cands = [j for c in _liga(G) for j in _pros(G, c) if j["ovr"] >= 65]
     if not cands:
         return None
     meus = [j for j in cands if j["clube"] == G.get("clube")]
@@ -10594,9 +10743,12 @@ def ev_sumiu(G):
     c = G["clubes"][j["clube"]]
     j["lesao"] = max(j["lesao"], 4)
     mexer_moral(G, j, -10, "sumiu depois da festa")
-    lugar = rng.choice(["Ibiza", "um baile funk em Parada de Lucas", "Las Vegas", "um cruzeiro de pagode",
-                        "um festival de musica eletronica no deserto", "uma festa de pe-de-serra em Caruaru",
-                        "um camarote do carnaval de Salvador"])
+    lugar = rng.choice(_lista(
+        G,
+        ["Ibiza", "Las Vegas", "um festival de musica eletronica no deserto"],
+        br=["um baile funk em Parada de Lucas", "um cruzeiro de pagode",
+            "uma festa de pe-de-serra em Caruaru", "um camarote do carnaval de Salvador"],
+        ext=["Mykonos", "um iate em Monaco", "um cassino de Macau", "uma festa na casa de um rapper em Miami"]))
     return _evento(G, c, "Desaparecido", _um(
         "%s, do %s, foi visto pela ultima vez em %s. Reapareceu 4 dias depois dizendo que 'perdeu "
         "o celular'. Fica 4 semanas fora.",
@@ -10607,7 +10759,7 @@ def ev_sumiu(G):
 
 
 def ev_goleiro(G):
-    cands = [j for c in _br(G) for j in _pros(G, c) if j["pos"] == "GOL" and j["ovr"] >= 55]
+    cands = [j for c in _liga(G) for j in _pros(G, c) if j["pos"] == "GOL" and j["ovr"] >= 55]
     if not cands:
         return None
     j = rng.choice(cands)
@@ -10616,28 +10768,36 @@ def ev_goleiro(G):
     return _evento(G, c, "Goleiro artilheiro", _um(
         "Depois de fazer tres gols de falta no treino, %s, goleiro do %s, exigiu jogar de "
         "centroavante. A diretoria cedeu.",
-        "%s, goleiro do %s, ameacou se aposentar se nao virasse atacante. Agora ele e o camisa 9.") %
-        (j["nome"], c["nome"]))
+        "%s, goleiro do %s, ameacou se aposentar se nao virasse atacante. Agora ele e o camisa 9.",
+        "Num treino de bola parada, %s, goleiro do %s, marcou um golaco de bicicleta e o treinador "
+        "o promoveu a atacante na hora.",
+        "A brincadeira virou serio: %s, goleiro do %s, fez cinco gols no coletivo e convenceu a "
+        "comissao a colocar luvas no banco e chuteiras nele.") % (j["nome"], c["nome"]))
 
 
 def ev_nepotismo(G):
     c = G["clubes"].get(G.get("clube"))
-    if not c or c["divisao"] not in DIVISOES_BR or elenco_cheio(G, c):
+    if not c or elenco_cheio(G, c):
         return None
     j = novo_jogador(G, "ATA", 34, _nomes_usados(G), idade=19)
     parente = rng.choice(["o proprio filho", "o sobrinho", "o genro", "o afilhado"])
+    salario = _gr(G, c, 250_000)
     j["nome"] = j["nome"].split()[0] + " Junior"
     j["clube"] = c["id"]
     j["contrato"] = 3
-    j["salario"] = 250_000
+    j["salario"] = salario
     c["elenco"].append(j["id"])
-    return _evento(G, c, "Parente do presidente",
-                   "O presidente contratou %s, %s (%d de overall), por R$ 250 mil por mes e tres anos "
-                   "de contrato. 'Ele tem muito potencial', garantiu." % (parente, j["nome"], j["ovr"]))
+    return _evento(G, c, "Parente do presidente", _um(
+        "O presidente contratou %s, %s (%d de overall), por %s por mes e tres anos de contrato. "
+        "'Ele tem muito potencial', garantiu.",
+        "Sem processo seletivo, o presidente trouxe %s, %s (%d de overall), com salario de %s por "
+        "mes e tres anos de contrato. 'Foi por merito', garantiu.",
+        "O elenco ganhou um reforco inesperado: %s, %s (%d de overall), levado pelo presidente. "
+        "Salario de %s por mes e contrato de tres anos.") % (parente, j["nome"], j["ovr"], din(salario)))
 
 
 def ev_ovni(G):
-    c = _alvo(G, _br(G))
+    c = _alvo(G, _liga(G))
     if not c:
         return None
     c["reputacao"] = min(95, c["reputacao"] + 1)
@@ -10645,12 +10805,16 @@ def ev_ovni(G):
         "Um objeto luminoso parou 20 minutos sobre o estadio do %s. O jogo foi paralisado, a "
         "torcida filmou tudo e o clube ja vende a camisa 'eu vi'.",
         "O gramado do %s amanheceu com um circulo perfeito no meio-campo. O roupeiro jura que viu "
-        "luzes. A loja do clube agradece.") % c["nome"])
+        "luzes. A loja do clube agradece.",
+        "O radar do aeroporto registrou um objeto parado sobre o %s por uma hora. A torcida jura "
+        "que era um aviso e o clube aproveitou para vender 'camiseta extraterrestre'.",
+        "Um apresentador de TV afirmou que extraterrestres torcem pelo %s e pediu um camarote. O "
+        "elenco riu, a torcida adorou e a loja do clube esgotou o estoque.") % c["nome"])
 
 
 # eventos de 2026-09-29 (mais variedade, pedido com o print de 5 plantoes)
 def ev_cachorro(G):
-    c = _alvo(G, _br(G))
+    c = _alvo(G, _liga(G))
     if not c:
         return None
     nome = rng.choice(["Pipoca", "Tobias", "Marrom", "Faisca", "Bolinha", "Xerife"])
@@ -10661,27 +10825,38 @@ def ev_cachorro(G):
         "Um vira-lata invadiu o jogo do %s, roubou a bola e deu a volta olimpica. Foi adotado: "
         "%s agora e o mascote oficial.",
         "Um cachorro caramelo dormiu no banco de reservas do %s o jogo inteiro. O elenco adotou "
-        "e batizou de %s.") % (c["nome"], nome))
+        "e batizou de %s.",
+        "Um gato entrou em campo no jogo do %s, deitou na grande area e so saiu no colo do goleiro. "
+        "O elenco adotou e batizou de %s.",
+        "Um cachorro de rua acompanhou o onibus do %s ate o CT e nao quis mais ir embora. A torcida "
+        "o chama de %s e ele ja tem cama no vestiario.") % (c["nome"], nome))
 
 
 def ev_reality(G):
-    cands = [j for c in _br(G) for j in _pros(G, c) if j["ovr"] >= 60 and j["lesao"] == 0]
+    cands = [j for c in _liga(G) for j in _pros(G, c) if j["ovr"] >= 60 and j["lesao"] == 0]
     if not cands:
         return None
     meus = [j for j in cands if j["clube"] == G.get("clube")]
     j = rng.choice(meus) if meus and rng.random() < CHANCE_MEU_CLUBE else rng.choice(cands)
     c = G["clubes"][j["clube"]]
     j["lesao"] = max(j["lesao"], 6)
-    programa = rng.choice(["A Casa dos Famosos", "Ilha do Amor", "Fazenda das Estrelas", "Confinados"])
+    programa = rng.choice(_lista(
+        G, [],
+        br=["A Casa dos Famosos", "Ilha do Amor", "Fazenda das Estrelas", "Confinados"],
+        ext=["Big Brother Celebrity", "Love Island VIP", "Survivor dos Famosos", "Dancing with the Players"]))
     return _evento(G, c, "Estrela de reality", _um(
         "%s, do %s, aceitou um convite de ultima hora e entrou no reality '%s'. So sai em 6 "
         "semanas, se nao for eliminado antes.",
         "O empresario de %s, do %s, fechou contrato com o reality '%s' sem avisar o clube. Sao 6 "
-        "semanas confinado.") % (j["nome"], c["nome"], programa))
+        "semanas confinado.",
+        "%s, do %s, foi chamado de surpresa para o reality '%s'. Fica 6 semanas confinado e o "
+        "clube so soube pela imprensa.",
+        "Contrato assinado pelo empresario: %s, do %s, entra no reality '%s' e some 6 semanas dos "
+        "treinos. O treinador diz que 'nao foi consultado'.") % (j["nome"], c["nome"], programa))
 
 
 def ev_hacker(G):
-    cands = [c for c in _br(G) if c["dinheiro"] > 2_000_000]
+    cands = [c for c in _liga(G) if c["dinheiro"] > 2_000_000]
     c = _alvo(G, cands)
     if not c:
         return None
@@ -10690,15 +10865,19 @@ def ev_hacker(G):
     return _evento(G, c, "Ataque hacker", _um(
         "Hackers invadiram o sistema de ingressos do %s e desviaram %s. Pedem mais em bitcoin.",
         "O financeiro do %s clicou num link de 'ingresso gratis para a final' e %s sairam da conta "
-        "em minutos.") % (c["nome"], din(levou)))
+        "em minutos.",
+        "Um ransomware travou os computadores do %s e a diretoria pagou %s de resgate para "
+        "destravar a bilheteria.",
+        "O app de socio-torcedor do %s foi invadido: hackers desviaram %s em mensalidades antes que "
+        "alguem percebesse.") % (c["nome"], din(levou)))
 
 
 def ev_vaquinha(G):
-    cands = [c for c in _br(G) if c["dinheiro"] < 0]
+    cands = [c for c in _liga(G) if c["dinheiro"] < 0]
     c = _alvo(G, cands)
     if not c:
         return None
-    valor = int(c["reputacao"] * rng.uniform(80_000, 160_000))
+    valor = _gr(G, c, c["reputacao"] * rng.uniform(80_000, 160_000))
     lancar(G, c, valor, "imprevistos")
     for j in _pros(G, c):
         mexer_moral(G, j, 10, "a vaquinha da torcida")
@@ -10706,11 +10885,15 @@ def ev_vaquinha(G):
         "A torcida do %s fez uma vaquinha para pagar os salarios atrasados e juntou %s em tres "
         "dias.",
         "Rifa de camisa autografada, bingo e churrasco: a torcida do %s arrecadou %s para o "
-        "clube.") % (c["nome"], din(valor)))
+        "clube.",
+        "Camisas, cartazes e um leilao de bola autografada: a torcida do %s levantou %s para "
+        "aliviar o caixa.",
+        "Um torcedor famoso abriu uma campanha online e a torcida do %s doou %s em 48 horas. O "
+        "elenco postou um video de agradecimento.") % (c["nome"], din(valor)))
 
 
 def ev_pacto(G):
-    cands = [j for c in _br(G) for j in _pros(G, c) if j["idade"] >= 33 and j["ovr"] < 90]
+    cands = [j for c in _liga(G) for j in _pros(G, c) if j["idade"] >= 33 and j["ovr"] < 90]
     if not cands:
         return None
     j = rng.choice(cands)
@@ -10723,40 +10906,51 @@ def ev_pacto(G):
         "%s, %d anos, do %s, voltou de uma viagem ao Himalaia correndo como um garoto: +%d de "
         "overall. Ninguem sabe o que ele tomou la.",
         "%s, %d anos, do %s, jura que foi a dieta de ovo cru e banho gelado. O fato: +%d de overall "
-        "e o melhor momento da carreira.") % (j["nome"], j["idade"], c["nome"], ganho))
+        "e o melhor momento da carreira.",
+        "%s, %d anos, do %s, contratou um nutricionista suico e um mestre de yoga: +%d de overall "
+        "e cara de 25 anos.",
+        "Quando todos o davam como acabado, %s, %d anos, do %s, treinou de madrugada por tres "
+        "meses. Resultado: +%d de overall e uma segunda juventude.") % (j["nome"], j["idade"], c["nome"], ganho))
 
 
 def ev_enchente(G):
-    c = _alvo(G, [c for c in _br(G) if not c.get("cap_original")])
+    c = _alvo(G, [c for c in _liga(G) if not c.get("cap_original")])
     if not c or not _interditar(G, c, 0.4, 4):
         return None
     return _evento(G, c, "Enchente no estadio", _um(
         "Um temporal alagou o estadio do %s ate a marca do penalti. Por 4 semanas, so 40%% da "
         "arquibancada pode ser usada.",
         "O rio transbordou e levou as cadeiras do setor norte do %s. 4 semanas com so 40%% da "
-        "capacidade.") % c["nome"], "grave")
+        "capacidade.",
+        "A chuva de tres dias derrubou o muro e inundou o vestiario do %s. So 40%% da capacidade "
+        "fica liberada por 4 semanas.",
+        "Um cano estourou debaixo da arquibancada do %s e alagou o setor leste. Por 4 semanas, so "
+        "40%% do estadio pode ser usado.") % c["nome"], "grave")
 
 
 def ev_portoes_fechados(G):
-    c = _alvo(G, [c for c in _br(G) if not c.get("cap_original")])
+    c = _alvo(G, [c for c in _liga(G) if not c.get("cap_original")])
     if not c or not _interditar(G, c, 0.05, 3):
         return None
     return _evento(G, c, "Portoes fechados", _um(
         "Briga generalizada entre torcidas no jogo do %s. O tribunal manda o clube jogar 3 semanas "
         "de portoes fechados.",
-        "Um sinalizador acertou o bandeirinha no estadio do %s. Punicao: 3 semanas sem publico.") %
-        c["nome"], "grave")
+        "Um sinalizador acertou o bandeirinha no estadio do %s. Punicao: 3 semanas sem publico.",
+        "Torcedores do %s arremessaram objetos no gramado durante o jogo. A federacao deu o troco: "
+        "3 semanas de portoes fechados.",
+        "Cantos ofensivos da torcida do %s contra o arbitro renderam 3 semanas de portoes "
+        "fechados.") % c["nome"], "grave")
 
 
 def ev_tatuagem(G):
-    cands = [j for c in _br(G) for j in _pros(G, c) if j["ovr"] >= 55]
+    cands = [j for c in _liga(G) for j in _pros(G, c) if j["ovr"] >= 55]
     if not cands:
         return None
     j = rng.choice(cands)
     c = G["clubes"][j["clube"]]
-    rivais = [x for x in _br(G) if x["uf"] == c["uf"] and x["id"] != c["id"]] or \
-             [x for x in _br(G) if x["id"] != c["id"]]
-    rival = rng.choice(rivais)
+    rival = _rival_de(G, c)
+    if not rival:
+        return None
     mexer_moral(G, j, -20, "a tatuagem do rival")
     if c["id"] != G.get("clube") and not j["listado"]:
         j["listado"] = preco_pedido(G, j)
@@ -10764,11 +10958,15 @@ def ev_tatuagem(G):
         "%s, do %s, apareceu no treino com o escudo do %s tatuado na panturrilha. Diz que 'foi uma "
         "aposta'. A torcida nao perdoa.",
         "Fotos das ferias mostram %s, do %s, com uma tatuagem enorme do %s nas costas. O clima no "
-        "CT azedou.") % (j["nome"], c["nome"], rival["nome"]))
+        "CT azedou.",
+        "Um fotografo flagrou %s, do %s, usando uma touca do %s em plena folga. A torcida chama "
+        "de traicao.",
+        "%s, do %s, postou uma foto abracado com o maior idolo do %s nas ferias. O vestiario "
+        "fechou a cara.") % (j["nome"], c["nome"], rival["nome"]))
 
 
 def ev_vidente(G):
-    c = _alvo(G, _br(G))
+    c = _alvo(G, _liga(G))
     if not c:
         return None
     bom = rng.random() < 0.5
@@ -10778,17 +10976,25 @@ def ev_vidente(G):
         texto = _um("Uma vidente famosa previu na TV que o %s vai ser campeao. O elenco ja fala em "
                     "volta olimpica.",
                     "O astrologo mais seguido do pais disse que 'os astros sorriem' para o %s. O "
-                    "vestiario acreditou.") % c["nome"]
+                    "vestiario acreditou.",
+                    "Um mestre de feng shui reorganizou o vestiario do %s e garantiu 'energia de "
+                    "campeao'. O elenco se sentiu mais leve.",
+                    "Uma cartomante muito seguida jurou nas redes que o %s vai ter um ano de ouro. "
+                    "A sala de musculacao virou um templo de otimismo.") % c["nome"]
     else:
         texto = _um("Uma vidente famosa previu na TV que o %s vai ser rebaixado. Metade do elenco "
                     "nao dormiu.",
                     "Um sensitivo disse que 'viu nuvens escuras' sobre o estadio do %s. Os "
-                    "jogadores ficaram abalados.") % c["nome"]
+                    "jogadores ficaram abalados.",
+                    "Um oraculo de programa matinal disse que o %s vai ter uma temporada de "
+                    "sofrimento. Os jogadores evitam ligar a TV.",
+                    "Uma cartomante famosa tirou tres vezes a carta da torre para o %s. O vestiario "
+                    "esta com medo.") % c["nome"]
     return _evento(G, c, "Previsao da vidente", texto)
 
 
 def ev_vazamento(G):
-    c = _alvo(G, _br(G))
+    c = _alvo(G, _liga(G))
     pros = _pros(G, c) if c else []
     if len(pros) < 6:
         return None
@@ -10799,11 +11005,15 @@ def ev_vazamento(G):
         "Uma planilha com todos os salarios do %s caiu no grupo da torcida. Quem ganha menos "
         "descobriu quanto ganha o vizinho de armario.",
         "Um estagiario do %s mandou a folha salarial no grupo errado. Metade do elenco esta "
-        "revoltada.") % c["nome"])
+        "revoltada.",
+        "O print do contrato do astro do %s viralizou nas redes. Quem ganha menos fez cara feia no "
+        "treino.",
+        "Um jornalista divulgou a tabela de premios do %s. Metade do elenco descobriu que ganha "
+        "bem menos que os colegas.") % c["nome"])
 
 
 def ev_churrasco(G):
-    c = _alvo(G, _br(G))
+    c = _alvo(G, _liga(G))
     pros = _pros(G, c) if c else []
     if not pros:
         return None
@@ -10814,7 +11024,199 @@ def ev_churrasco(G):
         "O churrasco de aniversario no sitio de um jogador do %s foi ate as 6 da manha. %d "
         "jogadores chegaram ao treino sem condicao fisica.",
         "Rodizio de picanha, pagode e piscina: o %s liberou a folga e %d jogadores voltaram pesados "
-        "e cansados.") % (c["nome"], len(alvos)))
+        "e cansados.",
+        "A festa de aniversario de um craque do %s virou maratona de dois dias. %d jogadores "
+        "apareceram no treino de segunda ainda de oculos escuros.",
+        "Folga estendida no %s: uma festa que ninguem lembra direito deixou %d jogadores sem "
+        "condicao de treinar.") % (c["nome"], len(alvos)))
+
+
+# eventos de 2026-10-01 (plantoes de qualquer liga, pedido do Kaua: valem na liga do clube)
+def ev_escolta(G):
+    c = _alvo(G, _liga(G))
+    rival = _rival_de(G, c) if c else None
+    if not c or not rival:
+        return None
+    custo = _gr(G, c, rng.randint(2, 5) * 1_000_000)
+    lancar(G, c, -custo, "imprevistos")
+    for j in _pros(G, c):
+        mexer_moral(G, j, -4, "o clima de guerra do classico")
+    texto = _um(
+        "A policia exigiu escolta pesada para o classico entre %s e %s: onibus blindados, "
+        "helicoptero e cavalaria. A conta de %s ficou com o mandante.",
+        "Classico em clima de guerra: %s x %s teve rua fechada, cordao de isolamento e escolta em "
+        "cada esquina. A fatura da seguranca, %s, sobrou para o mandante.",
+        "A promotoria proibiu a torcida visitante no classico entre %s e %s e mandou escolta ate "
+        "a porta do estadio. O mandante paga %s pelo esquema.") % (c["nome"], rival["nome"], din(custo))
+    if _interditar(G, c, 0.65, 2):
+        texto += " Sem a torcida visitante, so 65% do estadio abre por 2 semanas."
+    return _evento(G, c, "Classico sob escolta", texto)
+
+
+def ev_faixa_ultras(G):
+    c = _alvo(G, _liga(G))
+    if not c:
+        return None
+    for j in _pros(G, c):
+        mexer_moral(G, j, -10, "o protesto da organizada")
+    c["reputacao"] = max(5, c["reputacao"] - 2)
+    return _evento(G, c, "Protesto das organizadas", _um(
+        "A maior organizada do %s abriu uma faixa gigante na arquibancada: 'Respeitem a camisa ou "
+        "saiam'. Os jogadores deixaram o campo cabisbaixos.",
+        "Ultras do %s penduraram faixas na frente do CT cobrando resultado e prometeram 'cercar o "
+        "onibus' no proximo jogo.",
+        "Num protesto silencioso, a torcida organizada do %s virou de costas para o campo por 20 "
+        "minutos e mostrou uma faixa gigante contra a diretoria.") % c["nome"])
+
+
+def ev_fundo_estrangeiro(G):
+    c = _alvo(G, _liga(G))
+    if not c:
+        return None
+    valor = _gr(G, c, c["reputacao"] * rng.uniform(0.6, 1.2) * 1_000_000)
+    lancar(G, c, valor, "imprevistos")
+    c["reputacao"] = min(95, c["reputacao"] + 3)
+    for j in _pros(G, c):
+        mexer_moral(G, j, 6, "o novo dono")
+    origem = rng.choice(["Abu Dhabi", "Singapura", "Luxemburgo", "Dallas", "Hong Kong", "Toronto", "Zurique"])
+    return _evento(G, c, "Fundo estrangeiro compra o controle", _um(
+        "O %s foi comprado por um fundo de investimento sediado em %s. O contrato injeta %s no caixa e "
+        "promete 'gestao profissional'.",
+        "Depois de meses de reunioes, o %s fechou a venda do controle a um grupo de %s. Entram %s e "
+        "uma apresentacao de 140 slides.",
+        "O %s ganhou novo dono: um fundo de %s paga %s e promete 'multiplicar o valor da marca'. A "
+        "torcida desconfia, mas o caixa agradece.") % (c["nome"], origem, din(valor)))
+
+
+def ev_agente(G):
+    cands = [j for c in _liga(G) for j in _pros(G, c) if j["ovr"] >= 62]
+    if not cands:
+        return None
+    meus = [j for j in cands if j["clube"] == G.get("clube")]
+    j = rng.choice(meus) if meus and rng.random() < CHANCE_MEU_CLUBE else rng.choice(cands)
+    c = G["clubes"][j["clube"]]
+    comissao = max(_gr(G, c, 200_000), int(j["valor"] * 0.03))
+    lancar(G, c, -comissao, "imprevistos")
+    mexer_moral(G, j, -15, "o escandalo do empresario")
+    if c["id"] != G.get("clube") and not j["listado"]:
+        j["listado"] = preco_pedido(G, j)
+    return _evento(G, c, "Escandalo do empresario", _um(
+        "Escandalo na janela: o empresario de %s, do %s, foi flagrado cobrando comissao dos dois lados "
+        "do negocio. O clube desembolsa %s para encerrar o caso e o jogador quer sair.",
+        "Mensagens vazadas mostram o agente de %s, do %s, oferecendo o jogador a meio mundo sem avisar "
+        "o clube. A confusao custa %s em comissoes e o atleta so pensa em sair.",
+        "O agente de %s, do %s, foi apanhado inventando uma proposta falsa para forcar a venda. "
+        "Acordos de %s e vestiario dividido.") % (j["nome"], c["nome"], din(comissao)))
+
+
+def ev_visto(G):
+    cands = [j for c in _liga(G) for j in _pros(G, c) if j["ovr"] >= 60 and j["lesao"] == 0]
+    if not cands:
+        return None
+    meus = [j for j in cands if j["clube"] == G.get("clube")]
+    j = rng.choice(meus) if meus and rng.random() < CHANCE_MEU_CLUBE else rng.choice(cands)
+    c = G["clubes"][j["clube"]]
+    semanas = rng.randint(3, 6)
+    j["lesao"] = max(j["lesao"], semanas)
+    mexer_moral(G, j, -6, "o problema de visto")
+    return _evento(G, c, "Problema de visto", _um(
+        "O visto de trabalho de %s, do %s, nao foi renovado a tempo. Sem poder jogar, ele fica %s "
+        "fora ate regularizar a papelada.",
+        "A imigracao barrou %s, do %s, no aeroporto na volta de uma viagem: documentacao incompleta. "
+        "Ele fica %s fora.",
+        "Um erro no formulario do consulado travou a permissao de trabalho de %s, do %s. O atleta "
+        "fica %s fora ate sair a resposta.") % (j["nome"], c["nome"], plural(semanas, "semana")))
+
+
+def ev_naming(G):
+    c = _alvo(G, _liga(G))
+    if not c:
+        return None
+    valor = _gr(G, c, rng.randint(15, 40) * 1_000_000)
+    lancar(G, c, valor, "imprevistos")
+    c["reputacao"] = max(5, c["reputacao"] - 3)
+    for j in _pros(G, c):
+        mexer_moral(G, j, -5, "o nome novo do estadio")
+    empresa = rng.choice(["Mega Cripto", "Superfrango", "Boa Sorte Seguros", "Vapor Total", "Fast Bet"])
+    return _evento(G, c, "Fiasco de naming rights", _um(
+        "O estadio do %s agora se chama '%s Arena'. O contrato de naming rights rende %s, mas a "
+        "torcida organizou um boicote e rabiscou o nome novo nas paredes.",
+        "A diretoria do %s vendeu o nome do estadio para a '%s' por %s. A torcida protestou: 'nossa "
+        "casa nao tem preco', mesmo com o dinheiro entrando.",
+        "Fiasco de naming rights no %s: a '%s' pagou %s adiantado e o nome novo foi pintado no "
+        "telhado com uma letra errada. A torcida nao perdoa.") % (c["nome"], empresa, din(valor)))
+
+
+def ev_fornecedor(G):
+    c = _alvo(G, _liga(G))
+    if not c:
+        return None
+    custo = _gr(G, c, rng.randint(2, 6) * 1_000_000)
+    lancar(G, c, -custo, "imprevistos")
+    c["reputacao"] = max(5, c["reputacao"] - 2)
+    for j in _pros(G, c):
+        mexer_moral(G, j, -3, "o uniforme errado")
+    return _evento(G, c, "Fornecedora errou o uniforme", _um(
+        "A fornecedora de material esportivo entregou ao %s uniformes com o escudo do rival bordado "
+        "no peito. A reimpressao de emergencia custa %s.",
+        "O novo uniforme do %s chegou com os numeros descolando no primeiro suor. O clube refaz o "
+        "lote inteiro e arca com %s.",
+        "A camisa titular do %s foi fabricada com as cores trocadas. A fornecedora admitiu o erro, "
+        "mas refazer o lote custou %s ao clube.") % (c["nome"], din(custo)))
+
+
+def ev_var_aposta(G):
+    c = _alvo(G, [x for x in _liga(G) if G["ligas"].get(x["divisao"])])
+    if not c or not _tirar_pontos(G, c, -3):
+        return None
+    for j in _pros(G, c):
+        mexer_moral(G, j, 5, "a justica do VAR")
+    return _evento(G, c, "Operador do VAR apostava", _um(
+        "Um operador do VAR foi preso apostando nos jogos que apitava. A federacao revisou o ultimo "
+        "duelo do %s, anulou o resultado e deu 3 pontos ao clube prejudicado.",
+        "Mensagens mostram um assistente de video combinando lances com uma casa de apostas. O %s foi "
+        "o time mais prejudicado e recebe 3 pontos na tabela depois da revisao.",
+        "O VAR do ultimo jogo do %s estava devendo a um apostador. A comissao de arbitragem demitiu "
+        "a equipe e compensou o clube com 3 pontos.") % c["nome"])
+
+
+def ev_oferta_louca(G):
+    cands = [j for c in _liga(G) for j in _pros(G, c) if j["ovr"] >= 72]
+    if not cands:
+        return None
+    meus = [j for j in cands if j["clube"] == G.get("clube")]
+    j = rng.choice(meus) if meus and rng.random() < CHANCE_MEU_CLUBE else rng.choice(cands)
+    c = G["clubes"][j["clube"]]
+    destino = rng.choice(["Arabia Saudita", "China", "Catar", "Estados Unidos", "Emirados Arabes"])
+    meu = c["id"] == G.get("clube")
+    mexer_moral(G, j, -12 if meu else -6, "a oferta milionaria de fora")
+    if not meu and not j["listado"]:
+        j["listado"] = preco_pedido(G, j)
+    return _evento(G, c, "Oferta indecente", _um(
+        "%s, do %s, recebeu uma proposta de um clube de %s com salario cinco vezes maior. Ele diz "
+        "que 'vai pensar' e nao treinou concentrado a semana toda.",
+        "O empresario de %s, do %s, chegou ao CT com um contrato de %s em branco: 'e so preencher o "
+        "valor'. O jogador esta balancado.",
+        "A saga de %s, do %s: um clube de %s mandou jatinho, proposta em branco e uma mansao. O "
+        "jogador adorou, o vestiario nao.") % (j["nome"], c["nome"], destino))
+
+
+def ev_gramado(G):
+    c = _alvo(G, _liga(G))
+    pros = _pros(G, c) if c else []
+    if len(pros) < 4:
+        return None
+    alvos = rng.sample(pros, rng.randint(2, 4))
+    for j in alvos:
+        j["lesao"] = max(j["lesao"], rng.randint(2, 4))
+        j["cond"] = max(20, j["cond"] - 15)
+    return _evento(G, c, "Gramado assassino", _um(
+        "O gramado sintetico novo do %s soltou placas no primeiro treino e %d jogadores torceram o "
+        "tornozelo. Ficam de 2 a 4 semanas fora.",
+        "A grama do %s foi trocada as pressas e virou areia movedica: %d jogadores se machucaram em "
+        "dois treinos. Voltam em 2 a 4 semanas.",
+        "O campo do %s ficou pesado depois de dias de chuva e de uma reforma mal feita. %d atletas "
+        "sentiram lesoes musculares e ficam de 2 a 4 semanas fora.") % (c["nome"], len(alvos)))
 
 
 EVENTOS_CAOS = (
@@ -10832,6 +11234,10 @@ EVENTOS_CAOS = (
     ("vaquinha", 3, ev_vaquinha), ("pacto", 2, ev_pacto), ("enchente", 2, ev_enchente),
     ("portoes_fechados", 3, ev_portoes_fechados), ("tatuagem", 3, ev_tatuagem),
     ("vidente", 3, ev_vidente), ("vazamento", 3, ev_vazamento), ("churrasco", 3, ev_churrasco),
+    ("escolta", 3, ev_escolta), ("faixa_ultras", 3, ev_faixa_ultras),
+    ("fundo_estrangeiro", 2, ev_fundo_estrangeiro), ("agente", 3, ev_agente), ("visto", 3, ev_visto),
+    ("naming", 2, ev_naming), ("fornecedor", 3, ev_fornecedor), ("var_aposta", 2, ev_var_aposta),
+    ("oferta_louca", 3, ev_oferta_louca), ("gramado", 3, ev_gramado),
 )
 BOMBAS_CAOS = {"doping_fim": ev_doping_fim, "doping_pego": ev_doping_pego,
                "fair_play": ev_fair_play, "estadio_volta": ev_estadio_volta}

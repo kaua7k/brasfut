@@ -322,7 +322,8 @@ capitão em campo segura um ponto da queda de moral de quem jogou com ele.
 ## Modo Caos
 
 Escolhido ao criar a carreira, ao lado do Clássico. Toda semana de liga pode estourar um
-**plantão** no futebol brasileiro, e o boletim "AO VIVO" abre depois do avanço (no
+**plantão** na liga que você treina (as séries A a D no Brasil; fora, a liga do país do seu
+clube, com os valores ajustados à economia dela), e o boletim "AO VIVO" abre depois do avanço (no
 Simular, o pulo para se o plantão for no seu clube). Tudo também vai para Notícias, com o
 rótulo Plantão. Alguns exemplos, do sério ao absurdo:
 
@@ -341,6 +342,11 @@ rótulo Plantão. Alguns exemplos, do sério ao absurdo:
 - **Cachorro mascote**, **jogador no reality**, **ataque hacker**, **vaquinha da torcida**,
   **veterano que rejuvenesce**, **enchente**, **portões fechados**, **tatuagem do rival**,
   **vidente**, **folha salarial vazada**, **churrasco que acaba com o físico**.
+- **Com sabor internacional**: **clássico sob escolta policial**, **faixa das organizadas**,
+  **fundo estrangeiro que compra o controle**, **escândalo de empresário na janela**,
+  **problema de visto de trabalho**, **fiasco de naming rights do estádio**, **fornecedora que
+  erra o uniforme**, **operador do VAR que apostava** (3 pontos para o prejudicado), **oferta
+  indecente de fora** e **gramado assassino**.
 
 O mesmo tipo de plantão não se repete por 10 semanas, e cada um tem mais de um texto. A
 **frequência** também é escolhida na carreira nova: **calmo** (um plantão a cada três
