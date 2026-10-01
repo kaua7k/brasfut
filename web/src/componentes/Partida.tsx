@@ -9,6 +9,7 @@
 
 import { useState } from 'react'
 import { iconeDeEstado } from '../icones'
+import { Escudo } from './Escudo'
 import type { Estado, Lado, LinhaNota, Partida } from '../tipos'
 
 interface PropsResumo {
@@ -81,11 +82,17 @@ export function ResumoPartida({ partidas, historico = 5, alerta }: PropsResumo) 
       )}
 
       <div className="partida-placar">
-        <span className={`partida-time${p.eu === 0 ? ' eu' : ''}`}>{p.times[0]}</span>
+        <span className={`partida-time${p.eu === 0 ? ' eu' : ''}`}>
+          <span className="partida-time-nome">{p.times[0]}</span>
+          <Escudo nome={p.times[0]} tamanho={30} />
+        </span>
         <span className={`placar-numero ${p.estado}`}>
           {p.placar[0]} x {p.placar[1]}
         </span>
-        <span className={`partida-time${p.eu === 1 ? ' eu' : ''}`}>{p.times[1]}</span>
+        <span className={`partida-time${p.eu === 1 ? ' eu' : ''}`}>
+          <Escudo nome={p.times[1]} tamanho={30} />
+          <span className="partida-time-nome">{p.times[1]}</span>
+        </span>
       </div>
       {p.detalhes.decisao && <div className="partida-decisao">{p.detalhes.decisao}</div>}
 
@@ -218,10 +225,20 @@ export function DetalhePartida({ p, aoFechar }: { p: Partida; aoFechar: () => vo
       }}
     >
       <div className="modal modal-largo" onClick={(e) => e.stopPropagation()}>
-        <h2>
-          {p.times[0]} {p.placar[0]} x {p.placar[1]} {p.times[1]}
-        </h2>
-        <p className="tag-fraco m-0 mb-3">
+        <div className="detalhe-placar">
+          <div className={`detalhe-time${p.eu === 0 ? ' eu' : ''}`}>
+            <Escudo nome={p.times[0]} tamanho={48} />
+            <h2>{p.times[0]}</h2>
+          </div>
+          <div className={`placar-numero detalhe-gols ${p.estado}`}>
+            {p.placar[0]} x {p.placar[1]}
+          </div>
+          <div className={`detalhe-time${p.eu === 1 ? ' eu' : ''}`}>
+            <Escudo nome={p.times[1]} tamanho={48} />
+            <h2>{p.times[1]}</h2>
+          </div>
+        </div>
+        <p className="tag-fraco detalhe-sub">
           {p.comp} · {p.rodada}
           {d.publico && ` · ${d.publico}`}
         </p>

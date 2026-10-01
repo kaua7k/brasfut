@@ -33,7 +33,7 @@ function Ranking({ r, aoAbrirFicha }: { r: RankingEstat; aoAbrirFicha: (id: numb
       ) : (
         <ol className="estat-lista">
           {r.itens.map((i, k) => (
-            <li key={i.id} className={i.meu ? 'meu' : ''}>
+            <li key={i.id} className={`${i.meu ? 'meu' : ''}${k === 0 ? ' lider' : ''}`}>
               <span className="estat-pos">{k + 1}</span>
               <Escudo nome={i.clube} tamanho={18} />
               {deTime ? (

@@ -64,12 +64,18 @@ export function DialogoVitrine({ ids, ocupado, aoConfirmar, aoFechar }: Props) {
       aria-label="Por a venda"
       onKeyDown={(e) => e.key === 'Escape' && aoFechar()}
     >
-      <div className="modal modal-largo">
-        <h2>Por a venda</h2>
-        <p>
-          {plural(linhas.length, 'jogador', 'jogadores')}. Pedir muito acima do valor afasta proposta; abaixo, elas chegam
-          rapido.
-        </p>
+      <div className="modal modal-largo dlg">
+        <header className="dlg-cab">
+          <div className="dlg-textos">
+            <div className="dlg-kicker">Vitrine em lote</div>
+            <h2>Por a venda</h2>
+            <div className="dlg-sub">
+              Pedir muito acima do valor afasta proposta; abaixo, elas chegam rapido.
+            </div>
+          </div>
+          <div className="dlg-selo">{plural(linhas.length, 'jogador', 'jogadores')}</div>
+        </header>
+        <div className="dlg-corpo">
 
         <div className="painel-titulo">Preco como percentual do valor de mercado</div>
         <div className="atalhos mt-2 mb-3">
@@ -124,16 +130,26 @@ export function DialogoVitrine({ ids, ocupado, aoConfirmar, aoFechar }: Props) {
           </button>
         </div>
 
-        <div className="mesa-linha tag-fraco mt-3">
-          pedido somado {reais(total)} · folha que sairia {reais(folha)} por mes
+        <div className="totais">
+          <div className="total-cel principal">
+            <span>Pedido somado</span>
+            <b>{reais(total)}</b>
+            <small>se todos forem vendidos</small>
+          </div>
+          <div className="total-cel">
+            <span>Folha que sairia</span>
+            <b>{reais(folha)}</b>
+            <small>por mes</small>
+          </div>
         </div>
         {invalidos.length > 0 && (
           <div className="mesa-linha linha-critica">O preco minimo de vitrine e R$ 1 mil.</div>
         )}
         {erro && <div className="mesa-linha linha-critica">{erro}</div>}
+        </div>
 
         <div className="modal-acoes">
-          <button type="button" className="bt-fantasma" onClick={aoFechar}>
+          <button type="button" className="bt-fantasma bt-media" onClick={aoFechar}>
             Cancelar
           </button>
           <button

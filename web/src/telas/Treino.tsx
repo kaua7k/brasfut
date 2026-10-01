@@ -6,7 +6,7 @@
 
 import { porque, AGUARDE, MARQUE } from '../motivo'
 import { useEffect, useState } from 'react'
-import { seloPos } from '../componentes/Celulas'
+import { seloOvr, seloPos } from '../componentes/Celulas'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
 import { alternarMarca, Grade, type Coluna } from '../componentes/Grade'
 import type { JogadorTreino, TelaTreino } from '../tipos'
@@ -29,7 +29,7 @@ const COLUNAS: Coluna<JogadorTreino>[] = [
     rotulo: 'Individual',
     largura: '78px',
     classe: 'centro',
-    render: (j) => (j.em_foco ? <span className="tag-ok">sim</span> : '-'),
+    render: (j) => (j.em_foco ? <span className="chip-foco">no foco</span> : '-'),
   },
   { chave: 'pos', rotulo: 'Pos', largura: '46px', classe: 'centro', render: (j) => seloPos(j.pos) },
   {
@@ -45,7 +45,7 @@ const COLUNAS: Coluna<JogadorTreino>[] = [
     ),
   },
   { chave: 'idade', rotulo: 'Idade', largura: '52px', classe: 'num', render: (j) => j.idade },
-  { chave: 'ovr', rotulo: 'Ovr', largura: '44px', classe: 'num', render: (j) => j.ovr },
+  { chave: 'ovr', rotulo: 'Ovr', largura: '44px', classe: 'num', render: (j) => seloOvr(j.ovr) },
   {
     chave: 'margem',
     rotulo: 'Margem',
@@ -94,8 +94,9 @@ export function Treino({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
             onClick={() => !r.ativo && aoAgir({ tipo: 'regime', nome: r.nome })}
           >
             <span className="regime-topo">
+              <span className="regime-marca" aria-hidden="true" />
               <strong>{r.nome}</strong>
-              {r.ativo && <span className="tag-ok regime-uso">EM USO</span>}
+              {r.ativo && <span className="regime-uso">EM USO</span>}
             </span>
             <span className="regime-desc">{r.desc}</span>
             <span className="regime-efeitos">
@@ -113,6 +114,15 @@ export function Treino({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
         <div className="painel-titulo">Trabalho individual</div>
         <div className="sub-linha">
           Quem esta na lista evolui 50% mais rapido. Cada nome custa {tela.custo_por_nome} por semana.
+        </div>
+        <div className="vagas-ct" aria-label={`${tela.em_foco} de ${tela.vagas} vagas do CT em uso`}>
+          <span className="vagas-ct-rotulo">Vagas do CT</span>
+          <span className="vagas-ct-pontos" aria-hidden="true">
+            {Array.from({ length: tela.vagas }, (_, i) => (
+              <i key={i} className={i < tela.em_foco ? 'cheia' : undefined} />
+            ))}
+          </span>
+          <strong>{tela.em_foco}/{tela.vagas}</strong>
         </div>
       </div>
       <section className="painel painel-lista">

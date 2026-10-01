@@ -4,6 +4,7 @@
 // disabled>), e nao apenas apagado: o teclado tem que pular por cima dele,
 // senao o Tab leva a um lugar que nao existe.
 
+import { Fragment } from 'react'
 import { porque, AGUARDE } from '../motivo'
 import { ICONES_MENU, IconeAjuda, IconeMenu, IconeSalvar } from '../icones'
 import { Escudo } from './Escudo'
@@ -19,6 +20,15 @@ interface Props {
   aoMenu: () => void
   salvando: boolean
   aoAjuda: () => void
+}
+
+// Titulo do grupo que abre antes de cada item (a ordem do menu e a do jogo).
+const GRUPO_ANTES: Record<string, string> = {
+  painel: 'Jogo',
+  tabela: 'Torneios',
+  mercado: 'Clube',
+  noticias: 'Imprensa',
+  clube: 'Historia',
 }
 
 export function MenuLateral({ clube, itens, atual, aoTrocar, aoSalvar, aoMenu, salvando, aoAjuda }: Props) {
@@ -37,8 +47,13 @@ export function MenuLateral({ clube, itens, atual, aoTrocar, aoSalvar, aoMenu, s
           const Icone = ICONES_MENU[item.id] ?? ICONES_MENU.painel
           const ativo = item.id === atual
           return (
+            <Fragment key={item.id}>
+            {GRUPO_ANTES[item.id] && (
+              <div className="nav-grupo" aria-hidden="true">
+                <span>{GRUPO_ANTES[item.id]}</span>
+              </div>
+            )}
             <button
-              key={item.id}
               type="button"
               className={`navitem${ativo ? ' ativo' : ''}`}
               disabled={!item.pronta}
@@ -52,6 +67,7 @@ export function MenuLateral({ clube, itens, atual, aoTrocar, aoSalvar, aoMenu, s
               <Icone />
               <span className="rotulo-nav">{item.nome}</span>
             </button>
+            </Fragment>
           )
         })}
       </div>

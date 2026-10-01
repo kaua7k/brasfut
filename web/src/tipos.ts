@@ -69,6 +69,7 @@ export interface JogadorEmCampo {
   x: number
   y: number
   numero: number
+  capitao: boolean
 }
 
 export interface Escalacao {
@@ -815,6 +816,7 @@ export interface JogadorBanco {
   situacao: string
   disponivel: boolean
   tag: string
+  capitao: boolean
 }
 
 export interface EixoPlano {

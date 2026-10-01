@@ -1,3 +1,217 @@
-/* Refinos visuais do grupo a de telas (2026-10-01). Mesmas regras de
- * base.css: so var(--...) dos tokens do :root de base.css, nada de hex, rgba
- * ou font-size solto. Teste: testes/test_tokens.py. */
+/* Grupo A: casca (menu, topo, cabecalho), Painel, Noticias, Classificacao,
+ * Competicoes, Estatisticas, Clube, Carreira e os modais que abrem deles
+ * (Resumo, Plantao, Partida).
+ *
+ * Este arquivo e importado ANTES do resto do base.css, entao as regras que
+ * sobrescrevem uma classe ja existente levam o prefixo "body " (mais
+ * especificidade, mesma ordem de leitura). Regra nova nao precisa dele.
+ * So var(--...): nada de hex, rgba ou font-size solto. */
+
+/* ------------------------------------------------------------ menu lateral */
+body .navitem { min-height: 40px; padding: 8px 16px; position: relative; }
+body .navitem.ativo {
+  background: color-mix(in srgb, var(--acao) 14%, var(--linha));
+}
+body .navitem.ativo::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--acao-linha);
+}
+.nav-grupo {
+  padding: 12px 16px 4px;
+  font-size: var(--fs-mini);
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--apagado);
+}
+.nav-grupo:first-child { padding-top: 0; }
+
+/* em tela estreita o menu vira so icones: o grupo vira um filete */
+@media (max-width: 1100px) {
+  .nav-grupo { padding: 6px 12px; }
+  .nav-grupo span { display: none; }
+  .nav-grupo::before { content: ''; display: block; height: 1px; background: var(--borda-lateral); }
+}
+
+/* -------------------------------------------------------------- barra do topo */
+body .topo .chip {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  min-width: 0;
+  border-left: 3px solid var(--neutro);
+}
+body .topo .chip .rotulo { font-size: var(--fs-mini); }
+body .topo .chip .valor { font-variant-numeric: tabular-nums; }
+body .topo .chip-caixa { border-left-color: var(--ok); }
+body .topo .chip-verba { border-left-color: var(--acao-linha); }
+body .topo .chip:has(.valor.critico) { border-left-color: var(--critico); background: var(--critico-brilho); }
+
+/* ---------------------------------------------------------- cabecalho de tela */
+body .cabecalho-tela h2 { letter-spacing: -0.01em; }
+body .cabecalho-tela { position: relative; }
+body .metrica { transition: border-color 0.15s ease; }
+body .metrica .valor { font-variant-numeric: tabular-nums; }
+body .metrica:hover { border-color: var(--borda-controle); }
+
+/* --------------------------------------------------------------- classificacao */
+.pos-selo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 4px;
+  border-radius: 6px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--txt-3);
+}
+.pos-selo.alta { background: var(--ok-brilho); color: var(--ok); }
+.pos-selo.baixa { background: var(--critico-brilho); color: var(--critico); }
+.pos-selo.media { background: var(--atencao-brilho); color: var(--atencao); }
+.grade-linha.eu .pos-selo { background: var(--acao); color: var(--acao-txt); }
+.pts { font-family: var(--titulo); font-size: var(--fs-base); color: var(--branco); font-variant-numeric: tabular-nums; }
+.sg-pos { color: var(--ok); }
+.sg-neg { color: var(--critico); }
+.ap-pct { color: var(--txt-3); font-variant-numeric: tabular-nums; }
+body .grade-linha.alta { box-shadow: inset 3px 0 0 var(--ok); }
+body .grade-linha.baixa { box-shadow: inset 3px 0 0 var(--critico); }
+body .grade-linha.media { box-shadow: inset 3px 0 0 var(--atencao); }
+body .grade-linha.eu { box-shadow: inset 3px 0 0 var(--acao); }
+body .grade-linha:not(.cab):hover { background: var(--painel-alto); }
+body .grade-linha.eu:hover { background: var(--acao-marcada); }
+
+/* -------------------------------------------------------------------- noticias */
+body .noticia-simples {
+  align-items: baseline;
+  gap: 12px;
+  transition: background 0.12s ease;
+}
+body .noticia-simples:hover { background: var(--painel-alto); }
+.not-rotulo {
+  flex: none;
+  min-width: 78px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  text-align: center;
+  font-size: var(--fs-mini);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: var(--acao-apagado);
+  color: var(--acao-linha);
+}
+.not-grana .not-rotulo { background: var(--conquista-fundo); color: var(--conquista); }
+.not-mal .not-rotulo { background: var(--critico-fundo); color: var(--critico-claro); }
+.not-ouro .not-rotulo { background: var(--conquista-fundo); color: var(--conquista); }
+.not-bom .not-rotulo { background: var(--ok-brilho); color: var(--ok); }
+.not-texto { flex: 1; min-width: 0; color: var(--txt); }
+.not-temp {
+  flex: none;
+  font-size: var(--fs-mini);
+  font-weight: 700;
+  color: var(--fraco);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+body .manchete { transition: background 0.12s ease; }
+body .manchete:hover { background: var(--painel-alto); }
+
+/* ---------------------------------------------------------------- estatisticas */
+body .estat-lista li { transition: background 0.12s ease; }
+body .estat-lista li:hover { background: var(--painel-alto); }
+body .estat-lista li.meu:hover { background: var(--acao-marcada); }
+.estat-lista li.lider {
+  background: var(--conquista-fundo);
+  box-shadow: inset 3px 0 0 var(--conquista);
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.estat-lista li.lider .estat-pos { color: var(--conquista); font-weight: 700; }
+.estat-lista li.lider .estat-nome { font-weight: 700; }
+.estat-lista li.lider .estat-valor:not(.nota-otima):not(.nota-boa):not(.nota-media):not(.nota-fraca) {
+  color: var(--conquista);
+  font-size: var(--fs-g);
+}
+
+/* ---------------------------------------------------------------------- modais */
+@keyframes modal-fundo { from { opacity: 0; } to { opacity: 1; } }
+@keyframes modal-sobe {
+  from { opacity: 0; transform: translateY(12px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+body .fundo-modal { animation: modal-fundo 0.16s ease-out; }
+body .fundo-modal > .modal { animation: modal-sobe 0.2s ease-out; box-shadow: var(--sombra-barra); }
+@media (prefers-reduced-motion: reduce) {
+  body .fundo-modal, body .fundo-modal > .modal { animation: none; }
+}
+
+/* resumo da temporada: cabecalho de capa */
+body .modal-resumo > h2 {
+  font-size: var(--fs-gg);
+  letter-spacing: -0.01em;
+  padding-bottom: 4px;
+}
+body .resumo-tile { transition: border-color 0.15s ease; }
+body .resumo-tile:hover { border-color: var(--borda-controle); }
+body .resumo-valor { font-variant-numeric: tabular-nums; }
+body .resumo-veredito { border-radius: var(--raio-p); }
+body .resumo-campanhas td:last-child { font-variant-numeric: tabular-nums; }
+
+/* plantao: o selo e o clube com escudo */
+.plantao-clube { display: inline-flex; align-items: center; gap: 6px; }
+body .plantao-item { transition: transform 0.15s ease; }
+body .plantao-item.meu { background: color-mix(in srgb, var(--acao) 10%, var(--painel-alto)); }
+
+/* ---------------------------------------------------------------------- partida */
+body .partida-time { display: flex; align-items: center; gap: 10px; font-size: var(--fs-g); }
+body .partida-time:first-child { justify-content: flex-end; text-align: right; }
+.partida-time-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body .partida-placar .placar-numero {
+  font-size: var(--fs-gg);
+  font-variant-numeric: tabular-nums;
+  padding: 4px 16px;
+  border-radius: var(--raio-m);
+  background: var(--poco);
+  border: 1px solid var(--borda-forte);
+}
+body .partida-lista li { padding: 1px 0; }
+body .partida-lista .lance-marca.gol { background: var(--txt); box-shadow: 0 0 0 2px var(--borda-forte); }
+
+/* detalhe da partida: placar de transmissao no alto do modal */
+.detalhe-placar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  border-radius: var(--raio-m);
+  background: linear-gradient(180deg, var(--gramado-escuro), var(--poco));
+  border: 1px solid var(--borda-forte);
+}
+.detalhe-time { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; text-align: center; }
+.detalhe-time h2 { margin: 0; font-size: var(--fs-base); color: var(--txt-2); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.detalhe-time.eu h2 { color: var(--branco); }
+.detalhe-gols { font-size: var(--fs-gg); font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
+.detalhe-sub { text-align: center; margin: 0 0 14px; }
+body .partida-notas tbody tr:hover { background: var(--painel-alto); }
+body .partida-notas td.a-direita { font-variant-numeric: tabular-nums; }
+body .partida-estat td { font-variant-numeric: tabular-nums; }
+
+/* ---------------------------------------------------------------- foco / hover */
+body .alavanca button { transition: background 0.12s ease, color 0.12s ease; }
+
+/* tela estreita: o chip volta a empilhar rotulo e valor para o botao caber */
+@media (max-width: 1100px) {
+  body .topo { gap: 10px; padding: 14px 16px; }
+  body .topo .chip { flex-direction: column; align-items: flex-start; gap: 0; padding: 6px 10px; }
+}

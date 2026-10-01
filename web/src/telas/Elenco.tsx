@@ -6,7 +6,7 @@
 
 import { porque, AGUARDE, MARQUE } from '../motivo'
 import { useEffect, useMemo, useState } from 'react'
-import { barraFisico, seloOvr, seloPos } from '../componentes/Celulas'
+import { barraFisico, seloCapitao, seloOvr, seloPos } from '../componentes/Celulas'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
 import { alternarMarca, Grade, type Coluna } from '../componentes/Grade'
 import { dinheiro, plural } from '../formato'
@@ -32,7 +32,7 @@ const COLUNAS: Coluna<JogadorElenco>[] = [
     render: (j) => (
       <>
         <span className={`tag-${j.tag}`}>{j.nome}</span>
-        {j.capitao && <span className="selo-capitao" title="Capitao">C</span>}
+        {j.capitao && seloCapitao()}
       </>
     ),
   },
@@ -54,7 +54,7 @@ const COLUNAS: Coluna<JogadorElenco>[] = [
     classe: 'centro',
     // o ! avisa o ultimo ano: sem renovar ele sai de graca
     render: (j) => (
-      <span className={j.ultimo_ano ? 'linha-critica' : undefined}>
+      <span className={j.ultimo_ano ? 'chip-ultimo-ano' : undefined}>
         {plural(j.contrato, 'ano')}{j.ultimo_ano ? ' !' : ''}
       </span>
     ),

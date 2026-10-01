@@ -13,7 +13,8 @@ import { useEffect, useState } from 'react'
 import { seloOvr, seloPos } from '../componentes/Celulas'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
 import { CampoDinheiro } from '../componentes/CampoDinheiro'
-import { alternarMarca, Grade, type Coluna } from '../componentes/Grade'
+import { Escudo } from '../componentes/Escudo'
+import { alternarMarca, chaveDeOrdem, Grade, type Coluna } from '../componentes/Grade'
 import { dinheiro, plural } from '../formato'
 import { LegendaCores } from '../componentes/LegendaCores'
 import { iconeDeEstado } from '../icones'
@@ -67,13 +68,26 @@ const BASE: Coluna<LinhaMercado>[] = [
   { chave: 'idade', rotulo: 'Idade', largura: '50px', classe: 'num', render: (j) => j.idade },
   { chave: 'ovr', rotulo: 'Ovr', largura: '42px', classe: 'num', render: (j) => seloOvr(j.ovr) },
   { chave: 'teto', rotulo: 'Teto', largura: '70px', classe: 'centro', render: (j) => j.teto },
-  { chave: 'clube', rotulo: 'Clube', largura: 'minmax(100px, 1fr)', classe: 'corta', render: (j) => j.clube },
-  { chave: 'sal', rotulo: 'Salario', largura: '88px', classe: 'num', render: (j) => j.salario },
+  {
+    chave: 'clube',
+    rotulo: 'Clube',
+    largura: 'minmax(120px, 1fr)',
+    render: (j) =>
+      j.livre ? (
+        <span className="clube-atual livre">sem clube</span>
+      ) : (
+        <span className="escudo-com-nome clube-atual">
+          <Escudo nome={j.clube} tamanho={18} />
+          <span>{j.clube}</span>
+        </span>
+      ),
+  },
+  { chave: 'sal', rotulo: 'Salario', largura: '88px', classe: 'num', render: (j) => <span className="preco-fraco">{j.salario}</span> },
 ]
 
 const COLUNAS_COMPRA: Coluna<LinhaMercado>[] = [
   ...BASE,
-  { chave: 'valor', rotulo: 'Valor', largura: '92px', classe: 'num', ordem: (j) => j.valor_num, render: (j) => j.valor },
+  { chave: 'valor', rotulo: 'Valor', largura: '92px', classe: 'num', ordem: (j) => j.valor_num, render: (j) => <span className="preco-fraco">{j.valor}</span> },
   {
     chave: 'pedido',
     rotulo: 'Pedido',
@@ -82,7 +96,7 @@ const COLUNAS_COMPRA: Coluna<LinhaMercado>[] = [
     // agente livre ("livre") vai para o fim; o resto pelo valor pedido
     ordem: (j) => (j.pedido_num ?? null),
     render: (j) => (
-      <span className={j.marca === 'intocavel' ? 'linha-critica' : j.marca === 'a_venda' ? 'tag-ok' : undefined}>
+      <span className={`preco-forte ${j.marca === 'intocavel' ? 'linha-critica' : j.marca === 'a_venda' ? 'tag-ok' : ''}`}>
         {j.pedido}
         {MARCA[j.marca ?? ''] ?? ''}
       </span>
@@ -180,14 +194,31 @@ const COLUNAS_CONTRATOS: Coluna<ContratoAcabando>[] = [
 
 // o caixa nao e todo de contratar: a faixa diz quanto e, e por que
 function FaixaVerba({ f }: { f: Financeiro }) {
+  const lido = (t: string) => {
+    const v = chaveDeOrdem(t)
+    return typeof v === 'number' ? v : 0
+  }
+  const caixa = Math.max(1, lido(f.caixa))
+  const reserva = Math.min(caixa, Math.max(0, lido(f.reserva)))
+  const verba = Math.min(caixa - reserva, Math.max(0, f.verba_num))
   return (
-    <section className={`painel faixa ${f.estado}`}>
+    <section className={`painel faixa verba-faixa ${f.estado}`}>
       <div className="faixa-icone">{iconeDeEstado(f.estado)}</div>
-      <div>
+      <div className="verba-texto">
         <div className="faixa-titulo">Verba para contratar: {f.verba}</div>
         <div className="faixa-detalhe">
-          Caixa {f.caixa}, dos quais {f.reserva} ficam reservados para {f.meses} meses de folha e custos ({f.custos_mes}{' '}
-          por mes). Saldo do mes: {f.saldo_mes}. O salario de quem chega entra na reserva antes do passe.
+          Caixa {f.caixa}; {f.reserva} reservados para {f.meses} meses de folha e custos ({f.custos_mes} por mes). Saldo do
+          mes: {f.saldo_mes}. O salario de quem chega entra na reserva antes do passe.
+        </div>
+      </div>
+      <div className="verba-medidor" role="img" aria-label={`Caixa ${f.caixa}: ${f.reserva} reservados, ${f.verba} livres`}>
+        <div className="medidor-trilho">
+          <i className="reserva" style={{ width: `${(reserva / caixa) * 100}%` }} />
+          <i className={`verba ${f.estado}`} style={{ width: `${(verba / caixa) * 100}%` }} />
+        </div>
+        <div className="verba-legenda">
+          <span>reservado {f.reserva}</span>
+          <span>livre {f.verba}</span>
         </div>
       </div>
     </section>
@@ -357,7 +388,7 @@ export function Mercado({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
       {aba !== 'vitrine' ? (
         <>
           <form
-            className="painel barra-acoes filtros"
+            className="painel barra-acoes filtros filtros-c"
             onSubmit={(e) => {
               e.preventDefault()
               aoAgir({ tipo: 'buscar', aba, filtros: filtros() })
@@ -423,18 +454,19 @@ export function Mercado({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
             )}
             {aba !== 'livres' && <CampoDinheiro rotulo="Pedido ate" valor={teto} aoMudar={setTeto} />}
             {aba === 'compra' && (
-              <label className="avanco-parada">
+              <label className="avanco-parada filtro-marca">
                 <input type="checkbox" checked={soVenda} onChange={(e) => setSoVenda(e.target.checked)} />
                 So a venda
               </label>
             )}
-            <button type="button" className="bt-fantasma bt-media" disabled={ocupado} onClick={limpar}>
-              Limpar
-            </button>
-            <button type="submit" className="bt-acao bt-media" title={porque([[ocupado, AGUARDE]])}
-            disabled={ocupado}>
-              Buscar
-            </button>
+            <div className="filtros-botoes">
+              <button type="button" className="bt-fantasma bt-media" disabled={ocupado} onClick={limpar}>
+                Limpar
+              </button>
+              <button type="submit" className="bt-acao bt-media" title={porque([[ocupado, AGUARDE]])} disabled={ocupado}>
+                Buscar
+              </button>
+            </div>
           </form>
 
           <section className="painel painel-lista">

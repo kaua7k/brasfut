@@ -20,6 +20,31 @@ export function seloOvr(ovr: number) {
   return <span className={`selo-ovr ${faixa}`}>{ovr}</span>
 }
 
+/** A bracadeira: um "C" dourado ao lado do nome do capitao. */
+export function seloCapitao() {
+  return <span className="selo-capitao" title="Capitao" aria-label="Capitao">C</span>
+}
+
+/** Meio da faixa do olheiro: "74-80" vira 77, "~75" vira 75, outra coisa vira null. */
+export function meioDoTeto(teto: string): number | null {
+  const n = teto.match(/\d+/g)?.map(Number) ?? []
+  if (n.length === 0) return null
+  return n.length === 1 ? n[0] : (n[0] + n[1]) / 2
+}
+
+/** Potencial em cinco estrelas a partir do teto estimado (55 ou menos = 1, 90+ = 5). */
+export function estrelasDoTeto(teto: string) {
+  const meio = meioDoTeto(teto)
+  if (meio === null) return null
+  const cheias = Math.max(1, Math.min(5, Math.round((meio - 55) / 8) + 1))
+  return (
+    <span className="estrelas" title={`potencial estimado ${teto}`} aria-label={`${cheias} de 5 estrelas`}>
+      <span className="estrelas-cheias">{'★'.repeat(cheias)}</span>
+      <span className="estrelas-vazias">{'★'.repeat(5 - cheias)}</span>
+    </span>
+  )
+}
+
 /** Condicao fisica: barrinha e o numero. Abaixo de 45 critico, de 65 atencao. */
 export function barraFisico(cond: number) {
   const estado = cond < 45 ? 'critico' : cond < 65 ? 'atencao' : 'ok'

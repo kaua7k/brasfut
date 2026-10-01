@@ -9,7 +9,16 @@
 // Quem nao enxerga a diferenca de cor le a mesma coisa na lista ao lado, que
 // repete o motivo por escrito: no resto do jogo a cor nunca e a unica voz.
 
+import type { CSSProperties } from 'react'
 import type { JogadorEmCampo } from '../tipos'
+
+// a vaga pinta o pip do disco com a mesma cor do selo de posicao das listas
+const LINHA: Record<string, string> = { GOL: 'gol', ZAG: 'def', LAT: 'lat', VOL: 'vol', MEI: 'mei', ATA: 'ata' }
+
+// anel de condicao: mesmos cortes da barra de fisico das listas
+function condicao(cond: number) {
+  return cond < 45 ? 'critico' : cond < 65 ? 'atencao' : 'ok'
+}
 
 interface Props {
   jogadores: JogadorEmCampo[]
@@ -22,7 +31,7 @@ interface Props {
 }
 
 function descrever(j: JogadorEmCampo) {
-  const partes = [`${j.nome} (${j.pos}${j.improvisado ? ` jogando de ${j.vaga}` : ''})`,
+  const partes = [`${j.nome}${j.capitao ? ' (capitao)' : ''} (${j.pos}${j.improvisado ? ` jogando de ${j.vaga}` : ''})`,
     `overall ${j.ovr}`, `fisico ${j.cond}`]
   if (j.obs) partes.push(j.obs)
   return partes.join(', ')
@@ -35,17 +44,25 @@ export function Campo({ jogadores, vagasAbertas, aoClicar, marcados, novaVaga }:
       <div className="campo-linhas" />
       <div className="campo-meio" />
       <div className="campo-circulo" />
+      <div className="campo-ponto" />
       <div className="campo-area-gol esq" />
       <div className="campo-area-gol dir" />
+      <div className="campo-pequena esq" />
+      <div className="campo-pequena dir" />
 
       {jogadores.map((j) => {
         const marcado = marcados?.has(j.id) ?? false
-        const classe = `jogador ${j.estado}${j.y < 50 ? ' acima' : ''}${marcado ? ' escolhido' : ''}${
+        const linha = LINHA[j.vaga] ?? ''
+        const classe = `jogador ${j.estado} linha-${linha}${j.y < 50 ? ' acima' : ''}${marcado ? ' escolhido' : ''}${
           novaVaga?.has(j.id) ? ' nova-vaga' : ''
         }`
         const conteudo = (
           <>
-            <span className="disco">{j.ovr}</span>
+            <span className={`anel ${condicao(j.cond)}`} style={{ '--cond': `${Math.max(0, Math.min(100, j.cond))}%` } as CSSProperties}>
+              <span className="disco">{j.ovr}</span>
+              <span className="pip-pos">{j.vaga}</span>
+              {j.capitao && <span className="pip-capitao" aria-hidden="true">C</span>}
+            </span>
             <span className="nome">{j.curto}</span>
           </>
         )
@@ -88,7 +105,9 @@ export function Campo({ jogadores, vagasAbertas, aoClicar, marcados, novaVaga }:
           style={{ left: '50%', top: `${18 + i * 12}%` }}
           title="Sem jogador apto para esta vaga"
         >
-          <span className="disco">?</span>
+          <span className="anel">
+            <span className="disco">?</span>
+          </span>
           <span className="nome">vaga aberta</span>
         </div>
       ))}

@@ -158,11 +158,18 @@ export function DialogoAvanco({ aoFechar, aoAbrirEscalacao }: Props) {
       aria-label="Simular"
       onKeyDown={(e) => e.key === 'Escape' && fechar()}
     >
-      <div className="modal modal-largo simular">
-        <h2>Simular</h2>
-        <p className="tag-fraco m-0">
-          Escolha o tamanho do pulo. Fim do estadual e fim da temporada param sempre.
-        </p>
+      <div className="modal modal-largo simular dlg">
+        <header className="dlg-cab">
+          <div className="dlg-textos">
+            <div className="dlg-kicker">Avancar o calendario</div>
+            <h2>Simular</h2>
+            <div className="dlg-sub">Escolha o tamanho do pulo. Fim do estadual e fim da temporada param sempre.</div>
+          </div>
+          {opcao && opcao.semanas > 0 && !rodando && feitas === 0 && (
+            <div className="dlg-selo">{plural(opcao.semanas, 'semana')}</div>
+          )}
+        </header>
+        <div className="dlg-corpo">
 
         {opcoes.length === 0 && !erro && (
           <div className="mesa-bloco tag-atencao">
@@ -215,8 +222,10 @@ export function DialogoAvanco({ aoFechar, aoAbrirEscalacao }: Props) {
 
         {(rodando || feitas > 0) && (
           <div className="avanco-progresso">
-            <progress max={total || 1} value={feitas} aria-label="Semanas simuladas" />
-            <span className="tag-fraco">
+            <div className="avanco-trilho" role="progressbar" aria-label="Semanas simuladas" aria-valuemin={0} aria-valuemax={total || 1} aria-valuenow={feitas}>
+              <i style={{ width: `${Math.round((feitas / (total || 1)) * 100)}%` }} />
+            </div>
+            <span className="avanco-contagem">
               {rodando ? `semana ${feitas} de ${total}` : `${plural(feitas, 'semana')} simulada${feitas === 1 ? '' : 's'}`}
             </span>
           </div>
@@ -281,13 +290,15 @@ export function DialogoAvanco({ aoFechar, aoAbrirEscalacao }: Props) {
         {/* terminou com jogo: o resumo da ultima partida, sem clique a mais */}
         {!rodando && partidas.length > 0 && <ResumoPartida key={partidas[partidas.length - 1].chave} partidas={partidas} />}
 
+        </div>
+
         <div className="modal-acoes">
-          <button type="button" className="bt-fantasma" title={porque([[rodando, 'Espere a simulacao parar']])}
+          <button type="button" className="bt-fantasma bt-media" title={porque([[rodando, 'Espere a simulacao parar']])}
           disabled={rodando} onClick={fechar}>
             Fechar
           </button>
           {rodando ? (
-            <button type="button" className="bt-fantasma bt-perigo" onClick={() => (pedirParada.current = true)}>
+            <button type="button" className="bt-fantasma bt-media bt-perigo" onClick={() => (pedirParada.current = true)}>
               Parar
             </button>
           ) : (

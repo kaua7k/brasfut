@@ -5,6 +5,7 @@
 
 import { useEffect, useRef } from 'react'
 import type { EventoCaos } from '../tipos'
+import { Escudo } from './Escudo'
 
 interface Props {
   eventos: EventoCaos[]
@@ -44,7 +45,12 @@ export function Plantao({ eventos, aoFechar }: Props) {
             <li key={i} className={`plantao-item ${ev.gravidade}${ev.meu ? ' meu' : ''}`}>
               <div className="plantao-cab">
                 <span className="plantao-selo">{ROTULO[ev.gravidade]}</span>
-                {ev.clube && <span className="plantao-clube">{ev.clube}</span>}
+                {ev.clube && (
+                  <span className="plantao-clube">
+                    <Escudo nome={ev.clube} tamanho={18} />
+                    {ev.clube}
+                  </span>
+                )}
                 {ev.meu && <span className="plantao-meu">seu clube</span>}
                 <span className="tag-fraco plantao-quando">
                   {ev.semana ? `semana ${ev.semana} · ` : ''}

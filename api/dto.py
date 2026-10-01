@@ -198,6 +198,7 @@ def _xi(G, d):
     """O XI que entra em campo, ja com o ponto no campo e o preco do improviso."""
     jogs = G["jogadores"]
     pontos = campo.posicionar(d["vagas"])
+    cap = eng.capitao_de(G, G["clubes"][G["clube"]])
     fora = []
     for pid, vaga in d["vagas"]:
         j = jogs[pid]
@@ -219,6 +220,7 @@ def _xi(G, d):
             "improvisado": improvisado, "afinidade": round(afin, 2),
             "ovr": j["ovr"], "cond": j["cond"], "estado": estado, "obs": obs,
             "x": p["x"], "y": p["y"], "numero": p["ordem"],
+            "capitao": pid == cap,
         })
     fora.sort(key=lambda x: x["numero"])
     return fora, 11 - len(fora)
@@ -1574,6 +1576,7 @@ def _linha_banco(G, j):
         "id": j["id"], "pos": j["pos"], "nome": j["nome"], "ovr": j["ovr"],
         "cond": j["cond"], "situacao": _limpo(eng.situacao(G, j)),
         "disponivel": apto, "tag": _tag_ovr(j["ovr"]),
+        "capitao": bool(j["clube"] is not None and G["clubes"][j["clube"]].get("capitao") == j["id"]),
     }
 
 

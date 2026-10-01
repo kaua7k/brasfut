@@ -17,7 +17,7 @@ interface Props {
 }
 
 const COLUNAS: Coluna<LinhaClassificacao>[] = [
-  { chave: 'pos', rotulo: 'Pos', largura: '40px', classe: 'num', render: (l) => l.pos },
+  { chave: 'pos', rotulo: 'Pos', largura: '40px', classe: 'num', render: (l) => <span className={`pos-selo${l.zona ? ` ${l.zona}` : ''}`}>{l.pos}</span> },
   {
     chave: 'clube',
     rotulo: 'Clube',
@@ -31,7 +31,7 @@ const COLUNAS: Coluna<LinhaClassificacao>[] = [
       </span>
     ),
   },
-  { chave: 'p', rotulo: 'Pts', largura: '42px', classe: 'num', render: (l) => l.p },
+  { chave: 'p', rotulo: 'Pts', largura: '42px', classe: 'num', render: (l) => <strong className="pts">{l.p}</strong> },
   { chave: 'j', rotulo: 'J', largura: '38px', classe: 'num', render: (l) => l.j },
   { chave: 'v', rotulo: 'V', largura: '38px', classe: 'num', render: (l) => l.v },
   { chave: 'e', rotulo: 'E', largura: '38px', classe: 'num', render: (l) => l.e },
@@ -43,7 +43,14 @@ const COLUNAS: Coluna<LinhaClassificacao>[] = [
     rotulo: 'SG',
     largura: '46px',
     classe: 'num',
-    render: (l) => (l.sg > 0 ? `+${l.sg}` : l.sg),
+    render: (l) => <span className={l.sg > 0 ? 'sg-pos' : l.sg < 0 ? 'sg-neg' : ''}>{l.sg > 0 ? `+${l.sg}` : l.sg}</span>,
+  },
+  {
+    chave: 'ap',
+    rotulo: 'Ap%',
+    largura: '58px',
+    classe: 'num',
+    render: (l) => <span className="ap-pct">{l.j > 0 ? Math.round((100 * l.p) / (3 * l.j)) : 0}%</span>,
   },
 ]
 

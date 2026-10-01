@@ -10,13 +10,21 @@ import { porque } from '../motivo'
 import { useEffect, useRef, useState } from 'react'
 import { api, ErroDaApi } from '../api'
 import type { Atalho, Leitura, Mesa as DadosMesa, PropostaMesa, TipoMesa } from '../tipos'
+import { dinheiro } from '../formato'
 import { CampoDinheiro } from './CampoDinheiro'
+import { Escudo } from './Escudo'
 
 interface Props {
   tipo: TipoMesa
   id: number
   /** Chamado ao sair. fechou = houve negocio, a tela de tras precisa recarregar. */
   aoFechar: (fechou: boolean, recado: string | null) => void
+}
+
+const TIPO_ROTULO: Record<TipoMesa, string> = {
+  compra: 'Mesa de compra',
+  emprestimo: 'Mesa de emprestimo',
+  renovacao: 'Renovacao de contrato',
 }
 
 const TITULO: Record<TipoMesa, string> = {
@@ -138,23 +146,44 @@ export function Mesa({ tipo, id, aoFechar }: Props) {
       aria-label={mesa ? `${TITULO[tipo]} ${mesa.nome}` : 'Mesa de negociacao'}
       onKeyDown={(e) => e.key === 'Escape' && sair()}
     >
-      <div className="modal modal-largo" ref={caixa} tabIndex={-1}>
+      <div className="modal modal-largo dlg" ref={caixa} tabIndex={-1}>
         {!mesa ? (
           <>
-            <h2>{TITULO[tipo]}…</h2>
-            <p>{erro ?? 'abrindo a mesa…'}</p>
+            <header className="dlg-cab">
+              <div className="dlg-textos">
+                <h2>{TITULO[tipo]}…</h2>
+              </div>
+            </header>
+            <div className="dlg-corpo">
+              <p>{erro ?? 'abrindo a mesa…'}</p>
+            </div>
             <div className="modal-acoes">
-              <button type="button" className="bt-fantasma" onClick={sair}>Fechar</button>
+              <button type="button" className="bt-fantasma bt-media" onClick={sair}>Fechar</button>
             </div>
           </>
         ) : (
           <>
-            <h2>
-              {TITULO[tipo]} {mesa.nome}
-            </h2>
-            <div className="mesa-sub">
-              {mesa.descricao} · {mesa.clube}
-            </div>
+            <header className="dlg-cab">
+              {!mesa.livre && <Escudo nome={mesa.clube} tamanho={34} />}
+              <div className="dlg-textos">
+                <div className="dlg-kicker">{TIPO_ROTULO[tipo]}</div>
+                <h2>{mesa.nome}</h2>
+                <div className="dlg-sub">
+                  {mesa.descricao} · {mesa.livre ? 'agente livre' : mesa.clube}
+                </div>
+              </div>
+              {!concluido && (
+                <div className="mesa-tentativas" aria-label={`tentativa ${mesa.rodada + 1} de ${mesa.tentativas}`}>
+                  <span className="mesa-tent-rotulo">Tentativas</span>
+                  <span className="mesa-tent-bolas">
+                    {Array.from({ length: mesa.tentativas }, (_, i) => (
+                      <i key={i} className={i < mesa.rodada || mesa.encerrada ? 'usada' : i === mesa.rodada ? 'atual' : 'livre'} />
+                    ))}
+                  </span>
+                </div>
+              )}
+            </header>
+            <div className="dlg-corpo">
             <div className="mesa-sub">
               {mesa.contexto} Seu caixa: {mesa.caixa}
               {tipo !== 'renovacao' && (
@@ -169,6 +198,51 @@ export function Mesa({ tipo, id, aoFechar }: Props) {
             {mesa.acabando && (
               <div className="mesa-sub linha-critica">
                 Contrato acabando: se nao renovar, ele sai de graca na virada da temporada.
+              </div>
+            )}
+
+            {!concluido && (
+              <div className="mesa-ficha" role="table" aria-label="Pedido contra oferta">
+                <div className="mesa-ficha-linha cab" role="row">
+                  <span role="columnheader">Item</span>
+                  <span role="columnheader">Ele pede</span>
+                  <span role="columnheader">Sua oferta</span>
+                </div>
+                {tipo === 'compra' && !mesa.livre && (
+                  <div className="mesa-ficha-linha" role="row">
+                    <span role="cell">Passe</span>
+                    <span role="cell" className="pede">{mesa.pedido}</span>
+                    <span role="cell" className={`oferta ${mesa.leitura_passe?.estado ?? ''}`}>{dinheiro(proposta.valor ?? 0)}</span>
+                  </div>
+                )}
+                {tipo === 'emprestimo' && (
+                  <>
+                    <div className="mesa-ficha-linha" role="row">
+                      <span role="cell">Fatia do salario</span>
+                      <span role="cell" className="pede">{mesa.exigencia_pct}%</span>
+                      <span role="cell" className={`oferta ${mesa.leitura_pct?.estado ?? ''}`}>{proposta.pct ?? 0}%</span>
+                    </div>
+                    <div className="mesa-ficha-linha" role="row">
+                      <span role="cell">Opcao de compra</span>
+                      <span role="cell" className="pede">-</span>
+                      <span role="cell" className={`oferta ${mesa.leitura_opcao?.estado ?? ''}`}>{proposta.opcao ? dinheiro(proposta.opcao) : 'sem opcao'}</span>
+                    </div>
+                  </>
+                )}
+                {tipo !== 'emprestimo' && (
+                  <div className="mesa-ficha-linha" role="row">
+                    <span role="cell">Salario por mes</span>
+                    <span role="cell" className="pede">{mesa.exigencia}</span>
+                    <span role="cell" className={`oferta ${mesa.leitura_salario?.estado ?? ''}`}>{dinheiro(proposta.salario ?? 0)}</span>
+                  </div>
+                )}
+                {tipo !== 'emprestimo' && (
+                  <div className="mesa-ficha-linha" role="row">
+                    <span role="cell">Contrato</span>
+                    <span role="cell" className="pede">-</span>
+                    <span role="cell" className="oferta">{proposta.anos ?? mesa.anos} {(proposta.anos ?? mesa.anos) === 1 ? 'ano' : 'anos'}</span>
+                  </div>
+                )}
               </div>
             )}
 
@@ -307,6 +381,7 @@ export function Mesa({ tipo, id, aoFechar }: Props) {
               </ol>
             )}
             {erro && <div className="linha-critica mesa-linha">{erro}</div>}
+            </div>
 
             <div className="modal-acoes">
               <span className="resumo-mesa">
@@ -316,7 +391,7 @@ export function Mesa({ tipo, id, aoFechar }: Props) {
                     ? 'mesa encerrada nesta semana'
                     : `tentativa ${mesa.rodada + 1} de ${mesa.tentativas}`}
               </span>
-              <button type="button" ref={botaoFechar} className={concluido ? 'bt-acao bt-media' : 'bt-fantasma'} onClick={sair}>
+              <button type="button" ref={botaoFechar} className={concluido ? 'bt-acao bt-media' : 'bt-fantasma bt-media'} onClick={sair}>
                 {concluido || mesa.encerrada ? 'Fechar' : tipo === 'renovacao' ? 'Deixar pra depois' : 'Desistir'}
               </button>
               {!concluido && !mesa.encerrada && (
