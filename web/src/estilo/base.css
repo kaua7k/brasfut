@@ -10,6 +10,9 @@
  * alinhavam com nada. */
 
 @import './fontes.css';
+@import './telas-a.css';
+@import './telas-b.css';
+@import './telas-c.css';
 
 :root {
   /* Todo valor visual do jogo mora aqui. Fora deste bloco o CSS e o TSX so
