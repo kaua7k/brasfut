@@ -395,36 +395,6 @@ body .avanco-contagem { font-family: var(--titulo); font-weight: 700; font-size:
 body .dlg .ritmo { transition: border-color 0.12s ease, background 0.12s ease; }
 body .dlg .relato { margin-top: 14px; }
 
-body /* ================================================================ ABERTURA */
-.slot { position: relative; transition: border-color 0.15s ease, transform 0.15s ease; gap: 6px; }
-body .slot:not(.vazio) { border-top: 3px solid var(--conquista); padding-top: 12px; }
-body .slot:not(.vazio):hover { border-color: var(--acao-linha); border-top-color: var(--conquista); }
-body .slot.vazio { background: transparent; }
-body .slot.vazio:hover { background: var(--acao-leve); transform: translateY(-2px); }
-body .slot-mais {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  border: 1px dashed var(--acao-linha);
-  margin: 4px 0 6px;
-}
-body .slot-clube { margin-top: 4px; }
-body .slot-tecnico { display: flex; align-items: center; gap: 6px; }
-body .slot-tecnico::before { content: 'Tecnico'; font-size: var(--fs-mini); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; color: var(--fraco); }
-body .slot-acoes .bt-acao { margin-left: 0; height: 36px; border-radius: var(--raio-p); padding: 0 14px; justify-content: center; font-size: var(--fs-m); }
-body .slot-acoes .bt-fantasma { height: 36px; }
-body .abertura-cartao > .modal-acoes { justify-content: flex-start; padding-top: 4px; }
-body .abertura-cartao { position: relative; }
-body .abertura-cartao .menu-principal button { transition: border-color 0.15s ease, background 0.15s ease; }
-
-body .form-carreira .modos { gap: 10px; }
-body .modo-opcao { transition: border-color 0.15s ease, background 0.15s ease; }
-body .modo-opcao:hover { border-color: var(--acao-linha); }
-body .modo-opcao.ativo strong::after { content: 'escolhido'; margin-left: 8px; font-size: var(--fs-mini); letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700; color: var(--acao-linha); }
-body .modo-opcao.caos.ativo strong::after { color: var(--critico); }
-
 body /* ajuda dentro do dialogo: o corpo ja rola */
 .dlg .ajuda-lista { max-height: none; overflow: visible; }
 body .dlg .ajuda-lista > div { padding-bottom: 10px; border-bottom: 1px solid var(--divisor); }
