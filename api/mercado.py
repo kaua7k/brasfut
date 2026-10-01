@@ -256,7 +256,7 @@ def tela(aba="compra", filtros=None):
         "metricas": [
             {"valor": "ABERTA" if aberto else "FECHADA", "nome": "janela",
              "estado": "ok" if aberto else "atencao"},
-            {"valor": "%d/%d" % (len(c["elenco"]), eng.LIMITE_ELENCO), "nome": "elenco"},
+            {"valor": "%d/%d" % (len(c["elenco"]), eng.limite_elenco(c)), "nome": "elenco"},
             {"valor": len(ofertas), "nome": "propostas", "estado": "atencao" if ofertas else None},
         ],
         "abas": [{"id": k, "nome": n, "contador": len(ofertas) if k == "vitrine" else None}

@@ -4949,17 +4949,23 @@ TIPO_EMPRESTIMO = "emprestimo"
 LIMITE_ELENCO = 40
 
 
+def limite_elenco(c: "Clube") -> int:
+    """O teto do clube: LIMITE_ELENCO menos as vagas que um plantao do modo
+    caos tirou de vez (o cachorro registrado como atleta, ver ev_clausula_canina)."""
+    return LIMITE_ELENCO - int(c.get("vagas_perdidas") or 0)
+
+
 def elenco_cheio(G: "Mundo", c: "Clube") -> bool:
-    return len(c["elenco"]) >= LIMITE_ELENCO
+    return len(c["elenco"]) >= limite_elenco(c)
 
 
 def vagas_elenco(G: "Mundo", c: "Clube") -> int:
-    return max(0, LIMITE_ELENCO - len(c["elenco"]))
+    return max(0, limite_elenco(c) - len(c["elenco"]))
 
 
 def recado_elenco_cheio(c: "Clube") -> str:
     return ("Elenco cheio: %d de %d inscritos. Venda, empreste ou rescinda alguem "
-            "para abrir vaga." % (len(c["elenco"]), LIMITE_ELENCO))
+            "para abrir vaga." % (len(c["elenco"]), limite_elenco(c)))
 
 
 @dataclasses.dataclass(frozen=True)
@@ -6683,7 +6689,7 @@ def faixa_candidato(G: Mundo, c: Clube, k: Dict[str, Any]) -> str:
 def promover_base_ia(G: Mundo, c: Clube) -> None:
     """Clube da IA resolve a base dele sozinho, com o mesmo critorio de nivel."""
     for j in elenco_base(G, c):
-        if len(c["elenco"]) >= LIMITE_ELENCO - 2:
+        if len(c["elenco"]) >= limite_elenco(c) - 2:
             return
         if j["idade"] >= 18 and pronto_para_subir(G, c, j):
             promover_da_base(G, j["id"], anos=rng.randint(2, 4))
@@ -10772,7 +10778,11 @@ def ev_goleiro(G):
         "Num treino de bola parada, %s, goleiro do %s, marcou um golaco de bicicleta e o treinador "
         "o promoveu a atacante na hora.",
         "A brincadeira virou serio: %s, goleiro do %s, fez cinco gols no coletivo e convenceu a "
-        "comissao a colocar luvas no banco e chuteiras nele.") % (j["nome"], c["nome"]))
+        "comissao a colocar luvas no banco e chuteiras nele.",
+        "Um tiro de meta de %s, goleiro do %s, atravessou o campo, bateu no travessao e entrou. "
+        "Ele passou a cobrar tudo, fez um hat-trick no mesmo jogo e agora joga de atacante.",
+        "Depois do hat-trick no amistoso, %s, goleiro do %s, avisou que nunca mais pega em "
+        "luva. A comissao rendeu-se e o escalou de centroavante.") % (j["nome"], c["nome"]))
 
 
 def ev_nepotismo(G):
@@ -11219,6 +11229,614 @@ def ev_gramado(G):
         "sentiram lesoes musculares e ficam de 2 a 4 semanas fora.") % (c["nome"], len(alvos)))
 
 
+# plantoes sugeridos pelos amigos do Kaua (2026-10-01). Os pontos da tabela
+# andam por _tirar_pontos (negativo da pontos) e o estadio por _interditar.
+def _rep(c, delta):
+    c["reputacao"] = int(clamp(c["reputacao"] + delta, 5, 95))
+
+
+def _moral_geral(G, c, delta, motivo):
+    for j in _pros(G, c):
+        mexer_moral(G, j, delta, motivo)
+
+
+def _melhor_da_pos(G, c, pos, minimo=0):
+    cands = [j for j in _pros(G, c) if j["pos"] == pos and j["ovr"] >= minimo]
+    return max(cands, key=lambda j: (j["ovr"], -j["id"])) if cands else None
+
+
+def _mexer_ovr(j, delta):
+    j["ovr"] = int(clamp(j["ovr"] + delta, 20, 93))
+    j["pot"] = max(j["pot"], j["ovr"])
+    j["valor"] = valor_jogador(j)
+
+
+def _sem_interdicao(G):
+    return [c for c in _liga(G) if not c.get("cap_original")]
+
+
+def ev_furia_mascote(G):
+    c = _alvo(G, _sem_interdicao(G))
+    if not c or not _interditar(G, c, 0.6, 2):
+        return None
+    _tirar_pontos(G, c, 3)
+    valor = _gr(G, c, rng.randint(6, 10) * 1_000_000)
+    lancar(G, c, valor, "imprevistos")
+    return _evento(G, c, "Furia do mascote", _um(
+        "Aos 43 do segundo tempo, o mascote do %s invadiu o campo, roubou o monitor do VAR, jogou "
+        "num carrinho-maca e fugiu pela pista de atletismo para o gol nao ser anulado. Perde 3 "
+        "pontos, o estadio fica parcialmente interditado por 2 semanas e a loja vendeu %s em "
+        "bonequinhos do bicho.",
+        "O mascote do %s perdeu a paciencia com a arbitragem de video, sequestrou o monitor e "
+        "sumiu num carrinho-maca. A liga tirou 3 pontos e interditou parte do estadio por 2 "
+        "semanas, mas a loja faturou %s com a camisa 'Liberdade ao mascote'.",
+        "Um funcionario fantasiado de mascote do %s levou o monitor do VAR embora de carrinho-maca "
+        "para salvar um gol do proprio time. Punicao: 3 pontos a menos e 2 semanas com parte do "
+        "estadio fechada. Consolo: %s em vendas de produtos do bicho.") % (c["nome"], din(valor)))
+
+
+def ev_arqueologia(G):
+    c = _alvo(G, _sem_interdicao(G))
+    if not c or not _interditar(G, c, 0.0, 15):
+        return None
+    _rep(c, 6)
+    return _evento(G, c, "Ruinas na marca do penalti", _um(
+        "Ao nivelar o buraco da marca do penalti, o jardineiro-chefe do %s achou piso de marmore e "
+        "ruinas de um templo antigo. O orgao do patrimonio cercou o gramado com fitas e tendas de "
+        "escavacao: o estadio fica com a lotacao minima por 15 semanas e a cidade virou polo "
+        "turistico.",
+        "O gramado do %s abriu uma cratera e revelou colunas de um templo de dois mil anos. "
+        "Arqueologos tomaram o campo, a capacidade cai ao minimo por 15 semanas e a reputacao do "
+        "clube sobe com a fila de turistas.",
+        "Uma escavadeira do %s tocou em marmore antigo logo cedo. Em uma hora havia arqueologos, "
+        "fitas e uma barraca de souvenirs: 15 semanas com o estadio quase fechado, mas o clube "
+        "virou ponto turistico.") % c["nome"])
+
+
+def ev_pos_volta(G, p):
+    j = G["jogadores"].get(p["jogador"])
+    if j and j["pos"] == p["pos_nova"]:
+        j["pos"] = p["pos"]
+    return None
+
+
+def ev_vicio_virtual(G):
+    c = _alvo(G, _liga(G))
+    if not c:
+        return None
+    cap = G["jogadores"].get(capitao_de(G, c))
+    gol = _melhor_da_pos(G, c, "GOL")
+    if gol and cap and gol["id"] != cap["id"] and rng.random() < 0.55:
+        for j in (gol, cap):
+            j["lesao"] = max(j["lesao"], 1)
+        _moral_geral(G, c, -8, "dois companheiros sumiram num torneio de e-sports")
+        valor = _gr(G, c, rng.randint(2, 4) * 1_000_000)
+        lancar(G, c, valor, "imprevistos")
+        return _evento(G, c, "Vicio virtual", _um(
+            "%s e %s, do %s, foram achados as 6h de domingo numa arena de e-sports, num mundial de "
+            "jogo de tiro sob pseudonimo: 'nao dava para pausar partida ranqueada'. Perderam o "
+            "voo, ficam fora do proximo jogo e o vestiario esta furioso. Uma marca de energetico "
+            "aproveitou e fechou patrocinio relampago de %s.",
+            "O goleiro %s e o capitao %s, do %s, sumiram no sabado e reapareceram numa lan house "
+            "gigante, jogando um campeonato online. Suspensao interna de uma semana, elenco "
+            "indignado e %s de um energetico que quer a dupla na propaganda.")
+            % (gol["nome"], cap["nome"], c["nome"], din(valor)))
+    if not cap or cap["pos"] in ("MEI", "GOL"):
+        return None
+    antes = cap["pos"]
+    cap["lesao"] = max(cap["lesao"], 4)
+    _moral_geral(G, c, -6, "o capitao virou jogador de e-sports")
+    cap["pos"] = "MEI"
+    _agendar(G, 4, "pos_volta", jogador=cap["id"], pos=antes, pos_nova="MEI")
+    return _evento(G, c, "Capitao assina com equipe de e-sports", _um(
+        "%s, capitao do %s, assinou com uma equipe de e-sports, joga 6 horas por dia e diz que "
+        "'reflexo no mouse ajuda no passe'. Pediu para virar meia pela 'visao de mapa'. Fica 4 "
+        "semanas fora por fadiga ocular e o elenco esta incomodado.",
+        "Sem avisar ninguem, %s, capitao do %s, virou jogador profissional de e-sports. A diretoria "
+        "aceitou que ele atue de meia por um tempo, mas a fadiga ocular o tira por 4 semanas.",
+        "%s, capitao do %s, passou a madrugada num campeonato de jogo de estrategia e chegou ao "
+        "treino de oculos escuros. Vai jogar de meia, 'pela visao', depois de 4 semanas de "
+        "descanso para a vista.") % (cap["nome"], c["nome"]))
+
+
+def ev_clausula_canina(G):
+    c = _alvo(G, [x for x in _liga(G) if int(x.get("vagas_perdidas") or 0) < 3 and _pros(G, x)])
+    if not c:
+        return None
+    dono = _melhor_da_pos(G, c, "MEI") or max(_pros(G, c), key=lambda j: j["ovr"])
+    c["vagas_perdidas"] = int(c.get("vagas_perdidas") or 0) + 1
+    for j in _pros(G, c):
+        j["moral"] = 100
+    nome = rng.choice(["Bolinha", "Thor", "Pelezinho", "Rex", "Mel"])
+    return _evento(G, c, "Clausula canina", _um(
+        "O juridico do %s nao leu as letras miudas: o golden retriever '%s' de %s precisava ser "
+        "inscrito na federacao e agora tem registro de atleta profissional. O clube perde uma vaga "
+        "no elenco para sempre, mas o vestiario nunca esteve tao feliz.",
+        "O contrato do camisa 10 do %s tinha uma clausula esquecida: o cachorro '%s' de %s entra "
+        "no elenco como atleta registrado. O limite de inscritos cai em uma vaga de vez e o "
+        "elenco inteiro esta radiante.",
+        "Pegadinha da federacao no %s: o cachorro '%s' de %s foi inscrito como jogador "
+        "profissional por erro do juridico. A vaga no elenco nunca mais volta e a moral do "
+        "vestiario foi para o teto.") % (c["nome"], nome, dono["nome"]))
+
+
+def ev_revelacao_divina(G):
+    c = _alvo(G, [x for x in _liga(G) if _melhor_da_pos(G, x, "ZAG", 50)])
+    if not c:
+        return None
+    j = _melhor_da_pos(G, c, "ZAG", 50)
+    j["pos"] = "MEI"
+    j["lesao"] = max(j["lesao"], 1)
+    _mexer_ovr(j, -3)
+    return _evento(G, c, "Revelacao divina", _um(
+        "O zagueiro %s, do %s, bateu a cabeca na trave e ficou dois minutos desacordado. Acordou "
+        "dizendo que o espirito de Johan Cruyff mandou tratar a bola com carinho: recusa carrinhos "
+        "e so sai jogando de calcanhar. Passou a atuar de meia, fica uma semana de observacao e "
+        "perdeu um pouco de rendimento.",
+        "%s, zagueiro brucutu do %s, jura que recebeu uma mensagem do alem depois de uma pancada "
+        "na cabeca. Agora so quer lancar, driblar e jogar no meio-campo. A comissao concordou, mas "
+        "ele cai de rendimento na nova funcao.",
+        "Depois de um choque de cabeca, %s, do %s, anunciou que a bola 'merece respeito' e pediu "
+        "para jogar de meia. O departamento medico o segura uma semana e o novo estilo "
+        "ainda precisa de ajuste.") % (j["nome"], c["nome"]))
+
+
+def ev_intoxicacao_jantar(G):
+    c = _alvo(G, [x for x in _liga(G) if _melhor_da_pos(G, x, "GOL") and len(_pros(G, x)) >= 15])
+    if not c:
+        return None
+    gol = min((j for j in _pros(G, c) if j["pos"] == "GOL"), key=lambda j: (j["ovr"], j["id"]))
+    titulares = [G["jogadores"][p] for p in c.get("escalacao", [])
+                 if p in G["jogadores"] and p != gol["id"] and not da_base(G["jogadores"][p])]
+    titulares = titulares[:11]
+    if len(titulares) < 5:
+        return None
+    for j in rng.sample(titulares, 5):
+        j["lesao"] = max(j["lesao"], 1)
+    valor = _gr(G, c, rng.randint(2, 4) * 1_000_000)
+    lancar(G, c, valor, "imprevistos")
+    return _evento(G, c, "Crise do intestino de ferro", _um(
+        "O jantar de confraternizacao do %s, bancado pelo presidente no restaurante de frutos do "
+        "mar do sobrinho, terminou as 3h com 80%% do plantel no pronto-socorro. O goleiro reserva "
+        "%s escapou porque e alergico a camarao e comeu sanduiche de posto. Cinco titulares ficam "
+        "uma semana fora e o presidente, para abafar, colocou %s do bolso no clube.",
+        "Frutos do mar e elenco nao combinam: depois do jantar do %s, quase todo o plantel foi "
+        "parar no hospital. Salvou-se o reserva %s, que fugiu do camarao por alergia. Cinco "
+        "titulares desfalcam o time por uma semana e o presidente injetou %s para calar a "
+        "imprensa.",
+        "A noite de pizza virou noite de soro no %s: o presidente pagou o restaurante do sobrinho "
+        "e o intestino do elenco nao aguentou. O goleiro %s, que dispensou o camarao, foi o unico "
+        "ileso. Cinco titulares fora por uma semana, e %s do presidente para reparar o estrago.")
+        % (c["nome"], gol["nome"], din(valor)))
+
+
+
+
+def ev_sabotagem_textil(G):
+    c = _alvo(G, _liga(G))
+    if not c or not _pros(G, c):
+        return None
+    for j in _pros(G, c):
+        j["cond"] = max(20, int(j["cond"] * 0.7))
+    _rep(c, -1)
+    valor = _gr(G, c, rng.randint(300, 900) * 1_000)
+    lancar(G, c, valor, "imprevistos")
+    return _evento(G, c, "Sabotagem textil", _um(
+        "O roupeiro veterano do %s, irritado com um bonus prometido, lavou o uniforme com quimico "
+        "encolhedor a 90 graus. O time entrou com camisa e calcao infantis, ninguem conseguiu se "
+        "mexer direito (-30%% de condicao) e a imagem do clube arranhou. O video viralizou e "
+        "rendeu %s em engajamento e vendas.",
+        "Vinganca de roupeiro no %s: o uniforme saiu da maquina do tamanho de um pano de prato. O "
+        "elenco jogou apertado, perdeu 30%% de condicao fisica e virou piada, mas o clube lucrou "
+        "%s com a venda das 'camisas encolhidas'.",
+        "O roupeiro do %s cobrou um bonus de dois anos atras, nao foi atendido e encolheu todo o "
+        "material. O time se espremeu nos shorts infantis, ficou 30%% mais cansado e as redes "
+        "renderam %s em brincadeiras e merchandising.") % (c["nome"], din(valor)))
+
+
+def ev_abducao(G):
+    c = _alvo(G, [x for x in _liga(G) if _melhor_da_pos(G, x, "ATA", 55)])
+    if not c:
+        return None
+    j = _melhor_da_pos(G, c, "ATA", 55)
+    longo = rng.random() < 0.5
+    j["lesao"] = max(j["lesao"], 6 if longo else 1)
+    _mexer_ovr(j, rng.randint(5, 8))
+    if longo:
+        _moral_geral(G, c, 6, "todo mundo quer ser abduzido")
+    return _evento(G, c, "Abducao na lateral", _um(
+        "%s, atacante do %s, sumiu numa estrada escura na volta do CT e reapareceu no domingo na "
+        "porta do estadio, sem memoria e com simbolos prateados no braco. Tem uma 'evolucao "
+        "muscular inexplicavel': ficou fora um tempo e voltou bem melhor.",
+        "%s, atacante do %s, foi sugado por um disco voador durante o treino por 12 segundos e "
+        "voltou com a camisa do avesso dizendo: 'eles pediram para eu melhorar o primeiro toque'. "
+        "Depois de um periodo afastado, esta muito mais forte.",
+        "Testemunhas juram ter visto uma luz azul levar %s, atacante do %s, para o alto. Ele "
+        "reapareceu no gramado sem explicacao, afastado para exames e muito melhor "
+        "tecnicamente.") % (j["nome"], c["nome"]))
+
+
+def ev_pix_misterioso(G):
+    c = _alvo(G, _liga(G, "base"))
+    if not c:
+        return None
+    valor = _gr(G, c, rng.randint(90, 160) * 1_000_000)
+    lancar(G, c, valor, "imprevistos")
+    _rep(c, -15)
+    _moral_geral(G, c, -8, "o constrangimento da doacao")
+    return _evento(G, c, "A doacao misteriosa", _um(*_lista(
+        G,
+        ["Um bilionario anonimo mandou um advogado deixar uma maleta de couro no %s as 17h e "
+         "transferiu %s sem pedir nada. A unica exigencia, em cartorio: meiao e chuteira "
+         "rosa-choque ate o fim da decada. Os puristas se revoltaram e o vestiario morre de "
+         "vergonha.",
+         "Um empresario sem rosto despejou no %s uma doacao de %s com uma unica condicao: o time "
+         "joga de chuteira rosa-choque ate o fim da decada. O dinheiro e enorme, a reputacao "
+         "despenca e o elenco esta constrangido."],
+        br=["Um bilionario anonimo da cidade fez um Pix para o %s: %s, sem pedir nada. Em "
+            "cartorio, so exigiu meiao e chuteira rosa-choque ate o fim da decada. Os puristas "
+            "ficaram furiosos e o vestiario esta com vergonha."],
+        ext=["Um bilionario anonimo da cidade fez uma transferencia para o %s: %s, sem pedir "
+             "nada. Em cartorio, so exigiu meiao e chuteira rosa-choque ate o fim da decada. Os "
+             "puristas ficaram furiosos e o vestiario esta com vergonha."])) % (c["nome"], din(valor)))
+
+
+def ev_vazio_mental(G):
+    c = _alvo(G, [x for x in _liga(G) if len(_pros(G, x)) >= 8])
+    if not c:
+        return None
+    pros = _pros(G, c)
+    feridos = rng.sample(pros, 3)
+    for j in feridos:
+        j["lesao"] = max(j["lesao"], 2)
+    ids = {j["id"] for j in feridos}
+    for j in pros:
+        if j["id"] not in ids:
+            mexer_moral(G, j, 6, "o treino de olhos vendados")
+            j["forma"] = int(clamp(j["forma"] + 5, 0, 100))
+    return _evento(G, c, "Tatica do vazio mental", _um(
+        "O auxiliar tecnico do %s leu um livro de xamanismo tatico e decidiu que a bola e "
+        "'construcao mental': racha no escuro com jogadores vendados. Tres atletas se "
+        "machucaram (2 semanas fora), mas o resto do elenco jura que sente o campo melhor.",
+        "O preparador do %s inventou o treino do vazio mental, com todos de olhos vendados "
+        "tentando 'ouvir o gramado'. Tres jogadores trombaram e ficam 2 semanas fora; os demais "
+        "saem do treino mais leves e unidos.",
+        "No CT do %s, um auxiliar adepto de meditacao tatica mandou o time jogar sem enxergar. "
+        "Deu tres lesionados por 2 semanas e, curiosamente, um elenco mais entrosado.") % c["nome"])
+
+
+def ev_var_2047(G):
+    c = _alvo(G, _liga(G))
+    if not c or not _tirar_pontos(G, c, -3):
+        return None
+    _moral_geral(G, c, -15, "ninguem entende o VAR")
+    return _evento(G, c, "O VAR voltou de 2047", _um(
+        "O VAR do jogo do %s saiu do ar por 47 segundos e, ao voltar, mostrou imagens de um lance "
+        "que ainda nao tinha acontecido e confirmou um penalti que so seria cometido aos 83 "
+        "minutos. O time ganhou 3 pontos, mas o vestiario perdeu o rumo.",
+        "A arbitragem de video travou durante a partida do %s e retomou mostrando um penalti do "
+        "futuro. A liga validou, o clube somou 3 pontos e os jogadores seguem sem entender o que "
+        "aconteceu.",
+        "Um apagao de 47 segundos no VAR e, na volta, um penalti a favor do %s em um lance que "
+        "ninguem tinha visto ainda. Mais 3 pontos na tabela e um elenco confuso e desanimado.")
+        % c["nome"])
+
+
+def ev_estadio_sumiu(G):
+    c = _alvo(G, _sem_interdicao(G))
+    if not c or not _interditar(G, c, 0.5, 8):
+        return None
+    multa = _gr(G, c, rng.randint(10, 16) * 1_000_000)
+    terreno = _gr(G, c, rng.randint(18, 28) * 1_000_000)
+    lancar(G, c, -multa, "imprevistos")
+    lancar(G, c, terreno, "imprevistos")
+    return _evento(G, c, "Cade o estadio?", _um(
+        "Os funcionarios do %s chegaram as 7h e o estadio tinha sumido. As cameras mostram luz "
+        "azul e 14 segundos de interferencia; ele reapareceu tres dias depois em outro municipio, "
+        "com metade da capacidade por 8 semanas e uma multa de %s. O terreno vazio, porem, foi "
+        "vendido por %s.",
+        "O estadio do %s amanheceu desaparecido e voltou sozinho, tres dias depois, a quilometros "
+        "dali. A prefeitura multou o clube em %s, a capacidade cai pela metade por 8 semanas, mas "
+        "um investidor pagou %s pelo terreno que ficou.",
+        "Sem explicacao, a arena do %s sumiu da noite para o dia e foi achada em outra cidade. "
+        "Multa de %s, capacidade reduzida a metade por 8 semanas e uma venda de terreno de %s "
+        "para compensar.") % (c["nome"], din(multa), din(terreno)))
+
+
+def ev_arquibancada(G):
+    c = _alvo(G, _liga(G))
+    if not c or not _pros(G, c):
+        return None
+    valor = _gr(G, c, 8_000_000)
+    lancar(G, c, -valor, "imprevistos")
+    _moral_geral(G, c, 6, "a arquibancada lotada de graca")
+    return _evento(G, c, "Presidente compra a arquibancada", _um(
+        "Para evitar protestos, o presidente do %s comprou todos os ingressos e distribuiu de "
+        "graca. Descobriu depois que comprou tambem o setor visitante. A conta foi de %s, mas o "
+        "elenco jogou com o estadio cheio.",
+        "O presidente do %s esvaziou a bilheteria para lotar o estadio de torcedores gratuitos e "
+        "so viu o erro quando percebeu que pagou ate pelo setor dos visitantes: %s. O vestiario "
+        "adorou o apoio.",
+        "Com medo de vaia, o presidente do %s comprou a casa inteira e distribuiu entradas. O "
+        "setor visitante foi junto. Prejuizo de %s, moral nas alturas.") % (c["nome"], din(valor)))
+
+
+def ev_roupeiro_sai(G, p):
+    j = G["jogadores"].get(p["jogador"])
+    if j and j["clube"] == p["clube"] and j["idade"] >= 60:
+        _remover_do_mundo(G, j["id"])
+    return None
+
+
+def ev_roupeiro(G):
+    c = _alvo(G, [x for x in _liga(G) if not elenco_cheio(G, x) and len(_pros(G, x)) >= 11])
+    if not c:
+        return None
+    j = novo_jogador(G, rng.choice(["ZAG", "VOL"]), max(40, forca_elenco(G, c) - 3),
+                     _nomes_usados(G), idade=63)
+    j["nome"] = "Seu " + j["nome"].split()[0]
+    j["ovr"] = int(clamp(j["ovr"], 40, 80))
+    j["pot"] = j["ovr"]
+    j["contrato"] = 2
+    j["salario"] = _gr(G, c, 30_000)
+    j["valor"] = valor_jogador(j)
+    j["clube"] = c["id"]
+    c["elenco"].append(j["id"])
+    _agendar(G, 6, "roupeiro_sai", jogador=j["id"], clube=c["id"])
+    _moral_geral(G, c, 8, "o roupeiro virou heroi")
+    return _evento(G, c, "Roupeiro entra em campo", _um(
+        "Com onze lesionados, o %s relacionou o roupeiro de 63 anos, %s, em emergencia. Ele entrou "
+        "aos 89, roubou a bola, driblou tres e deu a assistencia da vitoria. Fica no elenco por 6 "
+        "semanas e o vestiario esta em festa.",
+        "O %s ficou sem zagueiros e escalou o roupeiro, %s, 63 anos. Entrou aos 89, driblou tres e "
+        "serviu o gol da vitoria. Foi inscrito por 6 semanas e virou heroi do elenco.",
+        "Sem opcao no banco, o %s inscreveu o roupeiro %s, 63 anos, que deu um drible "
+        "desconcertante e a assistencia decisiva. Vai ficar 6 semanas no plantel, com moral de "
+        "campeao.") % (c["nome"], j["nome"]))
+
+
+def ev_chuva_notas(G):
+    c = _alvo(G, _sem_interdicao(G))
+    if not c or not _interditar(G, c, 0.2, 2):
+        return None
+    valor = _gr(G, c, 12_000_000)
+    lancar(G, c, valor, "imprevistos")
+    return _evento(G, c, "Dinheiro cai do ceu", _um(
+        "Aos 32 minutos, notas comecaram a cair sobre o estadio do %s. Ninguem descobriu a origem "
+        "e o clube declarou %s de 'receita extraordinaria'. O estadio fica interditado por 2 "
+        "semanas para investigacao.",
+        "Choveu dinheiro no meio do jogo do %s, de um helicoptero que ninguem identificou. A "
+        "diretoria contabilizou %s e a policia fechou o estadio por 2 semanas.",
+        "Um aviao sem identificacao despejou notas sobre o %s durante a partida. O clube recolheu "
+        "%s, chamou de receita extraordinaria e teve o estadio interditado por 2 semanas.")
+        % (c["nome"], din(valor)))
+
+
+def ev_eleicao(G):
+    c = _alvo(G, [x for x in _liga(G) if capitao_de(G, x) and _melhor_da_pos(G, x, "GOL")])
+    if not c:
+        return None
+    gol = _melhor_da_pos(G, c, "GOL")
+    cap = G["jogadores"][capitao_de(G, c)]
+    j = gol if (gol["id"] != cap["id"] and rng.random() < 0.4) else cap
+    papel = "goleiro" if j["id"] == gol["id"] else "capitao"
+    j["lesao"] = max(j["lesao"], 3)
+    _moral_geral(G, c, 8, "o prefeito joga no time")
+    _rep(c, 4)
+    valor = _gr(G, c, 3_000_000)
+    lancar(G, c, valor, "imprevistos")
+    return _evento(G, c, "Prefeito de chuteiras", _um(
+        "%s, %s do %s, foi eleito prefeito da cidade sem nem se candidatar: torcedores inscreveram "
+        "o nome como piada e ele levou 62%% dos votos. Acumula os cargos, fica 3 jogos fora por "
+        "compromissos e a prefeitura mandou %s em investimento para o clube.",
+        "A cidade elegeu prefeito %s, %s do %s, que nao pediu um voto. 'Defender a cidade e o "
+        "gol', disse na posse. Perde 3 jogos por agenda oficial, o vestiario vibra e o municipio "
+        "repassou %s ao clube.",
+        "Era brincadeira, mas deu certo: %s, %s do %s, venceu a eleicao para prefeito. Vai "
+        "acumular o cargo com o futebol, desfalca o time por 3 jogos e leva %s em obras para o "
+        "clube.") % (j["nome"], papel, c["nome"], din(valor)))
+
+
+def ev_torcida_sabe(G):
+    c = _alvo(G, _liga(G))
+    if not c or not _pros(G, c):
+        return None
+    _rep(c, 3)
+    _moral_geral(G, c, 8, "a torcida adivinhou o jogo")
+    return _evento(G, c, "A torcida sabia", _um(
+        "Vinte minutos antes do jogo, a organizada do %s cantou as musicas de cada gol que ainda "
+        "nao tinha acontecido. O placar saiu exatamente como na previsao e o vestiario acredita "
+        "em tudo agora.",
+        "A torcida do %s entoou antes da bola rolar os gritos de todos os gols da partida, na "
+        "ordem certa. Ninguem explica, o clube virou assunto no pais e o elenco ganhou "
+        "confianca.",
+        "Um canto novo da organizada do %s previu o resultado do jogo antes do apito. O placar "
+        "bateu e a reputacao do clube subiu junto com a moral dos jogadores.") % c["nome"])
+
+
+def ev_piloto(G):
+    c = _alvo(G, [x for x in _liga(G) if _melhor_da_pos(G, x, "ZAG", 55)])
+    if not c:
+        return None
+    j = _melhor_da_pos(G, c, "ZAG", 55)
+    j["lesao"] = max(j["lesao"], 10)
+    _mexer_ovr(j, -3)
+    return _evento(G, c, "Zagueiro piloto", _um(
+        "%s, zagueiro do %s, descobriu a vocacao de piloto de aviao e apareceu no CT de uniforme "
+        "de comandante. Largou os treinos para fazer o curso, fica 10 semanas fora e volta meio "
+        "enferrujado.",
+        "De uniforme de comandante e quepe, %s, zagueiro do %s, avisou que vai tirar o brevet "
+        "antes de qualquer jogo. Dez semanas longe do gramado e menos rendimento na volta.",
+        "O zagueiro %s, do %s, foi visto na cabine de um simulador de voo e decidiu que quer ser "
+        "piloto. Sai por 10 semanas e vai voltar um pouco pior de bola.") % (j["nome"], c["nome"]))
+
+
+def ev_jogo_infinito(G):
+    c = _alvo(G, _liga(G))
+    if not c or not _tirar_pontos(G, c, -3):
+        return None
+    _rep(c, 1)
+    return _evento(G, c, "O jogo que nao terminava", _um(
+        "O arbitro tentou encerrar o jogo do %s aos 90, mas o relogio do estadio continuou "
+        "andando. O gol da vitoria saiu aos 102 e, aos 103, o relogio parou sozinho. A "
+        "federacao validou: 3 pontos para o clube.",
+        "O cronometro do estadio do %s nao parou aos 90 e a partida seguiu por 13 minutos extras "
+        "que ninguem explica. O gol do triunfo veio aos 102 e a liga confirmou o resultado: "
+        "mais 3 pontos.",
+        "O relogio do estadio travou e o jogo do %s foi muito alem do apito. Gol aos 102, relogio "
+        "parando aos 103 por conta propria e a federacao dando os 3 pontos.") % c["nome"])
+
+
+def ev_chuva_peixe(G):
+    c = _alvo(G, _sem_interdicao(G))
+    if not c or not _interditar(G, c, 0.3, 2):
+        return None
+    _tirar_pontos(G, c, 3)
+    _moral_geral(G, c, 8, "o peixe mascote")
+    return _evento(G, c, "Chuva de peixe no vestiario", _um(
+        "As 5h da manha uma tromba d'agua cobriu o vestiario do %s de sardinhas vivas; o roupeiro "
+        "jura que ouviu um gemido do chao. O estadio ficou 2 semanas interditado por 'risco de "
+        "infestacao', o time perdeu 3 pontos na secretaria e o elenco adotou um peixe de "
+        "mascote.",
+        "Uma chuva de peixes alagou o CT do %s. A vigilancia sanitaria fechou o estadio por 2 "
+        "semanas, a liga tirou 3 pontos por atraso no jogo e o vestiario, feliz, adotou uma "
+        "sardinha como mascote.",
+        "Choveu sardinha no vestiario do %s. Risco de infestacao: estadio interditado por 2 "
+        "semanas e 3 pontos a menos. O elenco, porem, ficou apegado a um peixe que "
+        "sobreviveu.") % c["nome"])
+
+
+def ev_gramado_leilao(G):
+    c = _alvo(G, _sem_interdicao(G))
+    if not c or not _interditar(G, c, 0.7, 6):
+        return None
+    valor = _gr(G, c, 8_000_000)
+    lancar(G, c, valor, "imprevistos")
+    return _evento(G, c, "Gramado a venda", _um(*_lista(
+        G,
+        ["Numa live de madrugada, o presidente do %s anunciou 400 m2 do gramado como 'reliquia "
+         "historica rara'. Vendeu em 12 minutos por %s e o comprador chegou de caminhao as 6h. "
+         "Por 6 semanas a capacidade cai 30%% e o time joga em terra."],
+        br=["O presidente do %s anunciou no Mercado Livre, de madrugada, 400 m2 do gramado como "
+            "'reliquia historica'. Vendido em 12 minutos por %s, com retirada de caminhao as 6h. "
+            "Capacidade 30%% menor por 6 semanas e jogo em terra batida."],
+        ext=["O presidente do %s anunciou num site de leilao, de madrugada, 400 m2 do gramado "
+             "como 'reliquia historica'. Vendido em 12 minutos por %s, com retirada de caminhao "
+             "as 6h. Capacidade 30%% menor por 6 semanas e jogo em terra batida."]))
+        % (c["nome"], din(valor)))
+
+
+def ev_organizada_compra(G):
+    c = _alvo(G, _liga(G))
+    if not c or not _pros(G, c):
+        return None
+    valor = _gr(G, c, 45_000_000)
+    lancar(G, c, valor, "imprevistos")
+    _moral_geral(G, c, -30, "a organizada comprou o clube")
+    extra = ""
+    if c["id"] == G.get("clube"):
+        conf = confianca(G)
+        conf["valor"] = max(0, int(conf["valor"]) - 8)
+        extra = " A diretoria olha torto para o treinador."
+    return _evento(G, c, "Torcida organizada compra o clube", _um(
+        "Cento e oitenta mil torcedores do %s juntaram %s em 72 horas e compraram 51%% do clube. "
+        "Primeiro ato: contratar um consultor que so comanda time no Football Manager. O elenco "
+        "ficou sem chao.%s",
+        "A vaquinha da torcida do %s arrecadou %s em tres dias e virou dona da maioria do clube. "
+        "A primeira decisao foi dispensar o auxiliar e chamar um 'especialista' em Football "
+        "Manager. A moral do vestiario foi ao subsolo.%s",
+        "A organizada do %s comprou 51%% do clube com uma vaquinha de %s. De cara, demitiram o "
+        "auxiliar tecnico para contratar um consultor que so tem experiencia em videogame. O "
+        "elenco esta desesperado.%s") % (c["nome"], din(valor), extra))
+
+
+def ev_mega_sena(G):
+    c = _alvo(G, [x for x in _liga(G) if _melhor_da_pos(G, x, "ZAG")])
+    if not c:
+        return None
+    j = min((p for p in _pros(G, c) if p["pos"] == "ZAG"), key=lambda p: (p["ovr"], p["id"]))
+    valor = _gr(G, c, 12_000_000)
+    lancar(G, c, valor, "imprevistos")
+    j["lesao"] = max(j["lesao"], 8)
+    _moral_geral(G, c, -8, "todo mundo quer aumento")
+    return _evento(G, c, "Premio no vestiario", _um(*_lista(
+        G,
+        ["O zagueiro reserva %s, do %s, achou um bilhete esquecido na meia: R$ 120 mi. Pediu "
+         "demissao, voltou atras porque 'ama o clube' e doou %s ao clube. Fica 8 semanas de "
+         "licenca e o resto do elenco quer aumento."],
+        br=["O zagueiro reserva %s, do %s, descobriu que o bilhete da Mega-Sena esquecido na "
+            "meia estava premiado em R$ 120 mi. Pediu demissao, voltou atras porque 'ama o "
+            "clube' e doou %s. Fica 8 semanas de licenca e o vestiario quer aumento."],
+        ext=["O zagueiro reserva %s, do %s, achou na meia um bilhete de loteria premiado em um "
+             "valor astronomico. Pediu demissao, voltou atras porque 'ama o clube' e doou %s. "
+             "Fica 8 semanas de licenca e o vestiario quer aumento."]))
+        % (j["nome"], c["nome"], din(valor)))
+
+
+def ev_capivaras(G):
+    c = _alvo(G, _sem_interdicao(G))
+    if not c or not _interditar(G, c, 0.3, 10):
+        return None
+    _rep(c, 3)
+    return _evento(G, c, "Bichos no gramado", _um(*_lista(
+        G,
+        ["Quarenta animais silvestres cavaram tocas no meio-campo do %s na vespera do classico. "
+         "O orgao ambiental decidiu que eles 'tem direito de morar la agora': estadio "
+         "interditado por 10 semanas e o clube viralizou."],
+        br=["Quarenta capivaras cavaram tocas no meio-campo do %s na vespera do classico. O "
+            "Ibama disse que 'elas tem direito de morar la agora'. Estadio interditado por 10 "
+            "semanas e o clube viralizou.",
+            "Capivaras ocuparam o gramado do %s e pastam tranquilas na lateral. O Ibama proibiu "
+            "a remocao, o estadio fica 10 semanas interditado e a reputacao do clube sobe com "
+            "os videos."],
+        ext=["Quarenta raposas cavaram tocas no meio-campo do %s na vespera do jogo grande. A "
+             "protecao ambiental disse que 'elas tem direito de morar la agora'. Estadio "
+             "interditado por 10 semanas e o clube viralizou.",
+             "Uma colonia de gansos tomou o gramado do %s e bica quem se aproxima. A autoridade "
+             "ambiental proibiu a remocao, o estadio fica 10 semanas interditado e a reputacao "
+             "sobe com os videos."])) % c["nome"])
+
+
+def ev_cripto(G):
+    c = _alvo(G, [x for x in _liga(G) if len(_pros(G, x)) >= 14])
+    if not c:
+        return None
+    _moral_geral(G, c, -30, "o golpe da criptomoeda")
+    for j in rng.sample(_pros(G, c), 5):
+        j["lesao"] = max(j["lesao"], 3)
+    return _evento(G, c, "Golpe da cripto", _um(
+        "O massagista do %s convenceu 14 jogadores a investir numa 'criptomoeda do futebol', "
+        "sumiu e foi visto em Monaco com a camisa do rival. O elenco esta arrasado e cinco "
+        "atletas pediram afastamento de 3 semanas.",
+        "Golpe no vestiario do %s: o massagista vendeu uma moeda digital 'garantida pelo "
+        "futebol' a quase metade do plantel e desapareceu. A moral foi ao chao e cinco "
+        "jogadores ficam 3 semanas fora, em crise.",
+        "O massagista do %s sumiu com as economias de 14 jogadores, aplicadas numa criptomoeda "
+        "que nunca existiu. Cinco atletas pedem 3 semanas de licenca e o clima e de velorio.")
+        % c["nome"])
+
+
+def ev_aula_samba(G):
+    c = _alvo(G, _liga(G))
+    if not c or not _pros(G, c):
+        return None
+    _moral_geral(G, c, 25, "a aula de danca no CT")
+    _tirar_pontos(G, c, 2)
+    _rep(c, 2)
+    return _evento(G, c, "Aula de danca no CT", _um(*_lista(
+        G,
+        ["O diretor de futebol do %s foi flagrado as 2h ensinando o elenco a dancar, 'para "
+         "melhorar a coordenacao motora'. O video viralizou, o time comemora gol dancando, a "
+         "liga tirou 2 pontos por conduta antidesportiva e a moral foi ao teto."],
+        br=["O diretor de futebol do %s foi flagrado as 2h ensinando samba ao elenco, 'para "
+            "melhorar a coordenacao motora'. O video viralizou, o time comemora gol sambando e "
+            "a liga tirou 2 pontos por conduta antidesportiva. A moral esta no teto."],
+        ext=["O diretor de futebol do %s foi flagrado as 2h ensinando uma danca tradicional da "
+             "regiao ao elenco, 'para melhorar a coordenacao motora'. O video viralizou, o time "
+             "comemora gol dancando e a liga tirou 2 pontos por conduta antidesportiva. A moral "
+             "esta no teto."])) % c["nome"])
+
+
 EVENTOS_CAOS = (
     # (id, peso, funcao)
     ("aviao", 1, ev_aviao), ("doping", 4, ev_doping), ("dinheiro_sujo", 4, ev_dinheiro_sujo),
@@ -11238,9 +11856,24 @@ EVENTOS_CAOS = (
     ("fundo_estrangeiro", 2, ev_fundo_estrangeiro), ("agente", 3, ev_agente), ("visto", 3, ev_visto),
     ("naming", 2, ev_naming), ("fornecedor", 3, ev_fornecedor), ("var_aposta", 2, ev_var_aposta),
     ("oferta_louca", 3, ev_oferta_louca), ("gramado", 3, ev_gramado),
+    # plantoes sugeridos pelos amigos do Kaua (2026-10-01)
+    ("furia_mascote", 2, ev_furia_mascote), ("arqueologia", 2, ev_arqueologia),
+    ("vicio_virtual", 3, ev_vicio_virtual), ("clausula_canina", 2, ev_clausula_canina),
+    ("revelacao_divina", 3, ev_revelacao_divina), ("intoxicacao_jantar", 3, ev_intoxicacao_jantar),
+    ("sabotagem_textil", 3, ev_sabotagem_textil), ("abducao", 2, ev_abducao),
+    ("pix_misterioso", 2, ev_pix_misterioso), ("vazio_mental", 3, ev_vazio_mental),
+    ("var_2047", 3, ev_var_2047), ("estadio_sumiu", 2, ev_estadio_sumiu),
+    ("arquibancada", 3, ev_arquibancada), ("roupeiro", 3, ev_roupeiro),
+    ("chuva_notas", 3, ev_chuva_notas), ("eleicao", 3, ev_eleicao),
+    ("torcida_sabe", 3, ev_torcida_sabe), ("piloto", 3, ev_piloto),
+    ("jogo_infinito", 3, ev_jogo_infinito), ("chuva_peixe", 3, ev_chuva_peixe),
+    ("gramado_leilao", 3, ev_gramado_leilao), ("organizada_compra", 2, ev_organizada_compra),
+    ("mega_sena", 2, ev_mega_sena), ("capivaras", 3, ev_capivaras),
+    ("cripto", 3, ev_cripto), ("aula_samba", 3, ev_aula_samba),
 )
 BOMBAS_CAOS = {"doping_fim": ev_doping_fim, "doping_pego": ev_doping_pego,
-               "fair_play": ev_fair_play, "estadio_volta": ev_estadio_volta}
+               "fair_play": ev_fair_play, "estadio_volta": ev_estadio_volta,
+               "pos_volta": ev_pos_volta, "roupeiro_sai": ev_roupeiro_sai}
 
 
 def _registrar(G: Mundo, ev: Dict[str, Any]) -> None:

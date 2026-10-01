@@ -117,7 +117,7 @@ class TestCaos(unittest.TestCase):
             eng._alvo = orig
         self.assertIsNotNone(ev)
         self.assertTrue(all(G["jogadores"][p]["ovr"] > o for p, o in antes.items()))
-        tipos = [p["tipo"] for p in G["caos"]["pendentes"] if p.get("clube") == c["id"]]
+        tipos = [p["tipo"] for p in eng.estado_caos(G)["pendentes"] if p.get("clube") == c["id"]]
         self.assertIn("doping_fim", tipos)
         self.assertIn("doping_pego", tipos)
         eng.ev_doping_fim(G, {"clube": c["id"]})
@@ -143,7 +143,7 @@ class TestCaos(unittest.TestCase):
         finally:
             eng._alvo = orig
         self.assertGreater(c["dinheiro"], caixa)
-        bomba = next(p for p in G["caos"]["pendentes"] if p["tipo"] == "fair_play" and p["clube"] == c["id"])
+        bomba = next(p for p in eng.estado_caos(G)["pendentes"] if p["tipo"] == "fair_play" and p["clube"] == c["id"])
         pontos = G["ligas"][c["divisao"]]["tabela"][str(c["id"])]["p"]
         ev = eng.ev_fair_play(G, bomba)
         self.assertEqual(ev["gravidade"], "grave")
@@ -152,21 +152,21 @@ class TestCaos(unittest.TestCase):
     def test_bomba_explode_na_semana_certa(self):
         G = self.G
         c = self.clube("Sport")
-        G["caos"]["pendentes"] = [{"tipo": "fair_play", "clube": c["id"], "valor": 10_000_000,
+        eng.estado_caos(G)["pendentes"] = [{"tipo": "fair_play", "clube": c["id"], "valor": 10_000_000,
                                    "quando": eng.semana_absoluta(G) + 1}]
         eng.rng.seed(1)
-        estado_antes = list(G["caos"]["pendentes"])
+        estado_antes = list(eng.estado_caos(G)["pendentes"])
         # semana ainda nao chegou: nada
         eng.CHANCE_CAOS, chance = 0.0, eng.CHANCE_CAOS
         try:
             eng.eventos_caos(G)
-            self.assertEqual(G["caos"]["pendentes"], estado_antes)
+            self.assertEqual(eng.estado_caos(G)["pendentes"], estado_antes)
             G["semana_abs"] = eng.semana_absoluta(G) + 1
             plantao = eng.eventos_caos(G)
         finally:
             eng.CHANCE_CAOS = chance
         self.assertEqual([e["titulo"] for e in plantao], ["Pego no fair play financeiro"])
-        self.assertEqual(G["caos"]["pendentes"], [])
+        self.assertEqual(eng.estado_caos(G)["pendentes"], [])
 
     def test_capitao_preso_sai_e_volta_depois_da_pena(self):
         G = self.G
@@ -312,12 +312,12 @@ class TestCaosVariedade(unittest.TestCase):
         G = self.G
         eng.estado_caos(G)["plantao"] = [{"titulo": "Velho", "texto": "x", "meu": True}]
         eng.CHANCE_CAOS, chance = 0.0, eng.CHANCE_CAOS
-        pendentes, G["caos"]["pendentes"] = G["caos"]["pendentes"], []
+        pendentes, eng.estado_caos(G)["pendentes"] = eng.estado_caos(G)["pendentes"], []
         try:
             r = apoio.avancar({"leve": True})
         finally:
             eng.CHANCE_CAOS = chance
-            G["caos"]["pendentes"] = pendentes
+            eng.estado_caos(G)["pendentes"] = pendentes
         self.assertEqual(r.get("plantao"), [])
 
     def test_sem_de_o_nos_textos(self):
@@ -341,6 +341,12 @@ class TestCaosVariedade(unittest.TestCase):
 
 NOVOS_2026_10_01 = ("escolta", "faixa_ultras", "fundo_estrangeiro", "agente", "visto", "naming",
                     "fornecedor", "var_aposta", "oferta_louca", "gramado")
+
+NOVOS_AMIGOS = ("furia_mascote", "arqueologia", "vicio_virtual", "clausula_canina", "revelacao_divina",
+                "intoxicacao_jantar", "sabotagem_textil", "abducao", "pix_misterioso", "vazio_mental",
+                "var_2047", "estadio_sumiu", "arquibancada", "roupeiro", "chuva_notas", "eleicao",
+                "torcida_sabe", "piloto", "jogo_infinito", "chuva_peixe", "gramado_leilao",
+                "organizada_compra", "mega_sena", "capivaras", "cripto", "aula_samba")
 
 
 def rodar_todos(G, sementes=range(6)):
@@ -418,12 +424,12 @@ class TestCaosLigaDeFora(unittest.TestCase):
         G = self.G
         tabela = {e[0]: e[2] for e in eng.EVENTOS_CAOS}
         self.assertEqual(len(tabela), len(eng.EVENTOS_CAOS), "id repetido na tabela")
-        for ident in NOVOS_2026_10_01:
+        for ident in NOVOS_2026_10_01 + NOVOS_AMIGOS:
             self.assertIn(ident, tabela)
             peso = next(e[1] for e in eng.EVENTOS_CAOS if e[0] == ident)
             self.assertTrue(2 <= peso <= 4, ident)
         rodou = {i for i, _ in rodar_todos(G, range(10))}
-        for ident in NOVOS_2026_10_01:
+        for ident in NOVOS_2026_10_01 + NOVOS_AMIGOS:
             self.assertIn(ident, rodou, ident + " nunca disparou em 10 sementes")
 
     def test_nenhum_texto_sobra_formato_nem_de_o(self):
@@ -549,7 +555,7 @@ class TestCaosBrasilContinua(unittest.TestCase):
 
     def test_novos_eventos_tambem_rodam_no_brasil(self):
         rodou = {i for i, _ in rodar_todos(self.G, range(10))}
-        for ident in NOVOS_2026_10_01:
+        for ident in NOVOS_2026_10_01 + NOVOS_AMIGOS:
             self.assertIn(ident, rodou, ident)
 
     def test_valores_no_brasil_seguem_os_de_sempre(self):
@@ -562,6 +568,220 @@ class TestCaosBrasilContinua(unittest.TestCase):
         self.assertRegex(ev["texto"], r"lider da Serie [ABCD]\b")
         self.assertRegex(ev["texto"], r"R\$ 40(,0)? mi")
         eng.estado_caos(G)["usados"]["aviao"] = 1
+
+
+class TestPlantoesDosAmigos(unittest.TestCase):
+    """Plantoes sugeridos pelos amigos do Kaua (2026-10-01): as mecanicas
+    mais delicadas (vaga de elenco, jogador temporario, posicao, pontos)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.hash_antes = apoio.hash_do_save_real()
+        cls.G = mundo(720, "caos", "Santos")
+
+    @classmethod
+    def tearDownClass(cls):
+        assert apoio.hash_do_save_real() == cls.hash_antes, "teste mexeu no save real"
+
+    def setUp(self):
+        G = self.G
+        G["semana"] = 30
+        for c in G["clubes"].values():
+            if c.get("cap_original"):
+                c["capacidade"] = c.pop("cap_original")
+            c.pop("vagas_perdidas", None)
+        eng.estado_caos(G)["pendentes"] = []
+        # o sorteio de clube cai sempre no do jogador
+        antes = eng.CHANCE_MEU_CLUBE
+        eng.CHANCE_MEU_CLUBE = 1.1
+        self.addCleanup(setattr, eng, "CHANCE_MEU_CLUBE", antes)
+
+    def meu(self):
+        return self.G["clubes"][self.G["clube"]]
+
+    def test_clausula_canina_tira_uma_vaga_do_limite(self):
+        G, c = self.G, self.meu()
+        eng.rng.seed(1)
+        self.assertEqual(eng.limite_elenco(c), eng.LIMITE_ELENCO)
+        ev = eng.ev_clausula_canina(G)
+        self.assertEqual(ev["clube"], c["nome"])
+        self.assertEqual(eng.limite_elenco(c), eng.LIMITE_ELENCO - 1)
+        self.assertTrue(all(j["moral"] == 100 for j in eng._pros(G, c)))
+        # o teto vale de verdade: com o elenco no novo limite, nao cabe mais ninguem
+        guardado = list(c["elenco"])
+        try:
+            c["elenco"] = guardado[:eng.limite_elenco(c)] + [-1000 - i for i in range(
+                max(0, eng.limite_elenco(c) - len(guardado)))]
+            self.assertEqual(len(c["elenco"]), eng.LIMITE_ELENCO - 1)
+            self.assertTrue(eng.elenco_cheio(G, c))
+            self.assertEqual(eng.vagas_elenco(G, c), 0)
+            self.assertIn("%d de %d" % (len(c["elenco"]), eng.LIMITE_ELENCO - 1), eng.recado_elenco_cheio(c))
+            c["elenco"].pop()
+            self.assertFalse(eng.elenco_cheio(G, c))
+            self.assertEqual(eng.vagas_elenco(G, c), 1)
+        finally:
+            c["elenco"] = guardado
+
+    def test_clausula_canina_tem_teto_de_tres_vagas(self):
+        G = self.G
+        for x in eng._liga(G):
+            x["vagas_perdidas"] = 3
+        self.assertIsNone(eng.ev_clausula_canina(G))
+
+    def test_roupeiro_entra_e_sai_depois_de_seis_semanas(self):
+        G, c = self.G, self.meu()
+        eng.rng.seed(2)
+        n = len(c["elenco"])
+        ev = eng.ev_roupeiro(G)
+        self.assertEqual(ev["clube"], c["nome"])
+        self.assertEqual(len(c["elenco"]), n + 1)
+        pid = c["elenco"][-1]
+        self.assertEqual(G["jogadores"][pid]["idade"], 63)
+        pend = [p for p in eng.estado_caos(G)["pendentes"] if p["tipo"] == "roupeiro_sai"]
+        self.assertEqual(len(pend), 1)
+        self.assertEqual(pend[0]["quando"] - eng.semana_absoluta(G), 6)
+        eng.BOMBAS_CAOS["roupeiro_sai"](G, pend[0])
+        self.assertNotIn(pid, c["elenco"])
+        self.assertNotIn(pid, G["jogadores"])
+        self.assertEqual(len(c["elenco"]), n)
+
+    def test_roupeiro_sai_pela_semana_do_caos(self):
+        G, c = self.G, self.meu()
+        eng.rng.seed(3)
+        eng.ev_roupeiro(G)
+        pid = c["elenco"][-1]
+        G["semana_abs"] = eng.semana_absoluta(G) + 7
+        eng.CHANCE_CAOS, chance = 0.0, eng.CHANCE_CAOS
+        try:
+            eng.eventos_caos(G)
+        finally:
+            eng.CHANCE_CAOS = chance
+        self.assertNotIn(pid, G["jogadores"])
+        self.assertEqual(eng.estado_caos(G)["pendentes"], [])
+
+    def test_vicio_virtual_capitao_vira_meia_e_volta(self):
+        G, c = self.G, self.meu()
+        achou = None
+        for semente in range(60):
+            eng.rng.seed(semente)
+            eng.estado_caos(G)["pendentes"] = []
+            for j in eng._pros(G, c):
+                j["lesao"] = 0
+            cap = G["jogadores"][eng.capitao_de(G, c)]
+            pos = cap["pos"]
+            eng.ev_vicio_virtual(G)
+            pend = [p for p in eng.estado_caos(G)["pendentes"] if p["tipo"] == "pos_volta"]
+            if pend:
+                achou = (cap, pos, pend[0])
+                break
+            if cap["pos"] != pos:
+                cap["pos"] = pos
+        self.assertIsNotNone(achou, "nenhuma semente deu a versao do capitao")
+        cap, pos, bomba = achou
+        self.assertEqual(cap["pos"], "MEI")
+        self.assertGreaterEqual(cap["lesao"], 4)
+        self.assertEqual(bomba["quando"] - eng.semana_absoluta(G), 4)
+        eng.BOMBAS_CAOS["pos_volta"](G, bomba)
+        self.assertEqual(cap["pos"], pos)
+
+    def test_vicio_virtual_goleiro_e_capitao_ficam_fora(self):
+        G, c = self.G, self.meu()
+        for semente in range(60):
+            eng.rng.seed(semente)
+            eng.estado_caos(G)["pendentes"] = []
+            for j in eng._pros(G, c):
+                j["lesao"] = 0
+            cap = G["jogadores"][eng.capitao_de(G, c)]
+            pos = cap["pos"]
+            eng.ev_vicio_virtual(G)
+            if not eng.estado_caos(G)["pendentes"]:
+                gol = eng._melhor_da_pos(G, c, "GOL")
+                self.assertGreaterEqual(gol["lesao"], 1)
+                self.assertGreaterEqual(cap["lesao"], 1)
+                self.assertEqual(cap["pos"], pos)
+                return
+            cap["pos"] = pos
+        self.fail("nenhuma semente deu a versao do goleiro")
+
+    def test_pontos_da_tabela(self):
+        G, c = self.G, self.meu()
+        t = G["ligas"][c["divisao"]]["tabela"][str(c["id"])]
+        base = t["p"]
+        eng.rng.seed(4)
+        self.assertTrue(eng.ev_var_2047(G))
+        self.assertEqual(t["p"], base + 3)
+        self.assertTrue(eng.ev_jogo_infinito(G))
+        self.assertEqual(t["p"], base + 6)
+        self.assertTrue(eng.ev_chuva_peixe(G))
+        self.assertEqual(t["p"], base + 3)
+        self.setUp()
+        self.assertTrue(eng.ev_aula_samba(G))
+        self.assertEqual(t["p"], base + 1)
+        self.assertTrue(eng.ev_furia_mascote(G))
+        self.assertEqual(t["p"], base - 2)
+
+    def test_estadio_interditado_e_devolvido(self):
+        G, c = self.G, self.meu()
+        cap = c["capacidade"]
+        self.assertTrue(eng.ev_arqueologia(G))
+        self.assertEqual(c["capacidade"], 1000)
+        pend = [p for p in eng.estado_caos(G)["pendentes"] if p["tipo"] == "estadio_volta"]
+        self.assertEqual(pend[0]["quando"] - eng.semana_absoluta(G), 15)
+        eng.BOMBAS_CAOS["estadio_volta"](G, pend[0])
+        self.assertEqual(c["capacidade"], cap)
+
+    def test_revelacao_divina_zagueiro_vira_meia(self):
+        G, c = self.G, self.meu()
+        zag = eng._melhor_da_pos(G, c, "ZAG", 50)
+        ovr = zag["ovr"]
+        self.assertTrue(eng.ev_revelacao_divina(G))
+        self.assertEqual(zag["pos"], "MEI")
+        self.assertEqual(zag["ovr"], ovr - 3)
+
+    def test_abducao_sobe_o_overall(self):
+        G, c = self.G, self.meu()
+        ata = eng._melhor_da_pos(G, c, "ATA", 55)
+        ovr = ata["ovr"]
+        self.assertTrue(eng.ev_abducao(G))
+        self.assertGreater(ata["ovr"], ovr)
+        self.assertLessEqual(ata["ovr"], 93)
+        self.assertGreaterEqual(ata["lesao"], 1)
+
+    def test_reputacao_fica_entre_5_e_95(self):
+        c = self.meu()
+        c["reputacao"] = 10
+        eng._rep(c, -15)
+        self.assertEqual(c["reputacao"], 5)
+        eng._rep(c, 500)
+        self.assertEqual(c["reputacao"], 95)
+
+    def test_organizada_derruba_confianca_e_moral(self):
+        G, c = self.G, self.meu()
+        conf = eng.confianca(G)
+        conf["valor"] = 60
+        caixa = c["dinheiro"]
+        ev = eng.ev_organizada_compra(G)
+        self.assertEqual(ev["clube"], c["nome"])
+        self.assertEqual(conf["valor"], 52)
+        self.assertGreater(c["dinheiro"], caixa)
+        self.assertTrue(all(j["moral"] <= 75 for j in eng._pros(G, c)))
+
+    def test_intoxicacao_tira_cinco_titulares_por_uma_semana(self):
+        G, c = self.G, self.meu()
+        for j in eng._pros(G, c):
+            j["lesao"] = 0
+        self.assertTrue(eng.ev_intoxicacao_jantar(G))
+        self.assertEqual(sum(1 for j in eng._pros(G, c) if j["lesao"] == 1), 5)
+
+    def test_goleiro_artilheiro_tem_variacoes_novas(self):
+        G = self.G
+        textos = set()
+        for semente in range(120):
+            eng.rng.seed(semente)
+            ev = eng.ev_goleiro(G)
+            if ev:
+                textos.add(ev["texto"].split("goleiro")[0][:18])
+        self.assertGreaterEqual(len(textos), 5)
 
 
 if __name__ == "__main__":

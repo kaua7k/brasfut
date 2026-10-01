@@ -718,7 +718,7 @@ def base():
         ],
         "garotos": linhas,
         "elenco_profissional": len(c["elenco"]),
-        "teto_profissional": eng.LIMITE_ELENCO,
+        "teto_profissional": eng.limite_elenco(c),
         "peneira": _peneira(G, c),
         "candidatos": [{"cid": k["cid"], "nome": k["nome"], "pos": k["pos"], "idade": k["idade"],
                         "ovr": k["ovr"], "faixa": eng.faixa_candidato(G, c, k), "regiao": k["regiao"],
