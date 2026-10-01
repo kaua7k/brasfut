@@ -5,7 +5,7 @@
  * Este arquivo e importado ANTES do resto do base.css, entao as regras que
  * sobrescrevem uma classe ja existente levam o prefixo "body " (mais
  * especificidade, mesma ordem de leitura). Regra nova nao precisa dele.
- * So var(--token): nada de hex, rgba ou font-size solto. */
+ * So var(--...): nada de hex, rgba ou font-size solto. */
 
 /* ------------------------------------------------------------ menu lateral */
 body .navitem { min-height: 40px; padding: 8px 16px; position: relative; }

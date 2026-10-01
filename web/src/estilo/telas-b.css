@@ -1,5 +1,5 @@
 /* Grupo b: Elenco, Escalacao, Treino, Base e os componentes que elas
- * dividem (Campo, Ficha, Grade, Celulas). So var(--token): nada de hex,
+ * dividem (Campo, Ficha, Grade, Celulas). So var(--...): nada de hex,
  * rgba ou font-size solto (testes/test_tokens.py).
  *
  * Este arquivo e importado ANTES das regras do base.css; por isso tudo

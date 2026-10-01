@@ -1,7 +1,7 @@
 /* Grupo C: Mercado, Financas, Estadio, Infraestrutura, Abertura e os dialogos
  * (Simular, Mesa de negociacao, Renovar, Vitrine, Ceder, Pendencia, Ajuda).
  *
- * So var(--token) do :root de base.css. Os blocos que reaproveitam uma classe
+ * So var(--...) do :root de base.css. Os blocos que reaproveitam uma classe
  * antiga (.filtros, .cartao, .linha-valor) vencem pela especificidade de uma
  * classe a mais, sem tocar na regra original. */
 
