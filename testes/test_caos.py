@@ -11,12 +11,12 @@ eng = apoio.eng
 SESSAO = apoio.SESSAO
 
 
-def mundo(seed, modo):
+def mundo(seed, modo, clube="Santos"):
     if os.path.exists(apoio.SAVE_TESTE):
         os.remove(apoio.SAVE_TESTE)
     eng.rng.seed(seed)
     clubes = apoio.chamar("POST", "/api/novo", {"nome": "Teste Caos", "opcoes": {"modo": modo}})["clubes"]
-    apoio.chamar("POST", "/api/clube", {"id": next(c["id"] for c in clubes if c["nome"] == "Santos")})
+    apoio.chamar("POST", "/api/clube", {"id": next(c["id"] for c in clubes if c["nome"] == clube)})
     return SESSAO.G
 
 
@@ -337,6 +337,231 @@ class TestCaosVariedade(unittest.TestCase):
             if ev:
                 textos.add(ev["texto"].split(G["clubes"][G["clube"]]["nome"])[0][:25])
         self.assertGreater(len(textos), 1)
+
+
+NOVOS_2026_10_01 = ("escolta", "faixa_ultras", "fundo_estrangeiro", "agente", "visto", "naming",
+                    "fornecedor", "var_aposta", "oferta_louca", "gramado")
+
+
+def rodar_todos(G, sementes=range(6)):
+    """Cada evento, varias sementes. Devolve [(ident, evento)] dos que dispararam."""
+    G["semana"] = 30
+    saida = []
+    for ident, _peso, func in eng.EVENTOS_CAOS:
+        for semente in sementes:
+            eng.rng.seed(semente * 31 + len(ident))
+            eng.estado_caos(G)["usados"].pop("aviao", None)
+            eng.estado_caos(G)["usados"].pop("meteoro", None)
+            # o teste libera o estadio que a rodada anterior interditou
+            for c in G["clubes"].values():
+                if c.get("cap_original"):
+                    c["capacidade"] = c.pop("cap_original")
+            # vaquinha e greve so valem para caixa negativo
+            meu = G["clubes"][G["clube"]]
+            caixa = meu["dinheiro"]
+            if ident in ("vaquinha", "greve"):
+                meu["dinheiro"] = -1_000_000
+            ev = func(G)
+            if ident in ("vaquinha", "greve"):
+                meu["dinheiro"] = caixa
+            if ev:
+                saida.append((ident, ev))
+    return saida
+
+
+class TestCaosLigaDeFora(unittest.TestCase):
+    """Pedido de 2026-10-01: os plantoes valem na liga que o jogador treina,
+    nao so no Brasileirao."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.hash_antes = apoio.hash_do_save_real()
+        cls.G = mundo(710, "caos", "Boca Juniors")
+
+    @classmethod
+    def tearDownClass(cls):
+        assert apoio.hash_do_save_real() == cls.hash_antes, "teste mexeu no save real"
+
+    def test_liga_e_a_do_clube_do_jogador(self):
+        G = self.G
+        meu = G["clubes"][G["clube"]]
+        self.assertEqual(meu["divisao"], "ARG")
+        self.assertFalse(eng._eh_br(G))
+        todos = eng._liga(G)
+        self.assertTrue(todos)
+        self.assertTrue(all(c["divisao"] == "ARG" for c in todos))
+        topo, base = eng._liga(G, "topo"), eng._liga(G, "base")
+        self.assertEqual(sorted(c["id"] for c in topo + base), sorted(c["id"] for c in todos))
+        self.assertGreaterEqual(min(c["reputacao"] for c in topo), max(c["reputacao"] for c in base))
+        self.assertEqual(len(eng._liga(G, "nao_fundo")), len(todos))
+
+    def test_todo_evento_cai_so_na_liga_do_jogador(self):
+        G = self.G
+        nomes_liga = {c["nome"] for c in G["clubes"].values() if c["divisao"] == "ARG"}
+        nomes_br = {c["nome"] for c in G["clubes"].values() if c["divisao"] in eng.DIVISOES_BR}
+        antes = {c["id"]: (c["dinheiro"], c["capacidade"], len(c["elenco"]), c["reputacao"])
+                 for c in G["clubes"].values() if c["divisao"] in eng.DIVISOES_BR}
+        disparou = rodar_todos(G)
+        self.assertGreater(len({i for i, _ in disparou}), 30, "a maioria dos eventos devia rodar na Argentina")
+        for ident, ev in disparou:
+            self.assertTrue(ev["titulo"] and ev["texto"], ident)
+            if ev["clube"]:
+                self.assertIn(ev["clube"], nomes_liga, ident)
+                self.assertNotIn(ev["clube"], nomes_br - nomes_liga, ident)
+        # nenhum clube brasileiro foi tocado
+        for cid, antes_c in antes.items():
+            c = G["clubes"][cid]
+            self.assertEqual((c["dinheiro"], c["capacidade"], len(c["elenco"]), c["reputacao"]), antes_c,
+                             c["nome"])
+
+    def test_eventos_novos_rodam_sem_sobra_de_formato(self):
+        G = self.G
+        tabela = {e[0]: e[2] for e in eng.EVENTOS_CAOS}
+        self.assertEqual(len(tabela), len(eng.EVENTOS_CAOS), "id repetido na tabela")
+        for ident in NOVOS_2026_10_01:
+            self.assertIn(ident, tabela)
+            peso = next(e[1] for e in eng.EVENTOS_CAOS if e[0] == ident)
+            self.assertTrue(2 <= peso <= 4, ident)
+        rodou = {i for i, _ in rodar_todos(G, range(10))}
+        for ident in NOVOS_2026_10_01:
+            self.assertIn(ident, rodou, ident + " nunca disparou em 10 sementes")
+
+    def test_nenhum_texto_sobra_formato_nem_de_o(self):
+        G = self.G
+        for ident, ev in rodar_todos(G, range(8)):
+            self.assertNotRegex(ev["texto"], r"%[sd(]", ident)
+            self.assertNotIn("%%", ev["texto"], ident)
+            self.assertNotRegex(ev["texto"], r"\b(de|em|por) (o|a|os|as) ", "%s: %s" % (ident, ev["texto"]))
+
+    def test_dinheiro_acompanha_a_economia_da_liga(self):
+        G = self.G
+        arg = G["clubes"][G["clube"]]
+        br = next(c for c in G["clubes"].values() if c["divisao"] == "A")
+        ing = next(c for c in G["clubes"].values() if c["divisao"] == "ENG")
+        self.assertEqual(eng._gr(G, br, 40_000_000), 40_000_000)
+        self.assertEqual(eng._escala_din(G, br), 1.0)
+        self.assertGreater(eng._gr(G, ing, 40_000_000), 40_000_000)
+        self.assertLess(eng._gr(G, arg, 40_000_000), eng._gr(G, ing, 40_000_000))
+        ven = next(c for c in G["clubes"].values() if c["divisao"] == "VEN")
+        self.assertGreaterEqual(eng._escala_din(G, ven), 0.25)
+        self.assertLess(eng._escala_din(G, ven), 1.0)
+
+    def test_aviao_derruba_o_lider_da_liga_de_fora(self):
+        G = self.G
+        G["semana"] = 30
+        eng.estado_caos(G)["usados"].pop("aviao", None)
+        lider = G["clubes"][eng.classificacao(G, G["ligas"]["ARG"])[0]]
+        if lider["id"] == G["clube"]:
+            self.skipTest("o lider e o clube do jogador")
+        ev = eng.ev_aviao(G)
+        self.assertEqual(ev["clube"], lider["nome"])
+        self.assertIn("Liga Profesional", ev["texto"])
+        eng.estado_caos(G)["usados"]["aviao"] = 1
+
+    def test_bombas_funcionam_em_clube_de_fora(self):
+        G = self.G
+        c = next(x for x in G["clubes"].values() if x["divisao"] == "ARG" and x["id"] != G["clube"])
+        c.pop("doping", None)
+        orig = eng._alvo
+        eng._alvo = lambda G_, cands, meu_pode=True: c
+        try:
+            G["semana"] = 20
+            ev = eng.ev_doping(G)
+            self.assertIsNotNone(ev)
+            temporada = c["doping"]["temporada"]
+            eng.dar_titulo(G, c, "Copa Argentina")
+            c["titulos_hist"][-1]["temporada"] = temporada
+            pontos = G["ligas"]["ARG"]["tabela"][str(c["id"])]["p"]
+            ev = eng.ev_doping_pego(G, {"clube": c["id"], "temporada": temporada})
+            self.assertIn("Copa Argentina", ev["texto"])
+            self.assertFalse(any(t["temporada"] == temporada for t in c["titulos_hist"]))
+            self.assertEqual(G["ligas"]["ARG"]["tabela"][str(c["id"])]["p"], pontos - 15)
+            # dinheiro sujo e fair play
+            caixa = c["dinheiro"]
+            eng.ev_dinheiro_sujo(G)
+            self.assertGreater(c["dinheiro"], caixa)
+            bomba = next(p for p in eng.estado_caos(G)["pendentes"] if p["tipo"] == "fair_play" and p["clube"] == c["id"])
+            pontos = G["ligas"]["ARG"]["tabela"][str(c["id"])]["p"]
+            ev = eng.ev_fair_play(G, bomba)
+            self.assertEqual(ev["gravidade"], "grave")
+            self.assertEqual(G["ligas"]["ARG"]["tabela"][str(c["id"])]["p"], pontos - 12)
+        finally:
+            eng._alvo = orig
+
+    def test_semana_do_caos_so_sorteia_na_liga(self):
+        G = self.G
+        nomes_liga = {c["nome"] for c in G["clubes"].values() if c["divisao"] == "ARG"}
+        eng.estado_caos(G)["pendentes"] = []
+        eng.estado_caos(G)["recentes"] = {}
+        eng.CHANCE_CAOS, chance = 1.0, eng.CHANCE_CAOS
+        vistos = 0
+        try:
+            eng.rng.seed(21)
+            for _ in range(40):
+                G["semana_abs"] = eng.semana_absoluta(G) + 1
+                G["semana"] = 30
+                for ev in eng.eventos_caos(G):
+                    vistos += 1
+                    if ev["clube"]:
+                        self.assertIn(ev["clube"], nomes_liga, ev["titulo"])
+        finally:
+            eng.CHANCE_CAOS = chance
+        self.assertGreater(vistos, 20)
+
+    def test_classico_com_clube_de_fora_nao_usa_rng(self):
+        G = mundo(713, "classico", "Boca Juniors")
+        estado = eng.rng.getstate()
+        self.assertEqual(eng.eventos_caos(G), [])
+        self.assertEqual(eng.rng.getstate(), estado)
+        type(self).G = mundo(710, "caos", "Boca Juniors")
+
+
+class TestCaosBrasilContinua(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.hash_antes = apoio.hash_do_save_real()
+        cls.G = mundo(712, "caos", "Santos")
+
+    @classmethod
+    def tearDownClass(cls):
+        assert apoio.hash_do_save_real() == cls.hash_antes, "teste mexeu no save real"
+
+    def test_carreira_brasileira_so_cai_no_brasil(self):
+        G = self.G
+        self.assertTrue(eng._eh_br(G))
+        self.assertEqual(len(eng._liga(G)), 80)
+        self.assertEqual({c["divisao"] for c in eng._liga(G, "topo")}, {"A", "B"})
+        self.assertEqual({c["divisao"] for c in eng._liga(G, "base")}, {"C", "D"})
+        self.assertEqual({c["divisao"] for c in eng._liga(G, "nao_fundo")}, {"A", "B", "C"})
+        nomes_br = {c["nome"] for c in G["clubes"].values() if c["divisao"] in eng.DIVISOES_BR}
+        nomes_fora = {c["nome"] for c in G["clubes"].values() if c["divisao"] not in eng.DIVISOES_BR} - nomes_br
+        antes = {c["id"]: (c["dinheiro"], c["capacidade"], len(c["elenco"]))
+                 for c in G["clubes"].values() if c["divisao"] not in eng.DIVISOES_BR}
+        disparou = rodar_todos(G)
+        self.assertGreater(len({i for i, _ in disparou}), 30)
+        for ident, ev in disparou:
+            if ev["clube"]:
+                self.assertIn(ev["clube"], nomes_br, ident)
+                self.assertNotIn(ev["clube"], nomes_fora, ident)
+        for cid, antes_c in antes.items():
+            c = G["clubes"][cid]
+            self.assertEqual((c["dinheiro"], c["capacidade"], len(c["elenco"])), antes_c, c["nome"])
+
+    def test_novos_eventos_tambem_rodam_no_brasil(self):
+        rodou = {i for i, _ in rodar_todos(self.G, range(10))}
+        for ident in NOVOS_2026_10_01:
+            self.assertIn(ident, rodou, ident)
+
+    def test_valores_no_brasil_seguem_os_de_sempre(self):
+        G = self.G
+        meu = G["clubes"][G["clube"]]
+        self.assertEqual(eng._gr(G, meu, 40_000_000), 40_000_000)
+        G["semana"] = 30
+        eng.estado_caos(G)["usados"].pop("aviao", None)
+        ev = eng.ev_aviao(G)
+        self.assertRegex(ev["texto"], r"lider da Serie [ABCD]\b")
+        self.assertRegex(ev["texto"], r"R\$ 40(,0)? mi")
+        eng.estado_caos(G)["usados"]["aviao"] = 1
 
 
 if __name__ == "__main__":

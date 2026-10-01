@@ -71,6 +71,9 @@ amarelo).
   hacker, vaquinha, veterano que rejuvenesce, enchente, portões fechados, tatuagem do rival,
   vidente, folha vazada, churrasco) e duas a quatro variações de texto na maioria.
 - ~~Evitar repetir~~ feito: o mesmo tipo não é sorteado de novo por 10 semanas.
+- ~~Plantões na liga do jogador~~ feito (2026-10-01): treinando fora do Brasil, os eventos caem
+  nos clubes da liga do país (topo/base por reputação, dinheiro ajustado à economia da liga),
+  10 eventos novos com sabor internacional (45 no total) e 3 a 4 textos em quase todos.
 - ~~Frequência em níveis~~ feito: calmo, normal ou caótico, escolhido na carreira nova
   (aparece no slot do save).
 
