@@ -4,6 +4,7 @@
 // caractere. Aqui os mesmos julgamentos do motor vem em campos, entao a barra
 // e barra de verdade e o numero fica legivel de relance.
 
+import { seloCapitao, seloPos } from './Celulas'
 import type { FichaJogador } from '../tipos'
 
 interface Props {
@@ -20,6 +21,11 @@ function estadoDaBarra(valor: number) {
   return 'critico'
 }
 
+// mesmas faixas do selo de overall das listas
+function faixaOvr(ovr: number) {
+  return ovr >= 80 ? 'elite' : ovr >= 70 ? 'bom' : ovr >= 55 ? 'medio' : 'fraco'
+}
+
 export function Ficha({ ficha, aoFechar, acoes }: Props) {
   return (
     <div
@@ -29,27 +35,31 @@ export function Ficha({ ficha, aoFechar, acoes }: Props) {
       aria-label={`Ficha de ${ficha.nome}`}
       onClick={aoFechar}
     >
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal modal-ficha" onClick={(e) => e.stopPropagation()}>
         <div className="ficha-topo">
-          <div className="ficha-ovr">{ficha.ovr}</div>
+          <div className={`ficha-ovr ${faixaOvr(ficha.ovr)}`}>
+            {ficha.ovr}
+            <span className="ficha-ovr-rotulo">overall</span>
+          </div>
           <div className="encolhe">
             <h2>
               {ficha.nome}
-              {ficha.capitao && <span className="selo-capitao" title="Capitao">C</span>}
+              {ficha.capitao && seloCapitao()}
             </h2>
-            <div className="sub txt-fraco txt-p">
-              {ficha.posicao_nome}, {ficha.idade} anos · {ficha.clube} · joga {ficha.papel}
+            <div className="ficha-chips">
+              {seloPos(ficha.pos)}
+              <span className="chip-ficha">{ficha.idade} anos</span>
+              <span className="chip-ficha">{ficha.clube}</span>
+              <span className="chip-ficha">joga {ficha.papel}</span>
             </div>
-            {ficha.situacao && (
-              <div className="txt-atencao txt-p mt-1">
-                {ficha.situacao}
-              </div>
-            )}
+            <div className="sub txt-fraco txt-p">{ficha.posicao_nome}</div>
           </div>
         </div>
 
+        {ficha.situacao && <div className="ficha-aviso">{ficha.situacao}</div>}
+
         <div className="painel-titulo mb-2">Leitura do olheiro</div>
-        <div className="txt-m mb-3">{ficha.olheiro}</div>
+        <div className="ficha-olheiro">{ficha.olheiro}</div>
 
         <ul className="ficha-notas">
           {ficha.notas.map((n, i) => (
@@ -60,7 +70,7 @@ export function Ficha({ ficha, aoFechar, acoes }: Props) {
         <div className="ficha-barras">
           {ficha.barras.map((b) => (
             <div className="ficha-barra" key={b.nome}>
-              <div className="topo">
+              <div className="ficha-barra-topo">
                 <span>{b.nome}</span>
                 <strong>{b.valor}</strong>
               </div>
@@ -69,6 +79,22 @@ export function Ficha({ ficha, aoFechar, acoes }: Props) {
               </div>
             </div>
           ))}
+        </div>
+
+        <div className="painel-titulo mb-2">Contrato</div>
+        <div className="ficha-contrato">
+          <div className="cx">
+            <div className={`n${ficha.contrato.anos <= 1 ? ' critico' : ''}`}>{ficha.contrato.anos}</div>
+            <div className="r">{ficha.contrato.anos === 1 ? 'ano restante' : 'anos restantes'}</div>
+          </div>
+          <div className="cx">
+            <div className="n menor">{ficha.contrato.salario}</div>
+            <div className="r">salario por mes</div>
+          </div>
+          <div className="cx">
+            <div className="n menor">{ficha.contrato.valor}</div>
+            <div className="r">valor de mercado</div>
+          </div>
         </div>
 
         {ficha.moral_causas.length > 0 && (
@@ -94,13 +120,11 @@ export function Ficha({ ficha, aoFechar, acoes }: Props) {
           <div className="cx"><div className="n">{ficha.temporada.cv}</div><div className="r">vermelhos</div></div>
         </div>
 
-        <div className="painel-titulo mt-3 mb-2">Carreira e contrato</div>
+        <div className="painel-titulo mt-3 mb-2">Carreira</div>
         <div className="ficha-numeros">
           <div className="cx"><div className="n">{ficha.carreira.j}</div><div className="r">jogos</div></div>
           <div className="cx"><div className="n">{ficha.carreira.g}</div><div className="r">gols</div></div>
-          <div className="cx"><div className="n">{ficha.contrato.anos}</div><div className="r">anos de contrato</div></div>
-          <div className="cx"><div className="n menor">{ficha.contrato.salario}</div><div className="r">salario/mes</div></div>
-          <div className="cx"><div className="n menor">{ficha.contrato.valor}</div><div className="r">valor</div></div>
+          <div className="cx"><div className="n">{ficha.carreira.tit}</div><div className="r">como titular</div></div>
         </div>
 
         {ficha.premios.length > 0 && (

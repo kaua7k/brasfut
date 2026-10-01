@@ -39,6 +39,12 @@ class TestTrocas(unittest.TestCase):
         self.assertFalse(r["tela"]["auto"], "mexer no time desliga a alavanca")
         self.assertEqual(sorted(r["tela"]["nova_vaga"]), sorted([a["id"], b["id"]]))
 
+    def test_capitao_aparece_no_xi_e_no_banco(self):
+        tela = self.tela()
+        todos = tela["titulares"] + tela["banco"]
+        self.assertTrue(all("capitao" in j for j in todos))
+        self.assertLessEqual(sum(1 for j in todos if j["capitao"]), 1)
+
     def test_titulares_de_vagas_diferentes(self):
         tela = self.tela()
         gol = [j for j in tela["titulares"] if j["vaga"] == "GOL"][0]

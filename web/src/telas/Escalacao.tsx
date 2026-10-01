@@ -21,7 +21,7 @@
 
 import { porque, AGUARDE } from '../motivo'
 import { useRef, useState } from 'react'
-import { barraFisico, seloOvr } from '../componentes/Celulas'
+import { barraFisico, seloCapitao, seloOvr, seloPos } from '../componentes/Celulas'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
 import { Campo } from '../componentes/Campo'
 import { EditorFormacao } from '../componentes/EditorFormacao'
@@ -89,6 +89,7 @@ function colunasXi(novaVaga: Set<number>): Coluna<JogadorEmCampo>[] {
       render: (j) => (
         <>
           <span className="nome-titular">{j.nome}</span>
+          {j.capitao && seloCapitao()}
           {novaVaga.has(j.id) && <span className="selo-nova-vaga">nova vaga</span>}
         </>
       ),
@@ -113,8 +114,19 @@ function colunasXi(novaVaga: Set<number>): Coluna<JogadorEmCampo>[] {
 }
 
 const COLUNAS_BANCO: Coluna<JogadorBanco>[] = [
-  { chave: 'pos', rotulo: 'Pos', largura: '72px', classe: 'centro', render: (j) => j.pos },
-  { chave: 'nome', rotulo: 'Jogador', largura: 'minmax(110px, 1fr)', classe: 'corta', render: (j) => j.nome },
+  { chave: 'pos', rotulo: 'Pos', largura: '72px', classe: 'centro', render: (j) => seloPos(j.pos) },
+  {
+    chave: 'nome',
+    rotulo: 'Jogador',
+    largura: 'minmax(110px, 1fr)',
+    classe: 'corta',
+    render: (j) => (
+      <>
+        {j.nome}
+        {j.capitao && seloCapitao()}
+      </>
+    ),
+  },
   { chave: 'ovr', rotulo: 'Ovr', largura: '40px', classe: 'num', render: (j) => seloOvr(j.ovr) },
   {
     chave: 'fis',

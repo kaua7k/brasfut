@@ -992,8 +992,8 @@ button.jogador:hover .disco, button.jogador:focus-visible .disco { transform: sc
 .ficha-notas li:last-child { border-bottom: none; }
 
 .ficha-barras { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
-.ficha-barra .topo { display: flex; justify-content: space-between; font-size: var(--fs-p); color: var(--fraco); margin-bottom: 4px; }
-.ficha-barra .topo strong { color: var(--txt); font-family: var(--titulo); }
+.ficha-barra-topo { display: flex; justify-content: space-between; font-size: var(--fs-p); color: var(--fraco); margin-bottom: 4px; }
+.ficha-barra-topo strong { color: var(--txt); font-family: var(--titulo); }
 
 .ficha-numeros { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; }
 .ficha-numeros .cx {

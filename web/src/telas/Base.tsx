@@ -5,7 +5,7 @@
 
 import { porque, AGUARDE, MARQUE } from '../motivo'
 import { useEffect, useState } from 'react'
-import { seloOvr, seloPos } from '../componentes/Celulas'
+import { estrelasDoTeto, meioDoTeto, seloOvr, seloPos } from '../componentes/Celulas'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
 import { alternarMarca, Grade, type Coluna } from '../componentes/Grade'
 import { plural } from '../formato'
@@ -39,19 +39,23 @@ const COLUNAS: Coluna<Garoto>[] = [
   { chave: 'ovr', rotulo: 'Ovr', largura: '44px', classe: 'num', render: (j) => seloOvr(j.ovr) },
   {
     chave: 'teto',
-    rotulo: 'Teto',
-    largura: '96px',
+    rotulo: 'Potencial',
+    largura: '150px',
     classe: 'centro',
     render: (j) => (
-      <span title={`${plural(j.obs, 'mes', 'meses')} de observacao: a faixa estreita com o tempo`}>{j.teto}</span>
+      <span className="potencial" title={`${plural(j.obs, 'mes', 'meses')} de observacao: a faixa estreita com o tempo`}>
+        {estrelasDoTeto(j.teto)}
+        <span className="potencial-faixa">{j.teto}</span>
+      </span>
     ),
+    ordem: (j) => meioDoTeto(j.teto),
   },
   {
     chave: 'treino',
     rotulo: 'Treino',
     largura: '64px',
     classe: 'centro',
-    render: (j) => (j.em_foco ? 'sim' : '-'),
+    render: (j) => (j.em_foco ? <span className="tag-ok">sim</span> : '-'),
   },
   {
     chave: 'sit',
@@ -243,11 +247,19 @@ function Peneira({ tela, ocupado, aoPeneira, aoCandidato }: Props) {
           </div>
         ) : (
           tela.candidatos.map((k) => (
-            <div className="linha-proposta" key={k.cid}>
-              <span>
-                <strong>{k.nome}</strong>{' '}
-                <span className="tag-fraco">
-                  {k.pos} · {k.idade} anos · overall {k.ovr} · teto {k.faixa} · {k.regiao} · decide em {plural(k.semanas, 'semana')}
+            <div className="linha-proposta candidato" key={k.cid}>
+              <span className="candidato-dados">
+                {seloPos(k.pos)}
+                <span className="candidato-nome">
+                  <strong>{k.nome}</strong>
+                  <span className="tag-fraco">
+                    {k.idade} anos · {k.regiao} · decide em {plural(k.semanas, 'semana')}
+                  </span>
+                </span>
+                {seloOvr(k.ovr)}
+                <span className="potencial">
+                  {estrelasDoTeto(k.faixa)}
+                  <span className="potencial-faixa">{k.faixa}</span>
                 </span>
               </span>
               <span className="modal-acoes">
@@ -286,13 +298,16 @@ function Revelados({ tela }: { tela: TelaBase }) {
         </div>
       ) : (
         tela.revelados.map((r, i) => (
-          <div key={i} className="linha-proposta">
-            <span>
-              <strong className={r.em_casa ? 'tag-titular' : undefined}>{r.nome}</strong>{' '}
-              <span className="tag-fraco">
-                {r.pos} · subiu em {r.temporada} com {r.ovr_subida}
-                {r.ovr_hoje !== null && ` · hoje ${r.ovr_hoje}`} · {r.onde}
+          <div key={i} className="linha-proposta candidato">
+            <span className="candidato-dados">
+              {seloPos(r.pos)}
+              <span className="candidato-nome">
+                <strong className={r.em_casa ? 'tag-titular' : undefined}>{r.nome}</strong>
+                <span className="tag-fraco">subiu em {r.temporada} · {r.onde}</span>
               </span>
+              {seloOvr(r.ovr_subida)}
+              {r.ovr_hoje !== null && <span className="tag-fraco">hoje</span>}
+              {r.ovr_hoje !== null && seloOvr(r.ovr_hoje)}
             </span>
           </div>
         ))

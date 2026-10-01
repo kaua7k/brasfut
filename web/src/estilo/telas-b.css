@@ -1,3 +1,226 @@
-/* Refinos visuais do grupo b de telas (2026-10-01). Mesmas regras de
- * base.css: so var(--...) dos tokens do :root de base.css, nada de hex, rgba
- * ou font-size solto. Teste: testes/test_tokens.py. */
+/* Grupo b: Elenco, Escalacao, Treino, Base e os componentes que elas
+ * dividem (Campo, Ficha, Grade, Celulas). So var(--token): nada de hex,
+ * rgba ou font-size solto (testes/test_tokens.py).
+ *
+ * Este arquivo e importado ANTES das regras do base.css; por isso tudo
+ * fica dentro de body { }, que soma um grau de especificidade e vence o base.css. */
+
+body {
+  /* ------------------------------------------------------------------ campo */
+  /* gramado em faixas, como na transmissao: a faixa clara e a escura alternam */
+  .campo-area {
+    background:
+      repeating-linear-gradient(90deg, transparent 0 8.333%, color-mix(in srgb, var(--preto) 10%, transparent) 8.333% 16.666%),
+      radial-gradient(ellipse at center, var(--gramado), var(--gramado-escuro));
+    box-shadow: inset 0 0 0 1px var(--borda-forte), inset 0 0 40px color-mix(in srgb, var(--preto) 35%, transparent);
+  }
+  .campo-ponto { position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; border-radius: 50%; background: var(--cal); transform: translate(-50%, -50%); }
+  /* pequena area: o retangulo junto ao gol */
+  .campo-pequena { position: absolute; top: 50%; width: 22px; height: 70px; border: 2px solid var(--cal-fraca); transform: translateY(-50%); }
+  .campo-pequena.esq { left: 14px; border-left: none; }
+  .campo-pequena.dir { right: 14px; border-right: none; }
+
+  .jogador { gap: 3px; z-index: 1; }
+  .jogador .anel {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    /* o anel e a condicao fisica: arco cheio = 100 */
+    background: conic-gradient(var(--anel-cor, var(--ok)) var(--cond, 100%), color-mix(in srgb, var(--preto) 45%, transparent) 0);
+    box-shadow: var(--sombra-disco);
+  }
+  .jogador .anel.atencao { --anel-cor: var(--atencao); }
+  .jogador .anel.critico { --anel-cor: var(--critico); }
+  .jogador .anel .disco { width: 40px; height: 40px; border-width: 2px; box-shadow: none; }
+  .jogador.vazia .anel { background: none; box-shadow: none; }
+  .jogador .pip-pos {
+    position: absolute;
+    left: 100%;
+    margin-left: 3px;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 0 4px;
+    border-radius: 4px;
+    background: var(--poco);
+    border: 1px solid currentColor;
+    color: var(--txt-3);
+    font-size: var(--fs-mini);
+    font-weight: 700;
+    line-height: 14px;
+    letter-spacing: 0.02em;
+  }
+  .jogador.linha-gol .pip-pos { color: var(--atencao); }
+  .jogador.linha-def .pip-pos { color: var(--acao-linha); }
+  .jogador.linha-lat .pip-pos { color: var(--pos-lat); }
+  .jogador.linha-vol .pip-pos { color: var(--pos-vol); }
+  .jogador.linha-mei .pip-pos { color: var(--ok); }
+  .jogador.linha-ata .pip-pos { color: var(--critico); }
+  .jogador .pip-capitao {
+    position: absolute;
+    right: -4px;
+    top: -4px;
+    display: grid;
+    place-items: center;
+    width: 17px;
+    height: 17px;
+    border-radius: 50%;
+    background: var(--conquista);
+    color: var(--conquista-txt);
+    font-size: var(--fs-mini);
+    font-weight: 800;
+    line-height: 1;
+    box-shadow: var(--sombra-disco);
+  }
+  .jogador.escolhido .anel { background: conic-gradient(var(--acao-linha) 100%, transparent 0); box-shadow: 0 0 0 3px var(--acao-brilho); }
+  .jogador .nome { box-shadow: var(--sombra-disco); }
+  .jogador:focus-visible { outline: none; }
+  .jogador:focus-visible .anel { outline: 2px solid var(--acao-linha); outline-offset: 2px; }
+
+  /* ---------------------------------------------------------------- celulas */
+  .selo-pos { background: color-mix(in srgb, currentColor 12%, transparent); }
+  .selo-ovr.elite { box-shadow: 0 0 0 1px color-mix(in srgb, var(--titular) 60%, transparent), 0 0 10px color-mix(in srgb, var(--titular) 35%, transparent); }
+  .chip-ultimo-ano {
+    display: inline-block;
+    padding: 1px 8px;
+    border: 1px solid var(--critico-borda);
+    border-radius: 999px;
+    background: var(--critico-fundo);
+    color: var(--critico-claro);
+    font-size: var(--fs-p);
+    font-weight: 700;
+  }
+  .chip-foco {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: var(--ok-fundo);
+    color: var(--ok);
+    font-size: var(--fs-mini);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .estrelas { display: inline-flex; letter-spacing: 1px; font-size: var(--fs-m); line-height: 1; }
+  .estrelas-cheias { color: var(--conquista); }
+  .estrelas-vazias { color: var(--neutro); }
+  .potencial { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+  .potencial-faixa { min-width: 44px; text-align: left; font-variant-numeric: tabular-nums; color: var(--txt-3); font-size: var(--fs-p); }
+  .candidato-dados { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .candidato-nome { display: grid; gap: 1px; min-width: 150px; }
+  .candidato-nome .tag-fraco { font-size: var(--fs-p); }
+  .linha-proposta.candidato { padding: 10px 0; border-bottom: 1px solid var(--divisor); }
+  .linha-proposta.candidato:last-child { border-bottom: none; }
+
+  /* ------------------------------------------------------------------ grade */
+  .grade-linha.cab { background: var(--painel-alto); border-bottom-color: var(--borda-forte); }
+  .grade-linha:not(.cab) { transition: background 0.12s ease; }
+  .grade-linha.abrivel:hover { background: var(--painel-alto); box-shadow: inset 3px 0 0 var(--acao-linha); }
+  .grade-linha.abrivel:focus-visible { outline: 2px solid var(--acao-linha); outline-offset: -2px; }
+  .grade-linha.marcada { box-shadow: inset 3px 0 0 var(--acao); }
+  .grade-ordenar.ativa { color: var(--acao-linha); }
+  .grade-ordenar:focus-visible { outline: 2px solid var(--acao-linha); outline-offset: 2px; border-radius: 4px; }
+  .fisico { display: inline-grid; grid-template-columns: 30px 3ch; align-items: center; justify-content: end; justify-items: end; }
+  .grade-linha .num, .grade-linha .centro { font-variant-numeric: tabular-nums; }
+
+  /* -------------------------------------------------------------- escalacao */
+  .escalacao-campo { background: var(--painel); }
+  .campo-cab { border-bottom: 1px solid var(--divisor); margin-bottom: 12px; padding-bottom: 10px; }
+  .legenda-campo { padding-top: 10px; }
+  .escalacao-listas .grade-linha.titular .selo-capitao { margin-left: 8px; }
+
+  /* ------------------------------------------------------------------ treino */
+  .regime { position: relative; overflow: hidden; border-width: 1px; transition: border-color 0.12s ease, background 0.12s ease; }
+  .regime.ativo { border-color: var(--acao-linha); background: color-mix(in srgb, var(--acao) 12%, var(--painel)); box-shadow: inset 0 3px 0 var(--acao-linha); }
+  .regime-topo { gap: 8px; justify-content: flex-start; }
+  .regime-topo strong { flex: 1; }
+  .regime-marca { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--borda-controle); flex: none; }
+  .regime.ativo .regime-marca { border-color: var(--acao-linha); background: radial-gradient(circle, var(--acao-linha) 0 40%, transparent 45%); }
+  .regime-uso { padding: 1px 8px; border-radius: 999px; background: var(--acao); color: var(--acao-txt); }
+  .regime-efeitos { flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 4px; }
+  .regime-efeitos > span {
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--chip);
+    border: 1px solid var(--borda-forte);
+    font-variant-numeric: tabular-nums;
+  }
+  .vagas-ct { display: flex; align-items: center; gap: 12px; margin: 10px 0 4px; font-size: var(--fs-p); color: var(--fraco); }
+  .vagas-ct-rotulo { text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; font-size: var(--fs-mini); }
+  .vagas-ct-pontos { display: inline-flex; gap: 4px; }
+  .vagas-ct-pontos i { width: 22px; height: 8px; border-radius: 3px; background: var(--neutro); }
+  .vagas-ct-pontos i.cheia { background: var(--ok); }
+  .vagas-ct strong { font-family: var(--titulo); font-size: var(--fs-base); color: var(--txt); font-variant-numeric: tabular-nums; }
+
+  /* ------------------------------------------------------------------ ficha */
+  .modal-ficha { max-width: 600px; padding: 0 24px 24px; }
+  .modal-ficha .ficha-topo {
+    align-items: center;
+    gap: 18px;
+    margin: 0 -24px 16px;
+    padding: 22px 24px 18px;
+    background:
+      radial-gradient(ellipse at 0% 0%, color-mix(in srgb, var(--gramado) 55%, transparent), transparent 70%),
+      var(--painel-alto);
+    border-bottom: 1px solid var(--borda);
+    border-radius: var(--raio) var(--raio) 0 0;
+  }
+  .modal-ficha .ficha-ovr {
+    flex-direction: column;
+    width: 84px;
+    height: 84px;
+    gap: 0;
+    border-radius: var(--raio);
+    font-size: calc(var(--fs-gg) + var(--fs-g));
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    background: var(--poco);
+  }
+  .modal-ficha .ficha-ovr.elite { border-color: var(--titular); color: var(--titular); }
+  .modal-ficha .ficha-ovr.bom { border-color: var(--ok); color: var(--ok); }
+  .modal-ficha .ficha-ovr.medio { border-color: var(--txt-3); color: var(--txt); }
+  .modal-ficha .ficha-ovr.fraco { border-color: var(--borda-controle); color: var(--fraco); }
+  .ficha-ovr-rotulo { margin-top: 4px; font-family: var(--corpo); font-size: var(--fs-mini); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fraco); }
+  .modal-ficha h2 { margin: 0 0 8px; font-size: var(--fs-gg); line-height: 1.15; }
+  .ficha-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .chip-ficha { padding: 2px 10px; border: 1px solid var(--borda-forte); border-radius: 999px; background: var(--chip); font-size: var(--fs-p); color: var(--txt-2); }
+  .ficha-aviso {
+    margin-bottom: 14px;
+    padding: 8px 12px;
+    border: 1px solid var(--atencao-borda);
+    border-radius: var(--raio-p);
+    background: var(--atencao-fundo);
+    color: var(--atencao);
+    font-size: var(--fs-p);
+    font-weight: 600;
+  }
+  .ficha-olheiro {
+    margin-bottom: 12px;
+    padding: 10px 14px;
+    border-left: 3px solid var(--conquista);
+    background: var(--poco);
+    border-radius: 0 var(--raio-p) var(--raio-p) 0;
+    font-size: var(--fs-m);
+    color: var(--txt-2);
+    line-height: 1.5;
+  }
+  .modal-ficha .ficha-barras { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; margin: 4px 0 18px; }
+  .modal-ficha .barra { height: 8px; }
+  .modal-ficha .barra > div.atencao { background: var(--atencao); }
+  .ficha-contrato { margin-bottom: 14px; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+  .ficha-contrato .cx { padding: 10px 12px; border: 1px solid var(--conquista-borda); border-radius: var(--raio-p); background: var(--conquista-fundo); }
+  .ficha-contrato .n { font-family: var(--titulo); font-size: var(--fs-g); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .ficha-contrato .n.menor { font-size: var(--fs-base); }
+  .ficha-contrato .n.critico { color: var(--critico); }
+  .ficha-contrato .r { font-size: var(--fs-mini); font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--fraco); }
+  .modal-ficha .ficha-numeros .cx { text-align: center; }
+  .modal-ficha .modal-acoes { position: sticky; bottom: -24px; margin: 18px -24px -24px; padding: 14px 24px; background: var(--painel); border-top: 1px solid var(--borda); }
+
+  @media (max-width: 900px) {
+    .modal-ficha .ficha-barras { grid-template-columns: 1fr; }
+    .potencial-faixa { display: none; }
+  }
+
+}
