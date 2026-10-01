@@ -8,10 +8,11 @@
 import { useState } from 'react'
 import { CampoDinheiro } from '../componentes/CampoDinheiro'
 import { CabecalhoTela } from '../componentes/CabecalhoTela'
-import { Grade, type Coluna } from '../componentes/Grade'
+import { chaveDeOrdem, Grade, type Coluna } from '../componentes/Grade'
+import { dinheiro } from '../formato'
 import { iconeDeEstado } from '../icones'
 import { porque, AGUARDE } from '../motivo'
-import type { ContratoPatrocinio, LinhaDinheiro, TelaFinancas } from '../tipos'
+import type { ContratoPatrocinio, LinhaDinheiro, Metrica, TelaFinancas } from '../tipos'
 
 type Maior = TelaFinancas['maiores'][number]
 
@@ -23,28 +24,138 @@ const COLUNAS: Coluna<Maior>[] = [
   { chave: 'obs', rotulo: 'Observacao', largura: 'minmax(120px, 1.4fr)', classe: 'corta', render: (j) => j.obs },
 ]
 
-function Linhas({ linhas }: { linhas: LinhaDinheiro[] }) {
+/** O valor numerico de um texto de dinheiro do servidor ("-R$ 1,1 mi" -> -1100000). */
+function numero(texto: string): number {
+  const v = chaveDeOrdem(texto)
+  return typeof v === 'number' ? v : 0
+}
+
+function Linhas({ linhas, total }: { linhas: LinhaDinheiro[]; total?: { rotulo: string; valor: number; estado?: string } }) {
+  // cada linha ganha uma barrinha com a fatia dela no grupo (so quando ha o que dividir)
+  const soma = linhas.reduce((s, l) => s + Math.abs(numero(l.valor)), 0)
   return (
     <>
-      {linhas.map((l) => (
-        <div className={`linha-valor${l.destaque ? ' total' : ''}`} key={l.nome}>
-          <span className="rot">
-            {l.nome}
-            {l.dica && <span className="linha-dica">{l.dica}</span>}
-          </span>
-          <span className={`val ${l.estado ?? ''}`}>{l.valor}</span>
+      {linhas.map((l) => {
+        const parte = soma > 0 ? Math.abs(numero(l.valor)) / soma : 0
+        return (
+          <div className={`linha-valor${l.destaque ? ' total' : ''}`} key={l.nome}>
+            <span className="rot">
+              {l.nome}
+              {l.dica && <span className="linha-dica">{l.dica}</span>}
+            </span>
+            <span className={`val ${l.estado ?? ''}`}>{l.valor}</span>
+            {parte > 0 && !l.destaque && (
+              <span className="linha-fatia" aria-hidden="true">
+                <i style={{ width: `${Math.round(parte * 100)}%` }} />
+              </span>
+            )}
+          </div>
+        )
+      })}
+      {total && (
+        <div className="linha-valor subtotal">
+          <span className="rot">{total.rotulo}</span>
+          <span className={`val ${total.estado ?? ''}`}>{dinheiro(total.valor)}</span>
         </div>
-      ))}
+      )}
     </>
+  )
+}
+
+const somaDe = (linhas: LinhaDinheiro[]) => linhas.reduce((s, l) => s + Math.abs(numero(l.valor)), 0)
+
+/** Uma barra de entrada ou de saida: segmentos proporcionais ao maior dos dois lados. */
+function BarraFluxo({ rotulo, tom, itens, maximo }: {
+  rotulo: string
+  tom: 'ok' | 'critico'
+  itens: { nome: string; valor: string; v: number }[]
+  maximo: number
+}) {
+  const total = itens.reduce((s, i) => s + i.v, 0)
+  return (
+    <div className={`fluxo-barra ${tom}`}>
+      <div className="fluxo-cab">
+        <span className="fluxo-rotulo">{rotulo}</span>
+        <span className="fluxo-total">{dinheiro(total)}</span>
+      </div>
+      <div className="fluxo-trilho" role="img" aria-label={`${rotulo}: ${dinheiro(total)}`}>
+        {itens.map((i) => (
+          <i key={i.nome} title={`${i.nome}: ${i.valor}`} style={{ width: `${(i.v / maximo) * 100}%` }} />
+        ))}
+      </div>
+      <ul className="fluxo-legenda">
+        {itens.map((i) => (
+          <li key={i.nome}>
+            <i aria-hidden="true" />
+            <span>{i.nome}</span>
+            <b>{i.valor.replace(/^-/, '')}</b>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+/** O mes em duas barras: o que entra contra o que sai, com o saldo no fim. */
+function Fluxo({ linhas }: { linhas: LinhaDinheiro[] }) {
+  const itens = linhas.filter((l) => !l.destaque).map((l) => ({ nome: l.nome, valor: l.valor, v: numero(l.valor) }))
+  const entra = itens.filter((i) => i.v > 0)
+  const sai = itens.filter((i) => i.v < 0).map((i) => ({ ...i, v: -i.v }))
+  const maximo = Math.max(1, entra.reduce((s, i) => s + i.v, 0), sai.reduce((s, i) => s + i.v, 0))
+  const saldo = linhas.find((l) => l.destaque)
+  return (
+    <div className="fluxo">
+      <BarraFluxo rotulo="Entra" tom="ok" itens={entra} maximo={maximo} />
+      <BarraFluxo rotulo="Sai" tom="critico" itens={sai} maximo={maximo} />
+      {saldo && (
+        <div className="fluxo-saldo">
+          <span>{saldo.nome}</span>
+          <strong className={saldo.estado ?? ''}>{saldo.valor}</strong>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** O caixa dividido: o que fica guardado para a folha e o que sobra para contratar. */
+function MedidorVerba({ m }: { m: TelaFinancas['mensal'] }) {
+  const caixa = Math.max(1, numero(m.caixa))
+  const reserva = Math.min(caixa, Math.max(0, numero(m.reserva)))
+  const verba = Math.min(caixa - reserva, Math.max(0, numero(m.verba)))
+  return (
+    <div className="medidor-verba">
+      <div className="medidor-cab">
+        <span>Caixa {m.caixa}</span>
+        <strong className={m.estado}>Verba para contratar {m.verba}</strong>
+      </div>
+      <div className="medidor-trilho" role="img" aria-label={`Caixa ${m.caixa}, reservado ${m.reserva}, verba ${m.verba}`}>
+        <i className="reserva" style={{ width: `${(reserva / caixa) * 100}%` }} />
+        <i className={`verba ${m.estado}`} style={{ width: `${(verba / caixa) * 100}%` }} />
+      </div>
+      <ul className="fluxo-legenda">
+        <li className="reserva">
+          <i aria-hidden="true" />
+          <span>Reservado ({m.meses} meses de folha e custos)</span>
+          <b>{m.reserva}</b>
+        </li>
+        <li className={`verba ${m.estado}`}>
+          <i aria-hidden="true" />
+          <span>Livre para contratar</span>
+          <b>{m.verba}</b>
+        </li>
+      </ul>
+    </div>
   )
 }
 
 function CartaoPatrocinio({ k, titulo, acao }: { k: ContratoPatrocinio; titulo?: string; acao?: React.ReactNode }) {
   return (
-    <div className="patrocinio-cartao">
+    <div className={`patrocinio-cartao${acao ? '' : ' assinado'}`}>
       {titulo && <div className="painel-titulo">{titulo}</div>}
-      <div className="patrocinio-empresa">{k.empresa}</div>
-      <div className="patrocinio-perfil">{k.perfil}</div>
+      <div className="patrocinio-topo">
+        <div className="patrocinio-empresa">{k.empresa}</div>
+        <div className="patrocinio-perfil">{k.perfil}</div>
+      </div>
       <div className="patrocinio-valor">
         {k.semanal} <span className="tag-fraco">por semana · {k.temporadas}</span>
       </div>
@@ -180,33 +291,53 @@ export function Financas({ tela, ocupado, aoAssinarPatrocinio, aoTomarCredito, a
         </section>
     </>
   )
+  const metricas = [
+    { nome: 'Caixa', valor: ex.caixa, estado: undefined },
+    { nome: 'Verba p/ contratar', valor: tela.mensal.verba, estado: tela.mensal.estado },
+    { nome: 'Saldo do mes', valor: tela.mensal.linhas.find((l) => l.destaque)?.valor ?? '-', estado: tela.mensal.linhas.find((l) => l.destaque)?.estado },
+    { nome: 'Resultado do ano', valor: ex.resultado, estado: ex.estado },
+  ] as Metrica[]
   return (
     <div className="tela">
-      <CabecalhoTela titulo={tela.titulo} sub={`temporada ${ex.temporada}: de onde veio e para onde foi o dinheiro`} />
+      <CabecalhoTela titulo={tela.titulo} sub={`temporada ${ex.temporada}: de onde veio e para onde foi o dinheiro`} metricas={metricas} />
 
       {/* espaco vago: a escolha e a primeira coisa da tela */}
       {pat.vagos.length > 0 && blocoPatrocinio}
 
-      <section className={`painel faixa ${ex.estado}`}>
-        <div className="faixa-icone">{iconeDeEstado(ex.estado)}</div>
-        <div>
-          <div className="faixa-titulo">Resultado do ano ate agora: {ex.resultado}</div>
-          <div className="faixa-detalhe">
-            caixa no comeco do ano {ex.caixa_ini} · caixa agora {ex.caixa}
-          </div>
-        </div>
-      </section>
-
       <BlocoCredito cr={tela.credito} ocupado={ocupado} aoTomar={aoTomarCredito} aoQuitar={aoQuitarCredito} />
 
+      <div className="painel-titulo">O mes e a verba para contratar</div>
+      <div className="financas-resumo">
+        <section className="painel enxuto">
+          <div className="painel-titulo mb-2">Mes tipico: entra contra sai</div>
+          <Fluxo linhas={tela.mensal.linhas} />
+        </section>
+        <section className="painel enxuto">
+          <div className="painel-titulo mb-2">Caixa e verba</div>
+          <MedidorVerba m={tela.mensal} />
+          <p className="verba-explica">
+            {tela.mensal.explica}
+            {tela.mensal.queima && (
+              <>
+                {' '}
+                <span className="tag-critico">{tela.mensal.queima}</span>
+              </>
+            )}
+          </p>
+        </section>
+      </div>
+
+      <div className="painel-titulo">
+        Extrato da temporada: caixa {ex.caixa_ini} no comeco, {ex.caixa} agora
+      </div>
       <div className="financas-colunas">
         <section className="painel corte">
           <div className="painel-titulo cab-tabela">Entrou</div>
-          <Linhas linhas={ex.entradas} />
+          <Linhas linhas={ex.entradas} total={{ rotulo: 'Total que entrou', valor: somaDe(ex.entradas), estado: 'ok' }} />
         </section>
         <section className="painel corte">
           <div className="painel-titulo cab-tabela">Saiu</div>
-          <Linhas linhas={ex.saidas} />
+          <Linhas linhas={ex.saidas} total={{ rotulo: 'Total que saiu', valor: -somaDe(ex.saidas), estado: somaDe(ex.saidas) > 0 ? 'critico' : undefined }} />
         </section>
       </div>
 
@@ -226,29 +357,6 @@ export function Financas({ tela, ocupado, aoAssinarPatrocinio, aoTomarCredito, a
       </div>
 
       {pat.vagos.length === 0 && blocoPatrocinio}
-
-      <div className="painel-titulo">O mes e a verba para contratar</div>
-      <section className={`painel faixa ${tela.mensal.estado}`}>
-        <div className="faixa-icone">{iconeDeEstado(tela.mensal.estado)}</div>
-        <div>
-          <div className="faixa-titulo">Verba para contratar: {tela.mensal.verba}</div>
-          <div className="faixa-detalhe">
-            caixa {tela.mensal.caixa} · reservado {tela.mensal.reserva} ({tela.mensal.meses} meses de folha e custos)
-          </div>
-        </div>
-      </section>
-      <section className="painel corte">
-        <Linhas linhas={tela.mensal.linhas} />
-        <p className="verba-explica">
-          {tela.mensal.explica}
-          {tela.mensal.queima && (
-            <>
-              {' '}
-              <span className="tag-critico">{tela.mensal.queima}</span>
-            </>
-          )}
-        </p>
-      </section>
 
       <div className="painel-titulo">
         Elenco: {tela.elenco.jogadores} jogadores · valor de mercado {tela.elenco.valor} · folha {tela.elenco.folha_mes} por mes

@@ -79,12 +79,19 @@ export function DialogoCeder({ ids, ocupado, aoConfirmar, aoFechar }: Props) {
       aria-label="Ceder por emprestimo"
       onKeyDown={(e) => e.key === 'Escape' && aoFechar()}
     >
-      <div className="modal modal-largo">
-        <h2>Ceder por emprestimo</h2>
-        <p>
-          Ele volta no fim da temporada, joga o ano inteiro e costuma voltar melhor. Quem recebe assume a
-          fatia do salario da coluna Assume.
-        </p>
+      <div className="modal modal-largo dlg">
+        <header className="dlg-cab">
+          <div className="dlg-textos">
+            <div className="dlg-kicker">Emprestimo</div>
+            <h2>Ceder por emprestimo</h2>
+            <div className="dlg-sub">
+              Ele volta no fim da temporada, joga o ano inteiro e costuma voltar melhor. Quem recebe assume a
+              fatia do salario da coluna Assume.
+            </div>
+          </div>
+          <div className="dlg-selo">{plural(ids.length, 'jogador', 'jogadores')}</div>
+        </header>
+        <div className="dlg-corpo">
         {linhas === null && !erro && <p>procurando interessados…</p>}
         {linhas !== null && linhas.length === 0 && (
           <p className="tag-atencao">
@@ -104,13 +111,23 @@ export function DialogoCeder({ ids, ocupado, aoConfirmar, aoFechar }: Props) {
             />
           </section>
         )}
-        <div className="mesa-linha tag-fraco mt-3">
-          {plural(escolhidas.length, 'jogador', 'jogadores')} {escolhidas.length === 1 ? 'sairia' : 'sairiam'}, aliviando {reais(alivio)} por mes na folha · marcar
-          outra linha do mesmo jogador troca o clube escolhido
+        <div className="totais">
+          <div className="total-cel principal">
+            <span>{escolhidas.length === 1 ? 'Sairia' : 'Sairiam'}</span>
+            <b>{plural(escolhidas.length, 'jogador', 'jogadores')}</b>
+            <small>marcar outra linha do mesmo jogador troca o clube</small>
+          </div>
+          <div className="total-cel">
+            <span>Alivio na folha</span>
+            <b className={alivio > 0 ? 'ok' : ''}>{reais(alivio)}</b>
+            <small>por mes</small>
+          </div>
         </div>
         {erro && <div className="mesa-linha linha-critica">{erro}</div>}
+        </div>
+
         <div className="modal-acoes">
-          <button type="button" className="bt-fantasma" onClick={aoFechar}>
+          <button type="button" className="bt-fantasma bt-media" onClick={aoFechar}>
             Fechar
           </button>
           <button

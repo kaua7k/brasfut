@@ -43,11 +43,18 @@ export function DialogoRenovar({ ids, ocupado, aoConfirmar, aoFechar }: Props) {
       aria-label="Renovar contratos"
       onKeyDown={(e) => e.key === 'Escape' && aoFechar()}
     >
-      <div className="modal modal-largo">
-        <h2>Renovar contratos</h2>
-        <p className="tag-fraco m-0">
-          Cada um renova pelo salario que pede, todos no mesmo prazo. Para negociar um jogador so, marque apenas ele.
-        </p>
+      <div className="modal modal-largo dlg">
+        <header className="dlg-cab">
+          <div className="dlg-textos">
+            <div className="dlg-kicker">Contratos em lote</div>
+            <h2>Renovar contratos</h2>
+            <div className="dlg-sub">
+              Cada um renova pelo salario que pede, todos no mesmo prazo. Para negociar um jogador so, marque apenas ele.
+            </div>
+          </div>
+          <div className="dlg-selo">{plural(ids.length, 'jogador', 'jogadores')}</div>
+        </header>
+        <div className="dlg-corpo">
 
         <fieldset className="simular-bloco">
           <legend className="painel-titulo">Prazo para todos</legend>
@@ -95,15 +102,30 @@ export function DialogoRenovar({ ids, ocupado, aoConfirmar, aoFechar }: Props) {
         )}
 
         {previa && (
-          <div className="mesa-linha tag-fraco mt-3">
-            Folha por mes: {previa.folha_mes} → <strong className="txt-normal">{previa.folha_mes_depois}</strong> (
-            {previa.diferenca_mes})
+          <div className="totais">
+            <div className="total-cel">
+              <span>Folha hoje</span>
+              <b>{previa.folha_mes}</b>
+              <small>por mes</small>
+            </div>
+            <div className="total-seta" aria-hidden="true">→</div>
+            <div className="total-cel principal">
+              <span>Folha depois</span>
+              <b>{previa.folha_mes_depois}</b>
+              <small>por mes</small>
+            </div>
+            <div className="total-cel">
+              <span>Diferenca</span>
+              <b className={previa.diferenca_mes.startsWith('-') ? 'ok' : 'atencao'}>{previa.diferenca_mes}</b>
+              <small>por mes</small>
+            </div>
           </div>
         )}
         {erro && <div className="mesa-linha linha-critica">{erro}</div>}
+        </div>
 
         <div className="modal-acoes">
-          <button type="button" className="bt-fantasma" onClick={aoFechar}>
+          <button type="button" className="bt-fantasma bt-media" onClick={aoFechar}>
             Cancelar
           </button>
           <button

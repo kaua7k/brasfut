@@ -22,14 +22,21 @@ export function JanelaPendencia({ pendencia, ocupado, aoEscolher, aoEncerrar, ao
   if (pendencia.tipo === 'carreira_encerrada') {
     return (
       <div className="fundo-modal" role="dialog" aria-modal="true" aria-label={pendencia.titulo}>
-        <div className="modal">
-          <h2>{pendencia.titulo}</h2>
-          <p>A historia que ficou:</p>
-          <ul className="ficha-notas">
-            {(pendencia.historico ?? []).map((h, i) => (
-              <li key={i}>{h}</li>
-            ))}
-          </ul>
+        <div className="modal dlg">
+          <header className="dlg-cab">
+            <div className="dlg-textos">
+              <div className="dlg-kicker">Fim de jogo</div>
+              <h2>{pendencia.titulo}</h2>
+              <div className="dlg-sub">A historia que ficou:</div>
+            </div>
+          </header>
+          <div className="dlg-corpo">
+            <ul className="ficha-notas">
+              {(pendencia.historico ?? []).map((h, i) => (
+                <li key={i}>{h}</li>
+              ))}
+            </ul>
+          </div>
           <div className="modal-acoes">
             <button type="button" className="bt-acao bt-media" title={porque([[ocupado, AGUARDE]])}
             disabled={ocupado} onClick={aoNovaCarreira}>
@@ -43,14 +50,20 @@ export function JanelaPendencia({ pendencia, ocupado, aoEscolher, aoEncerrar, ao
 
   return (
     <div className="fundo-modal" role="dialog" aria-modal="true" aria-label={pendencia.titulo}>
-      <div className="modal modal-largo">
-        <h2>{pendencia.titulo}</h2>
+      <div className="modal modal-largo dlg">
+        <header className="dlg-cab">
+          <div className="dlg-textos">
+            <div className="dlg-kicker">Voce foi demitido</div>
+            <h2>{pendencia.titulo}</h2>
+            <div className="dlg-sub">
+              {pendencia.opcoes.length
+                ? `Estes clubes querem voce${pendencia.de ? ` depois do ${pendencia.de}` : ''}. Escolha um para continuar a carreira.`
+                : 'Nenhum clube fez oferta.'}
+            </div>
+          </div>
+        </header>
+        <div className="dlg-corpo">
         {pendencia.motivo && <p className="linha-critica">{pendencia.motivo}</p>}
-        <p>
-          {pendencia.opcoes.length
-            ? `Estes clubes querem voce${pendencia.de ? ` depois do ${pendencia.de}` : ''}. Escolha um para continuar a carreira.`
-            : 'Nenhum clube fez oferta.'}
-        </p>
         <div className="lista-clubes">
           {pendencia.opcoes.map((c) => (
             <button
@@ -72,6 +85,7 @@ export function JanelaPendencia({ pendencia, ocupado, aoEscolher, aoEncerrar, ao
               )}
             </button>
           ))}
+        </div>
         </div>
         <div className="modal-acoes">
           {confirmarFim ? (

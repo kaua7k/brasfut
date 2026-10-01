@@ -1,3 +1,432 @@
-/* Refinos visuais do grupo c de telas (2026-10-01). Mesmas regras de
- * base.css: so var(--...) dos tokens do :root de base.css, nada de hex, rgba
- * ou font-size solto. Teste: testes/test_tokens.py. */
+/* Grupo C: Mercado, Financas, Estadio, Infraestrutura, Abertura e os dialogos
+ * (Simular, Mesa de negociacao, Renovar, Vitrine, Ceder, Pendencia, Ajuda).
+ *
+ * So var(--token) do :root de base.css. Os blocos que reaproveitam uma classe
+ * antiga (.filtros, .cartao, .linha-valor) vencem pela especificidade de uma
+ * classe a mais, sem tocar na regra original. */
+
+body /* ====================================================================== MERCADO */
+
+/* filtros como uma barra de ferramentas: rotulo em cima,
+body campo embaixo,
+body botoes
+   na ponta direita */
+.filtros-c {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 14px;
+  padding: 12px 16px 14px;
+}
+body .filtros-c .campo-rotulo,
+body .filtros-c .campo-dinheiro {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  font-size: var(--fs-mini);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--fraco);
+}
+body .filtros-c .campo-dinheiro .plano-nome {
+  font-size: var(--fs-mini);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--fraco);
+}
+body .filtros-c .seletor { min-height: 36px; padding: 6px 10px; }
+body .filtros-c .entrada-curta { width: 62px; }
+body .filtros-c .entrada-dinheiro { width: 128px; }
+body .filtros-c .filtro-marca {
+  align-self: flex-end;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--raio-p);
+  background: var(--chip);
+  color: var(--txt-2);
+  font-weight: 600;
+}
+body .filtros-c .filtro-marca:has(input:checked) {
+  border-color: var(--acao-linha);
+  background: var(--acao-marcada);
+  color: var(--branco);
+}
+body .filtros-botoes { display: flex; gap: 8px; margin-left: auto; }
+
+body /* clube atual do jogador na lista,
+body com o escudo */
+.clube-atual { display: inline-flex; align-items: center; gap: 8px; min-width: 0; color: var(--txt-2); }
+body .clube-atual > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body .clube-atual.livre { color: var(--ok); font-weight: 600; }
+body .preco-forte { font-family: var(--titulo); font-weight: 700; font-variant-numeric: tabular-nums; color: var(--txt); }
+body .preco-forte.tag-ok { color: var(--ok); }
+body .preco-fraco { color: var(--txt-3); font-variant-numeric: tabular-nums; }
+
+body /* a faixa da verba: texto na esquerda,
+body medidor do caixa na direita */
+.verba-faixa { padding: 12px 18px; align-items: center; column-gap: 14px; }
+body .verba-faixa .faixa-icone { width: 34px; height: 34px; }
+body .verba-texto { flex: 1 1 320px; min-width: 0; }
+body .verba-medidor { flex: 0 1 260px; min-width: 200px; display: flex; flex-direction: column; gap: 5px; margin-left: auto; }
+body .verba-legenda { display: flex; justify-content: space-between; gap: 8px; font-size: var(--fs-mini); color: var(--txt-3); font-variant-numeric: tabular-nums; }
+
+body /* trilho de caixa: reservado (neutro) + livre (estado) */
+.medidor-trilho {
+  display: flex;
+  height: 10px;
+  gap: 2px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--poco);
+  border: 1px solid var(--borda);
+}
+body .medidor-trilho i { display: block; height: 100%; min-width: 0; }
+body .medidor-trilho .reserva { background: var(--neutro); }
+body .medidor-trilho .verba { background: var(--ok); }
+body .medidor-trilho .verba.atencao { background: var(--atencao); }
+body .medidor-trilho .verba.critico { background: var(--critico); }
+
+body /* a barra de acoes presa: o texto encolhe e os botoes ficam numa linha so */
+.painel-lista .barra-presa { flex-wrap: nowrap; padding: 10px 16px; }
+body .painel-lista .barra-presa .resumo { flex: 1 1 0; min-width: 0; line-height: 1.4; }
+body .painel-lista .barra-presa .resumo strong { font-family: var(--titulo); font-size: var(--fs-m); }
+body .painel-lista .barra-presa button { flex: none; white-space: nowrap; }
+
+body /* ===================================================================== FINANCAS */
+
+.financas-resumo { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+
+body .fluxo { display: flex; flex-direction: column; gap: 16px; }
+body .fluxo-cab { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+body .fluxo-rotulo { font-size: var(--fs-mini); font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--fraco); }
+body .fluxo-total { font-family: var(--titulo); font-weight: 700; font-size: var(--fs-g); font-variant-numeric: tabular-nums; }
+body .fluxo-barra.ok .fluxo-total { color: var(--ok); }
+body .fluxo-barra.critico .fluxo-total { color: var(--critico); }
+body .fluxo-trilho {
+  display: flex;
+  gap: 2px;
+  height: 14px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--poco);
+  border: 1px solid var(--borda);
+}
+body .fluxo-trilho i { display: block; height: 100%; min-width: 2px; }
+body .fluxo-barra.ok .fluxo-trilho i { background: var(--ok); }
+body .fluxo-barra.critico .fluxo-trilho i { background: var(--critico); }
+body .fluxo-trilho i:nth-child(2) { opacity: 0.72; }
+body .fluxo-trilho i:nth-child(3) { opacity: 0.5; }
+body .fluxo-trilho i:nth-child(n + 4) { opacity: 0.34; }
+
+body .fluxo-legenda { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 3px; }
+body .fluxo-legenda li { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: var(--fs-p); color: var(--txt-2); }
+body .fluxo-legenda li i { width: 8px; height: 8px; border-radius: 2px; background: var(--neutro); }
+body .fluxo-legenda li b { font-weight: 700; color: var(--txt); font-variant-numeric: tabular-nums; }
+body .fluxo-barra.ok .fluxo-legenda li i { background: var(--ok); }
+body .fluxo-barra.critico .fluxo-legenda li i { background: var(--critico); }
+body .fluxo-barra.ok .fluxo-legenda li:nth-child(2) i { opacity: 0.72; }
+body .fluxo-barra.ok .fluxo-legenda li:nth-child(3) i { opacity: 0.5; }
+body .fluxo-barra.critico .fluxo-legenda li:nth-child(2) i { opacity: 0.72; }
+body .fluxo-barra.critico .fluxo-legenda li:nth-child(3) i { opacity: 0.5; }
+body .medidor-verba .fluxo-legenda li.reserva i { background: var(--neutro); }
+body .medidor-verba .fluxo-legenda li.verba i { background: var(--ok); }
+body .medidor-verba .fluxo-legenda li.verba.atencao i { background: var(--atencao); }
+body .medidor-verba .fluxo-legenda li.verba.critico i { background: var(--critico); }
+
+body .fluxo-saldo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: var(--raio-m);
+  background: var(--painel-alto);
+  border: 1px solid var(--borda-forte);
+  font-size: var(--fs-m);
+  color: var(--txt-2);
+  font-weight: 600;
+}
+body .fluxo-saldo strong { font-family: var(--titulo); font-size: var(--fs-g); font-variant-numeric: tabular-nums; }
+body .fluxo-saldo strong.ok { color: var(--ok); }
+body .fluxo-saldo strong.critico { color: var(--critico); }
+
+body .medidor-verba { display: flex; flex-direction: column; gap: 8px; }
+body .medidor-cab { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; font-size: var(--fs-m); color: var(--txt-2); }
+body .medidor-cab strong { font-family: var(--titulo); font-variant-numeric: tabular-nums; }
+body .medidor-cab strong.ok { color: var(--ok); }
+body .medidor-cab strong.atencao { color: var(--atencao); }
+body .medidor-cab strong.critico { color: var(--critico); }
+body .medidor-verba .medidor-trilho { height: 14px; }
+body .financas-resumo .verba-explica { margin: 12px 0 0; }
+
+body /* linhas do extrato: valor a direita,
+body barrinha de fatia embaixo,
+body subtotal no fim */
+.financas-colunas .linha-valor { position: relative; border-top: 1px solid var(--divisor); }
+body .financas-colunas .linha-valor .val { font-variant-numeric: tabular-nums; }
+body .linha-fatia {
+  grid-column: 1 / -1;
+  display: block;
+  height: 3px;
+  margin-top: -4px;
+  border-radius: 2px;
+  background: var(--poco);
+  overflow: hidden;
+}
+body .linha-fatia i { display: block; height: 100%; background: var(--acao-linha); opacity: 0.55; }
+body .linha-valor.subtotal { background: var(--painel-alto); border-top: 1px solid var(--borda-forte); }
+body .linha-valor.subtotal .rot { color: var(--txt); font-weight: 700; font-size: var(--fs-m); }
+body .linha-valor.subtotal .val.ok { color: var(--ok); }
+body .linha-valor.subtotal .val.critico { color: var(--critico); }
+
+body /* patrocinio: cada espaco e um quadro,
+body cada proposta um cartao com a meta destacada */
+.patrocinio-cartao { gap: 4px; padding: 14px 16px; background: var(--painel-alto); border-color: var(--borda-forte); transition: border-color 0.15s ease; }
+body .patrocinio-cartao:hover { border-color: var(--acao-linha); }
+body .patrocinio-cartao.assinado { border-color: var(--conquista-borda); background: var(--conquista-fundo); }
+body .patrocinio-cartao.assinado:hover { border-color: var(--conquista-borda); }
+body .patrocinio-topo { display: flex; flex-direction: column; gap: 3px; padding-bottom: 8px; margin-bottom: 4px; border-bottom: 1px solid var(--divisor); }
+body .patrocinio-valor { font-size: var(--fs-gg); font-variant-numeric: tabular-nums; }
+body .patrocinio-bonus {
+  margin-top: 6px;
+  padding: 6px 10px;
+  border-radius: var(--raio-p);
+  background: var(--ok-brilho);
+  border: 1px solid var(--ok-fundo);
+}
+body .patrocinio-cartao .bt-acao { margin: 10px 0 0; justify-content: center; width: 100%; }
+
+body /* ===================================================================== ESTADIO */
+
+.estadio-lotacao { padding: 14px 18px; display: flex; flex-direction: column; gap: 8px; }
+body .estadio-lotacao-cab { display: flex; justify-content: space-between; align-items: baseline; }
+body .estadio-lotacao-cab strong { font-family: var(--titulo); font-size: var(--fs-gg); font-variant-numeric: tabular-nums; }
+body .estadio-lotacao-cab strong.ok { color: var(--ok); }
+body .estadio-lotacao-cab strong.atencao { color: var(--atencao); }
+body .estadio-lotacao-cab strong.critico { color: var(--critico); }
+body .estadio-arquibancada {
+  height: 16px;
+  border-radius: 999px;
+  background: var(--gramado-escuro);
+  border: 1px solid var(--gramado);
+  overflow: hidden;
+}
+body .estadio-arquibancada i { display: block; height: 100%; background: var(--gramado); border-right: 2px solid var(--sobre-gramado); }
+body .estadio-lotacao-nota { font-size: var(--fs-p); color: var(--txt-3); }
+
+body .estadio-grade { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+body .estadio-acoes { display: flex; flex-direction: column; gap: 16px; }
+body .estadio-acoes .cartao { max-width: none; padding: 16px 18px; }
+body .estadio-acoes .cartao + .cartao { margin-top: 0; }
+body .estadio-acoes .linha-form { gap: 12px; }
+body .estadio-deslizante { flex: 1 1 140px; min-width: 120px; accent-color: var(--acao-linha); }
+body .estadio-grade .linha-valor { border-top: 1px solid var(--divisor); }
+body .estadio-grade .linha-valor .val { font-variant-numeric: tabular-nums; }
+
+body /* =================================================================== INFRA */
+
+.infra-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 16px; }
+body .infra-cartao {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 18px;
+  background: var(--painel);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+}
+body .infra-cartao.maximo { border-color: var(--conquista-borda); background: linear-gradient(180deg, var(--conquista-fundo), transparent); }
+body .infra-topo { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+body .infra-textos { min-width: 0; }
+body .infra-nome { font-family: var(--titulo); font-weight: 700; font-size: var(--fs-base); }
+body .infra-desc { font-size: var(--fs-p); color: var(--txt-3); margin-top: 3px; line-height: 1.4; }
+body .infra-nivel-num {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  padding: 6px 12px;
+  border-radius: var(--raio-p);
+  background: var(--poco);
+  border: 1px solid var(--borda-forte);
+  font-family: var(--titulo);
+}
+body .infra-nivel-num b { font-size: var(--fs-gg); line-height: 1; }
+body .infra-nivel-num span { font-size: var(--fs-p); color: var(--fraco); margin-left: 2px; }
+body .infra-cartao.maximo .infra-nivel-num b { color: var(--conquista); }
+body .infra-medidor { margin: 0; gap: 4px; }
+body .infra-medidor i { height: 12px; border-radius: 3px; }
+body .infra-medidor i.proximo { background: transparent; border: 1px dashed var(--acao-linha); }
+body .infra-cartao.maximo .infra-medidor i.cheio { background: var(--conquista); }
+body .infra-rodape { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+body .infra-custo { display: flex; flex-direction: column; gap: 3px; min-width: 130px; flex: 1 1 130px; }
+body .infra-custo-rotulo { font-size: var(--fs-mini); font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--fraco); }
+body .infra-custo strong { font-family: var(--titulo); font-size: var(--fs-g); font-variant-numeric: tabular-nums; }
+body .infra-custo strong.falta { color: var(--atencao); }
+body .infra-custo-nota { font-size: var(--fs-p); color: var(--txt-3); }
+body .infra-cobre { display: block; height: 4px; border-radius: 2px; background: var(--poco); overflow: hidden; }
+body .infra-cobre i { display: block; height: 100%; background: var(--atencao); }
+body .infra-maximo { font-size: var(--fs-p); font-weight: 700; color: var(--conquista); }
+
+body .patrocinio-grade { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+body .patrocinio-valor .tag-fraco { display: block; margin-top: 1px; }
+
+body .filtros-c { gap: 10px 12px; }
+body .filtros-c .entrada-dinheiro { width: 104px; }
+body .filtros-c .entrada-curta { width: 54px; }
+body .filtros-c .seletor { padding: 6px 8px; }
+
+body /* ================================================================= DIALOGOS
+   Mesmo esqueleto em todos: cabecalho (kicker,
+body titulo,
+body subtitulo,
+body selo),
+body corpo
+   que rola e rodape com a hierarquia de botoes: principal (azul,
+body a direita),
+body secundario (fantasma) e perigo (vermelho). */
+.modal.dlg {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-height: 88vh;
+}
+body .dlg-cab {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 24px 16px;
+  border-bottom: 1px solid var(--borda);
+  background: linear-gradient(180deg, var(--painel-alto), var(--painel));
+}
+body .dlg-textos { flex: 1; min-width: 0; }
+body .dlg-kicker { font-size: var(--fs-mini); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--acao-linha); margin-bottom: 3px; }
+body .dlg-cab h2 { margin: 0; font-size: var(--fs-g); line-height: 1.2; }
+body .dlg-sub { font-size: var(--fs-p); color: var(--txt-3); margin-top: 4px; line-height: 1.45; }
+body .dlg-selo {
+  flex: none;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--acao-marcada);
+  border: 1px solid var(--acao-linha);
+  color: var(--branco);
+  font-size: var(--fs-p);
+  font-weight: 700;
+  white-space: nowrap;
+}
+body .dlg-corpo { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 16px 24px 20px; }
+body .dlg-corpo > p:first-child { margin-top: 0; }
+body .modal.dlg > .modal-acoes {
+  flex: none;
+  margin: 0;
+  padding: 12px 24px;
+  border-top: 1px solid var(--borda);
+  background: var(--lateral);
+  align-items: center;
+}
+body .modal.dlg .mesa-bloco { margin-top: 12px; }
+body .modal.dlg .mesa-bloco:first-child { margin-top: 0; }
+body .modal.dlg .clube-opcao { min-height: 64px; }
+body .modal.dlg .clube-opcao:hover:not(:disabled) { border-color: var(--acao-linha); background: var(--acao-leve); }
+
+body /* totais em destaque (renovar,
+body vitrine,
+body ceder) */
+.totais { display: flex; align-items: stretch; gap: 10px; margin-top: 14px; }
+body .total-cel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  border-radius: var(--raio-m);
+  background: var(--painel-alto);
+  border: 1px solid var(--borda-forte);
+  min-width: 0;
+}
+body .total-cel > span { font-size: var(--fs-mini); font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--fraco); }
+body .total-cel > b { font-family: var(--titulo); font-size: var(--fs-g); font-variant-numeric: tabular-nums; }
+body .total-cel > b.ok { color: var(--ok); }
+body .total-cel > b.atencao { color: var(--atencao); }
+body .total-cel > small { font-size: var(--fs-mini); color: var(--txt-3); }
+body .total-cel.principal { border-color: var(--acao-linha); background: var(--acao-leve); }
+body .total-seta { align-self: center; color: var(--fraco); font-size: var(--fs-g); }
+
+body /* listas dos dialogos de lote: cabecalho fixo,
+body numeros alinhados */
+.renovar-linhas,
+body .vitrine-linhas { background: var(--fundo); }
+body .renovar-linha,
+body .vitrine-linha { font-variant-numeric: tabular-nums; }
+body .renovar-linha:not(.cab):hover,
+body .vitrine-linha:not(.cab):hover { background: var(--acao-leve); }
+body .renovar-linha.cab,
+body .vitrine-linha.cab { background: var(--painel-alto); }
+body .dlg .alavanca button { min-width: 72px; }
+
+body /* mesa de negociacao */
+.mesa-tentativas { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+body .mesa-tent-rotulo { font-size: var(--fs-mini); font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--fraco); }
+body .mesa-tent-bolas { display: flex; gap: 6px; }
+body .mesa-tent-bolas i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--borda-controle); background: transparent; }
+body .mesa-tent-bolas i.usada { background: var(--neutro); border-color: var(--neutro); }
+body .mesa-tent-bolas i.atual { border-color: var(--acao-linha); background: var(--acao-marcada); box-shadow: 0 0 0 3px var(--acao-leve); }
+body .mesa-ficha { margin-top: 14px; border: 1px solid var(--borda-forte); border-radius: var(--raio-m); overflow: hidden; background: var(--fundo); }
+body .mesa-ficha-linha { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 12px; padding: 9px 14px; align-items: center; border-top: 1px solid var(--divisor); font-size: var(--fs-m); }
+body .mesa-ficha-linha:first-child { border-top: 0; }
+body .mesa-ficha-linha.cab { background: var(--painel-alto); font-size: var(--fs-mini); font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--fraco); }
+body .mesa-ficha-linha .pede { color: var(--txt-3); font-variant-numeric: tabular-nums; }
+body .mesa-ficha-linha .oferta { font-family: var(--titulo); font-weight: 700; font-variant-numeric: tabular-nums; }
+body .mesa-ficha-linha .oferta.ok { color: var(--ok); }
+body .mesa-ficha-linha .oferta.atencao { color: var(--atencao); }
+body .mesa-ficha-linha .oferta.critico { color: var(--critico); }
+body .mesa-bloco .painel-titulo { color: var(--txt-2); }
+body .mesa-falas { margin-top: 14px; }
+body .resumo-mesa { color: var(--txt-3); }
+
+body /* simular */
+.avanco-progresso { gap: 14px; padding: 12px 14px; border: 1px solid var(--borda-forte); border-radius: var(--raio-m); background: var(--painel-alto); }
+body .avanco-trilho { flex: 1; height: 12px; border-radius: 999px; background: var(--poco); border: 1px solid var(--borda); overflow: hidden; }
+body .avanco-trilho i { display: block; height: 100%; background: var(--acao-linha); transition: width 0.25s ease; }
+body .avanco-contagem { font-family: var(--titulo); font-weight: 700; font-size: var(--fs-m); font-variant-numeric: tabular-nums; white-space: nowrap; }
+body .dlg .ritmo { transition: border-color 0.12s ease, background 0.12s ease; }
+body .dlg .relato { margin-top: 14px; }
+
+body /* ================================================================ ABERTURA */
+.slot { position: relative; transition: border-color 0.15s ease, transform 0.15s ease; gap: 6px; }
+body .slot:not(.vazio) { border-top: 3px solid var(--conquista); padding-top: 12px; }
+body .slot:not(.vazio):hover { border-color: var(--acao-linha); border-top-color: var(--conquista); }
+body .slot.vazio { background: transparent; }
+body .slot.vazio:hover { background: var(--acao-leve); transform: translateY(-2px); }
+body .slot-mais {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px dashed var(--acao-linha);
+  margin: 4px 0 6px;
+}
+body .slot-clube { margin-top: 4px; }
+body .slot-tecnico { display: flex; align-items: center; gap: 6px; }
+body .slot-tecnico::before { content: 'Tecnico'; font-size: var(--fs-mini); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; color: var(--fraco); }
+body .slot-acoes .bt-acao { margin-left: 0; height: 36px; border-radius: var(--raio-p); padding: 0 14px; justify-content: center; font-size: var(--fs-m); }
+body .slot-acoes .bt-fantasma { height: 36px; }
+body .abertura-cartao > .modal-acoes { justify-content: flex-start; padding-top: 4px; }
+body .abertura-cartao { position: relative; }
+body .abertura-cartao .menu-principal button { transition: border-color 0.15s ease, background 0.15s ease; }
+
+body .form-carreira .modos { gap: 10px; }
+body .modo-opcao { transition: border-color 0.15s ease, background 0.15s ease; }
+body .modo-opcao:hover { border-color: var(--acao-linha); }
+body .modo-opcao.ativo strong::after { content: 'escolhido'; margin-left: 8px; font-size: var(--fs-mini); letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700; color: var(--acao-linha); }
+body .modo-opcao.caos.ativo strong::after { color: var(--critico); }
+
+body /* ajuda dentro do dialogo: o corpo ja rola */
+.dlg .ajuda-lista { max-height: none; overflow: visible; }
+body .dlg .ajuda-lista > div { padding-bottom: 10px; border-bottom: 1px solid var(--divisor); }
+body .dlg .ajuda-lista dt { color: var(--txt); }
+body .dlg .ajuda-lista dd { color: var(--txt-3); line-height: 1.5; }

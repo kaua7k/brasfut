@@ -19,6 +19,12 @@ interface Props {
   aoAgir: (acao: AcaoEstadio) => void
 }
 
+/** "34.679 pessoas" -> 34679 (o ponto e de milhar, nao decimal). */
+function inteiroDe(texto: string): number {
+  const m = /^[\d.]+/.exec(texto.trim())
+  return m ? Number.parseInt(m[0].replace(/\./g, ''), 10) || 0 : 0
+}
+
 export function Estadio({ tela, ocupado, aoAgir }: Props) {
   const [preco, setPreco] = useState(String(tela.preco))
   const [lugares, setLugares] = useState('')
@@ -44,10 +50,33 @@ export function Estadio({ tela, ocupado, aoAgir }: Props) {
     if (!cabe) previa += ` · faltam ${reais(custo - tela.caixa_num)} no caixa`
   }
 
+  const lugaresTotal = inteiroDe(String(tela.metricas.find((m) => m.nome === 'lugares')?.valor ?? ''))
+  const torcida = inteiroDe(tela.rendimento.find((l) => l.nome.startsWith('Torcida'))?.valor ?? '')
+  const ocupacao = lugaresTotal > 0 && torcida > 0 ? Math.min(100, Math.round((torcida / lugaresTotal) * 100)) : 0
+  // o preco no controle deslizante acompanha o campo de texto
+  const posicao = Number.isFinite(precoNum) ? Math.min(tela.preco_max, Math.max(tela.preco_min, precoNum)) : tela.preco
+
   return (
     <div className="tela">
       <CabecalhoTela titulo={tela.titulo} sub={tela.subtitulo} metricas={tela.metricas} />
 
+      {ocupacao > 0 && (
+        <section className="painel estadio-lotacao" aria-label="Lotacao tipica">
+          <div className="estadio-lotacao-cab">
+            <span className="painel-titulo">Lotacao de um jogo comum</span>
+            <strong className={ocupacao >= 85 ? 'ok' : ocupacao >= 60 ? 'atencao' : 'critico'}>{ocupacao}%</strong>
+          </div>
+          <div className="estadio-arquibancada" role="img" aria-label={`${torcida.toLocaleString('pt-BR')} de ${lugaresTotal.toLocaleString('pt-BR')} lugares`}>
+            <i style={{ width: `${ocupacao}%` }} />
+          </div>
+          <div className="estadio-lotacao-nota">
+            {torcida.toLocaleString('pt-BR')} pessoas em {lugaresTotal.toLocaleString('pt-BR')} lugares
+            {ocupacao < 60 ? ': lugar sobrando so custa manutencao' : ocupacao >= 95 ? ': casa cheia, da para subir o ingresso ou ampliar' : ''}
+          </div>
+        </section>
+      )}
+
+      <div className="estadio-grade">
       <section className="painel corte financas-colunas-unica" aria-label="Como o estadio esta rendendo">
         <div className="painel-titulo cab-tabela">Como o estadio esta rendendo</div>
         {tela.rendimento.map((l) => (
@@ -61,6 +90,7 @@ export function Estadio({ tela, ocupado, aoAgir }: Props) {
         ))}
       </section>
 
+      <div className="estadio-acoes">
       <section className="cartao">
         <div className="titulo">Preco do ingresso</div>
         <div className="desc">
@@ -83,9 +113,18 @@ export function Estadio({ tela, ocupado, aoAgir }: Props) {
               aria-invalid={!precoValido}
             />
           </label>
+          <input
+            type="range"
+            className="estadio-deslizante"
+            aria-label="Preco do ingresso"
+            min={tela.preco_min}
+            max={tela.preco_max}
+            value={posicao}
+            onChange={(e) => setPreco(e.target.value)}
+          />
           <button
             type="submit"
-            className="bt-fantasma"
+            className="bt-acao bt-media"
             title={porque([[ocupado, AGUARDE], [!precoValido, 'Preco fora da faixa permitida'], [precoNum === tela.preco, 'Esse ja e o preco atual']])}
             disabled={ocupado || !precoValido || precoNum === tela.preco}
           >
@@ -141,6 +180,8 @@ export function Estadio({ tela, ocupado, aoAgir }: Props) {
           </form>
         )}
       </section>
+      </div>
+      </div>
     </div>
   )
 }

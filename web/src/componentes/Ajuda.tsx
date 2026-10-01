@@ -3,6 +3,7 @@
 // (janela, confianca) saem do motor e nao envelhecem quando a regra muda.
 
 import { useEffect, useRef, useState } from 'react'
+import { Escudo } from './Escudo'
 import type { Ajuda as DadosAjuda, BoasVindas as DadosBoasVindas, ItemAjuda } from '../tipos'
 
 function Lista({ itens }: { itens: ItemAjuda[] }) {
@@ -43,10 +44,16 @@ export function Ajuda({ ajuda, aoFechar }: PropsAjuda) {
       aria-label="Ajuda"
       onKeyDown={(e) => e.key === 'Escape' && aoFechar()}
     >
-      <div className="modal modal-largo" ref={caixa} tabIndex={-1}>
-        <h2>Ajuda</h2>
-        <div className="mesa-sub">O que cada tela faz e o que os termos querem dizer.</div>
-        <div className="abas mt-3 mb-2" role="tablist">
+      <div className="modal modal-largo dlg" ref={caixa} tabIndex={-1}>
+        <header className="dlg-cab">
+          <div className="dlg-textos">
+            <div className="dlg-kicker">Manual do tecnico</div>
+            <h2>Ajuda</h2>
+            <div className="dlg-sub">O que cada tela faz e o que os termos querem dizer.</div>
+          </div>
+        </header>
+        <div className="dlg-corpo">
+        <div className="abas mb-2" role="tablist">
           {(
             [
               ['telas', 'As telas'],
@@ -66,8 +73,9 @@ export function Ajuda({ ajuda, aoFechar }: PropsAjuda) {
           ))}
         </div>
         <Lista itens={aba === 'telas' ? ajuda.telas : ajuda.termos} />
-        <div className="modal-acoes mt-4">
-          <button type="button" className="bt-acao" onClick={aoFechar}>
+        </div>
+        <div className="modal-acoes">
+          <button type="button" className="bt-acao bt-media" onClick={aoFechar}>
             Fechar
           </button>
         </div>
@@ -92,9 +100,16 @@ export function BoasVindas({ dados, aoVerAjuda, aoFechar }: PropsBoasVindas) {
       aria-label={`Bem-vindo ao ${dados.clube}`}
       onKeyDown={(e) => e.key === 'Escape' && aoFechar()}
     >
-      <div className="modal modal-largo" ref={caixa} tabIndex={-1}>
-        <h2>Voce e o tecnico do {dados.clube}</h2>
-        <div className="mesa-sub">{dados.linha}</div>
+      <div className="modal modal-largo dlg" ref={caixa} tabIndex={-1}>
+        <header className="dlg-cab">
+          <Escudo nome={dados.clube} tamanho={38} />
+          <div className="dlg-textos">
+            <div className="dlg-kicker">Bem-vindo</div>
+            <h2>Voce e o tecnico do {dados.clube}</h2>
+            <div className="dlg-sub">{dados.linha}</div>
+          </div>
+        </header>
+        <div className="dlg-corpo">
 
         <div className="painel-titulo mt-3 mb-2">O que a diretoria espera</div>
         <p className="mb-0 txt-atencao">{dados.objetivo}</p>
@@ -111,12 +126,13 @@ export function BoasVindas({ dados, aoVerAjuda, aoFechar }: PropsBoasVindas) {
 
         <div className="painel-titulo mt-3 mb-2">Sem pressa</div>
         <p className="mb-0 txt-p">{dados.sem_pressa}</p>
+        </div>
 
-        <div className="modal-acoes mt-4">
-          <button type="button" className="bt-fantasma" onClick={aoVerAjuda}>
+        <div className="modal-acoes">
+          <button type="button" className="bt-fantasma bt-media" onClick={aoVerAjuda}>
             Ver a ajuda completa
           </button>
-          <button type="button" className="bt-acao" onClick={aoFechar}>
+          <button type="button" className="bt-acao bt-media" onClick={aoFechar}>
             Comecar
           </button>
         </div>
