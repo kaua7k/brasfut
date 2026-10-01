@@ -347,6 +347,16 @@ rótulo Plantão. Alguns exemplos, do sério ao absurdo:
   **problema de visto de trabalho**, **fiasco de naming rights do estádio**, **fornecedora que
   erra o uniforme**, **operador do VAR que apostava** (3 pontos para o prejudicado), **oferta
   indecente de fora** e **gramado assassino**.
+- **Plantões sugeridos pelos amigos**: **fúria do mascote**, **ruínas na marca do pênalti**,
+  **vício em e-sports**, **cachorro registrado como atleta** (o clube perde uma vaga no
+  elenco de vez), **zagueiro que vira meia**, **intoxicação no jantar**, **sabotagem do
+  roupeiro**, **abdução** (volta com mais overall), **doação misteriosa**, **treino do vazio
+  mental**, **VAR de 2047**, **estádio que sumiu**, **presidente que compra a arquibancada**,
+  **roupeiro que entra em campo** (fica no elenco por 6 semanas), **chuva de dinheiro**,
+  **capitão ou goleiro eleito prefeito**, **torcida que previu o jogo**, **zagueiro que vira
+  piloto**, **jogo que não terminava**, **chuva de peixe**, **gramado leiloado**, **organizada
+  que compra o clube** (a diretoria perde confiança em você), **bilhete premiado no vestiário**,
+  **capivaras no estádio**, **golpe da cripto** e **aula de dança no CT**.
 
 O mesmo tipo de plantão não se repete por 10 semanas, e cada um tem mais de um texto. A
 **frequência** também é escolhida na carreira nova: **calmo** (um plantão a cada três
