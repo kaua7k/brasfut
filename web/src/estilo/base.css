@@ -1303,6 +1303,18 @@ button.jogador:hover .disco, button.jogador:focus-visible .disco { transform: sc
 @media (prefers-reduced-motion: reduce) {
   .jogador.nova-vaga .disco { animation: none; box-shadow: 0 0 0 3px var(--acao-brilho); }
 }
+/* na lista do olheiro (Mercado) */
+.selo-observado {
+  margin-left: 8px;
+  font-size: var(--fs-mini);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fraco);
+  border: 1px solid var(--borda-forte);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
 .selo-nova-vaga {
   margin-left: 8px;
   font-size: var(--fs-mini);

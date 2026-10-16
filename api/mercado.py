@@ -17,7 +17,7 @@ import re
 import brasfut as eng
 
 ABAS = [("compra", "Comprar"), ("emprestimo", "Emprestimos"),
-        ("livres", "Agentes livres"), ("vitrine", "Vender")]
+        ("livres", "Agentes livres"), ("observados", "Observados"), ("vitrine", "Vender")]
 TENTATIVAS = 3
 LIMITE_BUSCA = 60
 
@@ -111,6 +111,7 @@ def _linha_busca(G, c, j, aba, pendentes=None):
              "salario": eng.din(j["salario"]), "livre": j["clube"] is None,
              "valor": eng.din(j["valor"]), "valor_num": int(j["valor"]),
              "acertado": bool(pendentes and j["id"] in pendentes),
+             "observado": eng.observado(G, j["id"]),
              "tag": dto._tag_ovr(j["ovr"])}
     if aba == "emprestimo":
         pct = eng.exigencia_emprestimo(G, j, c)
@@ -128,7 +129,22 @@ def _linha_busca(G, c, j, aba, pendentes=None):
     return linha
 
 
+def _observados(G, c):
+    """A lista do olheiro, sem filtro: quem esta nela, ha quanto tempo."""
+    pendentes = acertados(G)
+    linhas = []
+    for chave, item in eng.observados(G).items():
+        j = G["jogadores"][int(chave)]
+        linha = _linha_busca(G, c, j, "compra", pendentes)
+        linha["meses"] = int(item.get("meses", 0))
+        linhas.append(linha)
+    linhas.sort(key=lambda l: -l["ovr"])
+    return linhas
+
+
 def _busca(G, c, aba, f):
+    if aba == "observados":
+        return _observados(G, c)
     if aba == "livres":
         achados = [j for j in (G["jogadores"][p] for p in G["livres"])
                    if (not f["pos"] or j["pos"] == f["pos"])
@@ -259,7 +275,9 @@ def tela(aba="compra", filtros=None):
             {"valor": "%d/%d" % (len(c["elenco"]), eng.limite_elenco(c)), "nome": "elenco"},
             {"valor": len(ofertas), "nome": "propostas", "estado": "atencao" if ofertas else None},
         ],
-        "abas": [{"id": k, "nome": n, "contador": len(ofertas) if k == "vitrine" else None}
+        "abas": [{"id": k, "nome": n,
+                  "contador": (len(ofertas) if k == "vitrine"
+                               else len(eng.observados(G)) if k == "observados" else None)}
                  for k, n in ABAS],
         "aba": aba,
         "filtros": f,
@@ -268,6 +286,7 @@ def tela(aba="compra", filtros=None):
         "caixa_num": int(c["dinheiro"]),
         "financeiro": financeiro(G, c),
         "contratos": contratos_acabando(G, c),
+        "observacao": {"usadas": len(eng.observados(G)), "vagas": eng.vagas_observacao(c)},
     }
     if aba == "vitrine":
         fora.update(vitrine=_vitrine(G, c, ofertas), ofertas=_ofertas(G, ofertas),

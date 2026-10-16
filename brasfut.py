@@ -4035,8 +4035,10 @@ def _semana_estadual(G: Mundo) -> List[Dict[str, Any]]:
     G["semana_est"] = int(G.get("semana_est", 1)) + 1
     for recado in executar_agendadas(G):
         noticia(G, recado)
+    avisos_observados(G)
     if G["semana_est"] % SEMANAS_POR_MES == 0:
         pagar_parcela_credito(G)
+        observar_mes(G)
         for pid, delta in progresso_mensal(G):
             j = G["jogadores"][pid]
             if delta > 0:
@@ -4768,12 +4770,14 @@ def avancar_semana(G):
     if G["semana"] % SEMANAS_POR_MES == 0:
         pagar_parcela_credito(G)
         sondar_treinador(G)
+        observar_mes(G)
         for pid, delta in progresso_mensal(G):
             j = G["jogadores"][pid]
             if delta > 0:
                 noticia(G, "%s evoluiu para %d de overall." % (j["nome"], j["ovr"]))
             elif j["idade"] >= 32:
                 noticia(G, "%s caiu para %d de overall." % (j["nome"], j["ovr"]))
+    avisos_observados(G)
     if modo_caos(G):
         eventos_caos(G)
     G["semana"] += 1
@@ -6311,6 +6315,10 @@ def scout(G: Mundo, j: Jogador, clube_id: Optional[int] = None) -> str:
         # cada mes de observacao aperta a leitura (EA FC, Football Manager):
         # o garoto de "72-88" vira "79-84" depois de um ano em casa
         margem /= 1.0 + 0.12 * int(j.get("obs", 0))
+    elif observador and observador["id"] == G.get("clube") and observado(G, j["id"]):
+        # na lista de observacao: o olheiro vai aos jogos e a faixa aperta por mes
+        margem *= OBS_MARGEM
+        margem /= 1.0 + 0.12 * int(G["observados"][str(j["id"])].get("meses", 0))
     if j["idade"] >= 26:
         margem *= 0.45                      # jogador feito nao tem misterio
     margem = max(2.0, margem)
@@ -6344,6 +6352,92 @@ def rotulo_scout(G: Mundo, j: Jogador, clube_id: Optional[int] = None) -> str:
     if folga >= 10:
         return "cru, mas tem margem para crescer"
     return "jogador de elenco"
+
+
+# ----------------------------------------------------------------------------
+# LISTA DE OBSERVACAO
+#
+# O tecnico manda o olheiro acompanhar jogadores de fora. Cada mes de
+# observacao aperta a leitura do teto (como acontece com quem e da casa) e o
+# olheiro avisa quando algo muda: foi a venda, ficou livre, trocou de clube,
+# entrou no ultimo ano de contrato. As vagas crescem com CT e base.
+# G["observados"] = {str(pid): {"meses": n, "retrato": {...}}}
+# ----------------------------------------------------------------------------
+
+OBS_MARGEM = 0.75           # o observado ja comeca mais nitido que um estranho
+
+
+def vagas_observacao(c: Clube) -> int:
+    return 3 + (int(c.get("ct", 1)) + int(c.get("base", 1))) // 2
+
+
+def _retrato_obs(j: Jogador) -> Dict[str, Any]:
+    return {"clube": j["clube"], "listado": bool(j.get("listado")),
+            "emp": bool(j.get("emp_listado")), "contrato": int(j.get("contrato", 0))}
+
+
+def observados(G: Mundo) -> Dict[str, Dict[str, Any]]:
+    """A lista, sem quem sumiu do mundo nem quem ja e do meu clube."""
+    lista = G.setdefault("observados", {})
+    for chave in list(lista):
+        j = G["jogadores"].get(int(chave))
+        if j is None or j["clube"] == G.get("clube"):
+            del lista[chave]
+    return lista
+
+
+def observado(G: Mundo, pid: int) -> bool:
+    return str(pid) in (G.get("observados") or {})
+
+
+def observar(G: Mundo, pid: int, sim: bool = True) -> Tuple[bool, str]:
+    j = G["jogadores"].get(pid)
+    c = G["clubes"].get(G.get("clube"))
+    if j is None or c is None:
+        return False, "Jogador nao encontrado."
+    lista = observados(G)
+    if not sim:
+        if lista.pop(str(pid), None) is None:
+            return False, "%s nao esta na lista de observacao." % j["nome"]
+        return True, "%s saiu da lista de observacao." % j["nome"]
+    if j["clube"] == c["id"]:
+        return False, "%s ja e do seu elenco." % j["nome"]
+    if str(pid) in lista:
+        return False, "%s ja esta na lista de observacao." % j["nome"]
+    vagas = vagas_observacao(c)
+    if len(lista) >= vagas:
+        return False, ("O olheiro so da conta de %d nomes (sobe com CT e base). "
+                       "Tire alguem da lista antes." % vagas)
+    lista[str(pid)] = {"meses": 0, "retrato": _retrato_obs(j)}
+    return True, "O olheiro passa a acompanhar %s." % j["nome"]
+
+
+def observar_mes(G: Mundo) -> None:
+    for item in observados(G).values():
+        item["meses"] = int(item.get("meses", 0)) + 1
+
+
+def avisos_observados(G: Mundo) -> None:
+    """O que mudou na semana com quem o olheiro acompanha vira noticia."""
+    for chave, item in list(observados(G).items()):
+        j = G["jogadores"][int(chave)]
+        antes, agora = item.get("retrato") or {}, _retrato_obs(j)
+        item["retrato"] = agora
+        avisos = []
+        if agora["clube"] != antes.get("clube"):
+            if agora["clube"] is None:
+                avisos.append("ficou sem clube: da para contratar sem pagar passe")
+            else:
+                avisos.append("foi para o %s" % nome_clube(G, agora["clube"]))
+        else:
+            if agora["listado"] and not antes.get("listado"):
+                avisos.append("foi colocado a venda por %s" % din(j["listado"]))
+            if agora["emp"] and not antes.get("emp"):
+                avisos.append("esta disponivel para emprestimo")
+            if agora["clube"] is not None and agora["contrato"] <= 1 < int(antes.get("contrato", 0)):
+                avisos.append("entrou no ultimo ano de contrato: o preco cai")
+        if avisos:
+            noticia(G, "Olheiro: %s %s." % (j["nome"], " e ".join(avisos)))
 
 
 # ----------------------------------------------------------------------------

@@ -1541,8 +1541,16 @@ def ficha(pid):
 
     clube = G["clubes"].get(j["clube"])
     capitao = bool(clube and eng.capitao_de(G, clube) == j["id"])
+    observado = eng.observado(G, j["id"])
+    if observado:
+        meses = int(G["observados"][str(j["id"])].get("meses", 0))
+        notas.append("Na lista do olheiro %s: teto lido em %s." % (
+            "desde este mes" if meses == 0 else "ha %s" % eng.plural(meses, "mes", "meses"),
+            eng.scout(G, j)))
     return {
         "capitao": capitao,
+        "observado": observado,
+        "pode_observar": bool(j["clube"] != G["clube"] and not eng.da_base(j)),
         "pode_capitao": bool(clube and clube["id"] == G["clube"] and not capitao and not j.get("dono")
                              and not eng.da_base(j) and j["id"] in clube["elenco"]),
         "id": j["id"], "nome": j["nome"], "pos": j["pos"],

@@ -148,6 +148,8 @@ export const api = {
       ? pedir<{ tela: TelaEstatisticas }>('/api/estatisticas')
       : pedir<{ tela: TelaEstatisticas }>('/api/estatisticas', { alvo }),
   escudos: () => pedir<{ escudos: DadosEscudo[] }>('/api/escudos'),
+  observar: (id: number, observar: boolean) =>
+    pedir<{ recado: string; ficha: FichaJogador }>('/api/observar', { id, observar }),
   capitao: (id: number) => pedir<{ recado: string; ficha: FichaJogador }>('/api/capitao', { id }),
 
   // ------------------------------------------------------------------- acoes

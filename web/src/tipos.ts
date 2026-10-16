@@ -784,6 +784,8 @@ export interface FichaJogador {
   capitao: boolean
   /** e do meu elenco e pode receber a bracadeira */
   pode_capitao: boolean
+  observado: boolean
+  pode_observar: boolean
   pos: string
   posicao_nome: string
   idade: number
@@ -957,7 +959,7 @@ export interface TelaEstadio {
 // Mercado
 // ============================================================================
 
-export type AbaMercado = 'compra' | 'emprestimo' | 'livres' | 'vitrine'
+export type AbaMercado = 'compra' | 'emprestimo' | 'livres' | 'observados' | 'vitrine'
 
 export interface FiltrosMercado {
   pos: string | null
@@ -983,6 +985,10 @@ export interface LinhaMercado {
   livre: boolean
   /** ja acertado comigo, esperando a janela abrir */
   acertado: boolean
+  /** na lista do olheiro */
+  observado: boolean
+  /** aba Observados: meses na lista */
+  meses?: number
   tag: string
   // compra
   pedido?: string
@@ -1089,6 +1095,8 @@ export interface TelaMercado {
   agendadas: Agendada[]
   financeiro: Financeiro
   contratos: ContratoAcabando[]
+  /** lista do olheiro: quantos nomes ja estao nela e quantos cabem */
+  observacao: { usadas: number; vagas: number }
 }
 
 export type TipoMesa = 'compra' | 'emprestimo' | 'renovacao'
