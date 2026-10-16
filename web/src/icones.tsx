@@ -157,6 +157,17 @@ export function IconeSalvar({ tamanho = 18 }: Props) {
   )
 }
 
+/** As tres linhas que abrem a gaveta do menu no celular. */
+export function IconeGaveta({ tamanho = 22 }: Props) {
+  return (
+    <svg {...base(tamanho)}>
+      <path d="M4 7h16" />
+      <path d="M4 12h16" />
+      <path d="M4 17h16" />
+    </svg>
+  )
+}
+
 export function IconeSeta({ tamanho = 16 }: Props) {
   return (
     <svg {...base(tamanho)} strokeWidth={2.4} stroke="currentColor">

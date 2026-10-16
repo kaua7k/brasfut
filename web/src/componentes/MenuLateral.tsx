@@ -4,7 +4,7 @@
 // disabled>), e nao apenas apagado: o teclado tem que pular por cima dele,
 // senao o Tab leva a um lugar que nao existe.
 
-import { Fragment } from 'react'
+import { Fragment, useEffect } from 'react'
 import { porque, AGUARDE } from '../motivo'
 import { ICONES_MENU, IconeAjuda, IconeMenu, IconeSalvar } from '../icones'
 import { Escudo } from './Escudo'
@@ -20,6 +20,9 @@ interface Props {
   aoMenu: () => void
   salvando: boolean
   aoAjuda: () => void
+  /** Celular: o menu e uma gaveta por cima da tela. Aberta ou fechada. */
+  aberto?: boolean
+  aoFechar?: () => void
 }
 
 // Titulo do grupo que abre antes de cada item (a ordem do menu e a do jogo).
@@ -31,9 +34,40 @@ const GRUPO_ANTES: Record<string, string> = {
   clube: 'Historia',
 }
 
-export function MenuLateral({ clube, itens, atual, aoTrocar, aoSalvar, aoMenu, salvando, aoAjuda }: Props) {
+export function MenuLateral({
+  clube,
+  itens,
+  atual,
+  aoTrocar,
+  aoSalvar,
+  aoMenu,
+  salvando,
+  aoAjuda,
+  aberto = false,
+  aoFechar,
+}: Props) {
+  // gaveta aberta: Esc fecha, como qualquer janela por cima
+  useEffect(() => {
+    if (!aberto || !aoFechar) return
+    const tecla = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') aoFechar()
+    }
+    window.addEventListener('keydown', tecla)
+    return () => window.removeEventListener('keydown', tecla)
+  }, [aberto, aoFechar])
+
+  // escolher uma tela (ou salvar, ajuda, menu) fecha a gaveta
+  const fechando = (acao: () => void) => () => {
+    aoFechar?.()
+    acao()
+  }
+
   return (
-    <nav className="lateral" aria-label="Telas do jogo">
+    <>
+    {aberto && aoFechar && (
+      <button type="button" className="veu-gaveta" aria-label="Fechar o menu" tabIndex={-1} onClick={aoFechar} />
+    )}
+    <nav id="menu-lateral" className={`lateral${aberto ? ' aberta' : ''}`} aria-label="Telas do jogo">
       <div className="marca">
         <Escudo nome={clube} tamanho={34} />
         <div>
@@ -62,7 +96,7 @@ export function MenuLateral({ clube, itens, atual, aoTrocar, aoSalvar, aoMenu, s
               // leitor de tela (aria-label) e no mouse (title)
               aria-label={item.nome}
               title={item.pronta ? item.nome : `${item.nome}: ainda so na janela do jogo`}
-              onClick={() => aoTrocar(item.id)}
+              onClick={fechando(() => aoTrocar(item.id))}
             >
               <Icone />
               <span className="rotulo-nav">{item.nome}</span>
@@ -76,7 +110,7 @@ export function MenuLateral({ clube, itens, atual, aoTrocar, aoSalvar, aoMenu, s
         <button
           type="button"
           className="navitem"
-          onClick={aoSalvar}
+          onClick={fechando(aoSalvar)}
           aria-label="Salvar"
           title={porque([[salvando, AGUARDE]], 'Salvar')}
           disabled={salvando}
@@ -84,16 +118,17 @@ export function MenuLateral({ clube, itens, atual, aoTrocar, aoSalvar, aoMenu, s
           <IconeSalvar />
           <span className="rotulo-nav">{salvando ? 'Salvando…' : 'Salvar'}</span>
         </button>
-        <button type="button" className="navitem" onClick={aoAjuda} aria-label="Ajuda" title="Ajuda">
+        <button type="button" className="navitem" onClick={fechando(aoAjuda)} aria-label="Ajuda" title="Ajuda">
           <IconeAjuda />
           <span className="rotulo-nav">Ajuda</span>
         </button>
-        <button type="button" className="navitem" onClick={aoMenu} aria-label="Menu principal"
+        <button type="button" className="navitem" onClick={fechando(aoMenu)} aria-label="Menu principal"
         title="Salva e volta ao menu principal (trocar de slot)" disabled={salvando}>
           <IconeMenu />
           <span className="rotulo-nav">Menu principal</span>
         </button>
       </div>
     </nav>
+    </>
   )
 }

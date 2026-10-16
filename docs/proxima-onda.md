@@ -14,6 +14,42 @@ começar. Decisões já tomadas continuam em `docs/three-amigos/`; o mapa do có
   olheiros → Copinha e convocações → os dois spikes → protótipo mobile.
 - **Exemplos do Okumura** (notícia de gol estranha, contratações fantasmas): descartados.
 
+### Protótipo mobile — feito (2026-10-16)
+
+Motor no navegador com Pyodide 0.29.5 num Web Worker, save no IndexedDB, PWA offline e
+workflow do GitHub Pages (`npm run build:pages`, `.github/workflows/pages.yml`); layout de
+390 px (menu-gaveta, topo em três linhas, colunas secundárias somem, campo em pé).
+Detalhes em `ARQUITETURA-WEB.md`, seção *Versão do celular*. Testado com Playwright:
+carreira nova, semana, recarregar (o save volta) e abrir offline.
+
+Medido (*Menu principal > Medir desempenho*, clique de Avançar inteiro, Série A):
+
+| | PC nativo | PC no navegador | celular bom (CPU 2x) | celular médio (4x) |
+|---|---|---|---|---|
+| Abrir (Pyodide + motor) | – | 2,5 s | 5,2 s | 11,3 s |
+| Criar o mundo | 1,0 s | 2,4 s | 4,6 s | 9,4 s |
+| Semana, média / pior | 0,63 / 0,72 s | 1,12 / 1,46 s | 2,50 / 3,26 s | 5,16 / 6,10 s |
+
+O que falta para virar produto, em ordem de impacto:
+- **Gravar menos**: cada clique regrava o save de 8 MB em JSON (0,9 s de 5,2 s no 4x).
+  Gravar a cada N semanas ou só no Salvar/fechar a aba (`visibilitychange`), ou gravar
+  compactado (zlib já está na stdlib).
+- **Motor mais leve no wasm**: o motor sozinho é ~1,8x o nativo; o `desempenho.py` aponta
+  as semanas de Champions/Europa como as mais caras. Ligas de fora em segundo plano mais
+  simples no celular seria a alavanca grande.
+- **Abrir mais rápido**: importar os `.py` a frio custa 1,8 s no 4x; mandar `.pyc`
+  pré-compilado (mesma versão do Pyodide) ou um snapshot do Pyodide.
+- **Medir num aparelho de verdade**: o 2x/4x é emulação (freio no Chromium inteiro, porque o
+  throttling do DevTools não pega Web Worker). Abrir o Pages num Android intermediário e
+  num iPhone e rodar *Medir desempenho*.
+- **iPhone**: testar no Safari de verdade (worker em módulo, IDBFS, memória: 86 MB de wasm
+  depois da medição) e a política de 7 dias sem uso para site não instalado.
+- **Layout**: passada mínima feita em Painel, Escalação, Mercado, Classificação, Elenco e
+  Finanças. Faltam Competições (mata-mata), Base, Treino, Estádio, a Mesa de negociação e o
+  editor de formação; abrir a ficha é duplo clique (no toque, dois toques).
+- **Save entre aparelhos**: exportar/importar o save (arquivo) para levar do PC ao celular.
+- **Pages ligado**: no GitHub, *Settings > Pages > Source = GitHub Actions* uma vez.
+
 ## 2b. Lista de 2026-09-29 (anotada, nada feito ainda)
 
 Veio com dois prints: a coluna Situação do Elenco (mistura "a venda" com "pendurado liga"

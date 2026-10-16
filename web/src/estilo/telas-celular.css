@@ -1,0 +1,115 @@
+/* Celular: ate 640 px de largura (em pe; o alvo e 390 px). Vale para a web de
+ * sempre e para a versao do GitHub Pages. So var(--...): nada de hex, rgba ou
+ * font-size solto (testes/test_tokens.py).
+ *
+ * O que muda:
+ * - o menu lateral sai da tela e vira gaveta, aberta pelo botao de tres
+ *   linhas do topo (MenuLateral.tsx, BarraTopo.tsx);
+ * - o topo vira tres linhas: clube, caixa e verba, Simular e Avancar;
+ * - as grades escondem as colunas `secundaria` (Grade.tsx, o mesmo corte em
+ *   estreita.ts) e o que ainda passar da tela rola de lado dentro da grade;
+ * - a Escalacao empilha campo e listas, e o campo fica em pe (Campo.tsx).
+ *
+ * Importado por ultimo e dentro de body { }, como os outros telas-*.css: soma
+ * um grau de especificidade e vence o base.css e os grupos a, b e c. */
+
+body {
+  .bt-gaveta, .veu-gaveta { display: none; }
+
+  @media (max-width: 640px) {
+    /* ------------------------------------------------------------ gaveta */
+    .lateral {
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 30;
+      width: min(280px, 82vw);
+      padding: 18px 12px;
+      box-shadow: var(--sombra-gaveta);
+      transform: translateX(-100%);
+      visibility: hidden;
+      transition: transform 0.2s ease, visibility 0.2s;
+    }
+    .lateral.aberta { transform: none; visibility: visible; }
+    .lateral .rotulo-nav { display: inline; }
+    .lateral .marca > div:last-child { display: block; }
+    .lateral .navitem { justify-content: flex-start; padding: 10px 14px; }
+    .veu-gaveta {
+      display: block;
+      position: fixed;
+      inset: 0;
+      z-index: 29;
+      border: 0;
+      padding: 0;
+      background: var(--veu);
+      cursor: default;
+    }
+    .bt-gaveta {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      flex: none;
+      border-radius: var(--raio-p);
+      border: 1px solid var(--borda-forte);
+      background: var(--chip);
+      color: var(--txt);
+    }
+
+    /* -------------------------------------------------------------- topo */
+    .topo { flex-wrap: wrap; gap: 8px 10px; padding: 10px 12px; }
+    .topo h1 { font-size: var(--fs-g); }
+    .topo .espaco { flex-basis: 100%; height: 0; }
+    .topo .chip { flex: 1 1 40%; min-width: 0; padding: 6px 10px; }
+    .topo .chip .valor { font-size: var(--fs-base); }
+    .topo .bt-simular { flex: none; min-height: 44px; }
+    .topo .bt-acao { flex: 1 1 auto; justify-content: center; margin-left: 0; }
+
+    /* ------------------------------------------------------ telas e grade */
+    .corpo { padding: 12px 12px 16px; gap: 12px; grid-template-columns: minmax(0, 1fr); }
+    .tela { padding: 12px 12px 0; gap: 12px; }
+    .cabecalho-tela h2 { font-size: var(--fs-g); }
+    .grade-linha { gap: 6px; padding: 8px 10px; }
+    .metrica { min-width: 0; flex: 1 1 30%; padding: 6px 10px; }
+    .barra-acoes { padding: 10px 12px; flex-wrap: wrap; }
+    .barra-acoes .resumo { flex: 1 1 100%; margin-right: 0; }
+    .barra-acoes > button { flex: 1 1 auto; }
+    /* a barra presa das listas (telas-c.css) e de uma linha so na tela larga */
+    .painel-lista .barra-presa { flex-wrap: wrap; padding: 10px 12px; }
+    .painel-lista .barra-presa .resumo { flex: 1 1 100%; }
+    .painel-lista .barra-presa button { flex: 1 1 auto; }
+
+    /* --------------------------------------------------------- escalacao */
+    .escalacao-corpo { grid-template-columns: minmax(0, 1fr); }
+    .escalacao-campo { padding: 10px; }
+    .comando-divisor { display: none; }
+    .seletor-formacao { flex: 1 1 100%; max-width: 100%; min-width: 0; }
+    .campo-cab { flex-wrap: wrap; gap: 4px 14px; }
+    .campo-cab .espaco { flex-basis: 100%; height: 0; }
+    .escalacao-listas .linha-flex.larga { flex-wrap: wrap; }
+    .escalacao-listas .linha-flex.larga .tag-fraco { flex-basis: 100%; }
+    .editor-linhas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+    /* campo em pe: gol embaixo, ataque em cima (as coordenadas trocam em Campo.tsx) */
+    .campo-area.vertical {
+      min-height: 0;
+      aspect-ratio: 3 / 4;
+      background:
+        repeating-linear-gradient(0deg, transparent 0 8.333%, color-mix(in srgb, var(--preto) 10%, transparent) 8.333% 16.666%),
+        radial-gradient(ellipse at center, var(--gramado), var(--gramado-escuro));
+    }
+    .escalacao-campo .campo-area.vertical { min-height: 0; }
+    .campo-area.vertical .campo-meio { top: 50%; bottom: auto; left: 14px; right: 14px; width: auto; height: 2px; }
+    .campo-area.vertical .campo-area-gol { top: auto; left: 50%; width: 150px; height: 52px; transform: translateX(-50%); }
+    .campo-area.vertical .campo-area-gol.esq { bottom: 14px; border: 2px solid var(--cal-fraca); border-bottom: none; border-radius: 4px 4px 0 0; }
+    .campo-area.vertical .campo-area-gol.dir { top: 14px; right: auto; border: 2px solid var(--cal-fraca); border-top: none; border-radius: 0 0 4px 4px; }
+    .campo-area.vertical .campo-pequena { top: auto; left: 50%; width: 70px; height: 22px; transform: translateX(-50%); }
+    .campo-area.vertical .campo-pequena.esq { bottom: 14px; border: 2px solid var(--cal-fraca); border-bottom: none; }
+    .campo-area.vertical .campo-pequena.dir { top: 14px; right: auto; border: 2px solid var(--cal-fraca); border-top: none; }
+    .campo-area.vertical .jogador .nome { max-width: 76px; }
+
+    /* ------------------------------------------------------------ modais */
+    .fundo-modal { padding: 10px; }
+    .modal { padding: 18px 16px; max-height: 90vh; }
+  }
+}

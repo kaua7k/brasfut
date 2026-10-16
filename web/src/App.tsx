@@ -8,6 +8,7 @@
 import { porque, AGUARDE } from './motivo'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, ErroDaApi } from './api'
+import { MODO_NAVEGADOR } from './modo'
 import { BarraTopo } from './componentes/BarraTopo'
 import { DialogoAvanco } from './componentes/DialogoAvanco'
 import { DialogoCeder } from './componentes/DialogoCeder'
@@ -109,6 +110,20 @@ export function App() {
   const [plantao, setPlantao] = useState<EventoCaos[]>([])
   const [intervalo, setIntervalo] = useState<DadosIntervalo | null>(null)
   const [config, setConfig] = useState<Config | null>(null)
+  // modo navegador: a primeira abertura espera o Python subir no aparelho
+  const [etapaMotor, setEtapaMotor] = useState('')
+  // celular: o menu lateral vira gaveta, aberta pelo botao do topo
+  const [menuAberto, setMenuAberto] = useState(false)
+  const fecharMenu = useCallback(() => setMenuAberto(false), [])
+
+  useEffect(() => {
+    if (!MODO_NAVEGADOR) return
+    let parar = () => {}
+    import('./motor/cliente').then((m) => {
+      parar = m.aoProgresso(setEtapaMotor)
+    })
+    return () => parar()
+  }, [])
 
   // escala e animacoes valem para o jogo inteiro, nao so para o menu
   useEffect(() => {
@@ -685,7 +700,14 @@ export function App() {
 
   // --------------------------------------------------------------------- telas
   if (situacao === null) {
-    return <div className="centro-tela"><span className="carregando">abrindo o jogo…</span></div>
+    return (
+      <div className="centro-tela">
+        <span className="carregando" role="status">
+          {etapaMotor ? `abrindo o jogo: ${etapaMotor}…` : 'abrindo o jogo…'}
+        </span>
+        {MODO_NAVEGADOR && erro && <span className="erro">{erro}</span>}
+      </div>
+    )
   }
 
   if (situacao !== 'pronto' || !conteudo) {
@@ -720,6 +742,8 @@ export function App() {
         aoMenu={voltarAoMenu}
         salvando={salvando}
         aoAjuda={abrirAjuda}
+        aberto={menuAberto}
+        aoFechar={fecharMenu}
       />
 
       <div className="conteudo">
@@ -728,6 +752,8 @@ export function App() {
           aoAvancar={() => avancar(false)}
           aoSimular={() => setSimulando(true)}
           avancando={ocupado}
+          aoAbrirMenu={() => setMenuAberto(true)}
+          menuAberto={menuAberto}
         />
 
         {(erro || recado) && (

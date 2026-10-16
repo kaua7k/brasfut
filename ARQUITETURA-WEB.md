@@ -684,6 +684,122 @@ infinita e segurava o Edge). `comparar <antes> <depois>` dá a porcentagem de
 pixels diferentes por captura, lendo o PNG só com `zlib`. Rode `npm run
 build` antes: a captura usa `web/dist`.
 
+## Versão do celular: o motor no navegador (protótipo, 2026-10-16)
+
+Decisão do dono (`docs/proxima-onda.md`, seção 1): Android e iPhone sem
+servidor, com o save no aparelho e o jogo funcionando offline. Caminho: o
+mesmo `brasfut.py` rodando **dentro do navegador** com Pyodide (CPython em
+WebAssembly), publicado como PWA no GitHub Pages. Nenhuma regra mudou e
+nenhuma rota foi duplicada: o que muda é o transporte e onde o save mora.
+
+```
+web (React)  --pedir()-->  src/api.ts
+                              | build normal: fetch('/api/...') -> server.py
+                              | build pages:  postMessage -> Web Worker
+                                                 |
+                       src/motor/worker.ts  (Pyodide 0.29.5, Python 3.13)
+                                                 |
+                       api/navegador.py  pedido(metodo, caminho, corpo_json)
+                                                 |
+                       api/rotas.despachar  (o mesmo do server.py e dos testes)
+```
+
+**Dois builds, um código.** `npm run build` continua gerando `web/dist` para
+o `server.py`, igual a antes (o ramo do worker some: `VITE_MODO` é trocado no
+texto pelo `define` do `vite.config.ts` e o plugin `semMotorNoNavegador`
+troca `motor/cliente` por um módulo vazio, senão o worker sairia como arquivo
+órfão). `npm run build:pages` = `vite build --mode pages` (base `./`, saída
+`web/dist-pages`, fora do git) + `node pages/montar.mjs`, que copia:
+
+- `pyodide/`: o núcleo do Pyodide do pacote npm `pyodide` (versão exata no
+  `package.json`, devDependency): `pyodide.mjs`, `pyodide.asm.js/.wasm`,
+  `python_stdlib.zip`, `pyodide-lock.json`. Servido junto, **sem CDN**: o
+  jsDelivr estava bloqueado no ambiente de desenvolvimento, e no mesmo
+  domínio o service worker guarda tudo sem CORS. Nenhum pacote extra (o
+  motor é stdlib pura).
+- `motor/py/`: `brasfut.py`, `dados_mundo.py`, `dados_clubes.py` e `api/*.py`;
+  `motor/arquivos.json` lista os arquivos e um hash (o worker baixa com
+  `?v=<hash>`).
+- `manifest.webmanifest`, `icones/` (a marca do menu, `pages/icones/`: SVG e
+  PNG 180/192/512, o 512 também como *maskable*) e `sw.js`.
+
+**Worker** (`src/motor/worker.ts`, módulo ES). Na primeira mensagem: carrega
+o Pyodide de `pyodide/`, monta `/brasfut/save` sobre o IndexedDB (IDBFS) e
+puxa o que já estava gravado (`syncfs(true)`), grava os `.py` em
+`/brasfut/codigo`, importa `api.navegador` e chama `iniciar('/brasfut/save')`,
+que aponta `eng.SAVE` para lá (o `brasfut_config.json` vai junto, porque mora
+ao lado do save). Cada pedido roda síncrono no worker, um por vez, na ordem
+de chegada: o mesmo efeito do `RLock` da sessão, que continua lá e funciona
+no Pyodide. O `print` do motor é descartado (a API já captura o que importa).
+A tela de "abrindo o jogo" mostra a etapa da carga (`aoProgresso`).
+
+**Save.** `api/navegador.pedido` tira um retrato (mtime e tamanho) da pasta
+do save antes e depois da rota; mudou, o worker roda `syncfs(false)` em fila
+depois de responder. Os três slots, o `.resumo` do menu e o config funcionam
+como no PC, porque são os mesmos arquivos. A trava de save (`travar_save`) é
+só do `server.py` e não roda aqui. O app pede `navigator.storage.persist()`;
+no iPhone, Safari apaga dados de site **não instalado** após 7 dias sem uso,
+então o jogo precisa ser adicionado à Tela de Início.
+
+**PWA.** `sw.js` (modelo em `pages/sw.js`) guarda os 38 arquivos (13,3 MB) no
+`install`, responde do cache (navegação devolve o `index`), e cada build tem
+cache novo (o nome leva o hash de todos os arquivos); o antigo é apagado no
+`activate`. Registrado em `main.tsx` só no modo navegador.
+
+**Publicação.** `.github/workflows/pages.yml`: push na `main` → `npm ci && npm
+run build:pages` → `upload-pages-artifact` + `deploy-pages`. Precisa de
+*Settings > Pages > Source = GitHub Actions* uma vez. O `testes.yml` ganhou
+um passo que só confere que o `build:pages` sai.
+
+**Medição.** No modo navegador o menu principal ganha *Medir desempenho*:
+`api.navegador.medir(N)` guarda a sessão inteira, cria uma carreira de teste
+numa pasta temporária (Flamengo, sem demissão), joga N semanas pelo mesmo
+`POST /api/avancar` do botão (motor + gravar o save de 8 MB + Painel de
+volta), cronometra motor e gravação à parte, e devolve a sessão como estava
+(`test_navegador.py` confere que nem a carreira aberta nem o save mudam). O
+worker soma a carga e o custo de gravar um save desse tamanho no IndexedDB.
+Números de 2026-10-16, Chromium headless num Xeon 2,1 GHz, `dist-pages`
+servido por `python3 -m http.server`:
+
+| | Python nativo | Navegador (PC) | "Celular bom" (CPU 2x mais lenta) | "Celular médio" (4x) |
+|---|---|---|---|---|
+| Subir Pyodide + motor | – | 2,5 s | 5,2 s | 11,3 s |
+| Criar o mundo | 1,0 s | 2,4 s | 4,6 s | 9,4 s |
+| Semana (clique inteiro), média | 0,63 s | **1,12 s** | **2,50 s** | **5,16 s** |
+| Semana, pior | 0,72 s | 1,46 s | 3,26 s | 6,10 s |
+| só o motor (média) | 0,48 s | 0,88 s | 1,96 s | 4,03 s |
+| gravar o save (8 MB JSON) | 0,12 s | 0,21 s | 0,50 s | 0,89 s |
+| IndexedDB (8 MB) | – | 0,02 s | 0,08 s | 0,11 s |
+
+PC: 20 semanas; celulares: 10 semanas, perfil Pixel 7. O Pyodide custa ~1,8x
+o Python nativo. **O throttling de CPU do CDP
+(`Emulation.setCPUThrottlingRate`) não alcança Web Workers** (medido: um laço
+fixo no worker levou o mesmo tempo com taxa 1 e 4; aplicar no alvo do worker
+responde "only supported for pages"). Por isso as colunas de celular usam um
+freio no navegador inteiro (SIGSTOP/SIGCONT em todos os processos do
+Chromium, 25 ms de cada 100 ms para 4x). Celular de ponta (iPhone 13+,
+Galaxy S2x) fica perto da coluna 2x; intermediário Android, perto da 4x.
+Memória do WebAssembly: 42 MB depois de carregar, 86 MB depois da medição.
+
+**Leitura:** jogável num celular bom (2,5 s por semana, com o Simular
+mostrando a barra andar), lento num intermediário (5 s). O que mais pesa,
+fora o motor: o save de 8 MB regravado inteiro a cada clique (0,9 s no 4x) e
+o import a frio de 564 KB de `.py` (1,8 s no 4x). Ver o que falta em
+`docs/proxima-onda.md`.
+
+**Layout de 390 px** (vale para a web de sempre também): `estilo/telas-celular.css`
+(até 640 px, dentro de `body {}` e importado por último). O menu lateral vira
+gaveta (botão de três linhas no topo, véu, Esc fecha, escolher uma tela
+fecha); o topo vira três linhas; a `<Grade>` esconde as colunas marcadas
+`secundaria` (V/E/D/GP/GC/Ap% na Classificação; idade, teto, clube, salário,
+valor na compra; salário, valor, contrato e situação no Elenco) e encolhe o
+mínimo das colunas de texto para 96 px, com o resto rolando de lado dentro da
+grade (`estreita.ts` tem o mesmo corte para o TSX); a Escalação empilha campo
+e listas e o campo fica em pé (`Campo.tsx` troca x/y); a barra de ações presa
+quebra em duas linhas. Conferido com Playwright a 390x844 em Painel,
+Escalação, Mercado, Classificação, Elenco e Finanças: nenhuma tela com
+rolagem horizontal da página.
+
 ## Receita para migrar a próxima tela
 
 Exemplo com `tela_elenco` (brasfut_app.py:1744):

@@ -18,6 +18,29 @@ Dois cliques no `iniciar.bat`. Ele se vira: abre o executável se existir, senã
 Python, e se não achar Python explica o que instalar (Microsoft Store, busque por
 "Python", não pede admin).
 
+## No celular (Android e iPhone) — protótipo
+
+O jogo também roda **direto no navegador do celular**, sem servidor e sem instalar
+Python: o motor é o mesmo, rodando dentro da página. Endereço: o GitHub Pages do
+repositório (`https://<usuario>.github.io/brasfut/`, publicado sozinho a cada versão
+nova na `main`).
+
+- **Primeira vez**: precisa de internet. A página baixa uns 13 MB (o Python e o jogo) e
+  guarda no aparelho; a abertura leva de 3 a 12 segundos, conforme o celular.
+- **Instalar**: no Android (Chrome), menu ⋮ > *Instalar app* (ou *Adicionar à tela
+  inicial*). No iPhone (Safari), botão Compartilhar > *Adicionar à Tela de Início*.
+  O BRASFUT ganha ícone e abre em tela cheia.
+- **Offline**: depois da primeira visita, abre sem internet.
+- **Save**: fica no próprio aparelho (no armazenamento do navegador), com os mesmos três
+  slots. Não passa para o PC nem para outro celular. No iPhone, **instale** na Tela de
+  Início: o Safari apaga dados de site não instalado depois de uns dias sem uso. Limpar os
+  dados do site apaga o save.
+- **Tempo de cada semana**: perto de 2,5 s num celular bom e 5 s num intermediário (no PC,
+  1 s). Em *Menu principal > Medir desempenho* o jogo mede o seu aparelho sem mexer no
+  seu save.
+- Na tela estreita o menu lateral vira o botão de três linhas no alto, e as tabelas
+  escondem as colunas menos usadas (a ficha do jogador mostra tudo).
+
 ## Os dois modos
 
 O botão **Modo linha**, no canto superior direito, alterna a qualquer momento sem perder
