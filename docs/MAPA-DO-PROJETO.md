@@ -41,10 +41,13 @@ Atas de decisão de roadmap: `docs/three-amigos/`.
 | `api/competicoes.py` | — | Estaduais, séries, copas e a Copinha (`_copinha`, alvo `copinha`) — montagem e leitura pela API | Telas de Classificação/Competições |
 | `api/avanco.py` | — | Avançar em ritmos (jogo/semana/mês/janela/temporada) | Botão *Avançar*/*Simular* |
 | `api/campo.py` | — | Vaga (GOL, ZAG...) → ponto no campo, para as formações | Desenho do campo na Escalação |
+| `api/navegador.py` | — | Modo navegador (versão do celular): `pedido(metodo, caminho, corpo_json)` para o Web Worker do Pyodide, sobre o mesmo `rotas.despachar`; `iniciar(pasta)` aponta o save para o IndexedDB; `medir(N)` = carreira de teste fora do save (`test_navegador.py`) | Versão do celular, medição de desempenho no navegador |
 | `web/src/telas/*.tsx` | 16 arquivos | Uma tela por arquivo (Painel, Elenco, Escalação, Mercado, Financas, Clube, Estatísticas, etc.) | Ao mexer numa tela específica |
 | `web/src/componentes/*.tsx` | 24 arquivos (`Ajuda.tsx`: ajuda e boas-vindas; `Partida.tsx`: resumo e detalhe da partida; `AoVivo.tsx`: a partida lance a lance, relógio e lances no minuto; `Intervalo.tsx`: o jogo parado aos 45', mentalidade e trocas; `DialogoRenovar.tsx`: renovação em lote; `Celulas.tsx`: selo de posição, selo de overall e barra de físico das listas; `Resumo.tsx`: resumo da temporada; `Escudo.tsx`: escudo SVG de cada clube pelo nome, com o mapa de `/api/escudos`; `Plantao.tsx`: boletim do modo caos) | Diálogos e peças reusáveis (Mesa, Grade, Campo, Ficha...) | Componente compartilhado entre telas |
 | `web/src/api.ts`, `tipos.ts`, `formato.ts` | — | Cliente HTTP, tipos TS espelhando os DTOs, formatação (dinheiro, número) | Contrato front↔back |
-| `testes/*.py` | 62 arquivos (`desempenho.py`, `balanceamento.py` e `economia.py` são harness lentos, fora da suíte; `test_copinha.py` e `test_convocacoes.py` cobrem a Copinha e as datas FIFA) | `unittest` da stdlib, sem dependência externa. `cd testes && python -m unittest -v` (~4 min, ~305 testes) | Rodar antes de qualquer PR |
+| `web/src/motor/` (`worker.ts`, `cliente.ts`, `protocolo.ts`), `web/src/modo.ts`, `web/pages/` (`montar.mjs`, `sw.js`, `icones/`), `.github/workflows/pages.yml` | — | **Versão do celular**: motor no navegador (Pyodide num Web Worker, save no IndexedDB), PWA offline e publicação no GitHub Pages. `npm run build:pages` gera `web/dist-pages` (não versionado). Detalhes e números em `ARQUITETURA-WEB.md`, seção *Versão do celular* | Mexer no modo navegador, na PWA ou no deploy do Pages |
+| `web/src/estilo/telas-celular.css`, `web/src/estreita.ts` | — | Layout até 640 px (alvo 390): menu vira gaveta, topo em três linhas, colunas `secundaria` da `<Grade>` somem, campo em pé | Ajuste de layout no celular |
+| `testes/*.py` | 63 arquivos (`desempenho.py`, `balanceamento.py` e `economia.py` são harness lentos, fora da suíte; `test_copinha.py` e `test_convocacoes.py` cobrem a Copinha e as datas FIFA) | `unittest` da stdlib, sem dependência externa. `cd testes && python -m unittest -v` (~4 min, ~305 testes) | Rodar antes de qualquer PR |
 | `docs/proxima-onda.md` | — | **Backlog da próxima onda**: o que espera decisão, o que espera exemplo do testador, o que está pronto para codar e como verificar | Antes de começar a próxima rodada |
 | `.github/workflows/testes.yml` | — | CI (GitHub Actions): a cada push na `main` e em toda PR roda a suíte `unittest` e o `npm run build` da web; avisa se `web/dist` ficou velho | Ao mudar o que a suíte ou o build precisam |
 | `ferramentas/capturas.py` | — | Capturas das 13 telas em 5 resoluções (Edge headless, cópia isolada) e comparação por pixel | Antes/depois de mexer em CSS ou tela |
@@ -188,6 +191,7 @@ cd testes && python -m unittest -v   # testes, ~2 min, sem pip/npm
 python server.py --sem-abrir    # API sozinha (dev)
 cd web && npm run dev           # Vite com proxy /api (dev)
 cd web && npm run build         # gera web/dist (versionado)
+cd web && npm run build:pages   # versao do celular em web/dist-pages (Pyodide + PWA)
 cd testes && python economia.py # caixa da IA em 12 temporadas (lento)
 ```
 

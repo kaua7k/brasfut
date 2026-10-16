@@ -76,11 +76,12 @@ const BASE: Coluna<LinhaMercado>[] = [
       </>
     ),
   },
-  { chave: 'idade', rotulo: 'Idade', largura: '50px', classe: 'num', render: (j) => j.idade },
+  { chave: 'idade', secundaria: true, rotulo: 'Idade', largura: '50px', classe: 'num', render: (j) => j.idade },
   { chave: 'ovr', rotulo: 'Ovr', largura: '42px', classe: 'num', render: (j) => seloOvr(j.ovr) },
-  { chave: 'teto', rotulo: 'Teto', largura: '70px', classe: 'centro', render: (j) => j.teto },
+  { chave: 'teto', secundaria: true, rotulo: 'Teto', largura: '70px', classe: 'centro', render: (j) => j.teto },
   {
     chave: 'clube',
+    secundaria: true,
     rotulo: 'Clube',
     largura: 'minmax(120px, 1fr)',
     render: (j) =>
@@ -93,12 +94,12 @@ const BASE: Coluna<LinhaMercado>[] = [
         </span>
       ),
   },
-  { chave: 'sal', rotulo: 'Salario', largura: '88px', classe: 'num', render: (j) => <span className="preco-fraco">{j.salario}</span> },
+  { chave: 'sal', secundaria: true, rotulo: 'Salario', largura: '88px', classe: 'num', render: (j) => <span className="preco-fraco">{j.salario}</span> },
 ]
 
 const COLUNAS_COMPRA: Coluna<LinhaMercado>[] = [
   ...BASE,
-  { chave: 'valor', rotulo: 'Valor', largura: '92px', classe: 'num', ordem: (j) => j.valor_num, render: (j) => <span className="preco-fraco">{j.valor}</span> },
+  { chave: 'valor', secundaria: true, rotulo: 'Valor', largura: '92px', classe: 'num', ordem: (j) => j.valor_num, render: (j) => <span className="preco-fraco">{j.valor}</span> },
   {
     chave: 'pedido',
     rotulo: 'Pedido',
@@ -113,13 +114,14 @@ const COLUNAS_COMPRA: Coluna<LinhaMercado>[] = [
       </span>
     ),
   },
-  { chave: 'emp', rotulo: 'Emp', largura: '44px', classe: 'centro', render: (j) => (j.emprestimo ? 'sim' : '') },
+  { chave: 'emp', secundaria: true, rotulo: 'Emp', largura: '44px', classe: 'centro', render: (j) => (j.emprestimo ? 'sim' : '') },
 ]
 
 const COLUNAS_OBSERVADOS: Coluna<LinhaMercado>[] = [
   ...COLUNAS_COMPRA,
   {
     chave: 'meses',
+    secundaria: true,
     rotulo: 'Na lista',
     largura: '64px',
     classe: 'centro',
@@ -130,7 +132,7 @@ const COLUNAS_OBSERVADOS: Coluna<LinhaMercado>[] = [
 
 const COLUNAS_EMPRESTIMO: Coluna<LinhaMercado>[] = [
   ...BASE,
-  { chave: 'pct', rotulo: 'Dono quer', largura: '80px', classe: 'centro', render: (j) => `${j.pct}%` },
+  { chave: 'pct', secundaria: true, rotulo: 'Dono quer', largura: '80px', classe: 'centro', render: (j) => `${j.pct}%` },
   { chave: 'fatia', rotulo: 'Sua fatia', largura: '92px', classe: 'num', render: (j) => j.fatia },
 ]
 
@@ -144,12 +146,13 @@ const COLUNAS_VITRINE: Coluna<LinhaVitrine>[] = [
   },
   { chave: 'pos', rotulo: 'Pos', largura: '46px', classe: 'centro', render: (j) => seloPos(j.pos) },
   { chave: 'ovr', rotulo: 'Ovr', largura: '42px', classe: 'num', render: (j) => seloOvr(j.ovr) },
-  { chave: 'sal', rotulo: 'Salario', largura: '88px', classe: 'num', render: (j) => j.salario },
-  { chave: 'val', rotulo: 'Valor', largura: '92px', classe: 'num', render: (j) => j.valor },
+  { chave: 'sal', secundaria: true, rotulo: 'Salario', largura: '88px', classe: 'num', render: (j) => j.salario },
+  { chave: 'val', secundaria: true, rotulo: 'Valor', largura: '92px', classe: 'num', render: (j) => j.valor },
   { chave: 'ped', rotulo: 'Voce pede', largura: '96px', classe: 'num', render: (j) => j.pede },
-  { chave: 'pct', rotulo: '%', largura: '48px', classe: 'num', render: (j) => `${j.pct}%` },
+  { chave: 'pct', secundaria: true, rotulo: '%', largura: '48px', classe: 'num', render: (j) => `${j.pct}%` },
   {
     chave: 'quem',
+    secundaria: true,
     rotulo: 'Proposta',
     largura: 'minmax(110px, 1fr)',
     classe: 'corta',
@@ -159,13 +162,14 @@ const COLUNAS_VITRINE: Coluna<LinhaVitrine>[] = [
 
 const COLUNAS_OFERTAS: Coluna<OfertaRecebida & { indice: number }>[] = [
   { chave: 'nome', rotulo: 'Jogador', largura: 'minmax(120px, 1.2fr)', classe: 'corta', render: (o) => o.nome },
-  { chave: 'pos', rotulo: 'Pos', largura: '46px', classe: 'centro', render: (o) => seloPos(o.pos) },
+  { chave: 'pos', secundaria: true, rotulo: 'Pos', largura: '46px', classe: 'centro', render: (o) => seloPos(o.pos) },
   { chave: 'ovr', rotulo: 'Ovr', largura: '42px', classe: 'num', render: (o) => seloOvr(o.ovr) },
   { chave: 'clube', rotulo: 'Interessado', largura: 'minmax(110px, 1fr)', classe: 'corta', render: (o) => `${o.clube} (${o.divisao})` },
-  { chave: 'val', rotulo: 'Valor dele', largura: '96px', classe: 'num', render: (o) => o.valor },
+  { chave: 'val', secundaria: true, rotulo: 'Valor dele', largura: '96px', classe: 'num', render: (o) => o.valor },
   { chave: 'of', rotulo: 'Oferta', largura: '96px', classe: 'num', render: (o) => <strong>{o.oferta}</strong> },
   {
     chave: 'pv',
+    secundaria: true,
     rotulo: '% valor',
     largura: '64px',
     classe: 'num',
@@ -175,9 +179,10 @@ const COLUNAS_OFERTAS: Coluna<OfertaRecebida & { indice: number }>[] = [
       </span>
     ),
   },
-  { chave: 'ped', rotulo: 'Voce pede', largura: '120px', classe: 'num', render: (o) => o.pede },
+  { chave: 'ped', secundaria: true, rotulo: 'Voce pede', largura: '120px', classe: 'num', render: (o) => o.pede },
   {
     chave: 'dif',
+    secundaria: true,
     rotulo: 'Diferenca',
     largura: '96px',
     classe: 'num',
@@ -187,10 +192,10 @@ const COLUNAS_OFERTAS: Coluna<OfertaRecebida & { indice: number }>[] = [
 
 const COLUNAS_AGENDADAS: Coluna<Agendada>[] = [
   { chave: 'quem', rotulo: 'Jogador', largura: 'minmax(120px, 1.2fr)', classe: 'corta', render: (a) => a.jogador },
-  { chave: 'tipo', rotulo: 'Negocio', largura: '90px', classe: 'centro', render: (a) => a.tipo },
+  { chave: 'tipo', secundaria: true, rotulo: 'Negocio', largura: '90px', classe: 'centro', render: (a) => a.tipo },
   { chave: 'com', rotulo: 'Com', largura: 'minmax(110px, 1fr)', classe: 'corta', render: (a) => a.com },
   { chave: 'valor', rotulo: 'Valor', largura: '100px', classe: 'num', render: (a) => a.valor },
-  { chave: 'quando', rotulo: 'Acertado em', largura: '96px', classe: 'centro', render: (a) => a.quando },
+  { chave: 'quando', secundaria: true, rotulo: 'Acertado em', largura: '96px', classe: 'centro', render: (a) => a.quando },
 ]
 
 const COLUNAS_CONTRATOS: Coluna<ContratoAcabando>[] = [
@@ -203,7 +208,7 @@ const COLUNAS_CONTRATOS: Coluna<ContratoAcabando>[] = [
   },
   { chave: 'pos', rotulo: 'Pos', largura: '46px', classe: 'centro', render: (j) => seloPos(j.pos) },
   { chave: 'ovr', rotulo: 'Ovr', largura: '42px', classe: 'num', render: (j) => seloOvr(j.ovr) },
-  { chave: 'idade', rotulo: 'Idade', largura: '50px', classe: 'num', render: (j) => j.idade },
+  { chave: 'idade', secundaria: true, rotulo: 'Idade', largura: '50px', classe: 'num', render: (j) => j.idade },
   {
     chave: 'quando',
     rotulo: 'Contrato',
@@ -211,8 +216,8 @@ const COLUNAS_CONTRATOS: Coluna<ContratoAcabando>[] = [
     classe: 'corta',
     render: (j) => <span className={`tag-${j.estado}`}>{j.quando}</span>,
   },
-  { chave: 'sal', rotulo: 'Salario', largura: '88px', classe: 'num', render: (j) => j.salario },
-  { chave: 'pede', rotulo: 'Pede p/ 3 anos', largura: '104px', classe: 'num', render: (j) => j.pede },
+  { chave: 'sal', secundaria: true, rotulo: 'Salario', largura: '88px', classe: 'num', render: (j) => j.salario },
+  { chave: 'pede', secundaria: true, rotulo: 'Pede p/ 3 anos', largura: '104px', classe: 'num', render: (j) => j.pede },
 ]
 
 // o caixa nao e todo de contratar: a faixa diz quanto e, e por que

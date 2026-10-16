@@ -19,6 +19,7 @@
 
 import { Children, isValidElement, useMemo, useState, type ReactNode } from 'react'
 import { IconeCerto } from '../icones'
+import { useTelaEstreita } from '../estreita'
 
 /** Marca ou desmarca um id. Use com o setter funcional -
  *  setMarcados((s) => alternarMarca(s, id)) - para dois cliques seguidos nao
@@ -41,6 +42,9 @@ export interface Coluna<T> {
   ordem?: ((item: T) => number | string | null) | null
   /** Primeiro clique: 'desc' (maior primeiro) ou 'asc'. Padrao: numero desc, texto asc. */
   primeiro?: 'asc' | 'desc'
+  /** Some no celular (tela de ate 640 px): o que da para ver na ficha ou numa
+   *  tela maior. O que sobrar e mais largo que a tela rola de lado na grade. */
+  secundaria?: boolean
 }
 
 interface Props<T> {
@@ -156,8 +160,17 @@ function larguraMinima(largura: string): number {
   return px ? Number(px[1]) : 60
 }
 
+/** No celular a coluna de texto (nome, clube) aceita ficar mais estreita:
+ *  "minmax(140px, 1.5fr)" -> "minmax(96px, 1.5fr)". */
+const MINIMO_ESTREITA = 96
+function encolher(largura: string): string {
+  return largura.replace(/minmax\((\d+)px/, (todo, px) =>
+    Number(px) > MINIMO_ESTREITA ? `minmax(${MINIMO_ESTREITA}px` : todo,
+  )
+}
+
 export function Grade<T>({
-  colunas,
+  colunas: todas,
   itens,
   idDe,
   classeDe,
@@ -172,16 +185,23 @@ export function Grade<T>({
   ordenavel = true,
 }: Props<T>) {
   const [ordem, setOrdem] = useState<Ordem | null>(() => lerMemoria(memoria))
+  const estreita = useTelaEstreita()
+  const colunas = useMemo(
+    () => (estreita ? todas.filter((c) => !c.secundaria).map((c) => ({ ...c, largura: encolher(c.largura) })) : todas),
+    [todas, estreita],
+  )
   const selecionavel = Boolean(marcados && aoMarcar)
   const grid = (selecionavel ? '30px ' : '') + colunas.map((c) => c.largura).join(' ')
-  // colunas + vaos de 10px + padding lateral de 16px, como no CSS de .grade-linha
+  // colunas + vaos + padding lateral, como no CSS de .grade-linha (no celular,
+  // vao de 6px e padding de 10px)
   const n = colunas.length + (selecionavel ? 1 : 0)
+  const [vao, margem] = estreita ? [6, 20] : [10, 32]
   const minimo =
-    (selecionavel ? 30 : 0) + colunas.reduce((s, c) => s + larguraMinima(c.largura), 0) + 10 * (n - 1) + 32
+    (selecionavel ? 30 : 0) + colunas.reduce((s, c) => s + larguraMinima(c.largura), 0) + vao * (n - 1) + margem
   const estilo = { gridTemplateColumns: grid, minWidth: minimo }
 
   const chaveDe = (c: Coluna<T>) => (c.ordem === undefined ? (i: T) => chaveDeOrdem(c.render(i)) : c.ordem)
-  const colunaOrdem = ordem ? colunas.find((c) => c.chave === ordem.chave && c.ordem !== null) : undefined
+  const colunaOrdem = ordem ? todas.find((c) => c.chave === ordem.chave && c.ordem !== null) : undefined
 
   const lista = useMemo(() => {
     if (!ordenavel || !ordem || !colunaOrdem) return itens

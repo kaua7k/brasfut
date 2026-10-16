@@ -55,3 +55,8 @@ jobs:
             echo "::warning::web/dist nao bate com o codigo: rode 'cd web && npm run build' e commite web/dist."
             git status --short web/dist
           fi
+      # versao do celular (Pyodide + PWA): so confere que o build sai; quem
+      # publica e o pages.yml, na main
+      - name: Build do GitHub Pages
+        working-directory: web
+        run: npm run build:pages

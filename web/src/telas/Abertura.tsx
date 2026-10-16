@@ -17,6 +17,8 @@ import { porque, AGUARDE } from '../motivo'
 import { useEffect, useState, type ReactNode } from 'react'
 import { api } from '../api'
 import { MarcaBrasfut } from '../icones'
+import { MODO_NAVEGADOR } from '../modo'
+import type { Medicao } from '../motor/protocolo'
 import type {
   ClubeOpcao,
   Config,
@@ -43,7 +45,7 @@ interface Props {
   aoConfig: (mudanca: Partial<Config>) => void
 }
 
-type Vista = 'menu' | 'slots' | 'nova' | 'config' | 'sobre'
+type Vista = 'menu' | 'slots' | 'nova' | 'config' | 'sobre' | 'medir'
 
 const MODOS: { id: ModoCarreira; nome: string; desc: string }[] = [
   { id: 'classico', nome: 'Classico', desc: 'O futebol como ele e: tabela, mercado, diretoria e torcida.' },
@@ -66,6 +68,7 @@ const TITULO: Record<Vista, string> = {
   nova: 'Nova carreira',
   config: 'Configuracoes',
   sobre: 'Sobre',
+  medir: 'Desempenho',
 }
 
 export function Abertura(props: Props) {
@@ -94,6 +97,7 @@ export function Abertura(props: Props) {
   else if (vista === 'nova') corpo = <NovaCarreira {...props} slot={slotNovo} dificuldades={dificuldades} />
   else if (vista === 'config') corpo = <Configuracoes {...props} />
   else if (vista === 'sobre') corpo = <Sobre versao={props.versao} />
+  else if (vista === 'medir') corpo = <MedirDesempenho />
   else
     corpo = (
       <nav className="ab-menu" aria-label="Menu principal">
@@ -106,6 +110,11 @@ export function Abertura(props: Props) {
         <button type="button" className="ab-link" onClick={() => setVista('sobre')}>
           Sobre o BRASFUT
         </button>
+        {MODO_NAVEGADOR && (
+          <button type="button" className="ab-link" onClick={() => setVista('medir')}>
+            Medir desempenho
+          </button>
+        )}
       </nav>
     )
 
@@ -487,6 +496,100 @@ function Sobre({ versao }: { versao: string }) {
           sob a SIL Open Font License.
         </p>
       </section>
+    </div>
+  )
+}
+
+// ------------------------------------------------------ medir desempenho
+// So no modo navegador (versao do celular): quanto o aparelho leva para subir
+// o Python e para jogar uma semana. A carreira de teste mora numa pasta
+// temporaria do motor; o save do jogador e a carreira aberta nao mudam.
+const SEMANAS_MEDIDAS = [
+  { id: 5, nome: '5 semanas' },
+  { id: 10, nome: '10 semanas' },
+  { id: 20, nome: '20 semanas' },
+]
+
+function seg(s: number): string {
+  return `${s.toFixed(2).replace('.', ',')} s`
+}
+
+function MedirDesempenho() {
+  const [semanas, setSemanas] = useState(10)
+  const [medindo, setMedindo] = useState(false)
+  const [etapa, setEtapa] = useState('')
+  const [falha, setFalha] = useState<string | null>(null)
+  const [med, setMed] = useState<Medicao | null>(null)
+
+  async function medir() {
+    if (!MODO_NAVEGADOR) return
+    setMedindo(true)
+    setFalha(null)
+    setMed(null)
+    const { aoProgresso, medirDesempenho } = await import('../motor/cliente')
+    const parar = aoProgresso(setEtapa)
+    setEtapa('criando um mundo de teste')
+    try {
+      setMed(await medirDesempenho(semanas))
+    } catch (e) {
+      setFalha(e instanceof Error ? e.message : String(e))
+    } finally {
+      parar()
+      setMedindo(false)
+    }
+  }
+
+  const linhas: [string, string, string?][] = med
+    ? [
+        ['Subir o motor', seg(med.carga.total / 1000),
+         `Pyodide ${seg(med.carga.pyodide / 1000)}, save ${seg(med.carga.save / 1000)}, ` +
+           `.py ${seg(med.carga.arquivos / 1000)}, importar ${seg(med.carga.importar / 1000)}`],
+        ['Criar o mundo', seg(med.criar_mundo)],
+        ['Escolher o clube', seg(med.escolher_clube), `${med.clube}, com a primeira gravacao`],
+        ['Semana (media)', seg(med.semana.media), `${med.semanas.length} semanas, clique de Avancar inteiro`],
+        ['Semana (pior)', seg(med.semana.pior), `melhor ${seg(med.semana.melhor)}`],
+        ['So o motor', seg(med.motor.media), `pior ${seg(med.motor.pior)}`],
+        ['Gravar o save', seg(med.gravar.media), `${(med.tamanho_save / 1048576).toFixed(1).replace('.', ',')} MB por semana`],
+        ['Guardar no aparelho', seg(med.indexeddb_ms / 1000), 'IndexedDB, um save desse tamanho'],
+        ['Abrir o save', seg(med.carregar_save)],
+        ['Memoria do Python', `${med.memoria_mb} MB`],
+      ]
+    : []
+
+  return (
+    <div className="ab-form">
+      <section className="ab-grupo">
+        <h3 className="ab-grupo-titulo">Semanas simuladas</h3>
+        <Segmento opcoes={SEMANAS_MEDIDAS} valor={semanas} aoMudar={setSemanas} rotulo="Semanas simuladas" />
+        <p className="ab-grupo-nota">
+          Cria uma carreira de teste fora do seu save, joga as semanas pelo mesmo caminho do botao Avancar e mede
+          cada uma. O seu jogo nao muda.
+        </p>
+      </section>
+      <button type="button" className="ab-bt ab-bt-primario" disabled={medindo} onClick={medir}>
+        {medindo ? 'Medindo…' : 'Medir'}
+      </button>
+      {medindo && (
+        <p className="ab-grupo-nota" role="status">
+          {etapa || 'medindo'}…
+        </p>
+      )}
+      {falha && <p className="ab-erro">{falha}</p>}
+      {med && (
+        <section className="ab-grupo" data-medicao={JSON.stringify(med)}>
+          <div className="ab-lista">
+            {linhas.map(([titulo, valor, desc]) => (
+              <div key={titulo} className="ab-linha">
+                <span className="ab-linha-texto">
+                  <span className="ab-linha-titulo">{titulo}</span>
+                  {desc && <span className="ab-linha-desc">{desc}</span>}
+                </span>
+                <strong>{valor}</strong>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   )
 }
