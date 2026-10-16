@@ -44,7 +44,7 @@ Atas de decisão de roadmap: `docs/three-amigos/`.
 | `web/src/telas/*.tsx` | 16 arquivos | Uma tela por arquivo (Painel, Elenco, Escalação, Mercado, Financas, Clube, Estatísticas, etc.) | Ao mexer numa tela específica |
 | `web/src/componentes/*.tsx` | 23 arquivos (`Ajuda.tsx`: ajuda e boas-vindas; `Partida.tsx`: resumo e detalhe da partida; `AoVivo.tsx`: a partida lance a lance, relógio e lances no minuto; `DialogoRenovar.tsx`: renovação em lote; `Celulas.tsx`: selo de posição, selo de overall e barra de físico das listas; `Resumo.tsx`: resumo da temporada; `Escudo.tsx`: escudo SVG de cada clube pelo nome, com o mapa de `/api/escudos`; `Plantao.tsx`: boletim do modo caos) | Diálogos e peças reusáveis (Mesa, Grade, Campo, Ficha...) | Componente compartilhado entre telas |
 | `web/src/api.ts`, `tipos.ts`, `formato.ts` | — | Cliente HTTP, tipos TS espelhando os DTOs, formatação (dinheiro, número) | Contrato front↔back |
-| `testes/*.py` | 46 arquivos (`desempenho.py`, `balanceamento.py` e `economia.py` são harness lentos, fora da suíte) | `unittest` da stdlib, sem dependência externa. `cd testes && python -m unittest -v` (~3 min, 194 testes) | Rodar antes de qualquer PR |
+| `testes/*.py` | 47 arquivos (`desempenho.py`, `balanceamento.py` e `economia.py` são harness lentos, fora da suíte) | `unittest` da stdlib, sem dependência externa. `cd testes && python -m unittest -v` (~3 min, 194 testes) | Rodar antes de qualquer PR |
 | `docs/proxima-onda.md` | — | **Backlog da próxima onda**: o que espera decisão, o que espera exemplo do testador, o que está pronto para codar e como verificar | Antes de começar a próxima rodada |
 | `.github/workflows/testes.yml` | — | CI (GitHub Actions): a cada push na `main` e em toda PR roda a suíte `unittest` e o `npm run build` da web; avisa se `web/dist` ficou velho | Ao mudar o que a suíte ou o build precisam |
 | `ferramentas/capturas.py` | — | Capturas das 13 telas em 5 resoluções (Edge headless, cópia isolada) e comparação por pixel | Antes/depois de mexer em CSS ou tela |
@@ -69,7 +69,7 @@ achar o nome exato, ou abra só a faixa abaixo:
 | 3230–4240 | Classificação, clássicos, **estaduais reais** (`_formato_estadual`, `montar_estaduais`), semana de estadual (joga Supercopa/Recopa) |
 | 4240–4680 | Economia semanal, manchetes, mata-mata (`jogar_fase_copa`: jogo único, campo neutro, segundo plano), `avancar_semana` |
 | 4680–4790 | Mercado — transferência/empréstimo básicos, IA de mercado |
-| 4790–5960 | Mercado — propostas, negociação (`Proposta`/`Resposta`), salário do livre e do veterano, agendadas, contraproposta |
+| 4790–6080 | Mercado — propostas, negociação (`Proposta`/`Resposta`), salário do livre e do veterano, agendadas, contraproposta, **pré-contrato e disputa** (`pode_precontrato`, `fechar_precontrato`, `rivais_assediam`, `disputa`, `rival_leva`) |
 | 5960–6420 | Evolução de jogador (potencial, declínio, leitura do olheiro `scout`), **lista de observação** (`observar`, `observados`, `avisos_observados`, `observar_mes`), treino |
 | 6220–6500 | Base: categoria de base, peneira regional, promoção |
 | 6500–7000 | Teto de potencial, IA (livres, investimentos, rebaixamento, premiação), prêmios do ano |

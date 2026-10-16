@@ -194,7 +194,7 @@ export function AoVivo({ p, aoFechar }: { p: Partida; aoFechar: () => void }) {
             <button type="button" className="bt-acao" onClick={pausarOuSeguir}>
               {noIntervalo ? 'Comecar o 2o tempo' : rodando ? 'Pausar' : 'Continuar'}
             </button>
-            <div className="ao-vivo-velocidade" role="group" aria-label="Velocidade">
+            <div className="segmento" role="group" aria-label="Velocidade">
               {VELOCIDADES.map((v, i) => (
                 <button
                   type="button"

@@ -2050,8 +2050,8 @@ ol.ajuda-lista { padding-left: 20px; max-height: none; }
 .ao-vivo-barra-cheia { height: 100%; background: var(--acao); transition: width 0.15s linear; }
 .ao-vivo-barra-meio { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: var(--fundo); }
 .ao-vivo-controles { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 36px; }
-.ao-vivo-velocidade { display: flex; gap: 4px; }
-.ao-vivo-velocidade .ativa { background: var(--painel-alto); border-color: var(--acao-linha); }
+.segmento { display: flex; gap: 4px; }
+.segmento .ativa { background: var(--painel-alto); border-color: var(--acao-linha); }
 .ao-vivo-lances { list-style: none; margin: 12px 0 0; padding: 0; max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-p); }
 .ao-vivo-lance { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: var(--raio-p); background: var(--painel); min-width: 0; }
 .ao-vivo-lance.gol { background: var(--painel-alto); }

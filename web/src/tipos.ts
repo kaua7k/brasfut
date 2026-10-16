@@ -987,6 +987,8 @@ export interface LinhaMercado {
   acertado: boolean
   /** na lista do olheiro */
   observado: boolean
+  /** ultimo ano de contrato, segundo semestre: da para assinar pre-contrato */
+  precontrato?: boolean
   /** aba Observados: meses na lista */
   meses?: number
   tag: string
@@ -1119,6 +1121,8 @@ export interface PropostaMesa {
   salario?: number
   pct?: number
   opcao?: number
+  /** compra sem passe de quem esta no ultimo ano de contrato: chega na virada */
+  precontrato?: boolean
 }
 
 export interface Mesa {
@@ -1154,6 +1158,10 @@ export interface Mesa {
   // compra
   livre?: boolean
   intocavel?: boolean
+  /** pre-contrato: pode (ultimo ano, segundo semestre), esta ligado, ou por que nao */
+  precontrato?: { pode: boolean; ativo: boolean; porque_nao: string | null }
+  /** outro clube atras do mesmo jogador nesta janela */
+  disputa?: { clube: string; lance: string; lance_num: number } | null
   pedido?: string
   pedido_num?: number
   valor?: number

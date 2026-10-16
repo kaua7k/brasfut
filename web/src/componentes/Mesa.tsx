@@ -251,9 +251,11 @@ export function Mesa({ tipo, id, aoFechar }: Props) {
                 <div className="mesa-fechada-titulo">Negocio fechado</div>
                 <div>{concluido}</div>
                 <div className="tag-fraco">
-                  {mesa.aberto
-                    ? 'Ele ja esta no seu elenco.'
-                    : 'Fica acertado para a abertura da janela; da para cancelar em Mercado > Vender.'}
+                  {mesa.precontrato?.ativo
+                    ? 'Ele termina a temporada onde esta e chega na virada; da para cancelar em Mercado > Vender.'
+                    : mesa.aberto
+                      ? 'Ele ja esta no seu elenco.'
+                      : 'Fica acertado para a abertura da janela; da para cancelar em Mercado > Vender.'}
                 </div>
               </section>
             )}
@@ -264,15 +266,49 @@ export function Mesa({ tipo, id, aoFechar }: Props) {
             {tipo === 'compra' && (
               <section className="mesa-bloco">
                 <div className="painel-titulo">
-                  Passe{mesa.intocavel ? ' — ele nao esta a venda' : ''}
+                  Passe{mesa.intocavel && !proposta.precontrato ? ' — ele nao esta a venda' : ''}
                 </div>
-                {mesa.livre ? (
+                {mesa.precontrato?.pode && (
+                  <div className="segmento mesa-linha" role="group" aria-label="Tipo de contratacao">
+                    <button
+                      type="button"
+                      className={`bt-fantasma bt-mini${!proposta.precontrato ? ' ativa' : ''}`}
+                      aria-pressed={!proposta.precontrato}
+                      onClick={() => setProposta((p) => ({ ...p, precontrato: false, valor: mesa.valor }))}
+                    >
+                      Comprar o passe
+                    </button>
+                    <button
+                      type="button"
+                      className={`bt-fantasma bt-mini${proposta.precontrato ? ' ativa' : ''}`}
+                      aria-pressed={Boolean(proposta.precontrato)}
+                      onClick={() => setProposta((p) => ({ ...p, precontrato: true, valor: 0 }))}
+                    >
+                      Pre-contrato, sem passe
+                    </button>
+                  </div>
+                )}
+                {mesa.precontrato?.porque_nao && (
+                  <div className="tag-fraco mesa-linha">Ultimo ano de contrato: {mesa.precontrato.porque_nao}.</div>
+                )}
+                {proposta.precontrato ? (
+                  <div className="tag-ok mesa-linha">
+                    Pre-contrato: o contrato dele com o {mesa.clube} acaba no fim da temporada. Sem passe a pagar;
+                    ele termina o ano la e chega de graca na virada. So falta acertar o salario.
+                  </div>
+                ) : mesa.livre ? (
                   <div className="tag-ok mesa-linha">Agente livre: nao ha passe a pagar, so acertar contrato.</div>
                 ) : (
                   <>
                     <div className="mesa-linha tag-atencao">
                       O {mesa.clube} libera a partir de {mesa.pedido}.
                     </div>
+                    {mesa.disputa && (
+                      <div className="mesa-linha tag-critico">
+                        O {mesa.disputa.clube} tambem quer e ofereceu {mesa.disputa.lance}. Abaixo disso o {mesa.clube}{' '}
+                        nao fecha, e se as tentativas acabarem o {mesa.disputa.clube} leva.
+                      </div>
+                    )}
                     <CampoDinheiro
                       rotulo="Oferta pelo passe"
                       valor={proposta.valor ?? 0}
@@ -403,9 +439,11 @@ export function Mesa({ tipo, id, aoFechar }: Props) {
                   onClick={enviar}
                 >
                   {tipo === 'compra'
-                    ? mesa.livre
-                      ? 'Propor contrato'
-                      : 'Enviar proposta'
+                    ? proposta.precontrato
+                      ? 'Propor pre-contrato'
+                      : mesa.livre
+                        ? 'Propor contrato'
+                        : 'Enviar proposta'
                     : tipo === 'emprestimo'
                       ? 'Propor emprestimo'
                       : 'Propor renovacao'}
