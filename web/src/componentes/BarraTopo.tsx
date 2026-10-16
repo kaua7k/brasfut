@@ -4,7 +4,7 @@
 // barra estourava e o caixa saia da tela. Salvar desceu para o pe do menu.
 
 import { porque, AGUARDE } from '../motivo'
-import { IconeSeta } from '../icones'
+import { IconeGaveta, IconeSeta } from '../icones'
 import { Escudo } from './Escudo'
 import type { Cabecalho } from '../tipos'
 
@@ -14,11 +14,26 @@ interface Props {
   /** Abre o painel de ritmos: jogo a jogo, mes, janela, temporada. */
   aoSimular: () => void
   avancando: boolean
+  /** Celular: o menu vira gaveta e este botao a abre (some na tela larga). */
+  aoAbrirMenu?: () => void
+  menuAberto?: boolean
 }
 
-export function BarraTopo({ cabecalho, aoAvancar, aoSimular, avancando }: Props) {
+export function BarraTopo({ cabecalho, aoAvancar, aoSimular, avancando, aoAbrirMenu, menuAberto }: Props) {
   return (
     <header className="topo">
+      {aoAbrirMenu && (
+        <button
+          type="button"
+          className="bt-gaveta"
+          aria-label="Abrir o menu"
+          aria-controls="menu-lateral"
+          aria-expanded={Boolean(menuAberto)}
+          onClick={aoAbrirMenu}
+        >
+          <IconeGaveta />
+        </button>
+      )}
       <Escudo nome={cabecalho.clube} tamanho={40} />
       {/* o nome e o subtitulo cedem espaco (com reticencias) antes dos chips e
           do botao: o botao da acao nunca pode sair da tela */}

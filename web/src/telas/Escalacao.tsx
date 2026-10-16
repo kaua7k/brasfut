@@ -105,6 +105,7 @@ function colunasXi(novaVaga: Set<number>): Coluna<JogadorEmCampo>[] {
     },
     {
       chave: 'obs',
+      secundaria: true,
       rotulo: 'Situacao',
       largura: '92px',
       classe: 'corta',
@@ -136,7 +137,7 @@ const COLUNAS_BANCO: Coluna<JogadorBanco>[] = [
     classe: 'num',
     render: (j) => barraFisico(j.cond),
   },
-  { chave: 'sit', rotulo: 'Situacao', largura: '92px', classe: 'corta', render: (j) => j.situacao },
+  { chave: 'sit', secundaria: true, rotulo: 'Situacao', largura: '92px', classe: 'corta', render: (j) => j.situacao },
 ]
 
 /** Opcao do select: a contagem entre parenteses e o aviso de sem laterais. */

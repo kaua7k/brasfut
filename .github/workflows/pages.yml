@@ -1,0 +1,59 @@
+# Publica a versao do celular no GitHub Pages a cada push na main.
+#
+# `npm run build:pages` gera web/dist-pages: o app com o motor rodando no
+# navegador (Pyodide num Web Worker, servido junto, sem CDN), os .py do jogo,
+# o manifesto da PWA e o service worker que deixa tudo offline. Nada de
+# servidor: o save fica no aparelho (IndexedDB). Ver ARQUITETURA-WEB.md,
+# secao "Versao do celular".
+#
+# Uma vez no repositorio: Settings > Pages > Source = "GitHub Actions".
+
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build da versao do celular
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Instalar
+        working-directory: web
+        run: npm ci
+      - name: Build
+        working-directory: web
+        run: npm run build:pages
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist-pages
+
+  deploy:
+    name: Publicar
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.publicar.outputs.page_url }}
+    steps:
+      - id: publicar
+        uses: actions/deploy-pages@v4

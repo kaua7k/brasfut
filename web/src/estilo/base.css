@@ -14,6 +14,7 @@
 @import './telas-b.css';
 @import './telas-c.css';
 @import './telas-abertura.css';
+@import './telas-celular.css';
 
 :root {
   /* Todo valor visual do jogo mora aqui. Fora deste bloco o CSS e o TSX so
@@ -106,6 +107,7 @@
   --sombra-disco: 0 2px 6px rgba(0, 0, 0, 0.45);
   --sombra-barra: 0 -8px 24px rgba(5, 6, 7, 0.55);
   --sombra-mesa: 0 -10px 22px rgba(5, 6, 7, 0.5);
+  --sombra-gaveta: 12px 0 32px rgba(5, 6, 7, 0.6);   /* menu-gaveta do celular */
 
   /* fonte: seis tamanhos, e so eles */
   --fs-mini: 11px;   /* rotulo em caixa alta, selo, carimbo */
@@ -755,7 +757,7 @@ button.jogador:hover .disco, button.jogador:focus-visible .disco { transform: sc
 .clube-opcao .serie { font-size: var(--fs-mini); color: var(--fraco); font-weight: 700; }
 
 /* -------------------------------------------------------------------- avisos */
-.centro-tela { display: flex; align-items: center; justify-content: center; height: 100%; padding: 40px; }
+.centro-tela { display: flex; flex-direction: column; gap: 12px; align-items: center; justify-content: center; height: 100%; padding: 40px; text-align: center; }
 .cartao-centro { max-width: 460px; text-align: center; }
 .cartao-centro h1 { font-size: var(--fs-gg); margin-bottom: 10px; }
 .cartao-centro p { color: var(--fraco); font-size: var(--fs-base); line-height: 1.6; margin: 0 0 20px; }
@@ -779,6 +781,7 @@ button.jogador:hover .disco, button.jogador:focus-visible .disco { transform: sc
   .topo { flex-wrap: wrap; gap: 12px; padding: 14px 16px; }
   .corpo { padding: 14px 16px 18px; }
 }
+
 
 /* quando nao ha nada a explicar, a lista some e vira uma linha so */
 .sem-ressalva {

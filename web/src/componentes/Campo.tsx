@@ -10,6 +10,7 @@
 // repete o motivo por escrito: no resto do jogo a cor nunca e a unica voz.
 
 import type { CSSProperties } from 'react'
+import { useTelaEstreita } from '../estreita'
 import type { JogadorEmCampo } from '../tipos'
 
 // a vaga pinta o pip do disco com a mesma cor do selo de posicao das listas
@@ -39,8 +40,12 @@ function descrever(j: JogadorEmCampo) {
 
 export function Campo({ jogadores, vagasAbertas, aoClicar, marcados, novaVaga }: Props) {
   const clicavel = Boolean(aoClicar)
+  // no celular o campo fica em pe: o gol do time embaixo e o ataque em cima.
+  // x (de gol a gol) vira a altura e y (de lado a lado) vira a largura.
+  const vertical = useTelaEstreita()
+  const ponto = (x: number, y: number) => (vertical ? { left: `${y}%`, top: `${100 - x}%` } : { left: `${x}%`, top: `${y}%` })
   return (
-    <div className="campo-area">
+    <div className={`campo-area${vertical ? ' vertical' : ''}`}>
       <div className="campo-linhas" />
       <div className="campo-meio" />
       <div className="campo-circulo" />
@@ -53,7 +58,8 @@ export function Campo({ jogadores, vagasAbertas, aoClicar, marcados, novaVaga }:
       {jogadores.map((j) => {
         const marcado = marcados?.has(j.id) ?? false
         const linha = LINHA[j.vaga] ?? ''
-        const classe = `jogador ${j.estado} linha-${linha}${j.y < 50 ? ' acima' : ''}${marcado ? ' escolhido' : ''}${
+        const acima = vertical ? false : j.y < 50
+        const classe = `jogador ${j.estado} linha-${linha}${acima ? ' acima' : ''}${marcado ? ' escolhido' : ''}${
           novaVaga?.has(j.id) ? ' nova-vaga' : ''
         }`
         const conteudo = (
@@ -72,7 +78,7 @@ export function Campo({ jogadores, vagasAbertas, aoClicar, marcados, novaVaga }:
             <div
               key={j.id}
               className={classe}
-              style={{ left: `${j.x}%`, top: `${j.y}%` }}
+              style={ponto(j.x, j.y)}
               title={descrever(j)}
               role="img"
               aria-label={descrever(j)}
@@ -86,7 +92,7 @@ export function Campo({ jogadores, vagasAbertas, aoClicar, marcados, novaVaga }:
             key={j.id}
             type="button"
             className={classe}
-            style={{ left: `${j.x}%`, top: `${j.y}%` }}
+            style={ponto(j.x, j.y)}
             title={descrever(j)}
             aria-label={descrever(j)}
             aria-pressed={marcado}
@@ -102,7 +108,7 @@ export function Campo({ jogadores, vagasAbertas, aoClicar, marcados, novaVaga }:
         <div
           key={`vazia-${i}`}
           className="jogador vazia"
-          style={{ left: '50%', top: `${18 + i * 12}%` }}
+          style={vertical ? { left: `${18 + i * 12}%`, top: '50%' } : { left: '50%', top: `${18 + i * 12}%` }}
           title="Sem jogador apto para esta vaga"
         >
           <span className="anel">

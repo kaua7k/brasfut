@@ -1,4 +1,5 @@
-// Unico ponto que fala com o Python.
+// Unico ponto que fala com o Python: por HTTP com o server.py ou, no modo
+// navegador (build do GitHub Pages), por mensagem com o worker do motor.
 //
 // Nenhum componente chama fetch: se a API mudar de forma, muda aqui e so aqui.
 // Erro do servidor vira ErroDaApi com a mensagem que o Python escreveu - a
@@ -48,6 +49,7 @@ import type {
   TelaTabela,
   TelaTreino,
 } from './tipos'
+import { MODO_NAVEGADOR } from './modo'
 
 export class ErroDaApi extends Error {
   status: number
@@ -59,6 +61,7 @@ export class ErroDaApi extends Error {
 }
 
 async function pedir<T>(caminho: string, corpo?: unknown): Promise<T> {
+  if (MODO_NAVEGADOR) return pedirNoNavegador<T>(caminho, corpo)
   let resposta: Response
   try {
     resposta = await fetch(caminho, {
@@ -74,6 +77,20 @@ async function pedir<T>(caminho: string, corpo?: unknown): Promise<T> {
   if (!resposta.ok) {
     throw new ErroDaApi(dados?.erro ?? `erro ${resposta.status}`, resposta.status)
   }
+  return dados as T
+}
+
+/** Modo navegador (GitHub Pages): o mesmo pedido vai ao motor no Web Worker. */
+async function pedirNoNavegador<T>(caminho: string, corpo?: unknown): Promise<T> {
+  const { pedirAoMotor } = await import('./motor/cliente')
+  let r: { status: number; corpo: unknown }
+  try {
+    r = await pedirAoMotor(corpo === undefined ? 'GET' : 'POST', caminho, corpo)
+  } catch (e) {
+    throw new ErroDaApi(`o motor do jogo nao respondeu: ${e instanceof Error ? e.message : e}`, 0)
+  }
+  const dados = (r.corpo ?? {}) as { erro?: string }
+  if (r.status < 200 || r.status >= 300) throw new ErroDaApi(dados.erro ?? `erro ${r.status}`, r.status)
   return dados as T
 }
 

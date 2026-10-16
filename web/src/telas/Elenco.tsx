@@ -36,7 +36,7 @@ const COLUNAS: Coluna<JogadorElenco>[] = [
       </>
     ),
   },
-  { chave: 'idade', rotulo: 'Idade', largura: '52px', classe: 'num', render: (j) => j.idade },
+  { chave: 'idade', secundaria: true, rotulo: 'Idade', largura: '52px', classe: 'num', render: (j) => j.idade },
   { chave: 'ovr', rotulo: 'Ovr', largura: '44px', classe: 'num', render: (j) => seloOvr(j.ovr) },
   {
     chave: 'fis',
@@ -45,10 +45,11 @@ const COLUNAS: Coluna<JogadorElenco>[] = [
     classe: 'num',
     render: (j) => barraFisico(j.cond),
   },
-  { chave: 'sal', rotulo: 'Salario', largura: '92px', classe: 'num', render: (j) => j.salario, ordem: (j) => j.salario_num },
-  { chave: 'val', rotulo: 'Valor', largura: '92px', classe: 'num', render: (j) => j.valor, ordem: (j) => j.valor_num },
+  { chave: 'sal', secundaria: true, rotulo: 'Salario', largura: '92px', classe: 'num', render: (j) => j.salario, ordem: (j) => j.salario_num },
+  { chave: 'val', secundaria: true, rotulo: 'Valor', largura: '92px', classe: 'num', render: (j) => j.valor, ordem: (j) => j.valor_num },
   {
     chave: 'ct',
+    secundaria: true,
     rotulo: 'Contrato',
     largura: '84px',
     classe: 'centro',
@@ -61,6 +62,7 @@ const COLUNAS: Coluna<JogadorElenco>[] = [
   },
   {
     chave: 'jogo',
+    secundaria: true,
     rotulo: 'Jogo',
     largura: 'minmax(110px, 1fr)',
     classe: 'corta',
@@ -68,6 +70,7 @@ const COLUNAS: Coluna<JogadorElenco>[] = [
   },
   {
     chave: 'mercado',
+    secundaria: true,
     rotulo: 'Mercado',
     largura: 'minmax(110px, 1fr)',
     classe: 'corta',
