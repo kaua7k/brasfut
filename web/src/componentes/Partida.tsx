@@ -4,11 +4,13 @@
 // fim do Simular): mandante primeiro, gols e cartoes com minuto, posse,
 // chutes e melhor em campo. As bolinhas V/E/D das ultimas partidas trocam o
 // jogo mostrado. "Ver detalhes" abre DetalhePartida com notas, substituicoes
-// e o resto das estatisticas - tudo ja veio no mesmo pedido, sem outra
+// e o resto das estatisticas; "Ver lance a lance" abre AoVivo, que assiste
+// o jogo de novo minuto a minuto - tudo ja veio no mesmo pedido, sem outra
 // chamada a API.
 
 import { useState } from 'react'
 import { iconeDeEstado } from '../icones'
+import { AoVivo } from './AoVivo'
 import { Escudo } from './Escudo'
 import type { Estado, Lado, LinhaNota, Partida } from '../tipos'
 
@@ -24,6 +26,7 @@ const LETRA: Record<Partida['resultado'], string> = { V: 'vitoria', E: 'empate',
 export function ResumoPartida({ partidas, historico = 5, alerta }: PropsResumo) {
   const [escolhida, setEscolhida] = useState<string | null>(null)
   const [detalhe, setDetalhe] = useState(false)
+  const [aoVivo, setAoVivo] = useState(false)
   if (!partidas.length) return null
   const p = partidas.find((x) => x.chave === escolhida) ?? partidas[partidas.length - 1]
   const recentes = historico > 0 ? partidas.slice(-historico) : []
@@ -122,9 +125,14 @@ export function ResumoPartida({ partidas, historico = 5, alerta }: PropsResumo) 
             <strong className={classeDaNota(p.melhor.nota)}>{p.melhor.nota.toFixed(1)}</strong>
           </span>
         )}
-        <button type="button" className="bt-fantasma empurra" onClick={() => setDetalhe(true)}>
-          Ver detalhes
-        </button>
+        <span className="empurra linha-flex">
+          <button type="button" className="bt-fantasma" onClick={() => setAoVivo(true)}>
+            Ver lance a lance
+          </button>
+          <button type="button" className="bt-fantasma" onClick={() => setDetalhe(true)}>
+            Ver detalhes
+          </button>
+        </span>
       </div>
 
       {alerta && (
@@ -135,6 +143,7 @@ export function ResumoPartida({ partidas, historico = 5, alerta }: PropsResumo) 
       )}
 
       {detalhe && <DetalhePartida p={p} aoFechar={() => setDetalhe(false)} />}
+      {aoVivo && <AoVivo key={p.chave} p={p} aoFechar={() => setAoVivo(false)} />}
     </section>
   )
 }

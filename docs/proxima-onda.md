@@ -79,7 +79,7 @@ amarelo).
 
 ## 3. Pronto para codar (sem decisão pendente)
 
-- **Partida lance a lance na web** — só existe na janela tkinter (`ARQUITETURA-WEB.md`, pontas soltas).
+- ~~**Partida lance a lance na web**~~ — feito: "Ver lance a lance" no cartão da partida abre `componentes/AoVivo.tsx` (relógio, placar, lances no minuto, intervalo, 1x/2x/4x, estatísticas no apito).
 - **Testes do React** — hoje só a API tem teste; o CI já roda `npm run build`, falta ao menos um teste de fumaça das telas.
 - **Onda 3 sem spike** (`docs/three-amigos/2026-09-24-rodada-de-melhorias.md`, item 18): mercado disputado e pré-contrato, olheiros e lista de observação, Copinha e convocações. História do clube já saiu (tela Clube); falta conferir os números de `dados_clubes.py`. Economia com escolhas já andou (crédito, sete espaços de patrocínio, sócios e bicho por vitória: nenhum, normal, alto ou dobrado nas Finanças).
 - ~~**Atalho de patrocínio**~~ — feito: "Assinar as equilibradas de todos" nas Finanças (`assinar_equilibradas`).

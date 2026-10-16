@@ -2025,3 +2025,29 @@ ol.ajuda-lista { padding-left: 20px; max-height: none; }
 .estat-valor.nota-boa { background: var(--ok-fundo); color: var(--ok); }
 .estat-valor.nota-media { background: var(--atencao-fundo); color: var(--atencao); }
 .estat-valor.nota-fraca { background: var(--critico-fundo); color: var(--critico); }
+
+/* ------------------------------------------------------------------ ao vivo
+ * A partida lance a lance (componentes/AoVivo.tsx): relogio, barra do tempo,
+ * controles e o feed dos lances, o mais novo em cima. */
+.ao-vivo-centro { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.ao-vivo-relogio { font-family: var(--titulo); font-size: var(--fs-g); font-weight: 700; color: var(--txt); font-variant-numeric: tabular-nums; }
+.ao-vivo-fase { font-size: var(--fs-p); color: var(--fraco); }
+.placar-numero.gol-agora { color: var(--conquista); animation: ao-vivo-gol 0.6s ease-out; }
+@keyframes ao-vivo-gol { from { transform: scale(1.25); } to { transform: scale(1); } }
+.ao-vivo-barra { position: relative; height: 6px; border-radius: 3px; background: var(--linha); margin: 14px 0 10px; overflow: hidden; }
+.ao-vivo-barra-cheia { height: 100%; background: var(--acao); transition: width 0.15s linear; }
+.ao-vivo-barra-meio { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: var(--fundo); }
+.ao-vivo-controles { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 36px; }
+.ao-vivo-velocidade { display: flex; gap: 4px; }
+.ao-vivo-velocidade .ativa { background: var(--painel-alto); border-color: var(--acao-linha); }
+.ao-vivo-lances { list-style: none; margin: 12px 0 0; padding: 0; max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-p); }
+.ao-vivo-lance { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: var(--raio-p); background: var(--painel); min-width: 0; }
+.ao-vivo-lance.gol { background: var(--painel-alto); }
+.ao-vivo-lance.gol.meu { background: var(--ok-fundo); }
+.ao-vivo-lance.apito { background: none; }
+.ao-vivo-lance .lance-marca.substituicao { width: 10px; height: 10px; border-radius: 2px; border: 2px solid var(--fraco); }
+.ao-vivo-lance .lance-marca.lesao { width: 10px; height: 10px; border-radius: 50%; background: var(--critico-claro); }
+@media (prefers-reduced-motion: reduce) {
+  .placar-numero.gol-agora { animation: none; }
+  .ao-vivo-barra-cheia { transition: none; }
+}

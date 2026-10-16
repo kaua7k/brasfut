@@ -784,10 +784,13 @@ telas que mexeram, e olhar essas.
 
 ## Pontas soltas conhecidas
 
-- **Diálogos que só existem no tkinter**: a partida lance a lance
-  (`Partida`, brasfut_app.py), as boas-vindas (`Boas_vindas`) e a ajuda
-  (`Ajuda` — o botão já está no menu lateral, desativado). O resumo da
-  temporada já migrou (`componentes/Resumo.tsx`).
+- **Diálogos que só existiam no tkinter**: todos migraram. A partida
+  (`Partida`, brasfut_app.py) virou o resumo e o detalhe
+  (`componentes/Partida.tsx`) e o lance a lance (`componentes/AoVivo.tsx`:
+  assiste de novo o jogo já simulado, com relógio, sem outra chamada à API;
+  estatísticas só no apito, porque o motor guarda o total e não a curva).
+  Boas-vindas e ajuda em `componentes/Ajuda.tsx`, resumo da temporada em
+  `componentes/Resumo.tsx`.
 - **Acentuação.** O motor escreve sem acento ("escalacao", "Financas") porque
   nasceu para terminal. O navegador não tem essa limitação, mas acentuar só a
   metade que eu escrevo deixaria a tela mestiça. Normalizar isso é uma
