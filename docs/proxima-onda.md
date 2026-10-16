@@ -9,8 +9,7 @@ começar. Decisões já tomadas continuam em `docs/three-amigos/`; o mapa do có
 
 - **Versão mobile**: para Android e iPhone. Caminho: motor no navegador (Pyodide) + PWA
   no GitHub Pages, começando pelo protótipo que mede uma semana simulada no celular.
-- **Onda 3 com spike**: entram os dois (intervalo interativo e IA com identidade tática +
-  rebalanceamento).
+- **Onda 3 com spike**: entram os dois. ~~Intervalo interativo~~ feito (`partida` virou gerador que para aos 45'; o resultado espera a vez em `PARTIDA_PRONTA`, só memória) e ~~IA com identidade tática + rebalanceamento~~ feito (`ESTILOS`, `tatica_do_jogo`, `TATICAS` recalibradas).
 - **Ordem combinada**: atalhos e bicho → partida lance a lance na web → mercado disputado e
   olheiros → Copinha e convocações → os dois spikes → protótipo mobile.
 - **Exemplos do Okumura** (notícia de gol estranha, contratações fantasmas): descartados.

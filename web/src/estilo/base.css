@@ -2063,3 +2063,24 @@ ol.ajuda-lista { padding-left: 20px; max-height: none; }
   .placar-numero.gol-agora { animation: none; }
   .ao-vivo-barra-cheia { transition: none; }
 }
+
+/* ---------------------------------------------------------------- intervalo
+ * O jogo parado nos 45' (componentes/Intervalo.tsx): titulares e banco lado a
+ * lado, um clique em quem sai e outro em quem entra. */
+.intervalo-listas { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.intervalo-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.intervalo-jogador {
+  width: 100%; display: flex; align-items: center; gap: 8px; padding: 5px 8px;
+  border-radius: var(--raio-p); border: 1px solid var(--borda); background: var(--painel);
+  color: var(--txt); font-size: var(--fs-p); text-align: left; cursor: pointer;
+}
+.intervalo-jogador:hover:not(:disabled) { border-color: var(--acao-linha); }
+.intervalo-jogador.marcado { border-color: var(--acao-linha); background: var(--painel-alto); }
+.intervalo-jogador.saiu { opacity: 0.45; }
+.intervalo-jogador:disabled { cursor: default; }
+.intervalo-nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.intervalo-nome .lance-marca { display: inline-block; margin-left: 6px; }
+.intervalo-nota { font-variant-numeric: tabular-nums; color: var(--txt-2); }
+@media (max-width: 640px) {
+  .intervalo-listas { grid-template-columns: 1fr; }
+}

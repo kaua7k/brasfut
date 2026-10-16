@@ -137,6 +137,35 @@ por jogo de 2,75 para 2,77, empates de 24,2% para 23,4%, e quem perde aos 70 esc
 derrota um pouco menos (11,9% → 10,7%): segurar o resultado rende mais do que ir para o
 tudo ou nada.
 
+### O intervalo é seu
+
+No **Avançar semana**, o seu jogo de liga para no intervalo. Aparecem o placar, os lances
+do primeiro tempo, a posse e os chutes, e o seu time com a nota e o físico de cada um até ali.
+Dá para trocar a mentalidade do segundo tempo e fazer substituições (clique em quem sai e
+depois em quem entra, até o limite de 5 no jogo). **Começar o 2º tempo** termina a
+partida e roda o resto da semana. Se você escolheu a mentalidade no intervalo, a sua
+instrução condicional dos 46' não passa por cima; a dos 71' continua valendo. Copa
+(ida e volta, campo neutro) e o Simular seguem direto. Para não parar mais, use o botão
+no próprio intervalo ou desmarque "Parar no intervalo..." na Escalação.
+
+### Cada adversário tem um jeito de jogar
+
+Os clubes da máquina têm estilo: **Ofensivo** (pressão alta), **Posse de bola** (sai
+jogando, cadencia), **Equilibrado**, **Contra-ataque** (linha recuada, saída direta) e
+**Ferrolho** (pressão baixa, linha recuada). Grande tende a propor o jogo e pequeno a se
+fechar, com um toque da escola do país (italiano mais fechado, espanhol de posse, alemão
+de pressão). A cada partida a máquina ajusta a mentalidade ao adversário, dentro do
+estilo dela: contra quem é bem mais forte desce um degrau, contra quem é bem mais fraco
+sobe um. O Painel mostra, no próximo jogo, o estilo do adversário e a mentalidade com que
+ele deve vir contra você, e as barras de força já contam com ela.
+
+As cinco mentalidades foram rebalanceadas (2026-10-16). Entre times da mesma força, a
+Retranca fazia 1,46 ponto por jogo e a Pressão total 1,15; agora as cinco ficam entre 1,29
+e 1,35. A escolha pesa no confronto: o favorito rende mais atacando (Pressão total 2,46
+pontos contra 1,97 da Retranca) e o azarão segura mais fechado. No mundo inteiro, em 3
+seeds × 45 semanas: 2,88 gols por jogo (eram 2,79), 43% de vitórias do mandante (eram
+46%) e 28% de empates (eram 24%).
+
 ## Simular e renovar em lote
 
 **Simular.** Os ritmos (jogo a jogo, 1 semana, 1 mês, até a janela, temporada toda) são

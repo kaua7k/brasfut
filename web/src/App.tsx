@@ -14,6 +14,7 @@ import { DialogoCeder } from './componentes/DialogoCeder'
 import { DialogoVitrine } from './componentes/DialogoVitrine'
 import { DialogoRenovar } from './componentes/DialogoRenovar'
 import { Ficha } from './componentes/Ficha'
+import { Intervalo } from './componentes/Intervalo'
 import { JanelaPendencia } from './componentes/JanelaPendencia'
 import { Mesa } from './componentes/Mesa'
 import { Resumo } from './componentes/Resumo'
@@ -47,6 +48,8 @@ import type {
   OpcoesCarreira,
   SlotSave,
   EventoCaos,
+  Intervalo as DadosIntervalo,
+  RespostaAvanco,
   Confirmar,
   DadosPainel,
   FichaJogador,
@@ -104,6 +107,7 @@ export function App() {
   const [versao, setVersao] = useState('')
   const [slots, setSlots] = useState<SlotSave[]>([])
   const [plantao, setPlantao] = useState<EventoCaos[]>([])
+  const [intervalo, setIntervalo] = useState<DadosIntervalo | null>(null)
   const [config, setConfig] = useState<Config | null>(null)
 
   // escala e animacoes valem para o jogo inteiro, nao so para o menu
@@ -351,12 +355,43 @@ export function App() {
     })
 
   // --------------------------------------------------------------------- acoes
+  const tratarAvanco = (r: RespostaAvanco) => {
+    setIntervalo(null)
+    setPergunta(null)
+    if (r.plantao?.length) setPlantao(r.plantao)
+    if (r.painel) setConteudo({ tipo: 'painel', dados: r.painel })
+    if (r.resumo) setResumo(r.resumo)
+    if (r.pendencia) setPendencia(r.pendencia)
+    if (r.encerrada) setRecado('Carreira encerrada.')
+    else if (r.resumo) setRecado(`Ano novo: pre-temporada ${r.resumo.temporada + 1}, mercado aberto.`)
+    else if (r.painel?.cabecalho.fase === 'encerrada')
+      setRecado(`A temporada acabou. ${r.painel.cabecalho.acao} vira o ano e mostra o resumo.`)
+    else if (r.fim_do_estadual) setRecado('O estadual acabou. Comeca a Serie A.')
+    else setRecado('Semana processada e salva.')
+  }
+
+  const segundoTempo = (tatica: string, trocas: [number, number][], desligar = false) =>
+    comErro(async () => {
+      setOcupado(true)
+      try {
+        if (desligar) await api.preferenciaIntervalo(false)
+        tratarAvanco(await api.segundoTempo(tatica, trocas))
+      } finally {
+        setOcupado(false)
+      }
+    })
+
   const avancar = (confirmar = false) =>
     comErro(async () => {
       setOcupado(true)
       setRecado(null)
       try {
         const r = await api.avancar(confirmar)
+        if (r.intervalo) {
+          setPergunta(null)
+          setIntervalo(r.intervalo)
+          return
+        }
         if (r.confirmar) {
           // time quebrado: a decisao de entrar em campo assim e do usuario, e
           // ele precisa ver o estrago antes de tomar
@@ -367,17 +402,7 @@ export function App() {
           })
           return
         }
-        setPergunta(null)
-        if (r.plantao?.length) setPlantao(r.plantao)
-        if (r.painel) setConteudo({ tipo: 'painel', dados: r.painel })
-        if (r.resumo) setResumo(r.resumo)
-        if (r.pendencia) setPendencia(r.pendencia)
-        if (r.encerrada) setRecado('Carreira encerrada.')
-        else if (r.resumo) setRecado(`Ano novo: pre-temporada ${r.resumo.temporada + 1}, mercado aberto.`)
-        else if (r.painel?.cabecalho.fase === 'encerrada')
-          setRecado(`A temporada acabou. ${r.painel.cabecalho.acao} vira o ano e mostra o resumo.`)
-        else if (r.fim_do_estadual) setRecado('O estadual acabou. Comeca a Serie A.')
-        else setRecado('Semana processada e salva.')
+        tratarAvanco(r)
       } finally {
         setOcupado(false)
       }
@@ -491,6 +516,8 @@ export function App() {
           return api.montarMelhor()
         case 'capitao':
           return api.capitaoNaEscalacao(acao.id)
+        case 'intervalo':
+          return api.preferenciaIntervalo(acao.ligado)
       }
     }
     despachar<TelaEscalacao>(chamar, aplicar, () =>
@@ -1011,6 +1038,14 @@ export function App() {
       )}
 
       {plantao.length > 0 && !resumo && <Plantao eventos={plantao} aoFechar={() => setPlantao([])} />}
+      {intervalo && (
+        <Intervalo
+          dados={intervalo}
+          ocupado={ocupado}
+          aoSeguir={(tatica, trocas) => segundoTempo(tatica, trocas)}
+          aoDesligar={() => segundoTempo(intervalo.tatica, [], true)}
+        />
+      )}
 
       {boasVindas && (
         <BoasVindas

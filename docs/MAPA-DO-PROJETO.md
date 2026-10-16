@@ -42,9 +42,9 @@ Atas de decisão de roadmap: `docs/three-amigos/`.
 | `api/avanco.py` | — | Avançar em ritmos (jogo/semana/mês/janela/temporada) | Botão *Avançar*/*Simular* |
 | `api/campo.py` | — | Vaga (GOL, ZAG...) → ponto no campo, para as formações | Desenho do campo na Escalação |
 | `web/src/telas/*.tsx` | 16 arquivos | Uma tela por arquivo (Painel, Elenco, Escalação, Mercado, Financas, Clube, Estatísticas, etc.) | Ao mexer numa tela específica |
-| `web/src/componentes/*.tsx` | 23 arquivos (`Ajuda.tsx`: ajuda e boas-vindas; `Partida.tsx`: resumo e detalhe da partida; `AoVivo.tsx`: a partida lance a lance, relógio e lances no minuto; `DialogoRenovar.tsx`: renovação em lote; `Celulas.tsx`: selo de posição, selo de overall e barra de físico das listas; `Resumo.tsx`: resumo da temporada; `Escudo.tsx`: escudo SVG de cada clube pelo nome, com o mapa de `/api/escudos`; `Plantao.tsx`: boletim do modo caos) | Diálogos e peças reusáveis (Mesa, Grade, Campo, Ficha...) | Componente compartilhado entre telas |
+| `web/src/componentes/*.tsx` | 24 arquivos (`Ajuda.tsx`: ajuda e boas-vindas; `Partida.tsx`: resumo e detalhe da partida; `AoVivo.tsx`: a partida lance a lance, relógio e lances no minuto; `Intervalo.tsx`: o jogo parado aos 45', mentalidade e trocas; `DialogoRenovar.tsx`: renovação em lote; `Celulas.tsx`: selo de posição, selo de overall e barra de físico das listas; `Resumo.tsx`: resumo da temporada; `Escudo.tsx`: escudo SVG de cada clube pelo nome, com o mapa de `/api/escudos`; `Plantao.tsx`: boletim do modo caos) | Diálogos e peças reusáveis (Mesa, Grade, Campo, Ficha...) | Componente compartilhado entre telas |
 | `web/src/api.ts`, `tipos.ts`, `formato.ts` | — | Cliente HTTP, tipos TS espelhando os DTOs, formatação (dinheiro, número) | Contrato front↔back |
-| `testes/*.py` | 47 arquivos (`desempenho.py`, `balanceamento.py` e `economia.py` são harness lentos, fora da suíte) | `unittest` da stdlib, sem dependência externa. `cd testes && python -m unittest -v` (~3 min, 194 testes) | Rodar antes de qualquer PR |
+| `testes/*.py` | 49 arquivos (`desempenho.py`, `balanceamento.py` e `economia.py` são harness lentos, fora da suíte) | `unittest` da stdlib, sem dependência externa. `cd testes && python -m unittest -v` (~3 min, 194 testes) | Rodar antes de qualquer PR |
 | `docs/proxima-onda.md` | — | **Backlog da próxima onda**: o que espera decisão, o que espera exemplo do testador, o que está pronto para codar e como verificar | Antes de começar a próxima rodada |
 | `.github/workflows/testes.yml` | — | CI (GitHub Actions): a cada push na `main` e em toda PR roda a suíte `unittest` e o `npm run build` da web; avisa se `web/dist` ficou velho | Ao mudar o que a suíte ou o build precisam |
 | `ferramentas/capturas.py` | — | Capturas das 13 telas em 5 resoluções (Edge headless, cópia isolada) e comparação por pixel | Antes/depois de mexer em CSS ou tela |
@@ -65,7 +65,7 @@ achar o nome exato, ou abra só a faixa abaixo:
 | 1150–1345 | Mundo embutido (`mundo_embutido`, `aplicar_mundo`), ligas de fora, `montar_ligas_sul`, `vagas_continentais_sul` |
 | 1345–1700 | Copas: `montar_copas`, **Intercontinental e Mundial** (`nova_intercontinental`, `montar_mundial`), **supercopas** (`montar_supercopas`), **copas nacionais de fora** (`montar_copas_nacionais`), Champions/Europa League, grupos continentais |
 | 1700–2400 | Escalação: seleção automática (`_atribuicao_hungara`), `montar_escalacao`, `diagnostico_escalacao` |
-| 2400–3230 | Simulação de partida (`simular`), posse, moral com causa (`mexer_moral`), pênaltis |
+| 2400–3500 | Táticas e **estilos da máquina** (`TATICAS`, `ESTILOS`, `estilo_de`, `tatica_do_jogo`), simulação de partida (`simular` sem pausa e o gerador `partida` com o intervalo interativo, `PARTIDA_PRONTA`), posse, moral com causa (`mexer_moral`), pênaltis |
 | 3230–4240 | Classificação, clássicos, **estaduais reais** (`_formato_estadual`, `montar_estaduais`), semana de estadual (joga Supercopa/Recopa) |
 | 4240–4680 | Economia semanal, manchetes, mata-mata (`jogar_fase_copa`: jogo único, campo neutro, segundo plano), `avancar_semana` |
 | 4680–4790 | Mercado — transferência/empréstimo básicos, IA de mercado |
@@ -118,10 +118,14 @@ decisões em `docs/three-amigos/2026-09-25-onda-2-decisoes.md`):
   `testes/balanceamento.py`).
 
 **Onda 3 — em andamento** (os dois primeiros itens precisam de spike):
-- Intervalo interativo (spike de arquitetura: `simular` viraria máquina de
-  estados).
-- IA com identidade tática e rebalanceamento (Retranca hoje domina
-  matematicamente sobre Pressão — decisão foi **não mexer agora**).
+- ~~Intervalo interativo~~ — feito: `partida` é gerador que para aos 45'
+  (`pausar_lado`), `simular` roda sem pausa; a API joga o 1º tempo antes da
+  semana (`/api/avancar` com `intervalo`), `/api/partida/segundo-tempo` termina
+  e guarda o resultado em `PARTIDA_PRONTA` (memória, nunca no save)
+  (`test_intervalo.py`, `componentes/Intervalo.tsx`).
+- ~~IA com identidade tática e rebalanceamento~~ — feito: `ESTILOS` por clube
+  (`estilo_de`, escola do país), `tatica_do_jogo` ajusta um degrau pela força,
+  `TATICAS` recalibradas (`test_estilos.py`).
 - ~~Moral com causa e clássico com peso~~ — feito: `mexer_moral`/`anotar_moral`
   guardam `j["moral_hist"]` (5, só do meu clube), clássico dobra a moral de
   resultado (`test_moral.py`).
