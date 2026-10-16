@@ -39,6 +39,7 @@ export type AcaoEscalacao =
   | { tipo: 'plano-padrao' }
   | { tipo: 'condicional'; condicao: string; minuto: number | null; tatica: string | null }
   | { tipo: 'capitao'; id: number }
+  | { tipo: 'intervalo'; ligado: boolean }
 
 interface Props {
   tela: TelaEscalacao
@@ -474,6 +475,15 @@ export function Escalacao({ tela, ocupado, mercadoPronto, aoAbrirFicha, aoAgir, 
                 </select>
               </div>
             ))}
+            <label className="avanco-parada filtro-marca">
+              <input
+                type="checkbox"
+                checked={tela.intervalo_interativo}
+                disabled={ocupado}
+                onChange={(e) => aoAgir({ tipo: 'intervalo', ligado: e.target.checked })}
+              />
+              Parar no intervalo dos meus jogos de liga para mexer no time
+            </label>
           </div>
         </div>
       </section>

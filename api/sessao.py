@@ -56,6 +56,9 @@ class Sessao(object):
         self.nova_vaga = []    # quem mudou de vaga na ultima troca de formacao
         # mesas de negociacao da semana: tentativas gastas e o que foi dito
         self.mesas = {}
+        # jogo parado no intervalo interativo (gerador do motor); so na memoria
+        self.intervalo = None
+        self.ultimo_corpo_intervalo = None
         # tres saves lado a lado: o slot 1 e o brasfut_save.json de sempre (o
         # save antigo continua abrindo), 2 e 3 ganham _2 e _3 no nome
         self._save_base = None
@@ -209,6 +212,7 @@ class Sessao(object):
         G["auto"] = True
         eng.trocar_de_clube = self._demitido
         self.G = G
+        self.intervalo = None
         self.pendencia = G.get("pendencia_web")
         self.invalidar()
         self.esquecer_desfazer()

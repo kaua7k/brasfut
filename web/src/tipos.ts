@@ -51,6 +51,8 @@ export interface Proximo {
   ataque: Forca
   /** minha defesa x ataque do adversario (dele = ataque dele) */
   defesa: Forca
+  /** estilo do adversario (maquina) e a mentalidade com que ele deve vir */
+  estilo?: { nome: string; desc: string; tatica: string }
 }
 
 export interface JogadorEmCampo {
@@ -413,6 +415,27 @@ export interface RespostaAvanco {
   resumo?: ResumoTemporada
   /** modo caos: os plantoes da semana */
   plantao?: EventoCaos[]
+  /** o meu jogo de liga parou no intervalo: a tela decide antes do segundo tempo */
+  intervalo?: Intervalo
+}
+
+export interface Intervalo {
+  comp: string
+  times: [string, string]
+  eu: Lado
+  placar: [number, number]
+  lances: { minuto: number; lado: Lado; tipo: string; texto: string; extra: string }[]
+  posse: [number, number]
+  chutes: [number, number]
+  no_gol: [number, number]
+  titulares: {
+    id: number; nome: string; pos: string; vaga: string; ovr: number; cond: number
+    nota: number; amarelo: boolean; lesionado: boolean
+  }[]
+  banco: { id: number; nome: string; pos: string; ovr: number; cond: number }[]
+  trocas_restantes: number
+  tatica: string
+  taticas: string[]
 }
 
 export interface EventoCaos {
@@ -892,6 +915,8 @@ export interface TelaEscalacao {
   titulares: JogadorEmCampo[]
   vagas_abertas: number
   banco: JogadorBanco[]
+  /** parar no intervalo dos jogos de liga (intervalo interativo) */
+  intervalo_interativo: boolean
   /** quem usa a bracadeira e quem pode usar (titulares primeiro) */
   capitao: { id: number | null; opcoes: { id: number; nome: string; pos: string; titular: boolean }[] }
 }

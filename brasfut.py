@@ -293,12 +293,18 @@ def rotulo_formacao(c: "Clube") -> str:
 # O que diferencia agora e o matchup e a variancia: Retranca dobra os pontos do
 # azarao (1.02 contra 0.51 da Pressao) e Pressao rende mais ao favorito.
 # Calibrado para EXP_FORCA = 2.20 -- refazer a conta se o expoente mudar.
+# Rebalanceado em 2026-10-16 (Onda 3): medido com o simular de hoje (posse,
+# plano, tres periodos), a Retranca fazia 1,46 pt/jogo contra time da mesma
+# forca e a Pressao total 1,15. Agora as cinco ficam entre 1,29 e 1,35 entre
+# iguais (300 jogos por par, erro ~0,08), e o contraste fica no matchup: o
+# favorito rende mais atacando (Pressao 2,46 x Retranca 1,97) e o azarao segura
+# mais fechado.
 TATICAS = {
-    "Retranca":        (0.78, 1.417),
-    "Contra-ataque":   (0.90, 1.147),
+    "Retranca":        (0.80, 1.28),
+    "Contra-ataque":   (0.91, 1.10),
     "Equilibrado":     (1.00, 1.000),
-    "Ofensivo":        (1.14, 0.854),
-    "Pressao total":   (1.34, 0.710),
+    "Ofensivo":        (1.15, 0.88),
+    "Pressao total":   (1.36, 0.76),
 }
 
 # desgaste e propensao a cartao por tatica: (fadiga_min, fadiga_max, mult_cartao)
@@ -2870,6 +2876,124 @@ def tatica_condicional(G: Mundo, c: Clube, original: str, pro: int, contra: int,
     return ESCADA_TATICA[max(0, min(len(ESCADA_TATICA) - 1, i))]
 
 
+# ----------------------------------------------------------------------------
+# IDENTIDADE TATICA DA MAQUINA
+#
+# Cada clube da maquina tem um estilo, sorteado uma vez (estavel por clube) e
+# puxado pelo tamanho dele na liga e pela escola do pais: grande tende a
+# propor o jogo, pequeno a se fechar. O estilo fixa o plano (pressao, linha,
+# ritmo...) e a mentalidade de base; a cada partida a maquina ajusta a
+# mentalidade ao adversario dentro da faixa do estilo: contra quem e bem mais
+# forte desce um degrau, contra quem e bem mais fraco sobe um. Na janela dos 70 segue a regra de sempre (tatica_condicional).
+# ----------------------------------------------------------------------------
+
+ESTILOS = {
+    # o plano de cada estilo e de um ou dois botoes so: com pressao alta, linha
+    # adiantada e ritmo intenso juntos a media de gols do mundo ia a 3,2
+    "ofensivo": dict(nome="Ofensivo", base="Ofensivo", faixa=(2, 4),
+                     plano={"pressao": "Alta"},
+                     desc="pressiona alto e joga para frente"),
+    "posse": dict(nome="Posse de bola", base="Equilibrado", faixa=(1, 3),
+                  plano={"saida": "Curta", "ritmo": "Cadenciado", "largura": "Fechado"},
+                  desc="sai jogando, cadencia e busca o passe por dentro"),
+    "equilibrado": dict(nome="Equilibrado", base="Equilibrado", faixa=(1, 3), plano={},
+                        desc="sem exagero para nenhum lado"),
+    "reativo": dict(nome="Contra-ataque", base="Contra-ataque", faixa=(0, 3),
+                    plano={"linha": "Recuada", "saida": "Direta"},
+                    desc="espera atras e sai em velocidade"),
+    "retranca": dict(nome="Ferrolho", base="Retranca", faixa=(0, 2),
+                     plano={"pressao": "Baixa", "linha": "Recuada"},
+                     desc="fecha a casinha e vive de bola parada e lancamento"),
+}
+# escola do pais: peso extra por estilo (o resto sai do tamanho do clube)
+ESCOLA = {
+    "ITA": {"retranca": 0.25, "reativo": 0.20},
+    "ESP": {"posse": 0.40},
+    "POR": {"posse": 0.25, "reativo": 0.10},
+    "NED": {"posse": 0.30, "ofensivo": 0.15},
+    "ENG": {"ofensivo": 0.30, "reativo": 0.10},
+    "GER": {"ofensivo": 0.35},
+    "FRA": {"reativo": 0.20, "posse": 0.10},
+    "ARG": {"reativo": 0.25, "retranca": 0.10},
+    "URU": {"retranca": 0.30, "reativo": 0.15},
+}
+# razao de forca para descer um degrau (e o inverso para subir). Era um ou dois
+# degraus: o abismo de copa (Serie A x Serie D) virava Pressao total contra
+# Retranca e a media de gols ia a 3,2 (faixa da ata: 2,4 a 2,9)
+DEGRAU_FORCA = 0.90
+
+
+def pais_do_clube(c: Clube) -> str:
+    return "BRA" if c["divisao"] in DIVISOES_BR else str(c["divisao"])
+
+
+def estilo_de(G: Mundo, c: Clube) -> str:
+    """O estilo do clube; o primeiro pedido sorteia, grava e ja ajusta o plano."""
+    if c.get("estilo") in ESTILOS:
+        return c["estilo"]
+    rivais = [x["reputacao"] for x in G["clubes"].values() if x["divisao"] == c["divisao"]]
+    # 0 = menor da liga, 1 = maior
+    rank = sum(1 for r in rivais if r < c["reputacao"]) / float(max(1, len(rivais) - 1))
+    pesos = {"ofensivo": 0.15 + 0.55 * rank, "posse": 0.15 + 0.35 * rank,
+             "equilibrado": 0.35, "reativo": 0.15 + 0.35 * (1 - rank),
+             "retranca": 0.05 + 0.45 * (1 - rank)}
+    for k, extra in ESCOLA.get(pais_do_clube(c), {}).items():
+        pesos[k] += extra
+    alvo = _ruido("estilo-%d" % c["id"], 0.0, sum(pesos.values()))
+    escolhido = "equilibrado"
+    for k in ESTILOS:
+        alvo -= pesos[k]
+        if alvo <= 0:
+            escolhido = k
+            break
+    c["estilo"] = escolhido
+    if c["id"] != G.get("clube"):
+        aplicar_estilo(c)
+    return escolhido
+
+
+def garantir_estilos(G: Mundo) -> None:
+    """Todo clube da maquina com estilo (mundo novo, save antigo, troca de clube)."""
+    for c in G["clubes"].values():
+        if c["id"] == G.get("clube"):
+            continue
+        if c.get("estilo") in ESTILOS:
+            if c.get("tatica") != ESTILOS[c["estilo"]]["base"]:
+                aplicar_estilo(c)       # o clube que o tecnico largou volta ao estilo dele
+        else:
+            estilo_de(G, c)
+
+
+def aplicar_estilo(c: Clube) -> None:
+    e = ESTILOS[c.get("estilo") or "equilibrado"]
+    c["tatica"] = e["base"]
+    c["plano"] = dict(PLANO_PADRAO, **e["plano"])
+
+
+def _forca_crua(G: Mundo, c: Clube, esc: List[int]) -> float:
+    at, de = forcas_de(G, c, esc)
+    ma, md = TATICAS.get(c["tatica"], (1.0, 1.0))
+    return at / ma + de / md
+
+
+def tatica_do_jogo(G: Mundo, c: Clube, esc: List[int], rival: Clube, esc_rival: List[int],
+                   em_casa: Optional[bool]) -> str:
+    """A mentalidade com que a maquina entra contra este adversario."""
+    e = ESTILOS[estilo_de(G, c)]
+    razao = _forca_crua(G, c, esc) / max(1.0, _forca_crua(G, rival, esc_rival))
+    if em_casa is True:
+        razao *= 1.05
+    elif em_casa is False:
+        razao /= 1.05
+    i = ESCADA_TATICA.index(e["base"])
+    if razao <= DEGRAU_FORCA:
+        i -= 1
+    elif razao >= 1 / DEGRAU_FORCA:
+        i += 1
+    lo, hi = e["faixa"]
+    return ESCADA_TATICA[max(lo, min(hi, i))]
+
+
 def _efeitos(plano: Dict[str, str]) -> Dict[str, float]:
     """Soma os cinco botoes nos numeros que a partida sabe usar."""
     out = {"posse": 0.0, "volume": 1.0, "qualidade": 1.0, "concede": 1.0,
@@ -2985,8 +3109,47 @@ def _fadigar(G, esc, minutos, dono, efeitos):
         j["cond"] = int(round(clamp(j["cond"] - gasto, 5, 100)))
 
 
+# Intervalo interativo: a API joga o primeiro tempo do meu jogo antes da
+# semana, para no intervalo e, com as decisoes do tecnico, termina a partida.
+# O resultado fica aqui (memoria do processo, nunca no save) e o simular da
+# semana devolve ele quando chegar a vez desse jogo.
+PARTIDA_PRONTA: Dict[str, Any] = {}
+
+
+def intervalo_ligado(G: Mundo) -> bool:
+    return G.get("intervalo_interativo", True) is not False
+
+
+def meu_jogo_de_liga(G: Mundo) -> Optional[Tuple[int, int]]:
+    """O jogo de liga do meu clube nesta semana (casa, fora), se houver: e o
+    que para no intervalo. Copa (ida e volta, campo neutro, sorteio) segue direto."""
+    if G.get("fase") != "liga" or G.get("clube") is None:
+        return None
+    return next(((casa, fora) for comp, casa, fora in jogos_da_semana(G, G["clube"])
+                 if comp == "liga" and casa is not None), None)
+
+
 def simular(G, casa_id, fora_id, comp="liga", neutro=False):
+    """A partida inteira, sem pausa. O jogo que o tecnico ja jogou no intervalo
+    interativo volta pronto."""
+    if PARTIDA_PRONTA.get("chave") == (casa_id, fora_id, comp, semana_absoluta(G)):
+        r = PARTIDA_PRONTA["r"]
+        PARTIDA_PRONTA.clear()
+        return r
+    g = partida(G, casa_id, fora_id, comp, neutro)
+    try:
+        next(g)
+    except StopIteration as fim:
+        return fim.value
+    raise RuntimeError("partida sem pausa nao deveria parar no intervalo")
+
+
+def partida(G, casa_id, fora_id, comp="liga", neutro=False, pausar_lado=None):
     """Uma partida de 90 minutos, em tres periodos, com banco e plano tatico.
+
+    Gerador: com pausar_lado (0 casa, 1 fora) ele para no intervalo, devolve a
+    foto do jogo e recebe as decisoes do tecnico desse lado ({"tatica": ...,
+    "trocas": [[sai, entra], ...]}). Sem pausa, termina na primeira chamada.
 
     O xG total continua saindo da mesma conta calibrada (forca contra forca,
     EXP_FORCA), mas agora ele e DECOMPOSTO em chances x conversao: o plano
@@ -3037,7 +3200,17 @@ def simular(G, casa_id, fora_id, comp="liga", neutro=False):
     expoente = EXP_FORCA_EUROPA if europeu else EXP_FORCA
     # a mentalidade pode mudar no meio (instrucao condicional); o clube sai do
     # jogo com a que entrou, ate se a partida estourar no meio
-    originais = (casa["tatica"], fora["tatica"])
+    for clube in (casa, fora):
+        if clube["id"] != G.get("clube"):
+            estilo_de(G, clube)        # primeiro jogo do clube: grava estilo, plano e mentalidade
+    reais = (casa["tatica"], fora["tatica"])
+    # a maquina entra com a mentalidade do estilo dela, ajustada ao adversario
+    for clube, esc, rival, esc_r, mando in ((casa, esc_c, fora, esc_f, None if neutro else True),
+                                            (fora, esc_f, casa, esc_c, None if neutro else False)):
+        if clube["id"] != G.get("clube"):
+            clube["tatica"] = tatica_do_jogo(G, clube, esc, rival, esc_r, mando)
+    originais = [casa["tatica"], fora["tatica"]]
+    sem_regra_46 = set()             # o tecnico decidiu no intervalo: a regra do 46' nao passa por cima
     instrucoes = []
     amarelados: set = set()          # amarelo neste jogo: o segundo e vermelho
     expulsos: List[Tuple[int, int, int, int]] = []
@@ -3045,6 +3218,8 @@ def simular(G, casa_id, fora_id, comp="liga", neutro=False):
         for ini, fim, minutos in ((1, 45, 45), (46, 70, 25), (71, 92, 20)):
             if ini > 1:
                 for lado, clube, antes in ((0, casa, originais[0]), (1, fora, originais[1])):
+                    if ini == 46 and lado in sem_regra_46:
+                        continue
                     pro, contra = (gc, gf) if lado == 0 else (gf, gc)
                     nova = tatica_condicional(G, clube, antes, pro, contra, ini)
                     if nova != clube["tatica"]:
@@ -3196,15 +3371,58 @@ def simular(G, casa_id, fora_id, comp="liga", neutro=False):
                 # janela de substituicao. O limite sobe a cada parada: no intervalo
                 # so sai quem ja esta ruim, no fim do jogo troca-se perna cansada.
                 limite = 70 if fim <= 45 else 84
+                # no intervalo interativo quem troca o lado do tecnico e ele
+                pula = pausar_lado if fim == 45 else None
                 for _ in range(3):
-                    usadas_c += _trocar(G, casa, esc_c, banco_c, vagas_c, jogaram_c,
-                                        fim + 1, 0, eventos, subs, usadas=usadas_c,
-                                        limite_cond=limite)
-                    usadas_f += _trocar(G, fora, esc_f, banco_f, vagas_f, jogaram_f,
-                                        fim + 1, 1, eventos, subs, usadas=usadas_f,
-                                        limite_cond=limite)
+                    if pula != 0:
+                        usadas_c += _trocar(G, casa, esc_c, banco_c, vagas_c, jogaram_c,
+                                            fim + 1, 0, eventos, subs, usadas=usadas_c,
+                                            limite_cond=limite)
+                    if pula != 1:
+                        usadas_f += _trocar(G, fora, esc_f, banco_f, vagas_f, jogaram_f,
+                                            fim + 1, 1, eventos, subs, usadas=usadas_f,
+                                            limite_cond=limite)
+
+            if fim == 45 and pausar_lado is not None:
+                lado = pausar_lado
+                dono = casa if lado == 0 else fora
+                esc, banco = (esc_c, banco_c) if lado == 0 else (esc_f, banco_f)
+                vagas, jogaram = (vagas_c, jogaram_c) if lado == 0 else (vagas_f, jogaram_f)
+                decisao = yield {
+                    "lado": lado, "placar": [gc, gf], "eventos": list(eventos),
+                    "stats": {k: list(v) for k, v in stats.items()},
+                    "esc": list(esc), "banco": list(banco), "vagas": dict(vagas),
+                    "usadas": usadas_c if lado == 0 else usadas_f,
+                    "tatica": dono["tatica"], "notas": dict(notas),
+                }
+                decisao = decisao or {}
+                feitas = 0
+                for sai, entra in decisao.get("trocas") or []:
+                    usadas = (usadas_c if lado == 0 else usadas_f) + feitas
+                    if usadas >= MAX_SUBS or sai not in esc or entra not in banco:
+                        continue
+                    vaga = vagas.get(sai, G["jogadores"][sai]["pos"])
+                    esc[esc.index(sai)] = entra
+                    banco.remove(entra)
+                    vagas.pop(sai, None)
+                    vagas[entra] = vaga
+                    jogaram[entra] = vaga
+                    eventos.append((46, lado, "substituicao", entra, sai))
+                    subs.append([46, lado, sai, entra])
+                    feitas += 1
+                if lado == 0:
+                    usadas_c += feitas
+                else:
+                    usadas_f += feitas
+                nova = decisao.get("tatica")
+                if nova in TATICAS:
+                    sem_regra_46.add(lado)
+                    originais[lado] = nova
+                    if nova != dono["tatica"]:
+                        dono["tatica"] = nova
+                        instrucoes.append([46, lado, nova, "intervalo"])
     finally:
-        casa["tatica"], fora["tatica"] = originais
+        casa["tatica"], fora["tatica"] = reais
 
     # partida disputada conta para todo mundo que entrou em campo, titular ou nao
     for jogaram in (jogaram_c, jogaram_f):
@@ -7792,6 +8010,7 @@ def comecar_no_clube(G: Mundo, c: Clube) -> List[str]:
         recados.append("Investidor compra o %s e injeta %s no caixa." % (c["nome"], din(aporte)))
     G["tecnico_rep"] = REP_TECNICO_INICIAL
     G["carreira"] = [_passagem(G, c["id"])]
+    garantir_estilos(G)
     novo_ano_stats(G)   # o caixa do comeco ja com dificuldade e aporte
     G["propostas_emprego"] = []
     for r in recados:
@@ -7905,6 +8124,7 @@ def assumir_clube(G: Mundo, cid: int, saida: str) -> None:
     limpar_vitrine_herdada(G, G["clubes"][cid])
     G["clube"] = cid
     herdar_preferencias(G, antigo)
+    garantir_estilos(G)            # o clube que ele deixou volta a jogar do jeito dele
     definir_objetivo(G)
     reiniciar_confianca(G)
     herdar_patrocinios(G, G["clubes"][cid])
@@ -12404,6 +12624,8 @@ def migrar(G):
                 if len(c["base_elenco"]) < vagas_base(c):
                     gerar_cria(G, c, usados,
                                idade=rng.randint(IDADE_BASE_MIN, IDADE_BASE_MAX - 1))
+    if G.get("clube") is not None:
+        garantir_estilos(G)
     return G
 
 

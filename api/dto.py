@@ -129,11 +129,23 @@ def _proximo(G, d):
             "defesa": {"meu": round(d["defesa"], 1), "dele": None},
             "extras": max(0, len(jogos) - 1)}
 
-    def duelo(comp, cadv):
-        at_m, de_m, _ = eng.forcas(G, c, comp)
-        at, de, _ = eng.forcas(G, cadv, comp)
+    def duelo(comp, cadv, em_casa=None):
+        at_m, de_m, esc_m = eng.forcas(G, c, comp)
+        _, _, esc = eng.forcas(G, cadv, comp)
+        # o estilo da maquina e a mentalidade com que ela deve vir contra mim; as
+        # barras ja medem o adversario com ela, nao com a de base
+        e = eng.ESTILOS[eng.estilo_de(G, cadv)]
+        mando_dele = None if em_casa is None else (not em_casa)
+        prevista = eng.tatica_do_jogo(G, cadv, esc, c, esc_m, mando_dele)
+        guardada = cadv["tatica"]
+        cadv["tatica"] = prevista
+        try:
+            at, de = eng.forcas_de(G, cadv, esc)
+        finally:
+            cadv["tatica"] = guardada
         base["ataque"] = {"meu": round(at_m, 1), "dele": round(de, 1)}
         base["defesa"] = {"meu": round(de_m, 1), "dele": round(at, 1)}
+        base["estilo"] = {"nome": e["nome"], "desc": e["desc"], "tatica": prevista}
 
     if G["fase"] == "entretemporada":
         base.update(tipo="pretemporada", adversario="Pre-temporada",
@@ -159,7 +171,7 @@ def _proximo(G, d):
             base.update(tipo="jogo", adversario=eng.nome_clube(G, cadv["id"]), legenda=legenda,
                         em_casa=(casa == G["clube"]),
                         forte=cadv["reputacao"] > c["reputacao"])
-            duelo(comp, cadv)
+            duelo(comp, cadv, casa == G["clube"])
             return base
 
     # copa: o sorteio sai assim que a fase anterior acaba, entao o adversario
@@ -175,7 +187,7 @@ def _proximo(G, d):
                     legenda="%s . %s, rodada %d" % (copa["nome"], g["nome"] if g else eng.FASE_GRUPOS,
                                                     copa["rodada_grupo"] + 1),
                     em_casa=casa == G["clube"], forte=cadv["reputacao"] > c["reputacao"])
-        duelo(chave, cadv)
+        duelo(chave, cadv, casa == G["clube"])
         return base
     if copa:
         par = next((p for p in eng.sorteio_da_copa(G, chave) if G["clube"] in p), None)
@@ -187,7 +199,7 @@ def _proximo(G, d):
                         legenda="%s . %s" % (copa["nome"], eng.fase_da_copa(copa)),
                         em_casa=None if final else (par[0] == G["clube"]),
                         forte=cadv["reputacao"] > c["reputacao"])
-            duelo(chave, cadv)
+            duelo(chave, cadv, None if final else (par[0] == G["clube"]))
             return base
     base.update(tipo="copa", adversario=copa["nome"] if copa else "Jogo do calendario",
                 legenda="adversario definido no sorteio", em_casa=None)
@@ -443,6 +455,50 @@ def partida(reg):
                         if reg.get("pub") else None),
             "decisao": decisao,
         },
+    }
+
+
+def intervalo(G, casa, fora, foto):
+    """O jogo parado no intervalo: placar, lances do primeiro tempo e o que o
+    tecnico pode mexer (mentalidade e trocas, com quem esta no banco)."""
+    jogs = G["jogadores"]
+    lado = foto["lado"]
+    nome = lambda pid: jogs[pid]["nome"] if pid in jogs else "?"
+    lances = []
+    amarelos = set()
+    for minuto, l, tipo, pid, extra in sorted(foto["eventos"], key=lambda e: e[0]):
+        if tipo == "gol":
+            lances.append({"minuto": minuto, "lado": l, "tipo": "gol", "texto": nome(pid) if pid else "gol contra",
+                           "extra": ("assist. %s" % nome(extra)) if extra else ""})
+        elif tipo == "amarelo":
+            amarelos.add(pid)
+            lances.append({"minuto": minuto, "lado": l, "tipo": "amarelo", "texto": nome(pid), "extra": ""})
+        elif tipo == "vermelho":
+            lances.append({"minuto": minuto, "lado": l, "tipo": "vermelho", "texto": nome(pid), "extra": "expulso"})
+        elif tipo == "lesao":
+            lances.append({"minuto": minuto, "lado": l, "tipo": "lesao", "texto": nome(pid), "extra": "se machucou"})
+        elif tipo == "substituicao":
+            lances.append({"minuto": minuto, "lado": l, "tipo": "substituicao",
+                           "texto": "entra %s" % nome(pid), "extra": "sai %s" % nome(extra)})
+    st = foto["stats"]
+    titulares = []
+    for pid in foto["esc"]:
+        j = jogs[pid]
+        vaga = foto["vagas"].get(pid, j["pos"])
+        titulares.append({"id": pid, "nome": j["nome"], "pos": j["pos"], "vaga": vaga, "ovr": j["ovr"],
+                          "cond": int(j["cond"]), "nota": round(foto["notas"].get(pid, 6.0), 1),
+                          "amarelo": pid in amarelos, "lesionado": bool(j.get("lesao"))})
+    banco = [{"id": pid, "nome": jogs[pid]["nome"], "pos": jogs[pid]["pos"], "ovr": jogs[pid]["ovr"],
+              "cond": int(jogs[pid]["cond"])} for pid in foto["banco"]]
+    return {
+        "comp": eng.nome_competicao(G, "liga", G["clubes"][casa]),
+        "times": [eng.nome_clube(G, casa), eng.nome_clube(G, fora)], "eu": lado,
+        "placar": foto["placar"], "lances": lances,
+        "posse": st.get("posse", [50, 50]), "chutes": st.get("chutes", [0, 0]),
+        "no_gol": st.get("no_gol", [0, 0]),
+        "titulares": titulares, "banco": banco,
+        "trocas_restantes": max(0, eng.MAX_SUBS - int(foto["usadas"])),
+        "tatica": foto["tatica"], "taticas": list(eng.ESCADA_TATICA),
     }
 
 
@@ -1759,6 +1815,7 @@ def escalacao():
         "vagas_abertas": vazias,
         "banco": [_linha_banco(G, jogs[p]) for p in resto],
         "capitao": _capitao_escalacao(G, c, d["escalacao"]),
+        "intervalo_interativo": eng.intervalo_ligado(G),
     }
 
 

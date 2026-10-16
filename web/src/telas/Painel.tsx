@@ -316,6 +316,13 @@ function CardProximo({ proximo, meuClube }: { proximo: Proximo; meuClube: string
         </div>
       </div>
 
+      {proximo.estilo && (
+        <div className="txt-mini mt-3 a-centro" title={proximo.estilo.desc}>
+          Estilo dele: <strong>{proximo.estilo.nome}</strong>
+          <span className="tag-fraco"> · {proximo.estilo.desc} · contra voce deve vir {proximo.estilo.tatica}</span>
+        </div>
+      )}
+
       {proximo.extras > 0 && (
         <div className="txt-mini txt-atencao mt-3 a-centro">
           +{plural(proximo.extras, 'jogo')} nesta semana

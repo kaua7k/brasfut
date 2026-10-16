@@ -102,7 +102,11 @@ export const api = {
 
   // ------------------------------------------------------------------ painel
   painel: () => pedir<{ painel: DadosPainel }>('/api/painel'),
-  avancar: (confirmar = false) => pedir<RespostaAvanco>('/api/avancar', { confirmar }),
+  avancar: (confirmar = false) => pedir<RespostaAvanco>('/api/avancar', { confirmar, intervalo: true }),
+  segundoTempo: (tatica: string, trocas: [number, number][]) =>
+    pedir<RespostaAvanco>('/api/partida/segundo-tempo', { tatica, trocas }),
+  preferenciaIntervalo: (ligado: boolean) =>
+    pedir<{ ligado: boolean; recado: string; tela: TelaEscalacao }>('/api/intervalo/preferencia', { ligado }),
   /** Um passo do avanco em ritmos: leve = sem o Painel inteiro de volta. */
   passoAvanco: (confirmar: boolean, paradas: Paradas, leve: boolean) =>
     pedir<RespostaAvanco>('/api/avancar', { confirmar, paradas, leve }),
