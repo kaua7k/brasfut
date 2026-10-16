@@ -372,6 +372,50 @@ leitura do teto, como acontece com quem é da casa, e o olheiro avisa nas Notíc
 um observado vai à venda, fica disponível para empréstimo, fica sem clube, troca de clube
 ou entra no último ano de contrato. Quem chega ao seu elenco sai da lista sozinho.
 
+## Copinha (sub-20)
+
+A **Copa São Paulo de Futebol Júnior** abre o ano da base. Entram 32 clubes brasileiros, os
+de melhor academia (o nível de Base em Infraestrutura, a reputação desempata); o seu clube
+entra sempre. Mata-mata em jogo único e campo neutro, empate vai para os pênaltis, uma fase
+por rodada do estadual: terceira fase na 1ª rodada, oitavas na 2ª, quartas na 3ª, semifinal
+na 4ª e final na 5ª. Joga em segundo plano: você não escala, e as Notícias contam cada fase do
+seu sub-20. Numa carreira nova, que começa direto no Brasileirão, a Copinha daquele ano já
+foi jogada em janeiro e aparece pronta no primeiro dia.
+
+- **Quem joga.** A base do clube e os profissionais de até 20 anos que não estão no XI
+  titular, os 11 melhores. Faltando gente, completam garotos convidados no nível da
+  academia: base forte faz diferença.
+- **Nada no profissional.** Jogos e gols da Copinha não entram nas estatísticas do ano, e
+  moral, forma e condição não mudam.
+- **Vitrine.** O artilheiro (com pelo menos 3 gols; empatados, até dois) e o craque do
+  campeão ganham um ponto de overall, o teto revisto em até 2 pontos para cima e o prêmio
+  na ficha ("Artilheiro da Copinha 2027").
+- **Prêmio.** Campeão leva R$ 1,5 milhão e o vice R$ 500 mil, na linha "Prêmio da Copinha"
+  do extrato. A taça vai para a sala do clube (tela Clube), não para a do treinador, e não
+  conta para a diretoria nem para os títulos do ano no resumo.
+- Em **Competições**, a Copinha está no grupo Brasil: o chaveamento fase por fase, a sua
+  campanha, o campeão, a artilharia e os destaques.
+
+## Convocações e datas FIFA
+
+Três datas FIFA por temporada, nas **semanas 8, 24 e 33** do Brasileirão. Como no Brasil de
+verdade, o campeonato não para: quem é convocado **desfalca o clube na semana da data, em
+todas as competições** (liga e copas). A lista sai no fim da semana anterior, e o Painel
+avisa quem vai faltar; a escalação automática repõe sozinha, e na manual o jogo troca o
+convocado pelo melhor reserva. Na semana seguinte todo mundo volta.
+
+- **Quem convoca.** A seleção brasileira e as nove sul-americanas que têm liga no jogo
+  (Argentina, Uruguai, Paraguai, Chile, Colômbia, Equador, Peru, Bolívia e Venezuela). São 23
+  por país: 3 goleiros, 4 zagueiros, 4 laterais, 3 volantes, 4 meias e 5 atacantes, os
+  melhores pelo overall com um toque de forma. Lesionado não vai; garoto da base também não.
+- **Nacionalidade.** Vem do clube onde o jogador estava quando apareceu no mundo (clube
+  brasileiro ou sem clube: Brasil; clube de fora: o país do clube) e não muda com
+  transferência. Os nomes conhecidos têm a seleção certa: Vinicius Junior é brasileiro no
+  Real Madrid, De Arrascaeta é uruguaio no Flamengo.
+- **O que ganha.** +6 de moral, o passe valorizado em 5% até a virada e a convocação no
+  histórico da ficha (seção Seleção, com quantas vezes e por qual país).
+- Quem está na seleção aparece como "na seleção" no Elenco e na Escalação.
+
 ## Capitão
 
 Todo clube tem um capitão, marcado com um **C** dourado no Elenco e na ficha. Sem escolha
