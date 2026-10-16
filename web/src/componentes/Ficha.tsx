@@ -138,6 +138,23 @@ export function Ficha({ ficha, aoFechar, acoes }: Props) {
           </>
         )}
 
+        {ficha.convocacoes && (
+          <>
+            <div className="painel-titulo mt-3 mb-2">Selecao</div>
+            <p className="mb-1 txt-p">
+              {ficha.convocacoes.agora && (
+                <span className="txt-atencao">Convocado pelo {ficha.convocacoes.agora} nesta semana. </span>
+              )}
+              {ficha.convocacoes.resumo}
+            </p>
+            <ul className="mb-0 txt-p">
+              {ficha.convocacoes.lista.map((c) => (
+                <li key={c}>{c}</li>
+              ))}
+            </ul>
+          </>
+        )}
+
         {ficha.contrato.emprestado_aqui && (
           <p className="mt-3 mb-0 txt-atencao txt-p">
             Esta emprestado aqui: pagamos {ficha.contrato.emp_pct}% do salario e o passe nao e nosso.

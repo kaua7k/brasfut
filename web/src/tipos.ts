@@ -214,8 +214,16 @@ export interface DadosPainel {
   propostas_emprego: PropostaEmprego[]
   /** espacos de patrocinio sem contrato (pre-temporada): atalho para Financas */
   patrocinio_vago: string[] | null
+  /** data FIFA desta semana com jogador meu convocado (desfalca o time) */
+  selecao: AvisoSelecao | null
   /** o resto do futebol: as ultimas manchetes */
   mundo: Manchete[]
+}
+
+export interface AvisoSelecao {
+  titulo: string
+  detalhe: string
+  nomes: string[]
 }
 
 export interface PropostaEmprego {
@@ -823,6 +831,14 @@ export interface FichaJogador {
   carreira: { j: number; g: number; tit: number }
   /** premios do ano que o jogador ganhou, do mais novo para o mais velho */
   premios: string[]
+  /** historico de selecao (datas FIFA); null se nunca foi convocado */
+  convocacoes: {
+    total: number
+    /** a selecao em que ele esta nesta semana, se estiver */
+    agora: string | null
+    resumo: string
+    lista: string[]
+  } | null
   /** as ultimas causas da moral, da mais nova para a mais velha */
   moral_causas: { texto: string; estado: string; quando: string }[]
   contrato: {
@@ -1353,6 +1369,9 @@ export interface DetalheCopa {
   em_grupos?: boolean
   titulo_grupos?: string
   nota_grupos?: string | null
+  /** Copinha: artilharia e destaques (premiados primeiro) e a regra em uma frase */
+  destaques?: { texto: string; meu: boolean; estado: Estado }[] | null
+  nota_destaques?: string | null
 }
 
 export interface GrupoCopa {
