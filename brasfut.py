@@ -1160,6 +1160,7 @@ def criar_mundo(nome_tecnico):
             if len(c["base_elenco"]) < vagas_base(c):
                 gerar_cria(G, c, usados, idade=rng.randint(IDADE_BASE_MIN, IDADE_BASE_MAX - 1))
     montar_copas(G, primeira=True)
+    fixar_nacionalidades(G)
     return G
 
 
@@ -1953,7 +1954,8 @@ def disponivel(G: Mundo, pid: int, comp: str = "liga") -> bool:
     j = G["jogadores"].get(pid)
     if j is None:
         return False
-    return j["lesao"] <= 0 and j.get("susp", {}).get(comp, 0) <= 0
+    # convocado para a data FIFA desfalca o clube na semana, em toda competicao
+    return j["lesao"] <= 0 and j.get("susp", {}).get(comp, 0) <= 0 and not j.get("convocado")
 
 
 def rendimento(j: Jogador, afinidade: float = 1.0) -> float:
@@ -3915,6 +3917,8 @@ def iniciar_estaduais(G: Mundo) -> List[str]:
         montar_estaduais(G)
     G["fase"] = "estadual"
     G["semana_est"] = 1
+    if not copinha(G):
+        montar_copinha(G)
     c["escalacao"] = auto_escalar(G, c)
     meu = meu_estadual(G)
     if meu and tem_mata(meu):
@@ -3973,6 +3977,7 @@ def manchete_abertura_brasileirao(G: Mundo) -> Optional[str]:
 def encerrar_estaduais(G: Mundo) -> List[str]:
     """Coroa os campeoes, paga o premio e entrega o ano ao Brasileirao."""
     recados = []
+    concluir_copinha(G)         # estadual curto: a Copinha nao fica pela metade
     for est in estaduais(G).values():
         if est.get("premiado") or not est["times"]:
             continue
@@ -4021,6 +4026,7 @@ def _semana_estadual(G: Mundo) -> List[Dict[str, Any]]:
             for r in jogar_fase_copa(G, chave):
                 if G["clube"] in (r["casa"], r["fora"]):
                     meus.append(r)
+    semana_copinha(G, rodada)
     G["ultimos_meus"] = [dict(r) for r in meus]
     guardar_historico(G, meus)
     for r in meus:
@@ -4782,6 +4788,8 @@ def avancar_semana(G):
     if modo_caos(G):
         eventos_caos(G)
     G["semana"] += 1
+    # data FIFA: a lista sai no fim da semana anterior e o jogador volta depois dela
+    datas_fifa(G)
     # so agora a semana e a nova: se ela for de janela, o que estava acertado
     # entra hoje, e nao daqui a mais uma semana
     for recado in executar_agendadas(G):
@@ -7018,6 +7026,528 @@ def resolver_base(G: Mundo, c: Clube) -> Tuple[List[str], List[str]]:
 
 
 # ----------------------------------------------------------------------------
+# COPINHA (Copa Sao Paulo de Futebol Junior)
+#
+# O torneio de base do comeco do ano: 32 clubes brasileiros (os de melhor
+# academia, com o meu sempre dentro), mata-mata em jogo unico, uma fase por
+# rodada do estadual (rodadas 1 a 5), em segundo plano. Com 32 o chaveamento
+# comeca na "terceira fase", o mesmo nome da Copinha de verdade depois dos
+# grupos. Carreira nova comeca no Brasileirao: a Copinha daquele ano ja foi
+# jogada em janeiro e sai inteira no primeiro dia (copinha_de_janeiro).
+#
+# O time de cada clube e a base dele mais os garotos de ate 20 anos do
+# profissional que nao sao titulares; faltando gente, completam convidados no
+# nivel da academia. A partida e simplificada (forca media dos 11, gols por
+# Poisson), com sorteio proprio semeado pela temporada e pelo confronto: nao
+# mexe na sequencia do rng do resto do jogo. Nada toca o profissional: jogos
+# e gols da Copinha ficam em G["copinha"], nao no jogador; moral, forma,
+# condicao e estatistica do ano nao mudam.
+#
+# O que ela da: premio pequeno ao campeao e ao vice (linha propria no
+# extrato), taca na sala do clube (nao na do treinador: quem dirige o sub-20
+# e outro, e ela nao conta para a diretoria) e visibilidade aos destaques -
+# artilheiro (3 gols ou mais) e craque do campeao ganham um ponto de overall,
+# o teto revisto ate 2 para cima e o premio na ficha.
+# ----------------------------------------------------------------------------
+
+COPINHA_NOME = "Copa Sao Paulo de Futebol Junior"
+COPINHA_CLUBES = 32
+COPINHA_RODADAS = (1, 2, 3, 4, 5)      # rodada do estadual de cada fase
+COPINHA_PREMIO = 1_500_000
+COPINHA_PREMIO_VICE = 500_000
+COPINHA_IDADE_MAX = 20
+COPINHA_DESTAQUE_GOLS = 3              # artilheiro so vira destaque com isto
+# quem marca: peso da posicao vezes o nivel (goleiro nao marca)
+PESO_GOL_COPINHA = {"GOL": 0.0, "ZAG": 0.6, "LAT": 0.8, "VOL": 1.2, "MEI": 2.6, "ATA": 4.5}
+
+
+def copinha(G: Mundo) -> Optional[Dict[str, Any]]:
+    """A Copinha deste ano, ou None (a do ano passado nao conta mais)."""
+    cp = G.get("copinha")
+    if not cp or int(cp.get("temporada", -1)) != int(G.get("temporada", 0)):
+        return None
+    return cp
+
+
+def _rng_copinha(G: Mundo, *partes: Any) -> random.Random:
+    chave = "copinha-%d-%s" % (int(G["temporada"]), "-".join(str(p) for p in partes))
+    return random.Random(zlib.crc32(chave.encode("utf-8")))
+
+
+def clubes_da_copinha(G: Mundo) -> List[int]:
+    """Os 32: academia melhor primeiro, reputacao desempata; o meu clube
+    brasileiro entra sempre (no lugar do ultimo)."""
+    br = [c for c in G["clubes"].values() if c["divisao"] in DIVISOES_BR]
+    br.sort(key=lambda c: (-int(c.get("base", 1)), -c["reputacao"], c["id"]))
+    ids = [c["id"] for c in br[:COPINHA_CLUBES]]
+    meu = G.get("clube")
+    if meu in G["clubes"] and G["clubes"][meu]["divisao"] in DIVISOES_BR and meu not in ids:
+        ids[-1] = meu
+    return ids
+
+
+def montar_copinha(G: Mundo) -> Optional[Dict[str, Any]]:
+    ids = clubes_da_copinha(G)
+    if len(ids) < 2:
+        G["copinha"] = None
+        return None
+    r = _rng_copinha(G, "sorteio")
+    vivos = sorted(ids)
+    r.shuffle(vivos)
+    G["copinha"] = {"nome": COPINHA_NOME, "temporada": int(G["temporada"]), "times": list(ids),
+                    "vivos": vivos, "fase": 0, "campeao": None, "vice": None,
+                    "sorteio": _pares_copinha(G, vivos), "historico": [],
+                    "gols": {}, "jogos": {}, "clube_de": {}, "destaques": []}
+    return G["copinha"]
+
+
+def _pares_copinha(G: Mundo, vivos: List[int]) -> List[List[int]]:
+    # a ordem de vivos ja e o sorteio; o de menor reputacao fica em primeiro,
+    # como nas outras copas (so muda o lado na tela: o campo e neutro)
+    pares = []
+    for i in range(0, len(vivos) - 1, 2):
+        a, b = vivos[i], vivos[i + 1]
+        if G["clubes"][a]["reputacao"] > G["clubes"][b]["reputacao"]:
+            a, b = b, a
+        pares.append([a, b])
+    return pares
+
+
+def elenco_copinha(G: Mundo, c: Clube) -> List[Jogador]:
+    """Os garotos que o clube leva: a base inteira e os profissionais de ate
+    20 anos fora do XI titular, do melhor para o pior."""
+    titulares = set(c.get("escalacao") or [])
+    out = list(elenco_base(G, c))
+    for pid in c["elenco"]:
+        j = G["jogadores"].get(pid)
+        if j and j["idade"] <= COPINHA_IDADE_MAX and pid not in titulares and not j.get("dono") \
+                and not da_base(j):
+            out.append(j)
+    out.sort(key=lambda j: (-j["ovr"], j["id"]))
+    return out
+
+
+def nivel_convidado(c: Clube) -> float:
+    """Garoto convidado que completa o time: o nivel de uma cria da academia."""
+    return 26 + int(c.get("base", 1)) * 2.0 + c["reputacao"] * 0.16 - 6
+
+
+def forca_copinha(G: Mundo, c: Clube) -> Tuple[float, List[int], int]:
+    """(media dos 11, ids de quem joga, quantos convidados)."""
+    garotos = elenco_copinha(G, c)[:11]
+    falta = 11 - len(garotos)
+    soma = sum(j["ovr"] for j in garotos) + falta * nivel_convidado(c)
+    return soma / 11.0, [j["id"] for j in garotos], falta
+
+
+def _poisson(r: random.Random, media: float) -> int:
+    limite, k, p = exp(-media), 0, 1.0
+    while True:
+        p *= r.random()
+        if p <= limite:
+            return k
+        k += 1
+
+
+def _autor_copinha(G: Mundo, r: random.Random, ids: List[int], falta: int, nivel: float) -> Optional[int]:
+    pesos = [PESO_GOL_COPINHA[G["jogadores"][p]["pos"]] * max(1.0, G["jogadores"][p]["ovr"] - 30.0)
+             for p in ids]
+    convidados = falta * 1.6 * max(1.0, nivel - 30.0)
+    x = r.random() * (sum(pesos) + convidados)
+    for p, w in zip(ids, pesos):
+        x -= w
+        if x < 0:
+            return p
+    return None                     # gol de convidado: fica sem nome
+
+
+def jogo_copinha(G: Mundo, cp: Dict[str, Any], a: int, b: int) -> Dict[str, Any]:
+    """Um jogo da Copinha, campo neutro. Devolve o registro da fase."""
+    ca, cb = G["clubes"][a], G["clubes"][b]
+    fa, ids_a, falta_a = forca_copinha(G, ca)
+    fb, ids_b, falta_b = forca_copinha(G, cb)
+    r = _rng_copinha(G, cp["fase"], a, b)
+    dif = clamp((fa - fb) / 10.0, -2.5, 2.5)
+    ga = _poisson(r, clamp(1.35 * exp(dif * 0.55), 0.3, 3.6))
+    gb = _poisson(r, clamp(1.35 * exp(-dif * 0.55), 0.3, 3.6))
+    for lado, ids, falta, c, gols in ((0, ids_a, falta_a, ca, ga), (1, ids_b, falta_b, cb, gb)):
+        for pid in ids:
+            cp["jogos"][str(pid)] = int(cp["jogos"].get(str(pid), 0)) + 1
+            cp["clube_de"][str(pid)] = c["id"]
+        for _ in range(gols):
+            autor = _autor_copinha(G, r, ids, falta, nivel_convidado(c))
+            if autor is not None:
+                cp["gols"][str(autor)] = int(cp["gols"].get(str(autor), 0)) + 1
+    penaltis = None
+    if ga > gb:
+        venc = a
+    elif gb > ga:
+        venc = b
+    else:
+        venc = a if r.random() < clamp(0.5 + (fa - fb) / 60.0, 0.3, 0.7) else b
+        penaltis = venc
+    return {"a": a, "b": b, "ida": [ga, gb], "volta": None, "penaltis": penaltis, "venc": venc}
+
+
+def jogar_fase_copinha(G: Mundo, avisar: bool = True) -> List[Dict[str, Any]]:
+    """Uma fase inteira. avisar=False e a Copinha de janeiro (carreira nova):
+    sem uma noticia por fase, so o fecho."""
+    cp = copinha(G)
+    if not cp or cp["campeao"] or len(cp["vivos"]) < 2:
+        return []
+    nome = nome_fase(len(cp["vivos"]))
+    registro = {"fase": nome, "semana": 0, "rodada_est": int(G.get("semana_est", 0)),
+                "temporada": int(G["temporada"]), "jogos": []}
+    meu = G.get("clube")
+    prox = []
+    for a, b in cp["sorteio"] or _pares_copinha(G, cp["vivos"]):
+        jogo = jogo_copinha(G, cp, a, b)
+        registro["jogos"].append(jogo)
+        prox.append(jogo["venc"])
+        if avisar and meu in (a, b) and len(cp["vivos"]) > 2:
+            noticia(G, _texto_copinha(G, jogo, meu, nome, len(cp["vivos"]) // 2))
+    cp["historico"].append(registro)
+    cp["vivos"] = prox
+    cp["fase"] += 1
+    cp["sorteio"] = _pares_copinha(G, prox) if len(prox) >= 2 else []
+    if len(prox) == 1:
+        coroar_copinha(G, cp, registro["jogos"][0])
+    return registro["jogos"]
+
+
+def _texto_copinha(G: Mundo, jogo: Dict[str, Any], meu: int, fase: str, restam: int) -> str:
+    eu_a = jogo["a"] == meu
+    gm, gs = jogo["ida"] if eu_a else jogo["ida"][::-1]
+    adv = G["clubes"][jogo["b"] if eu_a else jogo["a"]]["nome"]
+    pen = ", nos penaltis" if jogo["penaltis"] else ""
+    if jogo["venc"] == meu:
+        return "Copinha: o sub-20 passou pelo %s (%d x %d%s) e esta %s." % (
+            adv, gm, gs, pen, _na_fase(nome_fase(restam).lower()))
+    return "Copinha: o sub-20 caiu %s para o %s (%d x %d%s)." % (
+        _na_fase(fase.lower()), adv, gm, gs, pen)
+
+
+def coroar_copinha(G: Mundo, cp: Dict[str, Any], final: Dict[str, Any]) -> None:
+    campeao = final["venc"]
+    vice = final["b"] if campeao == final["a"] else final["a"]
+    cp["campeao"], cp["vice"] = campeao, vice
+    cl = G["clubes"][campeao]
+    # a taca vai para o clube, nao para o treinador (dar_titulo daria as duas)
+    cl["titulos"][COPINHA_NOME] = cl["titulos"].get(COPINHA_NOME, 0) + 1
+    cl.setdefault("titulos_hist", []).append({"nome": COPINHA_NOME, "temporada": int(G["temporada"])})
+    lancar(G, cl, COPINHA_PREMIO, "premio_copinha")
+    lancar(G, G["clubes"][vice], COPINHA_PREMIO_VICE, "premio_copinha")
+    gc, gf = final["ida"] if campeao == final["a"] else final["ida"][::-1]
+    placar = "%d x %d%s" % (gc, gf, " nos penaltis" if final["penaltis"] else "")
+    manchete(G, "titulo", "%s e campeao da Copinha %d: %s sobre o %s na final." % (
+        cl["nome"], int(G["temporada"]), placar, G["clubes"][vice]["nome"]))
+    meu = G.get("clube")
+    if campeao == meu:
+        noticia(G, "COPINHA: o sub-20 e campeao da Copa Sao Paulo (%s na final contra o %s) e "
+                   "leva %s." % (placar, G["clubes"][vice]["nome"], din(COPINHA_PREMIO)))
+    elif vice == meu:
+        noticia(G, "Copinha: o sub-20 foi vice-campeao (perdeu a final para o %s) e leva %s."
+                % (cl["nome"], din(COPINHA_PREMIO_VICE)))
+    for pid, premio in destaques_copinha(G, cp):
+        premiar_destaque_copinha(G, cp, G["jogadores"][pid], premio)
+
+
+def artilharia_copinha(G: Mundo, cp: Dict[str, Any]) -> List[Tuple[int, int]]:
+    """[(id, gols)] de quem ainda existe, do artilheiro para baixo."""
+    out = [(int(p), int(n)) for p, n in cp.get("gols", {}).items() if int(p) in G["jogadores"]]
+    out.sort(key=lambda t: (-t[1], t[0]))
+    return out
+
+
+def destaques_copinha(G: Mundo, cp: Dict[str, Any]) -> List[Tuple[int, str]]:
+    """Artilheiro (empate: ate dois) e o craque do campeao."""
+    out: List[Tuple[int, str]] = []
+    art = artilharia_copinha(G, cp)
+    if art and art[0][1] >= COPINHA_DESTAQUE_GOLS:
+        out += [(p, "Artilheiro da Copinha") for p, n in art[:2] if n == art[0][1]]
+    gols = cp.get("gols", {})
+    do_campeao = [int(p) for p, cid in cp.get("clube_de", {}).items()
+                  if cid == cp["campeao"] and int(p) in G["jogadores"]]
+    if do_campeao:
+        craque = max(do_campeao, key=lambda p: (int(gols.get(str(p), 0)) * 3 + G["jogadores"][p]["ovr"], -p))
+        if craque not in [p for p, _ in out]:
+            out.append((craque, "Craque da Copinha"))
+    return out
+
+
+def premiar_destaque_copinha(G: Mundo, cp: Dict[str, Any], j: Jogador, premio: str) -> None:
+    """Visibilidade: um ponto de overall, teto revisto ate 2 e o premio na ficha."""
+    folga = max(0, teto_maximo(G, j) - j["pot"])
+    sobe = min(2, folga, POT_MAX - j["pot"])
+    if sobe > 0:
+        j["pot"] += sobe
+        j["pot_rev"] = int(j.get("pot_rev", 0)) + sobe
+    if j["ovr"] < j["pot"]:
+        j["ovr"] += 1
+    j["valor"] = valor_jogador(j)
+    j.setdefault("premios", []).append({"temporada": int(G["temporada"]), "nome": premio})
+    gols = int(cp.get("gols", {}).get(str(j["id"]), 0))
+    clube = G["clubes"].get(j["clube"]) if j["clube"] else None
+    cp["destaques"].append({"id": j["id"], "nome": j["nome"], "pos": j["pos"], "idade": j["idade"],
+                            "clube": clube["nome"] if clube else "", "clube_id": j["clube"],
+                            "premio": premio, "gols": gols})
+    manchete(G, "premio", "%s: %s, %d anos, do %s (%s)." % (
+        premio, j["nome"], j["idade"], clube["nome"] if clube else "sem clube", plural(gols, "gol")))
+    if j["clube"] == G.get("clube"):
+        noticia(G, "%s: %s (%d anos, %s) ganhou vitrine - overall %d, teto revisto%s." % (
+            premio, j["nome"], j["idade"], j["pos"], j["ovr"], " para cima" if sobe else ""))
+
+
+def semana_copinha(G: Mundo, rodada: int) -> None:
+    """Rodada do estadual: joga a fase marcada para ela (e a atrasada, se houver)."""
+    cp = copinha(G)
+    while cp and not cp["campeao"] and cp["fase"] < len(COPINHA_RODADAS) \
+            and COPINHA_RODADAS[cp["fase"]] <= rodada:
+        jogar_fase_copinha(G)
+
+
+def concluir_copinha(G: Mundo, avisar: bool = True) -> None:
+    """Estadual curto que acabou antes dela, ou a Copinha de janeiro: joga o resto."""
+    cp = copinha(G)
+    while cp and not cp["campeao"] and len(cp["vivos"]) >= 2:
+        jogar_fase_copinha(G, avisar)
+
+
+def copinha_de_janeiro(G: Mundo) -> None:
+    """Carreira nova comeca no Brasileirao: a Copinha do ano ja foi jogada."""
+    if copinha(G) or G.get("fase") != "liga":
+        return
+    if not montar_copinha(G):
+        return
+    concluir_copinha(G, avisar=False)
+    cp = copinha(G)
+    meu = G.get("clube")
+    if not cp or meu not in cp["times"] or meu in (cp["campeao"], cp["vice"]):
+        return
+    noticia(G, "Copinha %d, jogada em janeiro: campanha do sub-20 - %s. Campeao: %s." % (
+        int(G["temporada"]), campanha_copinha(G, meu), G["clubes"][cp["campeao"]]["nome"]))
+
+
+def campanha_copinha(G: Mundo, cid: int) -> str:
+    cp = copinha(G)
+    if not cp or cid not in cp["times"]:
+        return "nao disputa"
+    if cp["campeao"] == cid:
+        return "campeao"
+    for h in cp["historico"]:
+        for jg in h["jogos"]:
+            if cid in (jg["a"], jg["b"]) and jg["venc"] != cid:
+                return "vice-campeao" if h["fase"] == "FINAL" else "eliminado " + _na_fase(h["fase"].lower())
+    if cid in cp["vivos"]:
+        return "vivo: " + nome_fase(len(cp["vivos"])).lower()
+    return "nao disputa"
+
+
+# ----------------------------------------------------------------------------
+# CONVOCACOES (datas FIFA)
+#
+# Tres datas FIFA por ano, no meio do Brasileirao. O campeonato nao para,
+# como no Brasil de verdade: quem e convocado desfalca o clube na semana da
+# data, em todas as competicoes (disponivel() le j["convocado"]; a escalacao
+# automatica so repoe). A lista sai no fim da semana anterior, para o tecnico
+# ver na Escalacao quem vai faltar, e o jogador volta depois dos jogos da data.
+#
+# Convocam o Brasil e as nove selecoes sul-americanas que tem liga no jogo:
+# 23 por pais (3 goleiros, 4 zagueiros, 4 laterais, 3 volantes, 4 meias, 5
+# atacantes), os melhores pelo overall com um toque de forma e um gosto do
+# treinador (_ruido estavel). Lesionado nao vai.
+#
+# Nacionalidade: o jogo nao guardava. j["nac"] e fixada uma vez pelo clube
+# onde o jogador estava quando apareceu (clube brasileiro ou livre: Brasil;
+# de fora: o pais do clube), com uma lista curta de excecoes de nomes
+# conhecidos (brasileiros fora, estrangeiros aqui). Garoto e livre que nascem
+# depois ganham a dele na proxima convocacao ou na virada.
+#
+# Convocado: moral +6, j["convocacoes"] com o historico (na ficha) e vitrine
+# de 5% no valor ate a virada (premio_valor, a mesma dos premios do ano).
+# ----------------------------------------------------------------------------
+
+DATAS_FIFA = (8, 24, 33)
+SELECOES = {"BRA": "Brasil", "ARG": "Argentina", "URU": "Uruguai", "PAR": "Paraguai",
+            "CHI": "Chile", "COL": "Colombia", "EQU": "Equador", "PER": "Peru",
+            "BOL": "Bolivia", "VEN": "Venezuela"}
+CONVOCADOS_POR_POS = (("GOL", 3), ("ZAG", 4), ("LAT", 4), ("VOL", 3), ("MEI", 4), ("ATA", 5))
+MORAL_CONVOCADO = 6
+VITRINE_CONVOCADO = 0.05
+HIST_CONVOCACOES = 40
+
+# brasileiros nos elencos de fora (dados_mundo) e estrangeiros nos elencos
+# brasileiros (ELENCOS_EMBUTIDOS): o clube sozinho erraria a selecao deles
+_BRASILEIROS_FORA = (
+    "Vinicius Junior", "Raphinha", "Gabriel Magalhaes", "Matheus Cunha", "Gabriel Jesus",
+    "David Neres", "Alexsandro Ribeiro", "Eder Militao", "Andrey Santos", "Rodrygo", "Joao Gomes",
+    "Endrick", "Yan Couto", "Gabriel Martinelli", "Douglas Luiz", "Bento", "Marcao", "Abner", "Natan",
+    "Alisson Becker", "Ederson", "Marquinhos", "Bruno Guimaraes", "Casemiro", "Lucas Beraldo",
+    "Bremer", "Savio", "Estevao", "Joao Pedro", "Antony", "Igor Jesus", "Wesley", "Vanderson",
+    "Richarlison", "Gabriel Sara", "Lucas Perri", "Murillo", "Igor Paixao", "Pedro Lima",
+    "Vitor Reis", "Evanilson", "Rayan", "Luis Henrique", "Ibanez", "Talles Magno", "Pepe",
+    "Galeno", "Joelinton", "Diego Carlos",
+)
+NAC_REAL = {nome: "BRA" for nome in _BRASILEIROS_FORA}
+NAC_REAL.update({
+    # Uruguai
+    "De Arrascaeta": "URU", "Joaquin Piquerez": "URU", "De la Cruz": "URU", "Sergio Rochet": "URU",
+    "Varela": "URU", "Canobbio": "URU", "Michel Araujo": "URU", "Guzman Rodriguez": "URU",
+    "Puma Rodriguez": "URU", "Mateo Ponte": "URU", "Agustin Sant'Anna": "URU", "Christian Oliva": "URU",
+    "Kike Olivera": "URU", "David Terans": "URU", "Emiliano Martinez": "URU", "Matias Vina": "URU",
+    "Alan Saldivia": "URU", "Thiago Borbas": "URU",
+    # Argentina
+    "Rossi": "ARG", "Flaco Lopez": "ARG", "Rodrigo Garro": "ARG", "Lucho Acosta": "ARG",
+    "Jonathan Calleri": "ARG", "Alexander Barboza": "ARG", "Rollheiser": "ARG", "Facundo Colidio": "ARG",
+    "Cristian Medina": "ARG", "Juan Martin Lucero": "ARG", "Germ\u00e1n Cano": "ARG", "Cuello": "ARG",
+    "Cristian Pavon": "ARG", "Bernabei": "ARG", "Kannemann": "ARG", "Barreal": "ARG",
+    "Agustin Giay": "ARG", "Gaston Avila": "ARG", "Fabrizio Angileri": "ARG", "Tomas Pochettino": "ARG",
+    "Eros Mancuso": "ARG", "Emmanuel Martinez": "ARG", "Alejo Veliz": "ARG", "Lucas Romero": "ARG",
+    "Lucas Mugni": "ARG", "Gabriel Mercado": "ARG", "Claudio Spinelli": "ARG", "Freytes": "ARG",
+    "Santiago Sosa": "ARG", "Bruno Zapelli": "ARG", "Lucas Villalba": "ARG", "Gabriel Rojas": "ARG",
+    "Braian Aguirre": "ARG", "Rodrigo Villagra": "ARG",
+    # Paraguai
+    "Gustavo Gomez": "PAR", "Villasanti": "PAR", "Ramon Sosa": "PAR", "Antonio Sanabria": "PAR",
+    "Balbuena": "PAR", "Damian Bobadilla": "PAR", "Adam Bareiro": "PAR", "Carlos Coronel": "PAR",
+    # Colombia
+    "Jhon Arias": "COL", "Luis Sinisterra": "COL", "Jorge Carrascal": "COL", "Cassierra": "COL",
+    "Kevin Serna": "COL", "Kevin Castano": "COL", "Marino Hinestroza": "COL", "Johan Carbonero": "COL",
+    "Carlos Cuesta": "COL", "Andres Gomez": "COL", "Yeison Guzman": "COL", "Kevin Viveros": "COL",
+    "Enamorado": "COL",
+    # Chile, Equador, Venezuela, Peru
+    "Erick Pulgar": "CHI", "Guillermo Maripan": "CHI", "Benjamin Kuscevic": "CHI",
+    "Gonzalo Plata": "EQU", "Alan Franco": "EQU", "Arboleda": "EQU", "Felix Torres": "EQU",
+    "Preciado": "EQU",
+    "Savarino": "VEN", "Soteldo": "VEN", "Ferraresi": "VEN",
+    "Andre Carrillo": "PER", "Erick Noriega": "PER", "Jorginho": "ITA",
+    # Europa e o resto (so para nao virarem brasileiros)
+    "Memphis Depay": "NED", "Braithwaite": "DEN", "Ziyech": "MAR", "Niclas Eliasson": "SWE",
+    "Jesse Lingard": "ENG", "Zakaria Labyad": "MAR", "Krovinovic": "CRO", "Nuno Moreira": "POR",
+    "Aurelio Buta": "POR", "Domingos Duarte": "POR", "Goncalo Paciencia": "POR",
+    "Sergio Oliveira": "POR", "Amuzu": "BEL",
+})
+
+
+def nacionalidade_de(G: Mundo, j: Jogador) -> str:
+    """A selecao do jogador: a guardada, ou a deduzida agora (sem guardar)."""
+    if j.get("nac"):
+        return j["nac"]
+    if j["nome"] in NAC_REAL:
+        return NAC_REAL[j["nome"]]
+    c = G["clubes"].get(j["clube"]) if j["clube"] is not None else None
+    if c and c["divisao"] not in DIVISOES_BR and len(str(c.get("uf", ""))) == 3:
+        return c["uf"]
+    return "BRA"
+
+
+def fixar_nacionalidades(G: Mundo) -> int:
+    """Grava j["nac"] em quem ainda nao tem. Devolve quantos."""
+    n = 0
+    for j in G["jogadores"].values():
+        if not j.get("nac"):
+            j["nac"] = nacionalidade_de(G, j)
+            n += 1
+    return n
+
+
+def convocacao_atual(G: Mundo) -> Optional[Dict[str, Any]]:
+    """A convocacao que esta valendo (a data FIFA desta semana), ou None."""
+    cv = G.get("convocacao")
+    if not cv or cv.get("liberada") or int(cv.get("temporada", -1)) != int(G.get("temporada", 0)):
+        return None
+    return cv
+
+
+def _nota_convocacao(G: Mundo, j: Jogador) -> float:
+    return (j["ovr"] + (j["forma"] - 60) * 0.06
+            + _ruido("conv-%d-%d-%d" % (int(G["temporada"]), int(G["semana"]), j["id"]), -1.0, 1.0))
+
+
+def convocar(G: Mundo) -> Dict[str, List[int]]:
+    """Fim da semana anterior a data FIFA: sai a lista de cada selecao."""
+    fixar_nacionalidades(G)
+    por_nac: Dict[str, Dict[str, List[Jogador]]] = {}
+    for j in G["jogadores"].values():
+        nac = j.get("nac")
+        if nac not in SELECOES or j["clube"] is None or da_base(j) or j["idade"] < 17 or j["lesao"] > 0:
+            continue
+        por_nac.setdefault(nac, {}).setdefault(j["pos"], []).append(j)
+    listas: Dict[str, List[int]] = {}
+    for nac in SELECOES:
+        escolhidos = []
+        for pos, n in CONVOCADOS_POR_POS:
+            da_pos = por_nac.get(nac, {}).get(pos, [])
+            da_pos.sort(key=lambda j: (-_nota_convocacao(G, j), j["id"]))
+            escolhidos += [j["id"] for j in da_pos[:n]]
+        if escolhidos:
+            listas[nac] = escolhidos
+    temporada, semana = int(G["temporada"]), int(G["semana"])
+    meus = []
+    for nac, ids in listas.items():
+        for pid in ids:
+            j = G["jogadores"][pid]
+            j["convocado"] = nac
+            hist = j.setdefault("convocacoes", [])
+            hist.append({"temporada": temporada, "semana": semana, "selecao": nac})
+            del hist[:-HIST_CONVOCACOES]
+            mexer_moral(G, j, MORAL_CONVOCADO, "convocado pela selecao (%s)" % SELECOES[nac])
+            j["premio_valor"] = max(float(j.get("premio_valor", 0.0)), VITRINE_CONVOCADO)
+            j["valor"] = valor_jogador(j)
+            if j["clube"] == G.get("clube"):
+                meus.append(j)
+    G["convocacao"] = {"temporada": temporada, "semana": semana, "listas": listas, "liberada": False}
+    _manchete_convocacao(G, listas.get("BRA", []))
+    if meus:
+        nomes = ", ".join("%s (%s)" % (j["nome"], SELECOES[j["convocado"]]) for j in meus)
+        noticia(G, "DATA FIFA: %s %s. %s o clube nesta semana, em todas as competicoes." % (
+            nomes, "convocado" if len(meus) == 1 else "convocados",
+            "Desfalca" if len(meus) == 1 else "Desfalcam"))
+    return listas
+
+
+def _manchete_convocacao(G: Mundo, ids: List[int]) -> None:
+    if not ids:
+        return
+    clubes: Dict[int, int] = {}
+    fora = 0
+    for pid in ids:
+        c = G["clubes"].get(G["jogadores"][pid]["clube"])
+        if c and c["divisao"] in DIVISOES_BR:
+            clubes[c["id"]] = clubes.get(c["id"], 0) + 1
+        else:
+            fora += 1
+    texto = "Selecao brasileira convocada para a data FIFA: %d jogam no Brasil, %d fora." % (
+        len(ids) - fora, fora)
+    if clubes:
+        top = max(clubes.items(), key=lambda t: (t[1], -t[0]))
+        texto += " Mais lembrado: %s (%d)." % (G["clubes"][top[0]]["nome"], top[1])
+    manchete(G, "selecao", texto)
+
+
+def liberar_convocados(G: Mundo) -> int:
+    """Depois dos jogos da data FIFA: todo mundo volta ao clube."""
+    cv = G.get("convocacao")
+    if not cv or cv.get("liberada"):
+        return 0
+    n = 0
+    for ids in cv.get("listas", {}).values():
+        for pid in ids:
+            j = G["jogadores"].get(pid)
+            if j and j.pop("convocado", None):
+                n += 1
+    cv["liberada"] = True
+    return n
+
+
+def datas_fifa(G: Mundo) -> None:
+    """Chamada no fim de avancar_semana, com G["semana"] ja a nova."""
+    if G["semana"] - 1 in DATAS_FIFA:
+        liberar_convocados(G)
+    if G["semana"] in DATAS_FIFA:
+        convocar(G)
+
+
+# ----------------------------------------------------------------------------
 # POTENCIAL DINAMICO
 #
 # O teto deixou de ser sentenca. Ele nasce como PREVISAO e a previsao se
@@ -7794,6 +8324,7 @@ def comecar_no_clube(G: Mundo, c: Clube) -> List[str]:
     G["carreira"] = [_passagem(G, c["id"])]
     novo_ano_stats(G)   # o caixa do comeco ja com dificuldade e aporte
     G["propostas_emprego"] = []
+    copinha_de_janeiro(G)
     for r in recados:
         noticia(G, r)
     return recados
@@ -8162,6 +8693,8 @@ NOME_POS = {"GOL": "Goleiro", "ZAG": "Zagueiro", "LAT": "Lateral",
 def situacao(G, j):
     if j["lesao"] > 0:
         return cor("lesao %ds" % j["lesao"], "ruim")
+    if j.get("convocado"):
+        return cor("na selecao", "ruim")
     if j["suspensao"] > 0:
         gan = [k for k in COMPETICOES if j.get("susp", {}).get(k, 0) > 0]
         return cor("gancho %s" % "/".join(gan), "ruim")
@@ -9354,6 +9887,7 @@ EXTRATO = (
     ("socios", "Socios"),
     ("premio_liga", "Premiacao da liga"), ("premio_estadual", "Premio do estadual"),
     ("premio_copa", "Premio de copa"), ("premio_grupo", "Vitorias na fase de grupos"),
+    ("premio_copinha", "Premio da Copinha"),
     ("vendas", "Venda de jogadores"), ("emprestimos", "Taxas de emprestimo"),
     ("folha", "Folha salarial"), ("estrutura", "Estrutura e operacao"),
     ("operacao_jogo", "Operacao dos jogos em casa"),
@@ -9832,7 +10366,9 @@ def titulos_da_temporada(G: Mundo, cid: int) -> List[str]:
     """Titulos do clube no ano: o que a sala de trofeus ja registrou (estadual,
     copas, supercopas) mais a liga, que so e entregue na virada."""
     temporada = int(G["temporada"])
-    nomes = [t["nome"] for t in (G["clubes"][cid].get("titulos_hist") or []) if t["temporada"] == temporada]
+    # a Copinha e do sub-20: fica na sala do clube, fora da conta do ano
+    nomes = [t["nome"] for t in (G["clubes"][cid].get("titulos_hist") or [])
+             if t["temporada"] == temporada and t["nome"] != COPINHA_NOME]
     p = passagem_atual(G) if cid == G.get("clube") else None
     for t in (p or {}).get("titulos", []):          # save de antes do titulos_hist
         if t["temporada"] == temporada and t["nome"] not in nomes:
@@ -9923,6 +10459,7 @@ def encerrar_temporada(G: Mundo, resumo: Dict[str, Any]) -> Tuple[bool, Dict[str
     fechar_ligas_ext(G)
     if modo_caos(G):
         soltar_presos(G)
+    liberar_convocados(G)       # ninguem atravessa a virada preso na selecao
     G["historico"].append("%d %s %s: campeao %s %s %s terminou em %do" %
                           (G["temporada"], tr("pt"), nome_da_liga(G, div_antes), G["clubes"][campeao]["nome"],
                            tr("pt"), c["nome"], pos_final))
@@ -9988,6 +10525,7 @@ def encerrar_temporada(G: Mundo, resumo: Dict[str, Any]) -> Tuple[bool, Dict[str
         resumo["safra"] = [[j["nome"], j["pos"], j["idade"], j["ovr"]] for j in novos]
         resumo["base_subiu"], resumo["base_saiu"] = subiram, sairam
     repor_elencos(G, usados)
+    fixar_nacionalidades(G)     # a safra e os reforcos do ano ganham selecao
 
     resumo["fim_contrato"] = [G["jogadores"][p]["nome"] for p in c["elenco"]
                               if p in G["jogadores"] and G["jogadores"][p]["contrato"] <= 0
@@ -12370,6 +12908,11 @@ def migrar(G):
             j["nota_soma"], j["nota_j"] = 0.0, 0
     G.setdefault("agendadas", [])
     G.setdefault("semana_est", 0)
+    # Copinha e convocacoes (2026-10): save antigo comeca sem nenhuma; a
+    # nacionalidade sai do clube de hoje, uma vez
+    G.setdefault("copinha", None)
+    G.setdefault("convocacao", None)
+    fixar_nacionalidades(G)
     migrar_prazos(G)
     migrar_economia_estrelas(G)
     # save antigo: a marca de cedivel herdada da IA nao faz nada no meu clube

@@ -502,8 +502,46 @@ def painel():
         "propostas_emprego": _propostas_emprego(G),
         "patrocinio_vago": ([eng.NOME_ESPACO[e] for e in eng.espacos_vagos(G, G["clubes"][G["clube"]])]
                             or None),
+        "selecao": _selecao(G),
         "mundo": _mundo(G, 6),
     }
+
+
+def _selecao(G):
+    """Data FIFA desta semana com gente minha convocada: faixa no Painel."""
+    cv = eng.convocacao_atual(G)
+    if not cv:
+        return None
+    c = G["clubes"][G["clube"]]
+    meus = [G["jogadores"][p] for p in c["elenco"]
+            if p in G["jogadores"] and G["jogadores"][p].get("convocado")]
+    if not meus:
+        return None
+    return {"titulo": "Data FIFA: %s %s" % (
+                eng.plural(len(meus), "convocado"), "desfalca o time" if len(meus) == 1
+                else "desfalcam o time"),
+            "detalhe": "%s. Fora de todos os jogos desta semana; voltam na proxima, com moral em alta."
+                       % ", ".join("%s (%s)" % (j["nome"], eng.SELECOES.get(j["convocado"], j["convocado"]))
+                                   for j in meus),
+            "nomes": [j["nome"] for j in meus]}
+
+
+def _convocacoes(j):
+    """Historico de selecao do jogador, o mais novo primeiro."""
+    hist = j.get("convocacoes") or []
+    if not hist and not j.get("convocado"):
+        return None
+    por_selecao = {}
+    for h in hist:
+        nome = eng.SELECOES.get(h["selecao"], h["selecao"])
+        por_selecao[nome] = por_selecao.get(nome, 0) + 1
+    return {"total": len(hist),
+            "agora": eng.SELECOES.get(j["convocado"], j["convocado"]) if j.get("convocado") else None,
+            "resumo": ", ".join("%s: %s" % (k, eng.plural(v, "convocacao", "convocacoes"))
+                                for k, v in por_selecao.items()),
+            "lista": ["%s · %d, semana %d" % (eng.SELECOES.get(h["selecao"], h["selecao"]),
+                                              h["temporada"], h["semana"])
+                      for h in reversed(hist[-8:])]}
 
 
 def _propostas_emprego(G):
@@ -518,7 +556,7 @@ def _propostas_emprego(G):
 ROTULO_FEED = {"resultado": "Resultado", "tabela": "Classificacao", "copa": "Copa",
                "titulo": "Titulo", "mercado": "Mercado", "lesao": "Lesao",
                "abertura": "Brasileirao", "tecnico": "Treinador",
-               "premio": "Premio", "caos": "Plantao"}
+               "premio": "Premio", "caos": "Plantao", "selecao": "Selecao"}
 
 
 def _mundo(G, quantas):
@@ -594,6 +632,8 @@ def _situacao_jogo(j):
     """O que tira ou ameaca tirar o jogador do proximo jogo."""
     if j["lesao"] > 0:
         return "lesionado, %s" % eng.plural(j["lesao"], "semana")
+    if j.get("convocado"):
+        return "na selecao (%s)" % eng.SELECOES.get(j["convocado"], j["convocado"])
     if j["suspensao"] > 0:
         comps = [NOME_COMP_CURTO.get(k, k) for k in eng.COMPETICOES if j.get("susp", {}).get(k, 0) > 0]
         return "suspenso (%s)" % ", ".join(comps)
@@ -623,7 +663,7 @@ def _linha_elenco(G, j):
     if not sit and j["listado"]:
         sit = "a venda por %s" % eng.din(j["listado"])
     ultimo_ano = j["contrato"] <= 1 and not j.get("dono")
-    estado = "critico" if (j["lesao"] or j["suspensao"]) else ""
+    estado = "critico" if (j["lesao"] or j["suspensao"] or j.get("convocado")) else ""
     return {
         "id": j["id"], "pos": j["pos"], "nome": j["nome"], "idade": j["idade"],
         "ovr": j["ovr"], "cond": j["cond"],
@@ -983,6 +1023,7 @@ DICA_EXTRATO = {
     "premio_copa": "passar de fase, vice e campeao das copas",
     "operacao_jogo": "parte da renda de cada jogo em casa: seguranca, staff e arbitragem",
     "premio_grupo": "cada vitoria na fase de grupos do continental",
+    "premio_copinha": "campeao e vice da Copinha (sub-20), no comeco do ano",
     "vendas": "passes vendidos",
     "emprestimos": "taxas de emprestimo pagas e recebidas",
     "folha": "salarios do elenco e bolsa da base",
@@ -1573,6 +1614,7 @@ def ficha(pid):
                           "quando": _quando(G, sem)}
                          for sem, d, causa in reversed(j.get("moral_hist", []))],
         "premios": ["%s %d" % (p["nome"], p["temporada"]) for p in reversed(j.get("premios", []))],
+        "convocacoes": _convocacoes(j),
         "contrato": {"anos": j["contrato"], "salario": eng.din(j["salario"]),
                      "valor": eng.din(j["valor"]),
                      "emprestado_aqui": bool(j.get("dono")),

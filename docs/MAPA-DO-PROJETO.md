@@ -8,7 +8,7 @@
 > descobre algo que devia estar aqui, **edite a seção correspondente deste
 > mapa** (não regenere o arquivo inteiro) — é assim que ele se paga.
 
-Última atualização: 2026-09-28 · commit de referência: `600918c`
+Última atualização: 2026-10-16 · commit de referência: `4fd318b` (+ Copinha e convocações)
 
 ## O que é
 
@@ -29,7 +29,7 @@ Atas de decisão de roadmap: `docs/three-amigos/`.
 
 | Arquivo / pasta | Tamanho | O que é | Quando abrir |
 |---|---|---|---|
-| `brasfut.py` | 10117 linhas | O motor inteiro + a interface de terminal original (`main()`, `loop()`, `tela_*`) | Só a faixa de linha da seção que precisa (ver índice abaixo) |
+| `brasfut.py` | 13273 linhas | O motor inteiro + a interface de terminal original (`main()`, `loop()`, `tela_*`) | Só a faixa de linha da seção que precisa (ver índice abaixo) |
 | `brasfut_app.py` | 4552 linhas | Janela desktop (tkinter). Uma classe `Dialogo` por tela/ação | Só se a tarefa for na janela desktop — a maioria do trabalho novo vai para a web |
 | `dados_mundo.py` | 1181 linhas | Dados estáticos: clubes, ligas, seleções, nomes | Ao adicionar/corrigir liga, clube ou país |
 | `dados_clubes.py` | ~420 linhas | História real dos clubes brasileiros até 2025 (fundação, apelido, cidade, títulos com ano, soma do estadual) e `ESCUDOS` (cores, padrão e sigla do escudo genérico de ~100 clubes). Editável à mão; só aparência | Ao corrigir um título, uma cor ou incluir um clube |
@@ -38,13 +38,13 @@ Atas de decisão de roadmap: `docs/three-amigos/`.
 | `api/sessao.py` | — | Mantém o `G` vivo em memória, salva, dono do `threading.RLock`. Três slots de save (`caminho_slot`, `usar_slot`, `slots`; o slot 1 é o `brasfut_save.json`), e o motor grava um `.resumo` pequeno ao lado de cada save para o menu | Concorrência, save, trava de sessão |
 | `api/dto.py` | — | Traduz `G` no formato de cada tela (uma função por tela) | Ao mudar o que uma tela recebe |
 | `api/mercado.py` | — | Mesa de negociação e regras de mercado do lado da API (maior arquivo de `api/`) | Compra/venda/empréstimo/renovação na web |
-| `api/competicoes.py` | — | Estaduais, séries, copas — montagem e leitura pela API | Telas de Classificação/Competições |
+| `api/competicoes.py` | — | Estaduais, séries, copas e a Copinha (`_copinha`, alvo `copinha`) — montagem e leitura pela API | Telas de Classificação/Competições |
 | `api/avanco.py` | — | Avançar em ritmos (jogo/semana/mês/janela/temporada) | Botão *Avançar*/*Simular* |
 | `api/campo.py` | — | Vaga (GOL, ZAG...) → ponto no campo, para as formações | Desenho do campo na Escalação |
 | `web/src/telas/*.tsx` | 16 arquivos | Uma tela por arquivo (Painel, Elenco, Escalação, Mercado, Financas, Clube, Estatísticas, etc.) | Ao mexer numa tela específica |
 | `web/src/componentes/*.tsx` | 23 arquivos (`Ajuda.tsx`: ajuda e boas-vindas; `Partida.tsx`: resumo e detalhe da partida; `AoVivo.tsx`: a partida lance a lance, relógio e lances no minuto; `DialogoRenovar.tsx`: renovação em lote; `Celulas.tsx`: selo de posição, selo de overall e barra de físico das listas; `Resumo.tsx`: resumo da temporada; `Escudo.tsx`: escudo SVG de cada clube pelo nome, com o mapa de `/api/escudos`; `Plantao.tsx`: boletim do modo caos) | Diálogos e peças reusáveis (Mesa, Grade, Campo, Ficha...) | Componente compartilhado entre telas |
 | `web/src/api.ts`, `tipos.ts`, `formato.ts` | — | Cliente HTTP, tipos TS espelhando os DTOs, formatação (dinheiro, número) | Contrato front↔back |
-| `testes/*.py` | 47 arquivos (`desempenho.py`, `balanceamento.py` e `economia.py` são harness lentos, fora da suíte) | `unittest` da stdlib, sem dependência externa. `cd testes && python -m unittest -v` (~3 min, 194 testes) | Rodar antes de qualquer PR |
+| `testes/*.py` | 60 arquivos (`desempenho.py`, `balanceamento.py` e `economia.py` são harness lentos, fora da suíte; `test_copinha.py` e `test_convocacoes.py` cobrem a Copinha e as datas FIFA) | `unittest` da stdlib, sem dependência externa. `cd testes && python -m unittest -v` (~4 min, 297 testes) | Rodar antes de qualquer PR |
 | `docs/proxima-onda.md` | — | **Backlog da próxima onda**: o que espera decisão, o que espera exemplo do testador, o que está pronto para codar e como verificar | Antes de começar a próxima rodada |
 | `.github/workflows/testes.yml` | — | CI (GitHub Actions): a cada push na `main` e em toda PR roda a suíte `unittest` e o `npm run build` da web; avisa se `web/dist` ficou velho | Ao mudar o que a suíte ou o build precisam |
 | `ferramentas/capturas.py` | — | Capturas das 13 telas em 5 resoluções (Edge headless, cópia isolada) e comparação por pixel | Antes/depois de mexer em CSS ou tela |
@@ -71,13 +71,14 @@ achar o nome exato, ou abra só a faixa abaixo:
 | 4680–4790 | Mercado — transferência/empréstimo básicos, IA de mercado |
 | 4790–6080 | Mercado — propostas, negociação (`Proposta`/`Resposta`), salário do livre e do veterano, agendadas, contraproposta, **pré-contrato e disputa** (`pode_precontrato`, `fechar_precontrato`, `rivais_assediam`, `disputa`, `rival_leva`) |
 | 5960–6420 | Evolução de jogador (potencial, declínio, leitura do olheiro `scout`), **lista de observação** (`observar`, `observados`, `avisos_observados`, `observar_mes`), treino |
-| 6220–6500 | Base: categoria de base, peneira regional, promoção |
-| 6500–7000 | Teto de potencial, IA (livres, investimentos, rebaixamento, premiação), prêmios do ano |
-| 7000–7670 | Diretoria (**confiança semanal**, `ia_demite_tecnicos`), carreira do técnico |
-| 7670–8760 | **Interface de terminal original** (`tela_elenco`, `tela_mercado`, `jogar_semana` do modo texto — não confundir com `brasfut_app.py`) |
-| 8760–9480 | Estatísticas do ano, relatório e resumo de temporada (`campanhas_do_ano`, `titulos_da_temporada`, `apurar_temporada`, `encerrar_temporada`) |
-| 9810–11700 | **Capitão** (`capitao_de`, `definir_capitao`) e **Modo Caos** (`MODOS`, `EVENTOS_CAOS` com 72 eventos `ev_*` na liga do clube do jogador via `_liga`/`_gr`, bombas-relógio em `BOMBAS_CAOS`, `eventos_caos` chamado no fim de `avancar_semana`, `soltar_presos` na virada) |
-| 11700–12150 | Save/load (`salvar` com o `.resumo` do menu, `carregar`, `migrar`), trava de save, `loop()` principal, `main()` |
+| 6734–7028 | Base: categoria de base, peneira regional, promoção |
+| 7029–7550 | **Copinha** (`montar_copinha`, `jogar_fase_copinha` com sorteio próprio `_rng_copinha`, `semana_copinha` no estadual, `copinha_de_janeiro` na carreira nova, `destaques_copinha`) e **convocações** (`DATAS_FIFA`, `NAC_REAL`, `fixar_nacionalidades`, `convocar`, `liberar_convocados`, `datas_fifa` no fim de `avancar_semana`; o desfalque está em `disponivel`) |
+| 7551–8020 | Teto de potencial (`teto_maximo`, `revisar_potencial`), IA (livres, investimentos, rebaixamento, premiação) |
+| 8021–8685 | Diretoria (**confiança semanal**, `ia_demite_tecnicos`), opções da carreira, carreira do técnico |
+| 8686–9855 | **Interface de terminal original** (`tela_elenco`, `tela_mercado`, `jogar_semana` do modo texto — não confundir com `brasfut_app.py`) |
+| 9856–10748 | Estatísticas do ano, crédito, prêmios do ano, relatório e resumo de temporada (`premios_do_ano`, `campanhas_do_ano`, `titulos_da_temporada`, `apurar_temporada`, `encerrar_temporada`) |
+| 10749–12770 | **Capitão** (`capitao_de`, `definir_capitao`) e **Modo Caos** (`MODOS`, `EVENTOS_CAOS` com 72 eventos `ev_*` na liga do clube do jogador via `_liga`/`_gr`, bombas-relógio em `BOMBAS_CAOS`, `eventos_caos` chamado no fim de `avancar_semana`, `soltar_presos` na virada) |
+| 12771–13273 | Save/load (`salvar` com o `.resumo` do menu, `carregar`, `migrar`), trava de save, `loop()` principal, `main()` |
 
 `brasfut_app.py`: além dos helpers de UI (linhas 1–560), cada tela/diálogo
 é uma classe (`class NomeDoDialogo(Dialogo)`) a partir da linha 566 — a
@@ -128,7 +129,11 @@ decisões em `docs/three-amigos/2026-09-25-onda-2-decisoes.md`):
 - ~~Entrosamento~~ — feito: `j["entros"]` (padrão 80, chegada 35, volta 60,
   +5 por jogo), `PESO_JOGO_ENTROS` em `rendimento`, entra na chave do memo do
   XI (`test_entrosamento.py`).
-- Economia com escolhas, mercado disputado, olheiros, Copinha. História do clube: feita (tela Clube, `dados_clubes.py` + `titulos_hist`).
+- Economia com escolhas, mercado disputado, olheiros. História do clube: feita (tela Clube, `dados_clubes.py` + `titulos_hist`).
+- ~~Copinha e convocações~~ — feito: Copinha de 32 academias nas rodadas 1–5 do estadual
+  (prêmio, taça do clube, vitrine aos destaques) e três datas FIFA (semanas 8, 24, 33) com
+  23 por seleção sul-americana, desfalque na semana e `j["convocacoes"]` na ficha
+  (`test_copinha.py`, `test_convocacoes.py`).
 
 **Economia 2 — concluída** (PRs #12–#13, 2026-09-26/28): crédito do clube
 (3 meses de receita, 2% ao mês, `tomar_credito`), IA só renova se couber na

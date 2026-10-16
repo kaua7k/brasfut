@@ -270,6 +270,19 @@ function Copa({ d }: { d: DetalheCopa }) {
         <Fase f={f} key={`${d.id}-${f.nome}`} />
       ))}
       {!d.em_grupos && grupos}
+      {(d.destaques || d.nota_destaques) && (
+        <section className="painel" aria-label="Destaques">
+          <div className="painel-titulo mb-2">Artilharia e destaques</div>
+          <ul className="mb-2 txt-p">
+            {d.destaques?.map((x) => (
+              <li key={x.texto} className={x.meu ? 'negrito' : undefined}>
+                <span className={x.estado === 'ok' ? 'txt-ok' : undefined}>{x.texto}</span>
+              </li>
+            ))}
+          </ul>
+          {d.nota_destaques && <div className="tag-fraco">{d.nota_destaques}</div>}
+        </section>
+      )}
     </>
   )
 }

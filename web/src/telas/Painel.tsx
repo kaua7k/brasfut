@@ -83,6 +83,19 @@ export function Painel({ dados, aoDefinirAuto, mudandoAuto, aoIr, aoRenovar, aoR
             </button>
           </section>
         )}
+        {dados.selecao && (
+          <section className="painel faixa atencao">
+            <div className="faixa-icone">{iconeDeEstado('atencao')}</div>
+            <div className="encolhe">
+              <div className="faixa-titulo">{dados.selecao.titulo}</div>
+              <div className="faixa-detalhe">{dados.selecao.detalhe}</div>
+            </div>
+            <div className="espaco" />
+            <button type="button" className="bt-fantasma" onClick={() => aoIr('escalacao')}>
+              Ver escalacao
+            </button>
+          </section>
+        )}
         {dados.resultados.partidas.length > 0 ? (
           <ResumoPartida partidas={dados.resultados.partidas} alerta={dados.resultados.alerta} />
         ) : (

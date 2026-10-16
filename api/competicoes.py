@@ -38,6 +38,13 @@ def _lista(G):
         itens.append({"id": "copa:" + chave, "nome": cp["nome"], "tipo": "mata-mata",
                       "meu": participa, "estado": estado,
                       "vivo": eng.vivo_na_copa(cp, meu), "grupo": dto.regiao_copa(chave, cp)})
+    cp = eng.copinha(G)
+    if cp:
+        itens.append({"id": "copinha", "nome": "Copinha (sub-20)", "tipo": "mata-mata",
+                      "grupo": dto.BRASIL, "meu": meu in cp["times"],
+                      "estado": ("campeao: %s" % _nome(G, cp["campeao"]) if cp["campeao"]
+                                 else eng.nome_fase(len(cp["vivos"])).lower()),
+                      "vivo": meu in cp["vivos"] and not cp["campeao"]})
     for d in "ABCD":
         liga = G["ligas"][d]
         itens.append({"id": "liga:" + d, "nome": "Serie " + d, "tipo": "pontos", "grupo": dto.BRASIL,
@@ -325,11 +332,79 @@ def _estadual(G, est, alvo):
     return detalhe
 
 
+# ================================================================= copinha
+def _copinha(G, alvo):
+    """A Copinha no formato das copas: fases jogadas (rodada do estadual na
+    nota), a sorteada e as que faltam; por cima, a campanha do meu sub-20 e,
+    no fim, a artilharia e os destaques."""
+    cp = eng.copinha(G)
+    meu = G["clube"]
+    fases = []
+    for h in cp["historico"]:
+        rodada = h.get("rodada_est") or 0
+        fases.append({"nome": h["fase"], "semana": None, "estado": "jogada",
+                      "nota": ("rodada %d do estadual" % rodada) if rodada else "em janeiro",
+                      "jogos": [_jogo_copa(G, j, meu) for j in h["jogos"]]})
+    if not cp["campeao"]:
+        n = len(cp["vivos"])
+        for k in range(cp["fase"], len(eng.COPINHA_RODADAS)):
+            if n < 2:
+                break
+            sorteada = k == cp["fase"]
+            fases.append({"nome": eng.nome_fase(n), "semana": None,
+                          "estado": "sorteada" if sorteada else "futura",
+                          "nota": "rodada %d do estadual" % eng.COPINHA_RODADAS[k],
+                          "jogos": [{"a": _nome(G, a), "b": _nome(G, b), "ida": None, "volta": None,
+                                     "agregado": None, "penaltis": None, "vencedor": None,
+                                     "venceu_a": None, "meu": meu in (a, b), "passei": None}
+                                    for a, b in cp["sorteio"]] if sorteada else []})
+            n //= 2
+
+    campanha = eng.campanha_copinha(G, meu)
+    if campanha == "campeao":
+        situacao = {"estado": "ok", "texto": "Campeao! O sub-20 levou a Copinha."}
+    elif campanha == "nao disputa":
+        situacao = {"estado": "neutro", "texto": "Seu clube nao disputa a Copinha neste ano "
+                                                 "(entram as 32 melhores academias do pais)."}
+    elif campanha.startswith("vivo"):
+        situacao = {"estado": "ok", "texto": "Sub-20 vivo: %s. Jogo unico, campo neutro." % campanha[6:]}
+    else:
+        situacao = {"estado": "critico", "texto": "Campanha do sub-20 encerrada: %s." % campanha}
+
+    destaques = []
+    for d in cp.get("destaques", []):
+        destaques.append({"texto": "%s: %s, %d anos, %s (%s)" % (
+            d["premio"], d["nome"], d["idade"], d["clube"], eng.plural(d["gols"], "gol")),
+            "meu": d.get("clube_id") == meu, "estado": "ok"})
+    nomes = {d["id"] for d in cp.get("destaques", [])}
+    for pid, gols in eng.artilharia_copinha(G, cp)[:5]:
+        if pid in nomes:
+            continue
+        j = G["jogadores"][pid]
+        destaques.append({"texto": "%s, %s (%s)" % (
+            j["nome"], _nome(G, cp["clube_de"].get(str(pid))), eng.plural(gols, "gol")),
+            "meu": cp["clube_de"].get(str(pid)) == meu, "estado": "neutro"})
+    return {
+        "tipo": "mata-mata", "titulo": eng.COPINHA_NOME, "id": alvo,
+        "campeao": _nome(G, cp["campeao"]) if cp["campeao"] else None,
+        "situacao": situacao, "fases": fases, "grupos": None, "em_grupos": False,
+        "aviso": None,
+        "destaques": destaques or None,
+        "nota_destaques": ("O time e a base mais os garotos de ate 20 anos fora do XI titular; "
+                           "nada da Copinha mexe no profissional. Artilheiro (3 gols ou mais) e "
+                           "craque do campeao ganham vitrine: um ponto de overall e o teto revisto. "
+                           "Campeao leva %s, vice %s." % (eng.din(eng.COPINHA_PREMIO),
+                                                          eng.din(eng.COPINHA_PREMIO_VICE))),
+    }
+
+
 # ==================================================================== tela
 def tela(alvo=None):
     G = SESSAO.exigir()
     alvo = alvo or _padrao(G)
-    if alvo.startswith("copa:") and alvo[5:] in G["copas"]:
+    if alvo == "copinha" and eng.copinha(G):
+        detalhe = _copinha(G, alvo)
+    elif alvo.startswith("copa:") and alvo[5:] in G["copas"]:
         detalhe = _copa(G, alvo[5:], alvo)
     elif alvo.startswith("est:") and alvo[4:] in eng.estaduais(G):
         detalhe = _estadual(G, eng.estaduais(G)[alvo[4:]], alvo)
