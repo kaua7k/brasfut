@@ -876,6 +876,20 @@ def montar_melhor(_corpo):
         return {"recado": "Melhor time disponivel montado.", "tela": dto.escalacao()}
 
 
+@rota("POST", "/api/escalacao/capitao")
+def capitao_na_escalacao(corpo):
+    """A bracadeira escolhida direto na Escalacao."""
+    pid = (corpo or {}).get("id")
+    if not isinstance(pid, int):
+        raise ErroDeUso("falta o id do jogador")
+    with SESSAO.cadeado:
+        G = SESSAO.exigir()
+        ok, recado = eng.definir_capitao(G, pid)
+        if not ok:
+            raise ErroDeUso(recado)
+        return {"recado": recado, "tela": dto.escalacao()}
+
+
 @rota("POST", "/api/escalacao/trocar")
 def trocar_titular(corpo):
     """Um sai, outro entra. Mexer no time e assumir o comando: a alavanca cede.
@@ -1204,6 +1218,41 @@ def assinar_patrocinio(corpo):
                     eng.NOME_ESPACO[espaco], k["empresa"], eng.plural(k["temporadas"], "temporada"),
                     eng.din(k["semanal"])),
                 "tela": dto.financas()}
+
+
+@rota("POST", "/api/patrocinio/assinar-equilibradas")
+def assinar_equilibradas(corpo):
+    """Atalho: a proposta equilibrada em todos os espacos vagos de uma vez."""
+    with SESSAO.cadeado:
+        G = SESSAO.exigir()
+        c = G["clubes"][G["clube"]]
+        feitos = eng.assinar_equilibradas(G, c)
+        if not feitos:
+            raise ErroDeUso("Nenhum espaco vago para assinar.")
+        eng.salvar_auto(G, forcar=True)
+        semanal = sum(int(k["semanal"]) for _, k in feitos)
+        return {"recado": "%s assinados na proposta equilibrada: %s por semana a mais." % (
+                    eng.plural(len(feitos), "espaco"), eng.din(semanal)),
+                "tela": dto.financas()}
+
+
+@rota("POST", "/api/bicho")
+def definir_bicho(corpo):
+    """Muda o bicho prometido ao elenco por vitoria."""
+    nivel = corpo.get("nivel")
+    if nivel not in eng.BICHO_POR_NIVEL:
+        raise ErroDeUso("nivel de bicho invalido")
+    with SESSAO.cadeado:
+        G = SESSAO.exigir()
+        G["bicho"] = nivel
+        eng.salvar_auto(G, forcar=True)
+        rotulo = eng.BICHO_POR_NIVEL[nivel][1]
+        if nivel == "nenhum":
+            recado = "Sem bicho: vitoria vale so a moral do resultado."
+        else:
+            recado = "%s: %s por vitoria." % (
+                rotulo, eng.din(eng.custo_bicho(G, G["clubes"][G["clube"]], nivel)))
+        return {"recado": recado, "tela": dto.financas()}
 
 
 @rota("POST", "/api/mercado/renovar-lote/linhas")

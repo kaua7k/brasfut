@@ -733,6 +733,8 @@ export interface TelaFinancas {
   linhas: LinhaDinheiro[]
   premiacao: LinhaDinheiro[]
   patrocinio: Patrocinio
+  /** bicho prometido ao elenco: pago a cada vitoria, da moral a quem jogou */
+  bicho: { nivel: string; niveis: { id: string; rotulo: string; custo: string; moral: number }[] }
   mensal: VerbaMensal
   elenco: { valor: string; folha_mes: string; jogadores: number; emprestados: number }
   maiores: { id: number; nome: string; pos: string; salario: string; valor: string; obs: string }[]
@@ -888,6 +890,8 @@ export interface TelaEscalacao {
   titulares: JogadorEmCampo[]
   vagas_abertas: number
   banco: JogadorBanco[]
+  /** quem usa a bracadeira e quem pode usar (titulares primeiro) */
+  capitao: { id: number | null; opcoes: { id: number; nome: string; pos: string; titular: boolean }[] }
 }
 
 export interface RegraCondicional {

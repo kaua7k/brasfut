@@ -987,6 +987,7 @@ DICA_EXTRATO = {
     "emprestimos": "taxas de emprestimo pagas e recebidas",
     "folha": "salarios do elenco e bolsa da base",
     "estrutura": "CT, base, medico, manutencao do estadio e operacao do clube",
+    "bicho": "premio prometido ao elenco, pago a cada vitoria (veja Bicho)",
     "treino": "treino individual dos jogadores marcados",
     "peneira": "peneira regional da base",
     "compras": "passes comprados",
@@ -1133,12 +1134,22 @@ def financas():
         ],
         "premiacao": _premiacao_em_jogo(G, c),
         "patrocinio": patrocinio(G, c),
+        "bicho": _bicho(G, c),
         "mensal": _verba_mensal(G, c),
         "elenco": {"valor": eng.din(sum(j["valor"] for j in proprios)),
                    "folha_mes": eng.din(folha * 4), "jogadores": len(jogs),
                    "emprestados": len(jogs) - len(proprios)},
         "maiores": maiores,
     }
+
+
+def _bicho(G, c):
+    """O bicho prometido ao elenco e o quanto cada nivel custa por vitoria hoje."""
+    return {"nivel": eng.bicho_nivel(G),
+            "niveis": [{"id": nivel, "rotulo": rotulo,
+                        "custo": eng.din(eng.custo_bicho(G, c, nivel)),
+                        "moral": moral}
+                       for nivel, rotulo, _, moral in eng.BICHO]}
 
 
 def _verba_mensal(G, c):
@@ -1739,7 +1750,20 @@ def escalacao():
         "nova_vaga": SESSAO.nova_vaga,
         "vagas_abertas": vazias,
         "banco": [_linha_banco(G, jogs[p]) for p in resto],
+        "capitao": _capitao_escalacao(G, c, d["escalacao"]),
     }
+
+
+def _capitao_escalacao(G, c, xi):
+    """Quem usa a bracadeira e quem pode usar: titulares primeiro."""
+    atual = eng.capitao_de(G, c)
+    aptos = [G["jogadores"][p] for p in c["elenco"]
+             if p in G["jogadores"] and not G["jogadores"][p].get("dono")
+             and not eng.da_base(G["jogadores"][p])]
+    aptos.sort(key=lambda j: (j["id"] not in xi, j["nome"]))
+    return {"id": atual,
+            "opcoes": [{"id": j["id"], "nome": j["nome"], "pos": j["pos"],
+                        "titular": j["id"] in xi} for j in aptos]}
 
 
 # ---------------------------------------------------------------------- treino

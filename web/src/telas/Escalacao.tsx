@@ -38,6 +38,7 @@ export type AcaoEscalacao =
   | { tipo: 'plano'; eixo: string; valor: string }
   | { tipo: 'plano-padrao' }
   | { tipo: 'condicional'; condicao: string; minuto: number | null; tatica: string | null }
+  | { tipo: 'capitao'; id: number }
 
 interface Props {
   tela: TelaEscalacao
@@ -544,6 +545,26 @@ export function Escalacao({ tela, ocupado, mercadoPronto, aoAbrirFicha, aoAgir, 
             aoAbrir={(j) => aoAbrirFicha(j.id)}
             vazio="Ninguem escalado. Use Montar melhor time."
           />
+          {tela.capitao.opcoes.length > 0 && (
+            <div className="linha-flex larga mt-2">
+              <label className="campo-rotulo">
+                Capitao
+                <select
+                  className="seletor"
+                  value={tela.capitao.id ?? ''}
+                  disabled={ocupado}
+                  onChange={(e) => aoAgir({ tipo: 'capitao', id: Number(e.target.value) })}
+                >
+                  {tela.capitao.opcoes.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.nome} ({o.pos}){o.titular ? '' : ', reserva'}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <span className="tag-fraco">a bracadeira segura um ponto de moral na derrota</span>
+            </div>
+          )}
 
           <h3 className="lista-cab">
             <span className="painel-titulo">Reservas</span>

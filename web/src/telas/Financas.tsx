@@ -241,15 +241,52 @@ function BlocoCredito({ cr, ocupado, aoTomar, aoQuitar }: {
   )
 }
 
+function BlocoBicho({ b, ocupado, aoMudar }: { b: TelaFinancas['bicho']; ocupado: boolean; aoMudar: (nivel: string) => void }) {
+  const atual = b.niveis.find((n) => n.id === b.nivel)
+  return (
+    <section className="painel enxuto">
+      <div className="painel-titulo">Bicho por vitoria</div>
+      <p className="tag-fraco m-0 mb-3">
+        O premio que voce promete ao elenco. Sai do caixa a cada vitoria (uma fatia da folha semanal) e
+        da moral extra a quem entrou em campo.
+      </p>
+      <div className="linha-flex larga">
+        <label className="campo-rotulo">
+          Nivel
+          <select
+            className="seletor"
+            value={b.nivel}
+            disabled={ocupado}
+            onChange={(e) => aoMudar(e.target.value)}
+          >
+            {b.niveis.map((n) => (
+              <option key={n.id} value={n.id}>
+                {n.id === 'nenhum' ? n.rotulo : `${n.rotulo}: ${n.custo} por vitoria, +${n.moral} de moral`}
+              </option>
+            ))}
+          </select>
+        </label>
+        <span className="tag-fraco">
+          {atual && atual.id !== 'nenhum'
+            ? `cada vitoria custa ${atual.custo} e da +${atual.moral} de moral a quem jogou`
+            : 'vitoria vale so a moral do resultado'}
+        </span>
+      </div>
+    </section>
+  )
+}
+
 interface Props {
   tela: TelaFinancas
   ocupado: boolean
   aoAssinarPatrocinio: (espaco: string, indice: number) => void
+  aoAssinarEquilibradas: () => void
+  aoMudarBicho: (nivel: string) => void
   aoTomarCredito: (valor: number, meses: number) => void
   aoQuitarCredito: () => void
 }
 
-export function Financas({ tela, ocupado, aoAssinarPatrocinio, aoTomarCredito, aoQuitarCredito }: Props) {
+export function Financas({ tela, ocupado, aoAssinarPatrocinio, aoAssinarEquilibradas, aoMudarBicho, aoTomarCredito, aoQuitarCredito }: Props) {
   const ex = tela.extrato
   const pat = tela.patrocinio
   const blocoPatrocinio = (
@@ -257,6 +294,23 @@ export function Financas({ tela, ocupado, aoAssinarPatrocinio, aoTomarCredito, a
       <div className="painel-titulo">Patrocinio</div>
         <section className="painel enxuto">
           <p className="tag-fraco m-0 mb-3">{pat.explica}</p>
+          {pat.vagos.length > 1 && (
+            <div className="linha-flex larga mb-3">
+              <span className="tag-fraco">
+                {pat.vagos.length} espacos vagos. Sem tempo para escolher um por um?
+              </span>
+              <div className="espaco" />
+              <button
+                type="button"
+                className="bt-acao"
+                title={porque([[ocupado, AGUARDE]])}
+                disabled={ocupado}
+                onClick={aoAssinarEquilibradas}
+              >
+                Assinar as equilibradas de todos
+              </button>
+            </div>
+          )}
           {pat.contratos.length > 0 && (
             <div className="patrocinio-grade">
               {pat.contratos.map((k) => (
@@ -305,6 +359,8 @@ export function Financas({ tela, ocupado, aoAssinarPatrocinio, aoTomarCredito, a
       {pat.vagos.length > 0 && blocoPatrocinio}
 
       <BlocoCredito cr={tela.credito} ocupado={ocupado} aoTomar={aoTomarCredito} aoQuitar={aoQuitarCredito} />
+
+      <BlocoBicho b={tela.bicho} ocupado={ocupado} aoMudar={aoMudarBicho} />
 
       <div className="painel-titulo">O mes e a verba para contratar</div>
       <div className="financas-resumo">

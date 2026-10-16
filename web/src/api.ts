@@ -129,6 +129,9 @@ export const api = {
   quitarCredito: () => pedir<{ recado: string; tela: TelaFinancas }>('/api/credito', { acao: 'quitar' }),
   assinarPatrocinio: (espaco: string, indice: number) =>
     pedir<{ recado: string; tela: TelaFinancas }>('/api/patrocinio/assinar', { espaco, indice }),
+  definirBicho: (nivel: string) => pedir<{ recado: string; tela: TelaFinancas }>('/api/bicho', { nivel }),
+  assinarEquilibradas: () =>
+    pedir<{ recado: string; tela: TelaFinancas }>('/api/patrocinio/assinar-equilibradas', {}),
   infra: () => pedir<{ tela: TelaInfra }>('/api/infra'),
   noticias: () => pedir<{ tela: TelaNoticias }>('/api/noticias'),
   carreira: () => pedir<{ tela: TelaCarreira }>('/api/carreira'),
@@ -174,6 +177,7 @@ export const api = {
     pedir<{ previa: PreviaEsquema }>('/api/escalacao/previa', { contagem }),
   desfazerEsquema: () => pedir<RespostaAcao<TelaEscalacao>>('/api/escalacao/desfazer', {}),
   montarMelhor: () => pedir<RespostaAcao<TelaEscalacao>>('/api/escalacao/montar', {}),
+  capitaoNaEscalacao: (id: number) => pedir<RespostaAcao<TelaEscalacao>>('/api/escalacao/capitao', { id }),
   trocarTitular: (titular: number, reserva: number) =>
     pedir<RespostaAcao<TelaEscalacao>>('/api/escalacao/trocar', { titular, reserva }),
   inverterTitulares: (a: number, b: number) =>
