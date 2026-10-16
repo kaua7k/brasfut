@@ -42,7 +42,7 @@ Atas de decisão de roadmap: `docs/three-amigos/`.
 | `api/avanco.py` | — | Avançar em ritmos (jogo/semana/mês/janela/temporada) | Botão *Avançar*/*Simular* |
 | `api/campo.py` | — | Vaga (GOL, ZAG...) → ponto no campo, para as formações | Desenho do campo na Escalação |
 | `web/src/telas/*.tsx` | 16 arquivos | Uma tela por arquivo (Painel, Elenco, Escalação, Mercado, Financas, Clube, Estatísticas, etc.) | Ao mexer numa tela específica |
-| `web/src/componentes/*.tsx` | 22 arquivos (`Ajuda.tsx`: ajuda e boas-vindas; `Partida.tsx`: resumo e detalhe da partida; `DialogoRenovar.tsx`: renovação em lote; `Celulas.tsx`: selo de posição, selo de overall e barra de físico das listas; `Resumo.tsx`: resumo da temporada; `Escudo.tsx`: escudo SVG de cada clube pelo nome, com o mapa de `/api/escudos`; `Plantao.tsx`: boletim do modo caos) | Diálogos e peças reusáveis (Mesa, Grade, Campo, Ficha...) | Componente compartilhado entre telas |
+| `web/src/componentes/*.tsx` | 23 arquivos (`Ajuda.tsx`: ajuda e boas-vindas; `Partida.tsx`: resumo e detalhe da partida; `AoVivo.tsx`: a partida lance a lance, relógio e lances no minuto; `DialogoRenovar.tsx`: renovação em lote; `Celulas.tsx`: selo de posição, selo de overall e barra de físico das listas; `Resumo.tsx`: resumo da temporada; `Escudo.tsx`: escudo SVG de cada clube pelo nome, com o mapa de `/api/escudos`; `Plantao.tsx`: boletim do modo caos) | Diálogos e peças reusáveis (Mesa, Grade, Campo, Ficha...) | Componente compartilhado entre telas |
 | `web/src/api.ts`, `tipos.ts`, `formato.ts` | — | Cliente HTTP, tipos TS espelhando os DTOs, formatação (dinheiro, número) | Contrato front↔back |
 | `testes/*.py` | 45 arquivos (`desempenho.py`, `balanceamento.py` e `economia.py` são harness lentos, fora da suíte) | `unittest` da stdlib, sem dependência externa. `cd testes && python -m unittest -v` (~3 min, 194 testes) | Rodar antes de qualquer PR |
 | `docs/proxima-onda.md` | — | **Backlog da próxima onda**: o que espera decisão, o que espera exemplo do testador, o que está pronto para codar e como verificar | Antes de começar a próxima rodada |
@@ -166,9 +166,9 @@ primária decidida: azul. Histórico = 10
 partidas, demissão em qualquer semana após aviso e IA também usando
 instruções condicionais foram decididos em 2026-09-25.
 
-**Pontas soltas conhecidas** (`ARQUITETURA-WEB.md`): partida lance a lance só
-existe no tkinter (ajuda e boas-vindas migraram: `componentes/Ajuda.tsx`,
-`GET /api/ajuda`); motor escreve sem acento (dívida
+**Pontas soltas conhecidas** (`ARQUITETURA-WEB.md`): nenhum diálogo só no
+tkinter (lance a lance: `componentes/AoVivo.tsx`; ajuda e boas-vindas:
+`componentes/Ajuda.tsx`, `GET /api/ajuda`); motor escreve sem acento (dívida
 de quando era terminal); React não tem testes (só a API tem).
 
 ## Como rodar / testar
