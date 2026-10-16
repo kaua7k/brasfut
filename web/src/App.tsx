@@ -489,6 +489,8 @@ export function App() {
           return api.mudarCondicional(acao.condicao, acao.minuto, acao.tatica)
         case 'montar':
           return api.montarMelhor()
+        case 'capitao':
+          return api.capitaoNaEscalacao(acao.id)
       }
     }
     despachar<TelaEscalacao>(chamar, aplicar, () =>
@@ -741,6 +743,30 @@ export function App() {
                 setOcupado(true)
                 try {
                   const r = await api.assinarPatrocinio(espaco, indice)
+                  setConteudo({ tipo: 'financas', dados: r.tela })
+                  setRecado(r.recado)
+                } finally {
+                  setOcupado(false)
+                }
+              })
+            }
+            aoAssinarEquilibradas={() =>
+              comErro(async () => {
+                setOcupado(true)
+                try {
+                  const r = await api.assinarEquilibradas()
+                  setConteudo({ tipo: 'financas', dados: r.tela })
+                  setRecado(r.recado)
+                } finally {
+                  setOcupado(false)
+                }
+              })
+            }
+            aoMudarBicho={(nivel) =>
+              comErro(async () => {
+                setOcupado(true)
+                try {
+                  const r = await api.definirBicho(nivel)
                   setConteudo({ tipo: 'financas', dados: r.tela })
                   setRecado(r.recado)
                 } finally {

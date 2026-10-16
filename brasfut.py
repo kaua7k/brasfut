@@ -3238,6 +3238,9 @@ def simular(G, casa_id, fora_id, comp="liga", neutro=False):
     classico = eh_classico(G, casa_id, fora_id)
     aplicar_moral(G, list(jogaram_c), gc, gf, fora["nome"], classico)
     aplicar_moral(G, list(jogaram_f), gf, gc, casa["nome"], classico)
+    if gc != gf:
+        vencedor, jogaram_v = (casa, jogaram_c) if gc > gf else (fora, jogaram_f)
+        pagar_bicho(G, vencedor, list(jogaram_v))
     eventos.sort(key=lambda e: e[0])
     return {"casa": casa_id, "fora": fora_id, "gc": gc, "gf": gf,
             "pub": pub, "renda": renda, "eventos": eventos, "comp": comp,
@@ -3264,6 +3267,42 @@ def mexer_moral(G: Mundo, j: Jogador, delta: int, causa: str) -> None:
     antes = j["moral"]
     j["moral"] = clamp(j["moral"] + delta, 5, 100)
     anotar_moral(G, j, j["moral"] - antes, causa)
+
+
+# BICHO: premio por vitoria que o tecnico promete ao elenco. Sai do caixa a
+# cada vitoria (fatia da folha semanal) e da moral extra a quem entrou em
+# campo. So o clube do jogador paga; a maquina nao mexe nisso.
+# (nivel, rotulo, fatia da folha semanal por vitoria, moral extra)
+BICHO = (
+    ("nenhum", "Sem bicho", 0.0, 0),
+    ("normal", "Bicho normal", 0.10, 1),
+    ("alto", "Bicho alto", 0.25, 2),
+    ("dobrado", "Bicho dobrado", 0.50, 4),
+)
+BICHO_POR_NIVEL = {b[0]: b for b in BICHO}
+
+
+def bicho_nivel(G: Mundo) -> str:
+    nivel = G.get("bicho") or "nenhum"
+    return nivel if nivel in BICHO_POR_NIVEL else "nenhum"
+
+
+def custo_bicho(G: Mundo, c: Clube, nivel: Optional[str] = None) -> int:
+    fatia = BICHO_POR_NIVEL[nivel or bicho_nivel(G)][2]
+    return int(folha_semanal(G, c) * fatia / 100) * 100
+
+
+def pagar_bicho(G: Mundo, c: Clube, esc) -> None:
+    """Vitoria do meu clube: paga o bicho prometido e anima quem jogou."""
+    nivel = bicho_nivel(G)
+    _, rotulo, _, moral = BICHO_POR_NIVEL[nivel]
+    if nivel == "nenhum" or c["id"] != G.get("clube"):
+        return
+    lancar(G, c, -custo_bicho(G, c, nivel), "bicho")
+    for pid in esc:
+        j = G["jogadores"].get(pid)
+        if j:
+            mexer_moral(G, j, moral, "%s pela vitoria" % rotulo.lower())
 
 
 def aplicar_moral(G, esc, pro, contra, rival=None, classico=False):
@@ -4195,13 +4234,22 @@ def espacos_vagos(G, c):
     return [e for e in espacos_do_clube(c) if not contratos.get(e)]
 
 
+def assinar_equilibradas(G, c, automatico=False):
+    """Fecha a proposta equilibrada de cada espaco vago; devolve o que assinou."""
+    feitos = []
+    for espaco in espacos_vagos(G, c):
+        oferta = ofertas_patrocinio(G, c, espaco)[1]
+        assinar_patrocinio(G, c, espaco, oferta, automatico=automatico)
+        feitos.append((espaco, oferta))
+    return feitos
+
+
 def assinar_vagos_automatico(G):
     """A bola vai rolar e o espaco segue vazio: fecha a proposta equilibrada."""
     c = G["clubes"].get(G.get("clube"))
     if not c:
         return
-    for espaco in espacos_vagos(G, c):
-        assinar_patrocinio(G, c, espaco, ofertas_patrocinio(G, c, espaco)[1], automatico=True)
+    assinar_equilibradas(G, c, automatico=True)
 
 
 def herdar_patrocinios(G, c):
@@ -9052,7 +9100,7 @@ EXTRATO = (
     ("vendas", "Venda de jogadores"), ("emprestimos", "Taxas de emprestimo"),
     ("folha", "Folha salarial"), ("estrutura", "Estrutura e operacao"),
     ("operacao_jogo", "Operacao dos jogos em casa"),
-    ("treino", "Treino individual"), ("peneira", "Peneira da base"),
+    ("bicho", "Bicho por vitoria"), ("treino", "Treino individual"), ("peneira", "Peneira da base"),
     ("compras", "Compra de jogadores"), ("rescisoes", "Rescisoes"),
     ("obras", "Obras no estadio"), ("infra", "Infraestrutura"),
     ("credito", "Credito tomado"), ("credito_parcela", "Parcelas do credito"),

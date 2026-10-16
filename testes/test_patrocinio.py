@@ -66,6 +66,21 @@ class TestPatrocinio(unittest.TestCase):
         self.assertEqual(ex["patrocinio"], escolhida["semanal"] + sum(o["semanal"] for o in equilibradas.values()))
         self.assertEqual(ex["tv"], eng.tv_semanal(c))
 
+    def test_atalho_assina_a_equilibrada_dos_vagos_e_respeita_o_ja_escolhido(self):
+        G = mundo_novo(118)
+        c = G["clubes"][G["clube"]]
+        escolhida = eng.ofertas_patrocinio(G, c, "master")[2]
+        apoio.chamar("POST", "/api/patrocinio/assinar", {"espaco": "master", "indice": 2})
+        resto = [e for e in eng.espacos_do_clube(c) if e != "master"]
+        equilibradas = {e: eng.ofertas_patrocinio(G, c, e)[1] for e in resto}
+        r = apoio.chamar("POST", "/api/patrocinio/assinar-equilibradas", {})
+        self.assertIn("%d espacos" % len(resto), r["recado"])
+        self.assertEqual(r["tela"]["patrocinio"]["vagos"], [])
+        self.assertEqual(c["patrocinios"]["master"]["empresa"], escolhida["empresa"])
+        for e, o in equilibradas.items():
+            self.assertEqual(c["patrocinios"][e], o, e)
+        apoio.chamar("POST", "/api/patrocinio/assinar-equilibradas", {}, status=400)
+
     def test_virada_paga_bonus_da_meta_e_vence_contrato(self):
         G = mundo_novo(119)
         c = G["clubes"][G["clube"]]

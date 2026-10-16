@@ -1,23 +1,19 @@
 # Próxima onda — backlog pronto para começar
 
-Estado em 2026-09-28, com a `main` em `600918c` (PR #13). Tudo o que foi pedido até
+Estado em 2026-10-16 (decisões da seção 1); antes disso, 2026-09-28 com a `main` em `600918c` (PR #13). Tudo o que foi pedido até
 aqui está mergeado; esta página junta o que sobrou, separado pelo que falta para
 começar. Decisões já tomadas continuam em `docs/three-amigos/`; o mapa do código é
 `docs/MAPA-DO-PROJETO.md`.
 
-## 1. Esperando uma decisão sua
+## 1. Decisões de 2026-10-16
 
-| Item | O que decidir | Proposta na mesa |
-|---|---|---|
-| **Versão mobile** | Caminho e plataforma dos amigos (Android ou iPhone) | Motor no próprio navegador com Pyodide + PWA no GitHub Pages: sem servidor, save no celular, funciona offline. Começar por um protótipo que mede o tempo de uma semana simulada no celular; depois, passada de layout para ~390 px (Escalação, Mercado e tabelas grandes). A alternativa (servidor na internet) exige refazer `SESSAO` para vários jogadores e tem custo. |
-| **Onda 3 com spike** | Se entra nesta onda | Intervalo interativo (`simular` vira máquina de estados) e IA com identidade tática + rebalanceamento (Retranca domina a Pressão; decisão D2 foi não mexer antes). |
-
-## 2. Esperando exemplo do testador (Okumura)
-
-| Item | O que falta |
-|---|---|
-| 7. Notícia de gol estranha | O texto exato ou um print. Sem isso é chute (`manchetes_da_semana`, `noticia`). |
-| 3. Contratações fantasmas | Confirmar se eram craques caindo em clube pequeno na virada. Esse caso foi corrigido na PR #11 (`cabe_na_folha`); se era outra coisa, precisa do exemplo. |
+- **Versão mobile**: para Android e iPhone. Caminho: motor no navegador (Pyodide) + PWA
+  no GitHub Pages, começando pelo protótipo que mede uma semana simulada no celular.
+- **Onda 3 com spike**: entram os dois (intervalo interativo e IA com identidade tática +
+  rebalanceamento).
+- **Ordem combinada**: atalhos e bicho → partida lance a lance na web → mercado disputado e
+  olheiros → Copinha e convocações → os dois spikes → protótipo mobile.
+- **Exemplos do Okumura** (notícia de gol estranha, contratações fantasmas): descartados.
 
 ## 2b. Lista de 2026-09-29 (anotada, nada feito ainda)
 
@@ -35,8 +31,8 @@ amarelo).
   potencial), região (Brasil, América do Sul, Europa, outras), só à venda e Limpar.
 
 **Mecânicas**
-- Capitão: pedido de escolher o capitão. Já existe desde a PR #20 (Tornar capitão, na
-  ficha); talvez falte deixar isso visível, por exemplo na Escalação.
+- ~~Capitão~~ feito: além da ficha (PR #20), escolhido direto na Escalação, abaixo dos
+  titulares.
 - ~~"Cedível"~~ resolvido: é a marca da IA para quem ela aceita emprestar (alimenta a aba
   Empréstimos). O mundo é sorteado antes da escolha do clube, então o elenco do treinador
   herdava "cedível" e até "à venda" que ele nunca pôs. Agora assumir um clube limpa essas
@@ -85,8 +81,8 @@ amarelo).
 
 - **Partida lance a lance na web** — só existe na janela tkinter (`ARQUITETURA-WEB.md`, pontas soltas).
 - **Testes do React** — hoje só a API tem teste; o CI já roda `npm run build`, falta ao menos um teste de fumaça das telas.
-- **Onda 3 sem spike** (`docs/three-amigos/2026-09-24-rodada-de-melhorias.md`, item 18): mercado disputado e pré-contrato, olheiros e lista de observação, Copinha e convocações. História do clube já saiu (tela Clube); falta conferir os números de `dados_clubes.py`. Economia com escolhas já andou (crédito e sete espaços de patrocínio); falta sócio-torcedor e bicho por vitória.
-- **Atalho de patrocínio** — com sete espaços, a Finanças ficou longa: um botão "assinar as equilibradas de todos os espaços" resolve.
+- **Onda 3 sem spike** (`docs/three-amigos/2026-09-24-rodada-de-melhorias.md`, item 18): mercado disputado e pré-contrato, olheiros e lista de observação, Copinha e convocações. História do clube já saiu (tela Clube); falta conferir os números de `dados_clubes.py`. Economia com escolhas já andou (crédito, sete espaços de patrocínio, sócios e bicho por vitória: nenhum, normal, alto ou dobrado nas Finanças).
+- ~~**Atalho de patrocínio**~~ — feito: "Assinar as equilibradas de todos" nas Finanças (`assinar_equilibradas`).
 
 ## 4. Pontos para acompanhar numa carreira longa
 
