@@ -150,6 +150,21 @@ def definir_capitao(corpo):
         return {"recado": recado, "ficha": dto.ficha(pid)}
 
 
+@rota("POST", "/api/observar")
+def observar_jogador(corpo):
+    """Poe ou tira um jogador da lista do olheiro."""
+    pid = (corpo or {}).get("id")
+    if not isinstance(pid, int):
+        raise ErroDeUso("falta o id do jogador")
+    with SESSAO.cadeado:
+        G = SESSAO.exigir()
+        ok, recado = eng.observar(G, pid, bool(corpo.get("observar", True)))
+        if not ok:
+            raise ErroDeUso(recado)
+        eng.salvar_auto(G, forcar=True)
+        return {"recado": recado, "ficha": dto.ficha(pid)}
+
+
 @rota("POST", "/api/slot/apagar")
 def apagar_slot(corpo):
     with SESSAO.cadeado:

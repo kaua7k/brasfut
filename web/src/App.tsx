@@ -581,6 +581,19 @@ export function App() {
         return agirElenco('renovar', acao.ids)
       case 'cancelar':
         return despachar<unknown>((c) => api.cancelarAgendadas(acao.indices, origem(), c), aplicarVolta)
+      case 'observar':
+        return comErro(async () => {
+          setOcupado(true)
+          try {
+            const r = await api.observar(acao.id, acao.observar)
+            if (conteudo?.tipo === 'mercado') {
+              aplicar((await api.mercado(conteudo.dados.aba, conteudo.dados.filtros)).tela)
+            }
+            setRecado(r.recado)
+          } finally {
+            setOcupado(false)
+          }
+        })
     }
   }
 
@@ -623,6 +636,16 @@ export function App() {
   const abrirFicha = (id: number) =>
     comErro(async () => {
       setFicha((await api.ficha(id)).ficha)
+    })
+
+  const observarDaFicha = (id: number, observar: boolean) =>
+    comErro(async () => {
+      const r = await api.observar(id, observar)
+      setFicha(r.ficha)
+      setRecado(r.recado)
+      if (conteudo?.tipo === 'mercado') {
+        setConteudo({ tipo: 'mercado', dados: (await api.mercado(conteudo.dados.aba, conteudo.dados.filtros)).tela })
+      }
     })
 
   const tornarCapitao = (id: number) =>
@@ -844,8 +867,12 @@ export function App() {
         <Ficha
           ficha={ficha}
           aoFechar={() => setFicha(null)}
-          acoes={
-            conteudo.tipo !== 'mercado' || conteudo.dados.aba === 'vitrine'
+          acoes={[
+            ...(ficha.pode_observar
+              ? [{ rotulo: ficha.observado ? 'Parar de observar' : 'Observar',
+                   aoClicar: () => observarDaFicha(ficha.id, !ficha.observado) }]
+              : []),
+            ...((conteudo.tipo !== 'mercado' || conteudo.dados.aba === 'vitrine'
               ? ficha.pode_capitao
                 ? [{ rotulo: 'Tornar capitao', aoClicar: () => tornarCapitao(ficha.id) }]
                 : undefined
@@ -860,8 +887,8 @@ export function App() {
                     { rotulo: ficha.clube === 'sem clube' ? 'Negociar contrato' : 'Negociar compra',
                       principal: true,
                       aoClicar: () => { setFicha(null); setMesa({ tipo: 'compra', id: ficha.id }) } },
-                  ]
-          }
+                  ]) ?? []),
+          ]}
         />
       )}
 

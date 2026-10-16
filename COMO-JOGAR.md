@@ -101,7 +101,7 @@ contra jogar só com os 11.
 lado a lado em barras, o minuto a minuto (gols com assistência, cartões, lesões,
 substituições) e a **nota de cada jogador** do seu time, com o melhor em campo destacado.
 Nota 6,0 é jogo correto; gol vale +1,0 e assistência +0,5, e o resultado do time entra na
-conta de todo mundo. Dá para reabrir clicando no placar do Painel. Na interface web, o resumo (gols e cartões com minuto, posse, chutes, melhor em campo) aparece no Painel na volta do avanço e no fim do Simular, e as bolinhas das últimas partidas trocam o jogo mostrado; "Ver detalhes" abre as notas dos dois times. No modo linha, o
+conta de todo mundo. Dá para reabrir clicando no placar do Painel. Na interface web, o resumo (gols e cartões com minuto, posse, chutes, melhor em campo) aparece no Painel na volta do avanço e no fim do Simular, e as bolinhas das últimas partidas trocam o jogo mostrado; "Ver detalhes" abre as notas dos dois times e **"Ver lance a lance"** assiste o jogo de novo com relógio: o placar sobe no minuto de cada gol, cartões, trocas e mudanças de mentalidade aparecem na ordem, o intervalo mostra o placar parcial, e dá para pausar, acelerar (1x, 2x, 4x) ou pular para o fim. No modo linha, o
 relatório agora traz as estatísticas, as substituições e o melhor em campo.
 
 ## Plano de jogo
@@ -220,7 +220,7 @@ pré-temporada traz três propostas, e o Painel avisa:
 
 A marca do clube pesa: no futebol brasileiro, cada espaço vale mais quanto maior a
 reputação (reputação 40 paga 15% a mais que a tabela; 70, uns 53%; o Flamengo, uns 84%). A campanha do ano anterior pesa, e muito: objetivo cumprido vale 12% a mais nas propostas;
-um título, 35%; dois títulos, 50%; três ou mais, 70%. Ano ruim tira 8%. Se você não escolher, a equilibrada é assinada quando a bola rolar. Em
+um título, 35%; dois títulos, 50%; três ou mais, 70%. Ano ruim tira 8%. Se você não escolher, a equilibrada é assinada quando a bola rolar; com dois ou mais espaços vagos, **Assinar as equilibradas de todos** fecha todos de uma vez. Em
 Finanças, a TV e o patrocínio aparecem separados, e cada contrato mostra quanto rende no
 ano.
 
@@ -312,11 +312,25 @@ vai de vermelho, abaixo de 6,5, a azul, 8 ou mais), cartões amarelos e vermelho
 ataque e melhor defesa. Os números de jogador somam o ano inteiro, em todas as
 competições. Clique no nome para abrir a ficha.
 
+## Bicho por vitória
+
+Em Finanças você promete um bicho ao elenco: sem bicho, normal, alto ou dobrado. A cada
+vitória sai do caixa uma fatia da folha semanal (10%, 25% ou 50%) e quem entrou em campo
+ganha moral extra (+1, +2 ou +4). Tem linha própria no extrato. Começa sem bicho.
+
+## Olheiro e lista de observação
+
+No Mercado, marque um jogador de fora e use **Observar** (ou abra a ficha). Ele vai para a
+aba **Observados**, que cabe de 4 a 11 nomes, conforme o CT e a base. Cada mês na lista aperta a
+leitura do teto, como acontece com quem é da casa, e o olheiro avisa nas Notícias quando
+um observado vai à venda, fica disponível para empréstimo, fica sem clube, troca de clube
+ou entra no último ano de contrato. Quem chega ao seu elenco sai da lista sozinho.
+
 ## Capitão
 
 Todo clube tem um capitão, marcado com um **C** dourado no Elenco e na ficha. Sem escolha
 sua, a braçadeira fica com o mais experiente entre os melhores; para trocar, abra a ficha
-e use **Tornar capitão** (o novo ganha moral, o antigo perde um pouco). Na derrota, o
+e use **Tornar capitão**, ou escolha direto na Escalação, abaixo dos titulares (o novo ganha moral, o antigo perde um pouco). Na derrota, o
 capitão em campo segura um ponto da queda de moral de quem jogou com ele.
 
 ## Modo Caos

@@ -41,6 +41,7 @@ export type AcaoMercado =
   | { tipo: 'contra'; id: number; clube_id: number; valor: number }
   | { tipo: 'renovar'; ids: number[] }
   | { tipo: 'cancelar'; indices: number[] }
+  | { tipo: 'observar'; id: number; observar: boolean }
 
 interface Props {
   tela: TelaMercado
@@ -62,6 +63,11 @@ const BASE: Coluna<LinhaMercado>[] = [
       <>
         <span className={`tag-${j.tag}`}>{j.nome}</span>
         {j.acertado && <span className="selo-nova-vaga">acertado</span>}
+        {j.observado && (
+          <span className="selo-observado" title="Na lista do olheiro">
+            observado
+          </span>
+        )}
       </>
     ),
   },
@@ -103,6 +109,18 @@ const COLUNAS_COMPRA: Coluna<LinhaMercado>[] = [
     ),
   },
   { chave: 'emp', rotulo: 'Emp', largura: '44px', classe: 'centro', render: (j) => (j.emprestimo ? 'sim' : '') },
+]
+
+const COLUNAS_OBSERVADOS: Coluna<LinhaMercado>[] = [
+  ...COLUNAS_COMPRA,
+  {
+    chave: 'meses',
+    rotulo: 'Na lista',
+    largura: '64px',
+    classe: 'centro',
+    ordem: (j) => j.meses ?? null,
+    render: (j) => (j.meses ? `${j.meses} ${j.meses === 1 ? 'mes' : 'meses'}` : 'novo'),
+  },
 ]
 
 const COLUNAS_EMPRESTIMO: Coluna<LinhaMercado>[] = [
@@ -387,6 +405,15 @@ export function Mercado({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
 
       {aba !== 'vitrine' ? (
         <>
+          {aba === 'observados' ? (
+            <section className="painel barra-acoes">
+              <span className="resumo">
+                O olheiro acompanha {tela.observacao.usadas} de {tela.observacao.vagas} nomes (as vagas sobem com CT e
+                base). Cada mes na lista aperta a leitura do teto, e ele avisa nas Noticias quando alguem vai a venda,
+                fica livre, troca de clube ou entra no ultimo ano de contrato.
+              </span>
+            </section>
+          ) : (
           <form
             className="painel barra-acoes filtros filtros-c"
             onSubmit={(e) => {
@@ -468,10 +495,11 @@ export function Mercado({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
               </button>
             </div>
           </form>
+          )}
 
           <section className="painel painel-lista">
             <Grade
-              colunas={aba === 'emprestimo' ? COLUNAS_EMPRESTIMO : COLUNAS_COMPRA}
+              colunas={aba === 'emprestimo' ? COLUNAS_EMPRESTIMO : aba === 'observados' ? COLUNAS_OBSERVADOS : COLUNAS_COMPRA}
               itens={tela.jogadores}
               idDe={(j) => j.id}
               nomeDe={(j) => j.nome}
@@ -479,7 +507,11 @@ export function Mercado({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
               aoMarcar={(id) => setMarcado(marcado === id ? null : id)}
               memoria={`mercado-${aba}`}
               aoAbrir={(j) => aoAbrirFicha(j.id)}
-              vazio="Ninguem com esse perfil agora. Afrouxe os filtros."
+              vazio={
+                aba === 'observados'
+                  ? 'Ninguem na lista. Marque um jogador nas outras abas e use Observar.'
+                  : 'Ninguem com esse perfil agora. Afrouxe os filtros.'
+              }
             />
             <LegendaCores />
             <div className="barra-acoes barra-presa">
@@ -505,6 +537,24 @@ export function Mercado({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
               disabled={!alvo} onClick={() => alvo && aoAbrirFicha(alvo.id)}>
                 Ver ficha
               </button>
+              <button
+                type="button"
+                className="bt-fantasma"
+                title={porque([
+                  [!alvo, 'Marque um jogador na lista'],
+                  [
+                    Boolean(alvo && !alvo.observado && tela.observacao.usadas >= tela.observacao.vagas),
+                    'A lista do olheiro esta cheia: tire alguem antes',
+                  ],
+                  [ocupado, AGUARDE],
+                ])}
+                disabled={
+                  !alvo || ocupado || (!alvo.observado && tela.observacao.usadas >= tela.observacao.vagas)
+                }
+                onClick={() => alvo && aoAgir({ tipo: 'observar', id: alvo.id, observar: !alvo.observado })}
+              >
+                {alvo?.observado ? 'Parar de observar' : 'Observar'}
+              </button>
               {aba === 'compra' && (
                 <button
                   type="button"
@@ -525,7 +575,7 @@ export function Mercado({ tela, ocupado, aoAbrirFicha, aoAgir }: Props) {
                   alvo && aoAgir({ tipo: 'negociar', mesa: aba === 'emprestimo' ? 'emprestimo' : 'compra', id: alvo.id })
                 }
               >
-                {aba === 'emprestimo' ? 'Pegar emprestado' : aba === 'livres' ? 'Negociar contrato' : 'Negociar compra'}
+                {aba === 'emprestimo' ? 'Pegar emprestado' : aba === 'livres' || alvo?.livre ? 'Negociar contrato' : 'Negociar compra'}
               </button>
             </div>
           </section>
