@@ -63,6 +63,11 @@ const BASE: Coluna<LinhaMercado>[] = [
       <>
         <span className={`tag-${j.tag}`}>{j.nome}</span>
         {j.acertado && <span className="selo-nova-vaga">acertado</span>}
+        {j.precontrato && (
+          <span className="selo-observado" title="Ultimo ano de contrato: da para assinar pre-contrato, sem passe">
+            pre-contrato
+          </span>
+        )}
         {j.observado && (
           <span className="selo-observado" title="Na lista do olheiro">
             observado

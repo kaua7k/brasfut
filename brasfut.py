@@ -4763,6 +4763,7 @@ def avancar_semana(G):
     atualizar_confianca(G, meus)
     recuperacao(G)
     mercado_ia(G)
+    rivais_assediam(G)
     carimbar_livres(G)
     contratar_livres_ia(G)
     rodar_peneira(G)
@@ -4990,6 +4991,8 @@ def lista_mercado(G, pos_filtro=None, max_valor=None, limite=40):
 
 TIPO_COMPRA = "compra"
 TIPO_EMPRESTIMO = "emprestimo"
+# acerto de graca com quem esta no ultimo ano de contrato: chega na virada
+TIPO_PRECONTRATO = "precontrato"
 
 # Teto de inscritos no profissional. Vale para TODAS as portas de entrada:
 # compra, agente livre, emprestimo e promocao da base. Antes so a promocao
@@ -5229,6 +5232,14 @@ def avaliar_clube(G: Mundo, prop: Proposta) -> Resposta:
     else:
         recado = "%s libera a partir de algo perto de %s." % (dono["nome"], din(pedido))
 
+    rival = disputa(G, j, prop.comprador)
+    if rival and prop.valor >= int(pedido * 0.97):
+        outro, lance = rival
+        if prop.valor >= lance:
+            return Resposta(True, "Proposta aceita pelo %s: voce cobriu a do %s." % (
+                dono["nome"], outro["nome"]), lance)
+        return Resposta(False, "O %s tambem quer %s e ofereceu %s. O %s espera que voce cubra." % (
+            outro["nome"], j["nome"], din(lance), dono["nome"]), lance)
     if prop.valor >= int(pedido * 0.97):
         return Resposta(True, "Proposta aceita pelo %s." % dono["nome"], pedido)
     if prop.valor < pedido * 0.50:
@@ -5535,6 +5546,10 @@ def avaliar_renovacao(G: Mundo, prop: Proposta) -> Resposta:
     if j["clube"] != prop.comprador:
         return Resposta(False, "Ele nao e do seu clube.", 0, True)
     exig = exigencia_renovacao(G, j, prop.anos)
+    acerto = precontrato_de(G, j["id"])
+    if acerto:
+        return Resposta(False, "%s ja assinou pre-contrato com o %s: sai de graca na virada." % (
+            j["nome"], nome_clube(G, acerto["para"])), exig, True)
     if prop.salario >= limite_de_aceite(G, j, G["clubes"][j["clube"]], exig, "renovacao"):
         return Resposta(True, "Acertado: %s por mes, %s." % (din(prop.salario), plural(prop.anos, "ano")),
                         exig)
@@ -5768,6 +5783,10 @@ def cancelar_agendada(G: Mundo, indice: int) -> Tuple[bool, str]:
     lista = agendadas(G)
     if not (0 <= indice < len(lista)):
         return False, "Este acerto nao existe mais."
+    if lista[indice]["tipo"] == TIPO_PRECONTRATO and lista[indice]["para"] != G.get("clube"):
+        j = G["jogadores"].get(lista[indice]["jogador"])
+        return False, ("O pre-contrato de %s e com o %s: so eles poderiam desfazer."
+                       % (j["nome"] if j else "jogador", nome_clube(G, lista[indice]["para"])))
     a = lista.pop(indice)
     j = G["jogadores"].get(a["jogador"])
     return True, "Acerto por %s cancelado." % (j["nome"] if j else "jogador")
@@ -5803,6 +5822,10 @@ def executar_agendadas(G: Mundo) -> List[str]:
     aberto = mercado_aberto(G)
     pendentes, fica = [], []
     for a in agendadas(G):
+        if a["tipo"] == TIPO_PRECONTRATO:
+            # o pre-contrato so se cumpre quando o contrato antigo acaba: na virada
+            (pendentes if int(G["temporada"]) > int(a["temporada"]) else fica).append(a)
+            continue
         livre = a.get("de") is None and a["tipo"] != TIPO_EMPRESTIMO
         (pendentes if aberto or livre else fica).append(a)
     if not pendentes:
@@ -5829,6 +5852,143 @@ def executar_agendadas(G: Mundo) -> List[str]:
                             salario=a["salario"] or j["salario"], anos=a["anos"] or 3)
             recados.append(prefixo + fechar_compra(G, prop))
     return recados
+
+
+# ----------------------------------------------------------------------------
+# PRE-CONTRATO E MERCADO DISPUTADO
+#
+# Pre-contrato: quem esta no ultimo ano de contrato em outro clube pode assinar
+# com voce a partir da janela do meio do ano, sem passe. Ele cumpre o contrato
+# atual e chega na virada; o clube dele nao o renova nem o vende.
+#
+# Disputa: um jogador cobicado pode ter outro clube atras dele na mesma janela.
+# Com proposta no nivel do pedido, o dono espera que voce cubra o lance rival;
+# se as tentativas acabam sem cobrir, o rival leva. Tudo estavel na janela
+# (_ruido), como o preco: reabrir a mesa mostra o mesmo rival e o mesmo lance.
+# ----------------------------------------------------------------------------
+
+SEMANA_PRECONTRATO = JANELAS[4] if len(JANELAS) > 4 else 19   # abre com a janela do meio do ano
+DISPUTA_BASE, DISPUTA_ATRATIVO = 0.10, 0.45
+DISPUTA_LANCE = (1.03, 1.15)
+
+
+def precontratados(G: Mundo) -> set:
+    return {a["jogador"] for a in agendadas(G) if a["tipo"] == TIPO_PRECONTRATO}
+
+
+def pode_precontrato(G: Mundo, j: Jogador, c: Clube) -> Tuple[bool, str]:
+    if j["clube"] is None or j["clube"] == c["id"]:
+        return False, "pre-contrato e com jogador de outro clube"
+    if j.get("dono") or da_base(j):
+        return False, "emprestado ou da base nao assina pre-contrato"
+    if int(j["contrato"]) > 1:
+        return False, "ele ainda tem %s de contrato" % plural(int(j["contrato"]), "ano")
+    if G.get("fase") != "liga" or int(G["semana"]) < SEMANA_PRECONTRATO:
+        return False, "pre-contrato so a partir da janela do meio do ano (semana %d)" % SEMANA_PRECONTRATO
+    if j["id"] in presos_em_acerto(G):
+        return False, "ele ja tem acerto com outro clube"
+    return True, ""
+
+
+def precontrato_de(G: Mundo, pid: int) -> Optional[Dict[str, Any]]:
+    return next((a for a in agendadas(G) if a["tipo"] == TIPO_PRECONTRATO and a["jogador"] == pid), None)
+
+
+# os rivais tambem vem atras de quem esta no ultimo ano no MEU clube: primeiro
+# sondam (aviso nas Noticias), e se ele seguir sem renovar, assinam
+ASSEDIO_SEMANAS = 2
+ASSEDIO_BASE, ASSEDIO_ATRATIVO = 0.02, 0.08
+
+
+def rivais_assediam(G: Mundo) -> None:
+    c = G["clubes"].get(G.get("clube"))
+    if not c or G.get("fase") != "liga" or int(G["semana"]) < SEMANA_PRECONTRATO:
+        return
+    sondas = G.setdefault("assedios", {})
+    agora = semana_absoluta(G)
+    presos = presos_em_acerto(G)
+    media = media_elenco(G, c)
+    for pid in list(c["elenco"]):
+        j = G["jogadores"][pid]
+        chave = str(pid)
+        if j.get("dono") or da_base(j) or int(j["contrato"]) > 1 or pid in presos:
+            sondas.pop(chave, None)        # renovou, saiu ou ja tem acerto
+            continue
+        s = sondas.get(chave)
+        if s:
+            rival = G["clubes"].get(s["rival"])
+            if rival and agora - int(s["desde"]) >= ASSEDIO_SEMANAS and not elenco_cheio(G, rival):
+                salario = max(int(j["salario"]), salario_de(j["ovr"]))
+                agendadas(G).append({
+                    "jogador": pid, "de": c["id"], "para": rival["id"], "valor": 0,
+                    "salario": salario, "anos": 3, "pct_salario": 100, "opcao_compra": 0,
+                    "tipo": TIPO_PRECONTRATO, "temporada": int(G["temporada"]), "semana": int(G["semana"])})
+                del sondas[chave]
+                noticia(G, "%s assinou pre-contrato com o %s: sai de graca na virada." % (
+                    j["nome"], rival["nome"]))
+            continue
+        atrativo = clamp((j["ovr"] - media + 6) / 12.0, 0.0, 1.0)
+        if _ruido("assedio-%d-%d" % (pid, agora), 0.0, 1.0) >= ASSEDIO_BASE + ASSEDIO_ATRATIVO * atrativo:
+            continue
+        rivais = sorted((cl for cl in _compradores_possiveis(G, j, 0) if cl["id"] != c["id"]),
+                        key=lambda cl: cl["id"])
+        if not rivais:
+            continue
+        rival = rivais[int(_ruido("assedio-quem-%d-%d" % (pid, agora), 0, len(rivais) - 0.001))]
+        sondas[chave] = {"rival": rival["id"], "desde": agora}
+        noticia(G, "O %s procurou %s para um pre-contrato. Renove em ate %s ou ele assina "
+                   "e sai de graca na virada." % (rival["nome"], j["nome"], plural(ASSEDIO_SEMANAS, "semana")))
+
+
+def fechar_precontrato(G: Mundo, prop: Proposta) -> str:
+    j = G["jogadores"][prop.jogador]
+    agendadas(G).append({
+        "jogador": int(prop.jogador), "de": int(j["clube"]), "para": int(prop.comprador),
+        "valor": 0, "salario": int(prop.salario), "anos": int(prop.anos),
+        "pct_salario": 100, "opcao_compra": 0, "tipo": TIPO_PRECONTRATO,
+        "temporada": int(G["temporada"]), "semana": int(G["semana"]),
+    })
+    noticia(G, "Pre-contrato: %s chega de graca na virada (%s por mes, %s)." % (
+        j["nome"], din(prop.salario), plural(int(prop.anos), "ano")))
+    return ("PRE-CONTRATO: %s assina com voce. Termina a temporada no %s e chega de graca "
+            "na virada, com %s a %s por mes." % (j["nome"], nome_clube(G, j["clube"]),
+                                                  plural(int(prop.anos), "ano"), din(prop.salario)))
+
+
+def disputa(G: Mundo, j: Jogador, comprador_id: int) -> Optional[Tuple[Clube, int]]:
+    """Outro clube atras do mesmo jogador nesta janela: (rival, lance) ou None."""
+    if comprador_id != G.get("clube") or j["clube"] is None or j.get("dono") or da_base(j):
+        return None
+    if j["id"] in presos_em_acerto(G):
+        return None
+    chave = "disputa-%d-%s" % (j["id"], _janela(G))
+    atrativo = clamp((j["ovr"] - 62) / 20.0, 0.0, 1.0)
+    if j["idade"] <= 22 and j["pot"] - j["ovr"] >= 8:
+        atrativo = max(atrativo, 0.7)              # promessa e o que mais tem gente atras
+    if _ruido(chave, 0.0, 1.0) >= DISPUTA_BASE + DISPUTA_ATRATIVO * atrativo:
+        return None
+    pedido, _ = pedido_efetivo(G, j)
+    lance = int(pedido * _ruido(chave + "-lance", *DISPUTA_LANCE) / 1000) * 1000
+    rivais = sorted((cl for cl in _compradores_possiveis(G, j, lance) if cl["id"] != j["clube"]),
+                    key=lambda cl: cl["id"])
+    if not rivais:
+        return None
+    return rivais[int(_ruido(chave + "-quem", 0, len(rivais) - 0.001))], lance
+
+
+def rival_leva(G: Mundo, j: Jogador) -> Optional[str]:
+    """A mesa esgotou sem cobrir o lance: o rival fecha com o jogador."""
+    d = disputa(G, j, G.get("clube"))
+    if not d:
+        return None
+    rival, lance = d
+    nome_antigo = nome_clube(G, j["clube"])
+    prop = Proposta(jogador=j["id"], comprador=rival["id"], valor=lance,
+                    salario=max(int(j["salario"]), salario_de(j["ovr"])), anos=3)
+    fechar_compra(G, prop)
+    texto = "O %s cobriu e levou %s do %s por %s." % (rival["nome"], j["nome"], nome_antigo, din(lance))
+    noticia(G, texto)
+    return texto
 
 
 # ----------------------------------------------------------------------------
@@ -7094,9 +7254,12 @@ def evoluir_jogadores(G: Mundo) -> None:
 def fim_de_contrato(G):
     """Contratos zerados: jogador vira agente livre (exceto do clube do usuario,
     que decide na renovacao)."""
+    acertados = precontratados(G)
     for j in list(G["jogadores"].values()):
         if j["contrato"] > 0 or j["clube"] is None or da_base(j):
             continue                    # contrato de base se resolve em resolver_base
+        if j["id"] in acertados:
+            continue                    # ja assinou pre-contrato: sai na virada, nao renova
         c = G["clubes"][j["clube"]]
         if c["id"] == G["clube"]:
             continue

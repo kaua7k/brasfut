@@ -318,6 +318,23 @@ Em Finanças você promete um bicho ao elenco: sem bicho, normal, alto ou dobrad
 vitória sai do caixa uma fatia da folha semanal (10%, 25% ou 50%) e quem entrou em campo
 ganha moral extra (+1, +2 ou +4). Tem linha própria no extrato. Começa sem bicho.
 
+## Pré-contrato e mercado disputado
+
+**Pré-contrato.** A partir da janela do meio do ano (semana 19), quem está no último ano de
+contrato em outro clube aparece com o selo **pré-contrato** no Mercado. Na mesa de compra,
+escolha **Pré-contrato, sem passe**: só se acerta o salário, ele termina a temporada onde
+está e chega de graça na virada. O clube dele não o renova nem o vende depois disso.
+
+**Os rivais fazem o mesmo com você.** Jogador seu no último ano, sem renovar, pode ser
+procurado por outro clube. As Notícias avisam e a lista "Contratos acabando" (Mercado >
+Vender) marca em vermelho: você tem duas semanas para renovar. Se não renovar, ele assina e
+sai de graça na virada, e aí não dá mais para renovar nem desfazer.
+
+**Disputa.** Jogador cobiçado (craque ou promessa) pode ter outro clube atrás dele na mesma
+janela. A mesa avisa quem é e quanto ofereceu: abaixo do lance rival o dono não fecha, e se
+as três tentativas acabarem sem cobrir, o rival leva o jogador. O atalho **cobrir o ...**
+põe o valor do lance.
+
 ## Olheiro e lista de observação
 
 No Mercado, marque um jogador de fora e use **Observar** (ou abra a ficha). Ele vai para a

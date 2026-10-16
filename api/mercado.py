@@ -112,6 +112,7 @@ def _linha_busca(G, c, j, aba, pendentes=None):
              "valor": eng.din(j["valor"]), "valor_num": int(j["valor"]),
              "acertado": bool(pendentes and j["id"] in pendentes),
              "observado": eng.observado(G, j["id"]),
+             "precontrato": eng.pode_precontrato(G, j, c)[0],
              "tag": dto._tag_ovr(j["ovr"])}
     if aba == "emprestimo":
         pct = eng.exigencia_emprestimo(G, j, c)
@@ -212,11 +213,14 @@ def _agendadas(G):
         outro = G["clubes"].get(a["para"] if saindo else a.get("de"))
         if a["tipo"] == eng.TIPO_EMPRESTIMO:
             tipo, valor = ("cessao" if saindo else "emprestimo"), "%d%%" % a["pct_salario"]
+        elif a["tipo"] == eng.TIPO_PRECONTRATO:
+            tipo, valor = "pre-contrato", "%s/mes" % eng.din(a["salario"])
         else:
             tipo, valor = ("venda" if saindo else "compra"), eng.din(a["valor"])
         fora.append({"indice": indice, "jogador": j["nome"] if j else "?", "tipo": tipo,
                      "com": eng.nome_clube(G, outro["id"]) if outro else "sem clube", "valor": valor,
-                     "quando": "T%d S%d" % (a["temporada"], a["semana"])})
+                     "quando": ("chega na virada" if a["tipo"] == eng.TIPO_PRECONTRATO
+                                else "T%d S%d" % (a["temporada"], a["semana"]))})
     return fora
 
 
@@ -240,15 +244,25 @@ def contratos_acabando(G, c):
         j = G["jogadores"][p]
         if j.get("dono") or j["contrato"] > 1:
             continue
+        acerto = eng.precontrato_de(G, j["id"])
+        sonda = (G.get("assedios") or {}).get(str(j["id"]))
+        if acerto:
+            quando = "assinou pre-contrato com o %s: sai de graca na virada" % eng.nome_clube(G, acerto["para"])
+        elif sonda:
+            quando = ("o %s quer pre-contrato: renove ja ou ele assina"
+                      % eng.nome_clube(G, sonda["rival"]))
+        elif j["contrato"] <= 0:
+            quando = "venceu: sai quando o ano comecar"
+        else:
+            quando = "ultimo ano: sai de graca no fim da temporada"
         linhas.append({
             "id": j["id"], "nome": j["nome"], "pos": j["pos"], "ovr": j["ovr"],
             "idade": j["idade"], "contrato": j["contrato"], "tag": dto._tag_ovr(j["ovr"]),
             "salario": eng.din(j["salario"]),
             "pede": eng.din(eng.exigencia_renovacao(G, j, 3)),
             "valor": eng.din(j["valor"]),
-            "estado": "critico" if j["contrato"] <= 0 else "atencao",
-            "quando": ("venceu: sai quando o ano comecar" if j["contrato"] <= 0
-                       else "ultimo ano: sai de graca no fim da temporada"),
+            "estado": "critico" if (j["contrato"] <= 0 or acerto or sonda) else "atencao",
+            "quando": quando,
         })
     linhas.sort(key=lambda l: (l["contrato"], -l["ovr"]))
     return linhas
@@ -349,9 +363,13 @@ def mesa(tipo, pid, proposta=None):
     pendente = acertados(G).get(j["id"])
     if tipo in ("compra", "emprestimo") and pendente and not m["fechada_com"]:
         m["encerrada"] = True
-        m["fechada_com"] = ("%s ja esta acertado com voce (%s). Chega na abertura da janela: %s"
-                            % (j["nome"], "emprestimo" if pendente["tipo"] == eng.TIPO_EMPRESTIMO
-                               else "compra", eng.recado_janela(G).lower()))
+        if pendente["tipo"] == eng.TIPO_PRECONTRATO:
+            m["fechada_com"] = ("%s ja assinou pre-contrato com voce: chega de graca na virada."
+                                % j["nome"])
+        else:
+            m["fechada_com"] = ("%s ja esta acertado com voce (%s). Chega na abertura da janela: %s"
+                                % (j["nome"], "emprestimo" if pendente["tipo"] == eng.TIPO_EMPRESTIMO
+                                   else "compra", eng.recado_janela(G).lower()))
     folha = eng.folha_semanal(G, c)
     fin = financeiro(G, c)
     # agente livre assina na hora, com a janela aberta ou fechada; depois de
@@ -376,11 +394,25 @@ def mesa(tipo, pid, proposta=None):
 
     if tipo == "compra":
         livre = j["clube"] is None
-        pedido, intocavel = (0, False) if livre else eng.pedido_efetivo(G, j)
+        pode_pre, porque_nao = eng.pode_precontrato(G, j, c)
+        # depois de assinar ele vira "preso em acerto": a mesa segue sendo de pre-contrato
+        ja_pre = bool(pendente and pendente["tipo"] == eng.TIPO_PRECONTRATO)
+        pre = ja_pre or bool(pode_pre and p.get("precontrato"))
+        pedido, intocavel = (0, False) if (livre or pre) else eng.pedido_efetivo(G, j)
+        rival = None if (livre or pre) else eng.disputa(G, j, c["id"])
+        # com rival na mesa, o numero que importa e o lance dele
+        alvo = max(pedido, rival[1]) if rival else pedido
         exig = eng.exigencia_salarial(G, j, c, anos)
-        valor = _inteiro(p.get("valor"), pedido) if "valor" in p else pedido
+        valor = 0 if pre else (_inteiro(p.get("valor"), alvo) if "valor" in p else alvo)
         salario = _inteiro(p.get("salario"), exig) if "salario" in p else exig
+        if pre:
+            base["janela"] = "Pre-contrato: ele termina a temporada no %s e chega na virada." % eng.nome_clube(G, j["clube"])
+            base["aberto"] = False
         base.update(
+            precontrato={"pode": pode_pre or ja_pre, "ativo": pre,
+                         "porque_nao": porque_nao if not pode_pre and not ja_pre and not livre and j["contrato"] <= 1 else None},
+            disputa=({"clube": eng.nome_clube(G, rival[0]["id"]), "lance": eng.din(rival[1]),
+                      "lance_num": int(rival[1])} if rival else None),
             livre=livre, intocavel=intocavel, pedido=eng.din(pedido), pedido_num=int(pedido),
             contexto=("Agente livre: nao ha passe a pagar, so acertar contrato." if livre else
                       "No clube atual ele e %s. Contrato dele: %s. Valor de mercado %s: o pedido e %d%% "
@@ -388,7 +420,7 @@ def mesa(tipo, pid, proposta=None):
                                     round(100.0 * pedido / max(1, j["valor"])), _porque_do_pedido(G, j, intocavel))),
             exigencia=eng.din(exig), exigencia_num=int(exig),
             valor=valor, salario=salario,
-            leitura_passe=None if livre else _leitura(valor, pedido),
+            leitura_passe=None if (livre or pre) else _leitura(valor, alvo),
             leitura_salario=_leitura(salario, exig),
             caixa_depois=eng.din(c["dinheiro"] - valor),
             # a verba conta o salario proposto: ele entra na reserva de folha
@@ -396,12 +428,14 @@ def mesa(tipo, pid, proposta=None):
             falta_caixa=valor > eng.verba_contratacao(G, c, salario),
             folha_depois="Folha semanal: %s -> %s com %s de contrato"
                          % (eng.din(folha), eng.din(folha + int(salario / 4.0)), eng.plural(anos, "ano")),
-            atalhos_passe=[] if livre else [
+            atalhos_passe=[] if (livre or pre) else [
                 {"rotulo": "- 10%", "valor": int(pedido * 0.90)},
                 {"rotulo": "- 5%", "valor": int(pedido * 0.95)},
                 {"rotulo": "pedido", "valor": int(pedido)},
-                {"rotulo": "+ 5%", "valor": int(pedido * 1.05)},
-                {"rotulo": "minha verba", "valor": int(eng.verba_contratacao(G, c, exig))}],
+                {"rotulo": "+ 5%", "valor": int(pedido * 1.05)}]
+                + ([{"rotulo": "cobrir o %s" % eng.nome_clube(G, rival[0]["id"]), "valor": int(rival[1])}]
+                   if rival else [])
+                + [{"rotulo": "minha verba", "valor": int(eng.verba_contratacao(G, c, exig))}],
             atalhos_salario=[
                 {"rotulo": "- 10%", "valor": int(exig * 0.90)},
                 {"rotulo": "- 5%", "valor": int(exig * 0.95)},
@@ -489,6 +523,24 @@ def propor(tipo, pid, p):
         raise ValueError("Essa mesa ja fechou nesta semana. Tente de novo na proxima.")
     anos = int(eng.clamp(_inteiro(p.get("anos"), 3) or 3, 1, 5))
 
+    if tipo == "compra" and p.get("precontrato"):
+        pode, porque_nao = eng.pode_precontrato(G, j, c)
+        if not pode:
+            raise ValueError("Sem pre-contrato: %s." % porque_nao)
+        if eng.elenco_cheio(G, c):
+            raise ValueError(eng.recado_elenco_cheio(c))
+        prop = eng.Proposta(jogador=j["id"], comprador=c["id"], valor=0,
+                            salario=_inteiro(p.get("salario")), anos=anos)
+        rj = eng.avaliar_jogador(G, prop)
+        if rj.aceita:
+            texto = eng.fechar_precontrato(G, prop)
+            m["falas"].append(texto)
+            m["encerrada"], m["fechada_com"] = True, texto
+            return True, texto
+        m["falas"].append("SALARIO: " + rj.motivo)
+        _insistir(m, rj, "%s nao aceitou o pre-contrato." % j["nome"])
+        return False, None
+
     if tipo == "compra":
         passe = _inteiro(p.get("valor")) if j["clube"] is not None else 0
         verba = eng.verba_contratacao(G, c, _inteiro(p.get("salario")))
@@ -504,7 +556,9 @@ def propor(tipo, pid, p):
         r = eng.avaliar_clube(G, prop)
         if not r.aceita:
             m["falas"].append("PASSE: " + r.motivo)
-            _insistir(m, r, "Sem acordo pelo passe de %s." % j["nome"])
+            # esgotou com rival na mesa: ele cobre e leva
+            _insistir(m, r, "Sem acordo pelo passe de %s." % j["nome"],
+                      ao_esgotar=lambda: eng.rival_leva(G, j) or "Sem acordo pelo passe de %s." % j["nome"])
             return False, None
         if j["clube"] is not None:
             m["falas"].append("PASSE: " + r.motivo)
@@ -597,6 +651,9 @@ def _motivo_sem_renovacao(G, c, j):
         return "nao e do seu clube"
     if j.get("dono"):
         return "emprestado: o contrato e do dono do passe"
+    acerto = eng.precontrato_de(G, j["id"])
+    if acerto:
+        return "assinou pre-contrato com o %s" % eng.nome_clube(G, acerto["para"])
     return None
 
 
