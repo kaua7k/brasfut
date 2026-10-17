@@ -160,16 +160,25 @@ por jogo de 2,75 para 2,77, empates de 24,2% para 23,4%, e quem perde aos 70 esc
 derrota um pouco menos (11,9% → 10,7%): segurar o resultado rende mais do que ir para o
 tudo ou nada.
 
-### O intervalo é seu
+### Jogo a jogo, como no Brasfoot
 
-No **Avançar semana**, o seu jogo de liga para no intervalo. Aparecem o placar, os lances
-do primeiro tempo, a posse e os chutes, e o seu time com a nota e o físico de cada um até ali.
-Dá para trocar a mentalidade do segundo tempo e fazer substituições (clique em quem sai e
-depois em quem entra, até o limite de 5 no jogo). **Começar o 2º tempo** termina a
-partida e roda o resto da semana. Se você escolheu a mentalidade no intervalo, a sua
-instrução condicional dos 46' não passa por cima; a dos 71' continua valendo. Copa
-(ida e volta, campo neutro) e o Simular seguem direto. Para não parar mais, use o botão
-no próprio intervalo ou desmarque "Parar no intervalo..." na Escalação.
+Durante a temporada o botão principal é o do jogo:
+- **Ir para o jogo** pula as semanas em que o seu time não joga e para na semana do
+  próximo jogo, **antes** de jogar. Também para se a janela abrir, um titular se machucar,
+  chegar proposta de emprego, ou o estadual ou a temporada acabarem.
+- Com jogo na semana o botão vira **Jogar · x Adversário** (ou "em Adversário" fora de
+  casa): a partida passa **ao vivo**, com relógio, placar e lances no minuto em que
+  acontecem (velocidade 1x, 2x ou 4x, que o jogo lembra). No jogo de liga ela para no
+  **intervalo**: troque a mentalidade do segundo tempo e faça substituições (toque em quem
+  sai e depois em quem entra, até 5 no jogo); **Começar o 2º tempo** joga o resto da
+  partida e o segundo tempo também corre ao vivo. Copa e estadual correm do início ao fim.
+  No apito, as estatísticas e as notas; **Continuar** volta ao Painel com a semana jogada.
+- **Avançar semana**, ao lado, joga a semana sem assistir, para quem quer ir rápido.
+
+Se você escolheu a mentalidade no intervalo, a instrução condicional dos 46' não passa por
+cima; a dos 71' continua valendo. Para o Jogar não parar no intervalo (o jogo corre
+inteiro), use "Não parar no intervalo" na própria tela ou desmarque "Parar no
+intervalo..." na Escalação.
 
 ### Cada adversário tem um jeito de jogar
 

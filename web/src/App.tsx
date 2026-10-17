@@ -15,7 +15,7 @@ import { DialogoCeder } from './componentes/DialogoCeder'
 import { DialogoVitrine } from './componentes/DialogoVitrine'
 import { DialogoRenovar } from './componentes/DialogoRenovar'
 import { Ficha } from './componentes/Ficha'
-import { Intervalo } from './componentes/Intervalo'
+import { JogoAoVivo, type ModoJogo } from './componentes/JogoAoVivo'
 import { JanelaPendencia } from './componentes/JanelaPendencia'
 import { Mesa } from './componentes/Mesa'
 import { Resumo } from './componentes/Resumo'
@@ -49,7 +49,6 @@ import type {
   OpcoesCarreira,
   SlotSave,
   EventoCaos,
-  Intervalo as DadosIntervalo,
   RespostaAvanco,
   Confirmar,
   DadosPainel,
@@ -108,7 +107,7 @@ export function App() {
   const [versao, setVersao] = useState('')
   const [slots, setSlots] = useState<SlotSave[]>([])
   const [plantao, setPlantao] = useState<EventoCaos[]>([])
-  const [intervalo, setIntervalo] = useState<DadosIntervalo | null>(null)
+  const [jogo, setJogo] = useState<ModoJogo | null>(null)
   const [config, setConfig] = useState<Config | null>(null)
   // modo navegador: a primeira abertura espera o Python subir no aparelho
   const [etapaMotor, setEtapaMotor] = useState('')
@@ -371,7 +370,7 @@ export function App() {
 
   // --------------------------------------------------------------------- acoes
   const tratarAvanco = (r: RespostaAvanco) => {
-    setIntervalo(null)
+    setJogo(null)
     setPergunta(null)
     if (r.plantao?.length) setPlantao(r.plantao)
     if (r.painel) setConteudo({ tipo: 'painel', dados: r.painel })
@@ -385,39 +384,84 @@ export function App() {
     else setRecado('Semana processada e salva.')
   }
 
-  const segundoTempo = (tatica: string, trocas: [number, number][], desligar = false) =>
-    comErro(async () => {
-      setOcupado(true)
-      try {
-        if (desligar) await api.preferenciaIntervalo(false)
-        tratarAvanco(await api.segundoTempo(tatica, trocas))
-      } finally {
-        setOcupado(false)
-      }
-    })
+  // o segundo tempo do jogo parado no intervalo: devolve a resposta para a
+  // tela do jogo continuar o relogio; o Painel so muda no "Continuar"
+  const segundoTempo = async (tatica: string, trocas: [number, number][], desligar: boolean) => {
+    setOcupado(true)
+    try {
+      if (desligar) await api.preferenciaIntervalo(false)
+      return await api.segundoTempo(tatica, trocas)
+    } catch (e) {
+      setErro(e instanceof ErroDaApi ? e.message : String(e))
+      setJogo(null)
+      return null
+    } finally {
+      setOcupado(false)
+    }
+  }
 
+  const perguntarSeQuebrado = (r: RespostaAvanco, repetir: () => Promise<void>) => {
+    if (!r.confirmar) return false
+    // time quebrado: a decisao de entrar em campo assim e do usuario, e
+    // ele precisa ver o estrago antes de tomar
+    setPergunta({
+      confirmar: { titulo: r.confirmar.titulo, texto: r.confirmar.texto, perigo: true },
+      aoConfirmar: repetir,
+      destino: r.confirmar.destino,
+    })
+    return true
+  }
+
+  // "Avancar semana": rapido, sem assistir; o resultado vem no cartao do Painel
   const avancar = (confirmar = false) =>
     comErro(async () => {
       setOcupado(true)
       setRecado(null)
       try {
-        const r = await api.avancar(confirmar)
+        const r = await api.avancar(confirmar, false)
+        if (perguntarSeQuebrado(r, () => avancar(true))) return
+        tratarAvanco(r)
+      } finally {
+        setOcupado(false)
+      }
+    })
+
+  // "Jogar": o jogo da semana ao vivo. Liga para no intervalo; copa e
+  // estadual correm inteiros. Sem jogo meu na semana, vira um avanco comum
+  const jogar = (confirmar = false) =>
+    comErro(async () => {
+      setOcupado(true)
+      setRecado(null)
+      try {
+        const r = await api.avancar(confirmar, true)
         if (r.intervalo) {
           setPergunta(null)
-          setIntervalo(r.intervalo)
+          setJogo({ tipo: 'intervalo', dados: r.intervalo })
           return
         }
-        if (r.confirmar) {
-          // time quebrado: a decisao de entrar em campo assim e do usuario, e
-          // ele precisa ver o estrago antes de tomar
-          setPergunta({
-            confirmar: { titulo: r.confirmar.titulo, texto: r.confirmar.texto, perigo: true },
-            aoConfirmar: () => avancar(true),
-            destino: r.confirmar.destino,
-          })
+        if (perguntarSeQuebrado(r, () => jogar(true))) return
+        if (r.partidas?.length) {
+          setPergunta(null)
+          setJogo({ tipo: 'inteiro', resposta: r })
           return
         }
         tratarAvanco(r)
+      } finally {
+        setOcupado(false)
+      }
+    })
+
+  // "Ir para o jogo": pula as semanas sem jogo e para antes do proximo
+  const irParaOJogo = () =>
+    comErro(async () => {
+      setOcupado(true)
+      setRecado(null)
+      try {
+        const r = await api.ateOJogo()
+        if (r.plantao?.length) setPlantao(r.plantao)
+        setConteudo({ tipo: 'painel', dados: r.painel })
+        if (r.pendencia) setPendencia(r.pendencia)
+        setRecado(r.recado)
       } finally {
         setOcupado(false)
       }
@@ -750,6 +794,8 @@ export function App() {
         <BarraTopo
           cabecalho={cabecalho}
           aoAvancar={() => avancar(false)}
+          aoJogar={() => jogar(false)}
+          aoIrParaOJogo={irParaOJogo}
           aoSimular={() => setSimulando(true)}
           avancando={ocupado}
           aoAbrirMenu={() => setMenuAberto(true)}
@@ -1064,12 +1110,12 @@ export function App() {
       )}
 
       {plantao.length > 0 && !resumo && <Plantao eventos={plantao} aoFechar={() => setPlantao([])} />}
-      {intervalo && (
-        <Intervalo
-          dados={intervalo}
+      {jogo && (
+        <JogoAoVivo
+          modo={jogo}
           ocupado={ocupado}
-          aoSeguir={(tatica, trocas) => segundoTempo(tatica, trocas)}
-          aoDesligar={() => segundoTempo(intervalo.tatica, [], true)}
+          aoSegundoTempo={segundoTempo}
+          aoTerminar={(r) => tratarAvanco(r)}
         />
       )}
 

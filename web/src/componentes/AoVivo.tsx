@@ -13,7 +13,7 @@ import type { Lado, Partida } from '../tipos'
 
 type TipoLance = 'gol' | 'amarelo' | 'vermelho' | 'segundo_amarelo' | 'substituicao' | 'lesao' | 'instrucao'
 
-interface Lance {
+export interface Lance {
   minuto: number
   lado: Lado
   tipo: TipoLance
@@ -49,7 +49,7 @@ export function lancesDaPartida(p: Partida): Lance[] {
   ].sort((a, b) => a.minuto - b.minuto || ORDEM[a.tipo] - ORDEM[b.tipo])
 }
 
-function descreve(l: Lance) {
+export function descreve(l: Lance) {
   switch (l.tipo) {
     case 'gol':
       return { titulo: `GOL! ${l.texto}`, sub: l.extra ? `assistencia de ${l.extra}` : '' }
