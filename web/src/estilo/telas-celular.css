@@ -56,14 +56,45 @@ body {
       color: var(--txt);
     }
 
-    /* -------------------------------------------------------------- topo */
-    .topo { flex-wrap: wrap; gap: 8px 10px; padding: 10px 12px; }
-    .topo h1 { font-size: var(--fs-g); }
+    /* -------------------------------------------------------------- topo
+     * Em cima so quem e o clube e o dinheiro, numa linha compacta. A acao da
+     * semana (Simular e Avancar) desce para uma barra presa no pe da tela, na
+     * zona do polegar; o conteudo ganha o espaco que o topo ocupava. */
+    .topo { flex-wrap: wrap; gap: 6px 10px; padding: 8px 12px; }
+    .topo h1 { font-size: var(--fs-base); }
+    .topo .topo-sub { font-size: var(--fs-mini); }
     .topo .espaco { flex-basis: 100%; height: 0; }
-    .topo .chip { flex: 1 1 40%; min-width: 0; padding: 6px 10px; }
-    .topo .chip .valor { font-size: var(--fs-base); }
-    .topo .bt-simular { flex: none; min-height: 44px; }
-    .topo .bt-acao { flex: 1 1 auto; justify-content: center; margin-left: 0; }
+    .topo .chip {
+      flex: 1 1 40%;
+      min-width: 0;
+      padding: 4px 10px;
+      display: flex;
+      flex-direction: row;
+      align-items: baseline;
+      gap: 6px;
+    }
+    .topo .chip .valor { font-size: var(--fs-m); }
+    /* folha e elenco tem tela propria (Financas, Elenco): no topo fica o dinheiro */
+    .topo .chip-folha, .topo .chip-elenco { display: none; }
+    .conteudo { padding-bottom: calc(68px + env(safe-area-inset-bottom)); }
+    .topo::after {
+      content: "";
+      position: fixed;
+      inset: auto 0 0 0;
+      height: calc(68px + env(safe-area-inset-bottom));
+      background: var(--lateral);
+      border-top: 1px solid var(--borda);
+      z-index: 8;
+    }
+    .topo .bt-simular, .topo .bt-acao {
+      position: fixed;
+      bottom: calc(12px + env(safe-area-inset-bottom));
+      z-index: 9;
+      min-height: 44px;
+      margin: 0;
+    }
+    .topo .bt-simular { left: 12px; width: 108px; }
+    .topo .bt-acao { left: 128px; right: 12px; justify-content: center; }
 
     /* ------------------------------------------------------ telas e grade */
     .corpo { padding: 12px 12px 16px; gap: 12px; grid-template-columns: minmax(0, 1fr); }
@@ -108,8 +139,83 @@ body {
     .campo-area.vertical .campo-pequena.dir { top: 14px; right: auto; border: 2px solid var(--cal-fraca); border-top: none; }
     .campo-area.vertical .jogador .nome { max-width: 76px; }
 
-    /* ------------------------------------------------------------ modais */
-    .fundo-modal { padding: 10px; }
-    .modal { padding: 18px 16px; max-height: 90vh; }
+    /* ------------------------------------------- duas colunas viram uma
+     * Na tela larga varios blocos ficam lado a lado; a 390 px isso espremia o
+     * texto numa coluna de uma palavra por linha (Estadio, Financas). */
+    .estadio-grade, .financas-resumo, .financas-colunas, .partida-lances,
+    .partida-detalhe, .forcas, .clube-info, .clube-topo, .competicao-corpo,
+    .resumo-secoes, .estat-grade, .grade-grupos, .patrocinio-grade, .clube-sala {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .partida-lances { gap: 6px; }
+    .partida-lances .partida-lista:first-child { align-items: stretch; text-align: left; }
+    .partida-lances .partida-lista:first-child li { flex-direction: row; }
+    .linha-valor { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 10px 14px; }
+    .linha-valor .val { text-align: right; }
+    .condicional { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .condicional .plano-nome { grid-column: 1 / -1; }
+    .vitrine-linha, .renovar-linha { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; }
+    .carreira-heroi { grid-template-columns: auto minmax(0, 1fr); }
+    .carreira-heroi > :last-child { grid-column: 1 / -1; }
+    .copa-jogo, .jogo-linha { gap: 6px; padding: 8px 10px; font-size: var(--fs-p); }
+
+    /* ---------------------------------------- campos e linhas de formulario
+     * campo de numero, seletor e botao quebram linha em vez de vazar a tela */
+    .linha-flex, .linha-form, .filtros-botoes { flex-wrap: wrap; }
+    .tela select, .tela input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    .modal select, .modal input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
+      max-width: 100%;
+      min-width: 0;
+    }
+    .campo-rotulo { min-width: 0; max-width: 100%; }
+    .estadio-acoes .linha-form > * { flex: 1 1 100%; }
+    /* alvo de toque: 44 px de altura nos botoes de acao (guia da Apple e do Material) */
+    .bt-acao, .bt-fantasma:not(.bt-mini), .aba { min-height: 44px; }
+    .abas { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    .abas .aba { flex: none; }
+    /* abas com seletor no fim (Competicoes, Classificacao): o seletor desce
+     * para a linha de baixo em vez de ficar escondido no fim da rolagem */
+    .abas:has(> .campo-rotulo) { flex-wrap: wrap; overflow: visible; }
+    .abas > .campo-rotulo { flex: 1 1 100%; margin-left: 0; }
+
+    /* ------------------------------------------------- placar da partida */
+    .partida { padding: 12px 14px; }
+    body .partida-time { font-size: var(--fs-m); gap: 6px; }
+    .partida-numeros { flex-wrap: wrap; gap: 6px 14px; }
+    .partida-numeros .empurra { margin-left: 0; flex: 1 1 100%; }
+    .partida-numeros .empurra button { flex: 1 1 0; }
+
+    /* ------------------------------------------------------------ campo
+     * nome e selo do jogador da ponta nao saem pela lateral */
+    .campo-area.vertical { margin: 0 6px; }
+    .campo-area.vertical .jogador .nome { max-width: 64px; }
+
+    /* ------------------------------------------------------------ modais
+     * janela vira folha de tela cheia: nada de fundo espremido atras, o
+     * rodape com os botoes fica sempre a vista e o corpo rola sozinho */
+    .fundo-modal { padding: 0; align-items: stretch; }
+    .modal {
+      max-width: none;
+      width: 100%;
+      max-height: none;
+      height: 100%;
+      border-radius: 0;
+      border: 0;
+      padding: 16px 14px calc(16px + env(safe-area-inset-bottom));
+    }
+    .modal.dlg { max-height: none; height: 100%; padding: 0; }
+    body .dlg-cab { padding: 14px 14px 12px; }
+    body .dlg-corpo { padding: 12px 14px 16px; }
+    body .modal.dlg > .modal-acoes { padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); }
+    .modal-acoes > button { flex: 1 1 auto; }
+    .modal:not(.dlg) > .modal-acoes:last-child {
+      position: sticky;
+      bottom: calc(-16px - env(safe-area-inset-bottom));
+      margin: 16px -14px calc(-16px - env(safe-area-inset-bottom));
+      padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+      background: var(--lateral);
+      border-top: 1px solid var(--borda);
+    }
+    .detalhe-placar h2 { font-size: var(--fs-m); }
   }
 }

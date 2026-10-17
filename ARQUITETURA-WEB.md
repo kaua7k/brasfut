@@ -800,6 +800,26 @@ quebra em duas linhas. Conferido com Playwright a 390x844 em Painel,
 Escalação, Mercado, Classificação, Elenco e Finanças: nenhuma tela com
 rolagem horizontal da página.
 
+**Passada de UX no celular (2026-10-17).** Com o jogo rodando no aparelho, o
+resto das telas e as janelas entraram no mesmo arquivo:
+- **Ação da semana no pé da tela.** Simular e Avançar saem do topo e ficam numa
+  barra presa embaixo (zona do polegar, `env(safe-area-inset-bottom)`); o topo
+  fica com clube, semana, caixa e verba numa linha (folha e elenco têm tela
+  própria).
+- **Duas colunas viram uma.** Estádio, Finanças, o cartão da partida, o detalhe,
+  Clube, Competições e os grids de patrocínio e estatística. Era o que deixava
+  o texto numa coluna de uma palavra por linha.
+- **Campos não vazam.** Seletor, número e botão quebram linha; botões de ação e
+  abas com 44 px de altura; as abas rolam de lado, e a que tem seletor no fim
+  (Competições) quebra linha para o seletor não sumir.
+- **Janelas em tela cheia.** Mesa, ficha, intervalo, lance a lance, Simular:
+  folha inteira, corpo rolando e rodapé com os botões sempre à vista.
+- **Ficha com um toque.** Na `<Grade>`, com ponteiro de toque
+  (`pointer: coarse`), tocar na linha abre a ficha; a marcação segue na caixinha.
+Conferido com Playwright a 390x844 (perfil Pixel 7, toque) nas 15 telas, na
+mesa, na ficha, no intervalo e no lance a lance; nenhuma com rolagem lateral.
+A tela larga não muda (tudo dentro do `@media (max-width: 640px)`).
+
 ## Receita para migrar a próxima tela
 
 Exemplo com `tela_elenco` (brasfut_app.py:1744):
