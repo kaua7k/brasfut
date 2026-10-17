@@ -44,9 +44,9 @@ O que falta para virar produto, em ordem de impacto:
   num iPhone e rodar *Medir desempenho*.
 - **iPhone**: testar no Safari de verdade (worker em módulo, IDBFS, memória: 86 MB de wasm
   depois da medição) e a política de 7 dias sem uso para site não instalado.
-- **Layout**: passada mínima feita em Painel, Escalação, Mercado, Classificação, Elenco e
-  Finanças. Faltam Competições (mata-mata), Base, Treino, Estádio, a Mesa de negociação e o
-  editor de formação; abrir a ficha é duplo clique (no toque, dois toques).
+- ~~**Layout**~~: feito em 2026-10-17 em todas as telas e janelas (ação da semana no pé da
+  tela, uma coluna, janelas em tela cheia, ficha com um toque). Falta conferir no aparelho o
+  editor de formação e o Simular com a lista de semanas comprida.
 - **Save entre aparelhos**: exportar/importar o save (arquivo) para levar do PC ao celular.
 - **Pages ligado**: no GitHub, *Settings > Pages > Source = GitHub Actions* uma vez.
 

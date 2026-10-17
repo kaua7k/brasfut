@@ -24,6 +24,12 @@ import { useTelaEstreita } from '../estreita'
 /** Marca ou desmarca um id. Use com o setter funcional -
  *  setMarcados((s) => alternarMarca(s, id)) - para dois cliques seguidos nao
  *  partirem do mesmo conjunto e um apagar o outro. */
+// no celular nao existe duplo clique: um toque na linha abre a ficha (a
+// marcacao continua na caixinha da esquerda)
+function toque() {
+  return typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches
+}
+
 export function alternarMarca(atual: Set<number>, id: number) {
   const novo = new Set(atual)
   if (novo.has(id)) novo.delete(id)
@@ -305,7 +311,7 @@ export function Grade<T>({
             style={estilo}
             // abrir a ficha tambem pelo teclado: Tab chega na linha, Enter abre
             tabIndex={aoAbrir ? 0 : undefined}
-            title={aoAbrir ? `Duplo clique ou Enter abre a ficha de ${nome}` : undefined}
+            title={aoAbrir ? `${toque() ? 'Toque' : 'Duplo clique ou Enter'} abre a ficha de ${nome}` : undefined}
             onDoubleClick={aoAbrir ? () => aoAbrir(item) : undefined}
             onKeyDown={
               aoAbrir
@@ -314,7 +320,13 @@ export function Grade<T>({
                   }
                 : undefined
             }
-            onClick={selecionavel && marcarAoClicar ? () => aoMarcar?.(id) : undefined}
+            onClick={
+              selecionavel && marcarAoClicar
+                ? () => aoMarcar?.(id)
+                : aoAbrir && toque()
+                  ? () => aoAbrir(item)
+                  : undefined
+            }
           >
             {selecionavel && (
               <button
