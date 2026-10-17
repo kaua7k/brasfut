@@ -11,6 +11,10 @@ import type { Cabecalho } from '../tipos'
 interface Props {
   cabecalho: Cabecalho
   aoAvancar: () => void
+  /** o jogo da semana ao vivo (liga para no intervalo) */
+  aoJogar: () => void
+  /** pula as semanas sem jogo e para antes do proximo */
+  aoIrParaOJogo: () => void
   /** Abre o painel de ritmos: jogo a jogo, mes, janela, temporada. */
   aoSimular: () => void
   avancando: boolean
@@ -19,7 +23,12 @@ interface Props {
   menuAberto?: boolean
 }
 
-export function BarraTopo({ cabecalho, aoAvancar, aoSimular, avancando, aoAbrirMenu, menuAberto }: Props) {
+export function BarraTopo({ cabecalho, aoAvancar, aoJogar, aoIrParaOJogo, aoSimular, avancando, aoAbrirMenu, menuAberto }: Props) {
+  // durante a temporada o botao principal e o do jogo, como no Brasfoot: com
+  // jogo na semana ele e "Jogar" (ao vivo); sem, "Ir para o jogo" pula ate ele.
+  // Avancar semana fica ao lado, para quem quer andar rapido sem assistir.
+  const emTemporada = cabecalho.fase === 'liga' || cabecalho.fase === 'estadual'
+  const jogo = cabecalho.jogo_semana
   return (
     <header className="topo">
       {aoAbrirMenu && (
@@ -51,22 +60,54 @@ export function BarraTopo({ cabecalho, aoAvancar, aoSimular, avancando, aoAbrirM
         </div>
       ))}
 
-      {/* o clique de sempre continua sendo uma semana; os outros ritmos moram
-          no Simular, para o botao principal nunca pular meio ano por engano */}
-      <button
-        type="button"
-        className="bt-fantasma bt-simular"
-        onClick={aoSimular}
-        title={porque([[avancando, AGUARDE]], 'Jogo a jogo, 1 mes, ate a janela ou a temporada toda')}
-        disabled={avancando}
-      >
-        Simular…
-      </button>
-      <button type="button" className="bt-acao" onClick={aoAvancar} title={porque([[avancando, AGUARDE]])}
-      disabled={avancando}>
-        {avancando ? 'Processando…' : cabecalho.acao}
-        <IconeSeta />
-      </button>
+      <div className="topo-acoes">
+        <button
+          type="button"
+          className="bt-fantasma bt-simular"
+          onClick={aoSimular}
+          title={porque([[avancando, AGUARDE]], 'Jogo a jogo, 1 mes, ate a janela ou a temporada toda')}
+          disabled={avancando}
+        >
+          Simular…
+        </button>
+        {emTemporada && (
+          <button
+            type="button"
+            className="bt-fantasma bt-semana"
+            onClick={aoAvancar}
+            title={porque([[avancando, AGUARDE]], 'Joga a semana sem assistir: o resultado vem no Painel')}
+            disabled={avancando}
+          >
+            {cabecalho.acao}
+          </button>
+        )}
+        {emTemporada ? (
+          <button
+            type="button"
+            className="bt-acao bt-jogo"
+            onClick={jogo ? aoJogar : aoIrParaOJogo}
+            title={porque([[avancando, AGUARDE]],
+              jogo ? 'Assistir ao jogo ao vivo e mexer no intervalo' : 'Pula as semanas sem jogo do seu time e para antes dele')}
+            disabled={avancando}
+          >
+            <span className="bt-jogo-textos">
+              <span>{avancando ? 'Processando…' : jogo ? 'Jogar' : 'Ir para o jogo'}</span>
+              {jogo && !avancando && (
+                <span className="bt-jogo-sub">
+                  {jogo.adversario ? `${jogo.em_casa === false ? 'em ' : 'x '}${jogo.adversario}` : jogo.competicao}
+                </span>
+              )}
+            </span>
+            <IconeSeta />
+          </button>
+        ) : (
+          <button type="button" className="bt-acao" onClick={aoAvancar} title={porque([[avancando, AGUARDE]])}
+          disabled={avancando}>
+            {avancando ? 'Processando…' : cabecalho.acao}
+            <IconeSeta />
+          </button>
+        )}
+      </div>
     </header>
   )
 }

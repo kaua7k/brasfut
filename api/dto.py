@@ -85,7 +85,35 @@ def cabecalho(G):
             {"label": "Elenco", "valor": "%d jogadores" % len(c["elenco"])},
         ],
         "menu": [{"id": k, "nome": n, "pronta": p} for k, n, p in MENU],
+        "jogo_semana": jogo_da_semana(G) if fase in ("liga", "estadual") else None,
     }
+
+
+def jogo_da_semana(G):
+    """O jogo do meu clube nesta semana, se houver: e o que o botao "Jogar"
+    mostra. Copa sem sorteio ainda diz so a competicao."""
+    meu = G["clube"]
+    jogos = eng.jogos_da_semana(G, meu)
+    if not jogos:
+        return None
+    comp, casa, fora = jogos[0]
+    if comp == "liga":
+        nome_comp = eng.nome_da_liga(G, G["clubes"][meu]["divisao"])
+    elif comp == "estadual":
+        est = eng.meu_estadual(G)
+        nome_comp = est["nome"] if est else "Estadual"
+    else:
+        cp = G["copas"].get(comp)
+        nome_comp = cp["nome"] if cp else "Copa"
+        if casa is None and cp:
+            par = next((x for x in eng.sorteio_da_copa(G, comp) if meu in x), None)
+            if par:
+                casa, fora = par[0], par[1]
+    adv = None
+    if casa is not None:
+        adv = eng.nome_clube(G, fora if casa == meu else casa)
+    return {"adversario": adv, "competicao": nome_comp,
+            "em_casa": None if casa is None else casa == meu, "jogos": len(jogos)}
 
 
 # -------------------------------------------------------------------- painel

@@ -26,6 +26,8 @@ export interface Cabecalho {
   acao: string
   chips: ChipTopo[]
   menu: ItemMenu[]
+  /** o jogo do meu clube nesta semana (liga ou estadual em andamento): o botao vira "Jogar" */
+  jogo_semana?: { adversario: string | null; competicao: string; em_casa: boolean | null; jogos: number } | null
 }
 
 export interface Prontidao {

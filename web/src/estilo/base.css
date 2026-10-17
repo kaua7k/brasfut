@@ -1625,6 +1625,12 @@ button.jogador:hover .disco, button.jogador:focus-visible .disco { transform: sc
 .topo .chip { min-width: 0; flex: none; }
 .topo .chip .valor { white-space: nowrap; }
 .topo .bt-acao, .topo .bt-simular { white-space: nowrap; flex: none; }
+/* acoes da semana: Simular, Avancar semana e o botao do jogo (Jogar / Ir para o jogo) */
+.topo-acoes { display: flex; align-items: center; gap: 8px; flex: none; }
+.topo-acoes .bt-semana { min-height: 44px; padding: 0 14px; white-space: nowrap; }
+.bt-jogo { min-height: 44px; }
+.bt-jogo-textos { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; min-width: 0; }
+.bt-jogo-sub { font-size: var(--fs-mini); font-weight: 600; opacity: 0.85; max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* em tela estreita somem elenco e depois folha - caixa e verba nunca. Por
    classe, nao por posicao: o nth-of-type contava tambem o escudo e o titulo, e
    o chip que sumia em 1320px era justamente o CAIXA */

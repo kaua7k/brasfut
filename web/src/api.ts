@@ -17,6 +17,7 @@ import type {
   OpcoesCarreira,
   AbaMercado,
   Cabecalho,
+  EventoCaos,
   OpcaoAvanco,
   Paradas,
   Contagem,
@@ -119,7 +120,10 @@ export const api = {
 
   // ------------------------------------------------------------------ painel
   painel: () => pedir<{ painel: DadosPainel }>('/api/painel'),
-  avancar: (confirmar = false) => pedir<RespostaAvanco>('/api/avancar', { confirmar, intervalo: true }),
+  avancar: (confirmar = false, intervalo = false) => pedir<RespostaAvanco>('/api/avancar', { confirmar, intervalo }),
+  ateOJogo: () =>
+    pedir<{ semanas: number; parou: string; recado: string; encerrada: boolean; painel: DadosPainel;
+            cabecalho: Cabecalho; pendencia: Pendencia | null; plantao: EventoCaos[] }>('/api/avancar/ate-o-jogo', {}),
   segundoTempo: (tatica: string, trocas: [number, number][]) =>
     pedir<RespostaAvanco>('/api/partida/segundo-tempo', { tatica, trocas }),
   preferenciaIntervalo: (ligado: boolean) =>

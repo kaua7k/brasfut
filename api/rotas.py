@@ -285,6 +285,56 @@ def avancar(corpo):
         return _avancar_agora(G, corpo)
 
 
+# ate onde "Ir para o jogo" anda sem jogo do meu clube antes de desistir
+ATE_O_JOGO_MAX = 20
+
+
+@rota("POST", "/api/avancar/ate-o-jogo")
+def ate_o_jogo(corpo):
+    """Pula as semanas sem jogo do meu clube e para na semana do proximo jogo,
+    ANTES de jogar (como no Brasfoot): o jogo e com o botao Jogar. Para antes
+    pelos motivos de sempre (janela abriu, lesao, proposta de emprego, fim do
+    estadual ou da temporada)."""
+    with SESSAO.cadeado:
+        G = SESSAO.exigir()
+        if SESSAO.pendencia:
+            raise ErroDeUso("Resolva a pendencia antes de seguir: %s." % SESSAO.pendencia["titulo"].lower())
+        if G["fase"] not in ("liga", "estadual") or eng.temporada_encerrada(G):
+            raise ErroDeUso("Fora da temporada nao ha jogo para ir: use o botao do ano.")
+        semanas, motivo, plantao = 0, "", []
+        encerrada = False
+        while semanas < ATE_O_JOGO_MAX:
+            if eng.jogos_da_semana(G, G["clube"]):
+                break
+            antes = avanco.foto(G)
+            if G.get("caos"):
+                G["caos"]["plantao"] = []
+            fora = SESSAO.avancar()
+            semanas += 1
+            if eng.modo_caos(G):
+                plantao += list((G.get("caos") or {}).get("plantao") or [])
+            encerrada = fora["encerrada"]
+            motivo = avanco.motivo_de_parar(G, antes, None, encerrada, SESSAO.pendencia)
+            if motivo or G["fase"] not in ("liga", "estadual"):
+                break
+        if semanas:
+            eng.salvar_auto(G, forcar=True)
+        jogo = dto.jogo_da_semana(G) if G["fase"] in ("liga", "estadual") else None
+        if motivo:
+            recado = "Parou depois de %s: %s." % (eng.plural(semanas, "semana"), motivo)
+            if jogo:
+                recado += " O jogo e nesta semana: %s." % jogo["competicao"]
+        elif jogo:
+            recado = ("%s sem jogo do seu time. " % eng.plural(semanas, "semana") if semanas else "") + (
+                "Agora e jogo: %s%s." % (jogo["competicao"],
+                                         " contra o %s" % jogo["adversario"] if jogo["adversario"] else ""))
+        else:
+            recado = "Andou %s sem achar jogo do seu time." % eng.plural(semanas, "semana")
+        return {"semanas": semanas, "parou": motivo, "recado": recado, "encerrada": encerrada,
+                "painel": dto.painel(), "cabecalho": dto.cabecalho(G),
+                "pendencia": SESSAO.pendencia, "plantao": plantao}
+
+
 @rota("POST", "/api/partida/segundo-tempo")
 def segundo_tempo(corpo):
     """As decisoes do intervalo: termina o meu jogo e joga o resto da semana."""
