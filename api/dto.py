@@ -1501,13 +1501,14 @@ def _copas_futuras(G, meu):
                 par = next((p for p in eng.sorteio_da_copa(G, chave) if meu in p), None)
                 if par:
                     adv = par[1] if par[0] == meu else par[0]
-                    final = len(cp["vivos"]) == 2 and not cp.get("espera")
-                    if final or cp.get("neutro"):
-                        mando = "neutro"
-                    elif cp.get("jogo_unico"):
-                        mando = "casa" if par[0] == meu else "fora"
-                    else:
+                    # a mesma regra que a semana joga (final em ida e volta nao e neutra)
+                    _final, unico, neutro = eng.formato_da_fase(cp)
+                    if not unico:
                         mando = "ida_volta"
+                    elif neutro:
+                        mando = "neutro"
+                    else:
+                        mando = "casa" if par[0] == meu else "fora"
             out.setdefault(("liga", cp["semanas"][k]), []).append(_jogo_cal(G, chave, nome, fase, adv, mando))
     return out
 
@@ -1632,9 +1633,12 @@ def calendario():
         agora = "%s, semana %d" % (nome_liga, G["semana"])
 
     aberta = eng.mercado_aberto(G)
-    fim = max(w for w in eng.JANELAS if w <= 4)
+    # fim da primeira janela, lido do motor (sem numero fixo): semanas seguidas desde a 1
+    fim = 1
+    while fim + 1 in eng.JANELAS:
+        fim += 1
     if fase in ("entretemporada", "estadual"):
-        janela = "Aberta durante o estadual e ate a semana %d do Brasileirao" % fim
+        janela = "Aberta na pre-temporada e ate a semana %d da liga" % fim
     elif aberta:
         fim = G["semana"]
         while fim + 1 in eng.JANELAS:

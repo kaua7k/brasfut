@@ -3153,10 +3153,9 @@ def _meus_jogos_mata(G: Mundo, chave: str, cid: int) -> List[Dict[str, Any]]:
     if not par:
         return []
     a, b = par
-    final = len(cp["vivos"]) == 2 and not cp.get("final_ida_volta") and not cp.get("espera")
-    if final or cp.get("jogo_unico"):
-        return [{"comp": chave, "casa": a, "fora": b, "neutro": final or bool(cp.get("neutro")),
-                 "perna": None}]
+    _final, unico, neutro = formato_da_fase(cp)
+    if unico:
+        return [{"comp": chave, "casa": a, "fora": b, "neutro": neutro, "perna": None}]
     return [{"comp": chave, "casa": a, "fora": b, "neutro": False, "perna": "ida"},
             {"comp": chave, "casa": b, "fora": a, "neutro": False, "perna": "volta"}]
 
@@ -4934,24 +4933,35 @@ def jogar_rodada_liga(G, div):
     return res
 
 
+def formato_da_fase(cp) -> Tuple[bool, bool, bool]:
+    """(final, jogo_unico, neutro) da fase atual de uma copa. A UNICA regra de
+    mando do mata-mata: jogar_fase_copa joga assim, e o intervalo interativo
+    (meus_jogos_ao_vivo) e o Calendario leem daqui. Se cada um tivesse a sua
+    copia, uma mudanca aqui faria o jogo do intervalo nao bater com o da
+    semana e ser descartado em silencio.
+
+    A Recopa decide em ida e volta: a "final" dela nao e jogo unico. Com clube
+    esperando (o campeao europeu na Intercontinental) ainda nao e a final."""
+    final = len(cp["vivos"]) == 2 and not cp.get("final_ida_volta") and not cp.get("espera")
+    unico = final or bool(cp.get("jogo_unico"))
+    return final, unico, final or bool(cp.get("neutro"))
+
+
 def jogar_fase_copa(G, chave):
     cp = G["copas"][chave]
     vivos = cp["vivos"][:]
     if len(vivos) < 2:
         return []
     pares = [tuple(par) for par in sorteio_da_copa(G, chave)]
-    # a Recopa decide em ida e volta: a "final" dela nao e jogo unico
-    # com clube esperando (o campeao europeu na Intercontinental) ainda nao e a final
-    final = len(vivos) == 2 and not cp.get("final_ida_volta") and not cp.get("espera")
+    final, unico, neutro = formato_da_fase(cp)
     res, prox = [], []
     # o que a fase deixou: vai para o historico, que a tela de competicoes le
     registro = {"fase": fase_da_copa(cp), "semana": int(G["semana"]),
                 "temporada": int(G["temporada"]), "jogos": []}
-    unico = final or cp.get("jogo_unico")
     fundo = cp.get("fundo")
     for a, b in pares:
         if unico:
-            r = simular(G, a, b, chave, neutro=final or bool(cp.get("neutro")))
+            r = simular(G, a, b, chave, neutro=neutro)
             if r["gc"] > r["gf"]:
                 venc = a
             elif r["gf"] > r["gc"]:

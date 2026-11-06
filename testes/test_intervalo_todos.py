@@ -130,3 +130,46 @@ class TestIntervaloEstadual(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestIntervaloTemporadaInteira(unittest.TestCase):
+    """Rede de seguranca: o intervalo preve os jogos da semana por conta propria
+    (meus_jogos_ao_vivo). Se a previsao errar mando, perna ou competicao, o jogo
+    que o tecnico viu e descartado e a semana simula outro. Uma temporada inteira
+    com intervalo em todo jogo - estadual, liga, grupos, mata-mata, ida e volta,
+    final - nao pode descartar nenhum."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.hash_antes = apoio.hash_do_save_real()
+        if os.path.exists(apoio.SAVE_TESTE):
+            os.remove(apoio.SAVE_TESTE)
+        eng.rng.seed(777)
+        clubes = apoio.chamar("POST", "/api/novo", {"nome": "Intervalo Ano",
+                                                    "opcoes": {"sem_demissao": True}})["clubes"]
+        apoio.chamar("POST", "/api/clube", {"id": clubes[0]["id"]})
+        cls.G = apoio.SESSAO.G
+        cls.G["intervalo_interativo"] = True
+
+    @classmethod
+    def tearDownClass(cls):
+        apoio.SESSAO.intervalo = None
+        apoio.SESSAO.fila_ao_vivo = []
+        eng.PARTIDA_PRONTA.clear()
+        assert apoio.hash_do_save_real() == cls.hash_antes, "teste mexeu no save real"
+
+    def test_nenhum_jogo_do_intervalo_e_descartado_no_ano(self):
+        import api.rotas as rotas
+        G = self.G
+        antes = rotas.JOGOS_DESCARTADOS
+        ano = G["temporada"]
+        jogos = 0
+        for _ in range(120):
+            if G["temporada"] != ano:
+                break
+            paradas, _placares, _r = jogar_semana_toda(self)
+            jogos += len(paradas)
+            self.assertEqual(rotas.JOGOS_DESCARTADOS, antes,
+                             "semana %s: o jogo do intervalo nao bateu com o da semana" % G["semana"])
+        self.assertNotEqual(G["temporada"], ano, "a temporada nao terminou")
+        self.assertGreater(jogos, 38, "jogou pelo menos a liga inteira no intervalo")

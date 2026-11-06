@@ -293,6 +293,9 @@ def _abrir_intervalo(G, jogo, corpo):
     return dto.intervalo(G, casa, fora, foto, comp, jogo.get("perna"))
 
 
+# jogos do intervalo que a semana nao usou desde que o processo subiu (ver _avancar_agora)
+JOGOS_DESCARTADOS = 0
+
 # ate onde "Ir para o jogo" anda sem jogo do meu clube antes de desistir
 ATE_O_JOGO_MAX = 20
 
@@ -394,7 +397,17 @@ def _avancar_agora(G, corpo):
         if G.get("caos"):
             G["caos"]["plantao"] = []
         fora = SESSAO.avancar()
-        eng.PARTIDA_PRONTA.clear()      # jogo pronto que a semana nao usou nao vale para a proxima
+        # jogo pronto que a semana nao usou nao vale para a proxima. Sobrar algum
+        # quer dizer que o intervalo previu um jogo que a semana nao jogou (o
+        # tecnico viu um placar e a semana simulou outro): nao deve acontecer -
+        # test_intervalo_todos joga uma temporada inteira conferindo -, mas se
+        # acontecer fica registrado em vez de sumir calado
+        if eng.PARTIDA_PRONTA:
+            global JOGOS_DESCARTADOS
+            JOGOS_DESCARTADOS += len(eng.PARTIDA_PRONTA)
+            eng.noticia(G, "Um jogo parado no intervalo nao bateu com o calendario da semana "
+                           "e foi simulado de novo.")
+        eng.PARTIDA_PRONTA.clear()
         eng.salvar_auto(G, forcar=True)
         # a virada acabou de acontecer: o resumo vem junto, para a tela abrir
         # antes de qualquer outra coisa (inclusive da escolha de clube novo)

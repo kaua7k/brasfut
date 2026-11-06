@@ -256,3 +256,23 @@ class TestCalendarioEstadual(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestFormatoDaFase(unittest.TestCase):
+    """A regra de mando do mata-mata mora so em eng.formato_da_fase: a semana,
+    o intervalo e o Calendario leem dali."""
+
+    def test_final_ida_e_volta_nao_e_neutra(self):
+        cp = {"vivos": [1, 2], "final_ida_volta": True}
+        self.assertEqual(eng.formato_da_fase(cp), (False, False, False))
+
+    def test_final_de_jogo_unico_e_neutra(self):
+        self.assertEqual(eng.formato_da_fase({"vivos": [1, 2]}), (True, True, True))
+
+    def test_com_clube_esperando_ainda_nao_e_final(self):
+        cp = {"vivos": [1, 2], "espera": [3]}
+        self.assertEqual(eng.formato_da_fase(cp)[0], False)
+
+    def test_jogo_unico_fora_da_final_segue_a_copa(self):
+        cp = {"vivos": [1, 2, 3, 4], "jogo_unico": True}
+        self.assertEqual(eng.formato_da_fase(cp), (False, True, False))
