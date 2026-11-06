@@ -167,7 +167,7 @@ def observar_jogador(corpo):
 
 @rota("POST", "/api/intervalo/preferencia")
 def preferencia_intervalo(corpo):
-    """Parar ou nao no intervalo dos meus jogos de liga."""
+    """Parar ou nao no intervalo dos meus jogos (liga, copa e estadual)."""
     with SESSAO.cadeado:
         G = SESSAO.exigir()
         G["intervalo_interativo"] = bool(corpo.get("ligado"))
@@ -271,19 +271,30 @@ def avancar(corpo):
                           "Ataque %.1f, defesa %.1f - com o problema ja descontado."
                           % (d["titulo"], d["ataque"], d["defesa"])),
                 "destino": "escalacao"}}
-        # intervalo interativo: o primeiro tempo do meu jogo de liga, e a tela decide
+        # intervalo interativo: todo jogo meu da semana (liga, copa, estadual)
+        # para aos 45', um depois do outro; a semana so anda depois do ultimo
         if corpo.get("intervalo") and eng.intervalo_ligado(G) and not SESSAO.intervalo:
-            jogo = eng.meu_jogo_de_liga(G)
-            if jogo:
-                casa, fora = jogo
-                lado = 0 if casa == G["clube"] else 1
-                gen = eng.partida(G, casa, fora, "liga", False, pausar_lado=lado)
-                foto = next(gen)
-                SESSAO.intervalo = {"gen": gen, "casa": casa, "fora": fora, "foto": foto,
-                                    "corpo": dict(corpo)}
-                return {"intervalo": dto.intervalo(G, casa, fora, foto)}
+            fila = eng.meus_jogos_ao_vivo(G)
+            if fila:
+                eng.PARTIDA_PRONTA.clear()
+                SESSAO.fila_ao_vivo = fila[1:]
+                return {"intervalo": _abrir_intervalo(G, fila[0], corpo)}
         return _avancar_agora(G, corpo)
 
+
+def _abrir_intervalo(G, jogo, corpo):
+    """Joga o primeiro tempo de um jogo meu e para no intervalo."""
+    casa, fora, comp = jogo["casa"], jogo["fora"], jogo["comp"]
+    lado = 0 if casa == G["clube"] else 1
+    gen = eng.partida(G, casa, fora, comp, jogo["neutro"], pausar_lado=lado)
+    foto = next(gen)
+    SESSAO.intervalo = {"gen": gen, "casa": casa, "fora": fora, "comp": comp, "foto": foto,
+                        "corpo": dict(corpo)}
+    return dto.intervalo(G, casa, fora, foto, comp, jogo.get("perna"))
+
+
+# jogos do intervalo que a semana nao usou desde que o processo subiu (ver _avancar_agora)
+JOGOS_DESCARTADOS = 0
 
 # ate onde "Ir para o jogo" anda sem jogo do meu clube antes de desistir
 ATE_O_JOGO_MAX = 20
@@ -348,7 +359,12 @@ def segundo_tempo(corpo):
                 trocas.append([int(par[0]), int(par[1])])
             except (TypeError, ValueError, IndexError):
                 raise ErroDeUso("troca invalida")
-        _terminar_intervalo(G, {"tatica": corpo.get("tatica"), "trocas": trocas})
+        r = _terminar_intervalo(G, {"tatica": corpo.get("tatica"), "trocas": trocas})
+        # outro jogo meu na semana: o placar final deste e o intervalo do proximo
+        if SESSAO.fila_ao_vivo and eng.intervalo_ligado(G):
+            proximo = SESSAO.fila_ao_vivo.pop(0)
+            return {"partida": dto.partida(eng.registro_partida(G, r)),
+                    "intervalo": _abrir_intervalo(G, proximo, SESSAO.ultimo_corpo_intervalo or {})}
         return _avancar_agora(G, SESSAO.ultimo_corpo_intervalo or {})
 
 
@@ -362,8 +378,9 @@ def _terminar_intervalo(G, decisao):
         raise RuntimeError("a partida nao terminou depois do intervalo")
     except StopIteration as fim:
         r = fim.value
-    eng.PARTIDA_PRONTA.clear()
-    eng.PARTIDA_PRONTA.update(chave=(it["casa"], it["fora"], "liga", eng.semana_absoluta(G) + 1), r=r)
+    # a semana ainda nao rodou: o jogo pronto espera a vez dele (semana_abs + 1)
+    eng.PARTIDA_PRONTA[(it["casa"], it["fora"], it.get("comp", "liga"), eng.semana_absoluta(G) + 1)] = r
+    return r
 
 
 def _avancar_agora(G, corpo):
@@ -371,6 +388,8 @@ def _avancar_agora(G, corpo):
         if SESSAO.intervalo:
             # a tela fechou sem decidir: o jogo segue do jeito que estava
             _terminar_intervalo(G, {})
+        # o que sobrou da fila e simulado pela semana, sem parar
+        SESSAO.fila_ao_vivo = []
         antes = avanco.foto(G)
         virada = eng.temporada_encerrada(G)
         # o boletim e so desta semana: semana sem sorteio (estadual, pre-temporada)
@@ -378,7 +397,17 @@ def _avancar_agora(G, corpo):
         if G.get("caos"):
             G["caos"]["plantao"] = []
         fora = SESSAO.avancar()
-        eng.PARTIDA_PRONTA.clear()      # jogo pronto que a semana nao usou nao vale para a proxima
+        # jogo pronto que a semana nao usou nao vale para a proxima. Sobrar algum
+        # quer dizer que o intervalo previu um jogo que a semana nao jogou (o
+        # tecnico viu um placar e a semana simulou outro): nao deve acontecer -
+        # test_intervalo_todos joga uma temporada inteira conferindo -, mas se
+        # acontecer fica registrado em vez de sumir calado
+        if eng.PARTIDA_PRONTA:
+            global JOGOS_DESCARTADOS
+            JOGOS_DESCARTADOS += len(eng.PARTIDA_PRONTA)
+            eng.noticia(G, "Um jogo parado no intervalo nao bateu com o calendario da semana "
+                           "e foi simulado de novo.")
+        eng.PARTIDA_PRONTA.clear()
         eng.salvar_auto(G, forcar=True)
         # a virada acabou de acontecer: o resumo vem junto, para a tela abrir
         # antes de qualquer outra coisa (inclusive da escolha de clube novo)
@@ -391,9 +420,11 @@ def _avancar_agora(G, corpo):
         # as partidas desta semana, ja no formato do cartao: o fim do Simular
         # mostra o resumo sem pedir nada de novo
         n = len(eng.resultados_da_semana(G)) if fora["jogou"] else 0
-        fora["partidas"] = [dto.partida(r) for r in G.get("historico_meus", [])[-n:]] if n else []
+        fora["partidas"] = [dto.partida(r) for r in eng.historico_do_clube(G)[-n:]] if n else []
         fora["parar"] = avanco.motivo_de_parar(G, antes, corpo.get("paradas"),
                                               fora["encerrada"], SESSAO.pendencia)
+        # a tela fecha o Simular e avisa: nao da para seguir janela adentro
+        fora["janela_abriu"] = fora["parar"] == avanco.MOTIVO_JANELA
         fora["opcoes"] = avanco.opcoes(G)
         # no meio do laco o Painel inteiro a cada semana e desperdicio: so no fim
         if not corpo.get("leve"):
@@ -606,6 +637,12 @@ def responder_proposta(corpo):
 def ver_noticias(_corpo):
     with SESSAO.cadeado:
         return {"tela": dto.noticias()}
+
+
+@rota("GET", "/api/calendario")
+def ver_calendario(_corpo):
+    with SESSAO.cadeado:
+        return {"tela": dto.calendario()}
 
 
 @rota("POST", "/api/ficha")

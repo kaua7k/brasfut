@@ -19,13 +19,13 @@ import { ResumoPartida } from './Partida'
 interface Props {
   /** houve = pelo menos uma semana andou; a tela de tras precisa se refazer. */
   /** eventos = plantoes do modo caos acumulados no pulo */
-  aoFechar: (houve: boolean, pendencia: Pendencia | null, eventos: EventoCaos[]) => void
+  /** recado: o que o Painel deve dizer ao voltar (ex.: a janela abriu) */
+  aoFechar: (houve: boolean, pendencia: Pendencia | null, eventos: EventoCaos[], recado?: string) => void
   aoAbrirEscalacao: () => void
 }
 
 const TEXTO_PARADA: Record<keyof Paradas, string> = {
   lesao: 'alguem do time titular se machucar',
-  janela: 'a janela de transferencias abrir',
   proposta: 'chegar proposta por um jogador seu',
   quebrado: 'o time ficar sem condicao de entrar em campo',
   emprego: 'outro clube quiser contratar voce',
@@ -102,6 +102,7 @@ export function DialogoAvanco({ aoFechar, aoAbrirEscalacao }: Props) {
     setPartidas([])
     let confirmar = confirmarQuebrado
     let fim = ''
+    let janelaAbriu = ''
     try {
       for (let i = 0; i < opcao.semanas; i++) {
         if (pedirParada.current) {
@@ -130,6 +131,13 @@ export function DialogoAvanco({ aoFechar, aoAbrirEscalacao }: Props) {
         if (r.pendencia) pendencia.current = r.pendencia
         // o Simular nao para por plantao: junta tudo e o boletim abre no fim
         if (r.plantao?.length) plantao.current = [...plantao.current, ...r.plantao]
+        // a janela abriu: a simulacao acaba aqui e o dialogo fecha - seguir
+        // dali atravessava a janela inteira sem o tecnico ver
+        if (r.janela_abriu) {
+          janelaAbriu = `A janela de transferencias abriu (${r.semana?.titulo ?? 'esta semana'}). A simulacao parou aqui.`
+          fim = r.parar ?? 'a janela de transferencias abriu'
+          break
+        }
         if (r.parar) {
           fim = r.parar
           break
@@ -145,6 +153,7 @@ export function DialogoAvanco({ aoFechar, aoAbrirEscalacao }: Props) {
       setRodando(false)
       setMotivo(fim || null)
       if (pendencia.current) aoFechar(true, pendencia.current, plantao.current)
+      else if (janelaAbriu) aoFechar(true, null, plantao.current, janelaAbriu)
     }
   }
 

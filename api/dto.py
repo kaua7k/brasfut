@@ -22,7 +22,8 @@ LIMPA_COR = re.compile(r"\033\[[0-9;]*m")
 # o menu lateral e o mesmo do tkinter (NAV em brasfut_app.py). "pronta" diz o
 # que ja migrou: o React apaga o resto em vez de fingir que leva a algum lugar
 MENU = [
-    ("painel", "Painel", True), ("elenco", "Elenco", True), ("base", "Base", True),
+    ("painel", "Painel", True), ("calendario", "Calendario", True),
+    ("elenco", "Elenco", True), ("base", "Base", True),
     ("treino", "Treino", True), ("escalacao", "Escalacao", True),
     ("tabela", "Classificacao", True), ("copas", "Competicoes", True),
     ("mercado", "Mercado", True), ("financas", "Financas", True),
@@ -430,7 +431,7 @@ def _resultados(G):
                          "estado": "ok" if gm > gs else ("atencao" if gm == gs else "critico")})
     forma = [{"letra": l, "descricao": t} for l, t in eng.forma_recente(G, 5)]
     return {"placares": placares, "forma": forma, "alerta": _alerta_de_fase(G),
-            "partidas": [partida(reg) for reg in G.get("historico_meus", [])]}
+            "partidas": [partida(reg) for reg in eng.historico_do_clube(G)]}
 
 
 ESTATISTICAS = (("chutes", "Chutes"), ("no_gol", "No gol"), ("posse", "Posse (%)"),
@@ -486,7 +487,20 @@ def partida(reg):
     }
 
 
-def intervalo(G, casa, fora, foto):
+def _nome_do_jogo(G, comp, casa, perna=None):
+    """'Libertadores . Oitavas de final, ida', 'Paulistao . Primeira fase, rodada 3'."""
+    nome = eng.nome_competicao(G, comp, G["clubes"][casa])
+    if comp == "estadual":
+        est = eng.meu_estadual(G)
+        return "%s . %s" % (nome, eng.etapa_estadual(est)) if est else nome
+    cp = G["copas"].get(comp)
+    if cp:
+        fase = eng.fase_da_copa(cp)
+        return "%s . %s%s" % (nome, fase, ", " + perna if perna else "")
+    return nome
+
+
+def intervalo(G, casa, fora, foto, comp="liga", perna=None):
     """O jogo parado no intervalo: placar, lances do primeiro tempo e o que o
     tecnico pode mexer (mentalidade e trocas, com quem esta no banco)."""
     jogs = G["jogadores"]
@@ -519,7 +533,7 @@ def intervalo(G, casa, fora, foto):
     banco = [{"id": pid, "nome": jogs[pid]["nome"], "pos": jogs[pid]["pos"], "ovr": jogs[pid]["ovr"],
               "cond": int(jogs[pid]["cond"])} for pid in foto["banco"]]
     return {
-        "comp": eng.nome_competicao(G, "liga", G["clubes"][casa]),
+        "comp": _nome_do_jogo(G, comp, casa, perna),
         "times": [eng.nome_clube(G, casa), eng.nome_clube(G, fora)], "eu": lado,
         "placar": foto["placar"], "lances": lances,
         "posse": st.get("posse", [50, 50]), "chutes": st.get("chutes", [0, 0]),
@@ -1349,6 +1363,316 @@ def noticias():
     return {"cabecalho": cabecalho(G), "titulo": "Noticias",
             "subtitulo": "o seu clube e o resto do futebol",
             "itens": itens, "mundo": _mundo(G, 80)}
+
+
+# ----------------------------------------------------------------- calendario
+# A temporada do meu clube semana a semana. Nada aqui e regra nova: a tabela
+# da liga ja existe inteira, as copas guardam as semanas de cada fase, o
+# estadual sabe as rodadas e o mata-mata, e a janela e as datas FIFA sao
+# constantes do motor. Esta funcao so junta tudo numa linha do tempo.
+#
+# Regra: so jogos do clube ATUAL (G["clube"]), nada alem disso. Trocou de clube
+# no meio do ano, todas as semanas - passadas e futuras - passam a ser as do
+# clube novo. Por isso nada aqui le o placar_hist, que e do tecnico.
+
+def _resultado(gm, gs):
+    return "v" if gm > gs else ("e" if gm == gs else "d")
+
+
+def _jogo_cal(G, comp, nome, detalhe, adv=None, mando=None, placar=None):
+    return {"comp": comp, "competicao": nome, "detalhe": detalhe,
+            # o nome curto: a competicao ja esta na linha, o sufixo de liga so poluia
+            "adversario_id": adv, "adversario": G["clubes"][adv]["nome"] if adv is not None else None,
+            "mando": mando, "placar": list(placar) if placar else None,
+            "resultado": _resultado(*placar) if placar else None}
+
+
+def _janela_da_semana(w):
+    """Etiqueta de janela para a semana w da liga. A semana 1 nao 'abre': a
+    janela vem aberta da pre-temporada e do estadual."""
+    if w not in eng.JANELAS:
+        return None
+    if w + 1 not in eng.JANELAS:
+        return "fecha"
+    if w > 1 and w - 1 not in eng.JANELAS:
+        return "abre"
+    return "aberta"
+
+
+def _semanas_do_estadual(G, est, meu):
+    """{semana_est: [jogo]} do meu estadual: primeira fase pela tabela, mata-mata
+    pelos confrontos (ou 'se classificar' enquanto a fase nao tem jogos)."""
+    out = {}
+    nome = est["nome"]
+    nome1 = est.get("nome1") or "Primeira fase"
+    resultados = est.get("resultados") or []
+    for i, rodada in enumerate(est["rodadas"]):
+        par = next((p for p in rodada if meu in p), None)
+        if not par:
+            continue
+        casa, fora = par
+        placar = None
+        if i < len(resultados):
+            r = next((r for r in resultados[i] if meu in r[:2]), None)
+            if r:
+                placar = (r[2], r[3]) if r[0] == meu else (r[3], r[2])
+        out[i + 1] = [_jogo_cal(G, "estadual", nome, "%s, rodada %d" % (nome1, i + 1),
+                                fora if casa == meu else casa,
+                                "casa" if casa == meu else "fora", placar)]
+    mata = est.get("mata") or []
+    # vivo no mata-mata: primeira fase em andamento, ou estou na ultima fase
+    # com jogos e nao perdi
+    com_jogos = [f for f in mata if f["jogos"]]
+    if not com_jogos:
+        vivo = not eng.estadual_terminado(est)
+    else:
+        meu_jogo = next((j for j in com_jogos[-1]["jogos"] if meu in (j["a"], j["b"])), None)
+        vivo = bool(meu_jogo) and meu_jogo.get("venc") in (None, meu)
+    for k, f in enumerate(mata):
+        semana = eng.semana_da_fase(est, k)
+        pernas = (("ida", "volta") if f["ida_volta"] else ("unico",))
+        j = next((j for j in f["jogos"] if meu in (j["a"], j["b"])), None)
+        for n, perna in enumerate(pernas):
+            if j:
+                adv = j["b"] if j["a"] == meu else j["a"]
+                # ida (e jogo unico) na casa de a; volta na casa de b
+                em_casa = (j["a"] == meu) if perna != "volta" else (j["b"] == meu)
+                gols = j.get("volta") if perna == "volta" else j.get("ida")
+                placar = None
+                if gols:
+                    placar = tuple(gols) if j["a"] == meu else (gols[1], gols[0])
+                detalhe = f["nome"] if perna == "unico" else "%s, %s" % (f["nome"], perna)
+                out.setdefault(semana + n, []).append(_jogo_cal(
+                    G, "estadual", nome, detalhe, adv, "casa" if em_casa else "fora", placar))
+            elif not f["jogos"] and vivo:
+                detalhe = f["nome"] if perna == "unico" else "%s, %s" % (f["nome"], perna)
+                out.setdefault(semana + n, []).append(_jogo_cal(
+                    G, "estadual", nome, detalhe + " (se classificar)"))
+    return out
+
+
+def _copas_futuras(G, meu):
+    """{('liga'|'estadual', semana): [jogo]} das copas em que ainda estou vivo,
+    da fase atual em diante. Adversario so quando ja saiu (grupo ou sorteio)."""
+    out = {}
+    for chave, cp in G["copas"].items():
+        if not eng.vivo_na_copa(cp, meu):
+            continue
+        nome = cp["nome"]
+        se = cp.get("semanas_est") or []
+        if se and cp["fase"] < len(se):
+            # Supercopa e Recopa: numa rodada do estadual (ou, se o estadual
+            # acabou antes, na semana de liga que vem)
+            onde = ("estadual", se[cp["fase"]]) if G["fase"] != "liga" else ("liga", G["semana"])
+            par = next((p for p in eng.sorteio_da_copa(G, chave) if meu in p), None)
+            adv = (par[1] if par[0] == meu else par[0]) if par else None
+            out.setdefault(onde, []).append(_jogo_cal(G, chave, nome, eng.fase_da_copa(cp), adv,
+                                                       "neutro" if adv is not None else None))
+            continue
+        if eng.em_grupos(cp):
+            g = eng.grupo_de(cp, meu)
+            nome_g = eng.FASE_LIGA if cp.get("formato") == "suico" else (g["nome"] if g else eng.FASE_GRUPOS)
+            for r in range(cp["rodada_grupo"], len(cp["semanas_grupos"])):
+                par = None
+                if g and r < len(g["rodadas"]):
+                    par = next((p for p in g["rodadas"][r] if meu in p), None)
+                adv = mando = None
+                if par:
+                    adv = par[1] if par[0] == meu else par[0]
+                    mando = "neutro" if cp.get("neutro") else ("casa" if par[0] == meu else "fora")
+                out.setdefault(("liga", cp["semanas_grupos"][r]), []).append(_jogo_cal(
+                    G, chave, nome, "%s, rodada %d" % (nome_g, r + 1), adv, mando))
+            for k in range(cp["fase"], len(cp["semanas"])):
+                fases = cp.get("fases")
+                fase = fases[k] if fases and k < len(fases) else "Mata-mata"
+                out.setdefault(("liga", cp["semanas"][k]), []).append(_jogo_cal(
+                    G, chave, nome, fase + " (se classificar)"))
+            continue
+        for k in range(cp["fase"], len(cp["semanas"])):
+            fases = cp.get("fases")
+            if fases and k < len(fases):
+                fase = fases[k]
+            else:
+                fase = eng.nome_fase(max(2, len(cp["vivos"]) >> (k - cp["fase"])))
+            adv = mando = None
+            if k == cp["fase"]:
+                if meu not in cp["vivos"]:
+                    continue        # de folga, esperando o playoff acabar
+                par = next((p for p in eng.sorteio_da_copa(G, chave) if meu in p), None)
+                if par:
+                    adv = par[1] if par[0] == meu else par[0]
+                    # a mesma regra que a semana joga (final em ida e volta nao e neutra)
+                    _final, unico, neutro = eng.formato_da_fase(cp)
+                    if not unico:
+                        mando = "ida_volta"
+                    elif neutro:
+                        mando = "neutro"
+                    else:
+                        mando = "casa" if par[0] == meu else "fora"
+            out.setdefault(("liga", cp["semanas"][k]), []).append(_jogo_cal(G, chave, nome, fase, adv, mando))
+    return out
+
+
+def _copas_jogadas(G, meu, ano):
+    """{('liga'|'estadual', semana): [jogo]} das copas que o clube ja jogou no ano.
+
+    Sai das proprias copas (refeitas a cada temporada): resultados de cada
+    rodada de grupo e o historico de cada fase do mata-mata. Nao do placar_hist,
+    que e do tecnico - depois de trocar de clube, ele traz jogos do time antigo."""
+    out = {}
+    for chave, cp in G["copas"].items():
+        nome = cp["nome"]
+        g = eng.grupo_de(cp, meu)
+        if g:
+            nome_g = eng.FASE_LIGA if cp.get("formato") == "suico" else g["nome"]
+            for r, placares in enumerate(g.get("resultados") or []):
+                jogo = next((p for p in placares if meu in p[:2]), None)
+                if not jogo or r >= len(cp.get("semanas_grupos") or []):
+                    continue
+                casa, fora, gc, gf = jogo
+                mando = "neutro" if cp.get("neutro") else ("casa" if casa == meu else "fora")
+                out.setdefault(("liga", cp["semanas_grupos"][r]), []).append(_jogo_cal(
+                    G, chave, nome, "%s, rodada %d" % (nome_g, r + 1), fora if casa == meu else casa,
+                    mando, (gc, gf) if casa == meu else (gf, gc)))
+        for h in cp.get("historico") or []:
+            if h.get("temporada", ano) != ano:
+                continue
+            j = next((j for j in h.get("jogos") or [] if meu in (j["a"], j["b"])), None)
+            if not j:
+                continue
+            sem = int(h.get("semana") or 0)
+            if sem:
+                onde = ("liga", sem)
+            elif cp.get("semanas_est"):
+                onde = ("estadual", cp["semanas_est"][0])
+            else:
+                continue
+            sou_a = j["a"] == meu
+            adv = j["b"] if sou_a else j["a"]
+            pernas = [("ida", j.get("ida"), sou_a), ("volta", j.get("volta"), not sou_a)]
+            for perna, gols, em_casa in pernas:
+                if not gols:
+                    continue
+                if j.get("volta") is None:
+                    detalhe = h["fase"]
+                    mando = "neutro" if cp.get("neutro") or h["fase"] == "FINAL" else (
+                        "casa" if em_casa else "fora")
+                else:
+                    detalhe = "%s, %s" % (h["fase"], perna)
+                    mando = "casa" if em_casa else "fora"
+                out.setdefault(onde, []).append(_jogo_cal(
+                    G, chave, nome, detalhe, adv, mando,
+                    tuple(gols) if sou_a else (gols[1], gols[0])))
+    return out
+
+
+def calendario():
+    G = SESSAO.exigir()
+    meu = G["clube"]
+    c = G["clubes"][meu]
+    fase = G["fase"]
+    ano = int(G.get("temporada", 0))
+    futuras = _copas_futuras(G, meu)
+
+    jogadas = _copas_jogadas(G, meu, ano)
+
+    blocos = []
+    est = eng.meu_estadual(G)
+    total_est = eng.rodadas_estaduais(G)
+    if est and total_est:
+        do_est = _semanas_do_estadual(G, est, meu)
+        atual_est = int(G.get("semana_est") or 0) if fase == "estadual" else None
+        linhas = []
+        for w in range(1, total_est + 1):
+            passada = fase == "liga" or (atual_est is not None and w < atual_est)
+            jogos = list(do_est.get(w, []))
+            jogos += jogadas.get(("estadual", w), []) if passada else futuras.get(("estadual", w), [])
+            linhas.append({"numero": w, "rotulo": "Semana E%d" % w, "atual": w == atual_est,
+                           "passada": passada, "janela": "aberta", "fifa": False,
+                           "jogos": jogos})
+        blocos.append({"id": "estadual", "titulo": est["nome"],
+                       "subtitulo": "pre-temporada, mercado aberto o tempo todo",
+                       "semanas": linhas})
+
+    liga = G["ligas"].get(c["divisao"])
+    nome_liga = eng.nome_competicao(G, "liga")
+    atual_liga = G["semana"] if fase == "liga" else None
+    linhas = []
+    for w in range(1, eng.SEMANAS_LIGA + 1):
+        passada = atual_liga is not None and w < atual_liga
+        jogos = []
+        if liga and w - 1 < len(liga["rodadas"]):
+            par = next((p for p in liga["rodadas"][w - 1] if meu in p), None)
+            if par:
+                casa, fora = par
+                placar = None
+                res = liga.get("resultados") or []
+                if passada and w - 1 < len(res):
+                    r = next((r for r in res[w - 1] if meu in r[:2]), None)
+                    if r:
+                        placar = (r[2], r[3]) if r[0] == meu else (r[3], r[2])
+                jogos.append(_jogo_cal(G, "liga", nome_liga, "rodada %d" % w,
+                                       fora if casa == meu else casa,
+                                       "casa" if casa == meu else "fora", placar))
+        jogos += jogadas.get(("liga", w), []) if passada else futuras.get(("liga", w), [])
+        linhas.append({"numero": w, "rotulo": "Semana %d" % w, "atual": w == atual_liga,
+                       "passada": passada, "janela": _janela_da_semana(w),
+                       "fifa": w in eng.DATAS_FIFA, "jogos": jogos})
+    blocos.append({"id": "liga", "titulo": nome_liga,
+                   "subtitulo": "%d semanas" % eng.SEMANAS_LIGA,
+                   "semanas": linhas})
+
+    # resumo: onde estou, a janela e o proximo jogo
+    if eng.temporada_encerrada(G):
+        agora = "Temporada %d encerrada" % ano
+    elif fase == "entretemporada":
+        agora = "Pre-temporada %d" % ano
+    elif fase == "estadual":
+        agora = "%s, semana E%d" % (est["nome"] if est else "Estadual", G.get("semana_est", 1))
+    else:
+        agora = "%s, semana %d" % (nome_liga, G["semana"])
+
+    aberta = eng.mercado_aberto(G)
+    # fim da primeira janela, lido do motor (sem numero fixo): semanas seguidas desde a 1
+    fim = 1
+    while fim + 1 in eng.JANELAS:
+        fim += 1
+    if fase in ("entretemporada", "estadual"):
+        janela = "Aberta na pre-temporada e ate a semana %d da liga" % fim
+    elif aberta:
+        fim = G["semana"]
+        while fim + 1 in eng.JANELAS:
+            fim += 1
+        faltam = fim - G["semana"]
+        janela = "Aberta ate a semana %d (%s)" % (
+            fim, "ultima semana" if faltam == 0 else "fecha em %d semana%s" % (faltam, "s" if faltam > 1 else ""))
+    else:
+        prox = next((w for w in sorted(eng.JANELAS) if w > G["semana"]), None)
+        if prox and not eng.temporada_encerrada(G):
+            falta = prox - G["semana"]
+            janela = "Fechada . abre na semana %d (em %d semana%s)" % (prox, falta, "s" if falta > 1 else "")
+        else:
+            janela = "Fechada ate a pre-temporada"
+
+    proximo = None
+    for b in blocos:
+        for s in b["semanas"]:
+            if s["passada"]:
+                continue
+            j = next((j for j in s["jogos"] if j["placar"] is None), None)
+            if j:
+                adv = j["adversario"] or "adversario a definir"
+                mando = {"casa": " (casa)", "fora": " (fora)", "neutro": " (campo neutro)"}.get(j["mando"], "")
+                proximo = "%s . %s . %s%s" % (s["rotulo"], j["competicao"], adv, mando)
+                break
+        if proximo:
+            break
+
+    return {"cabecalho": cabecalho(G), "titulo": "Calendario",
+            "subtitulo": "a temporada %d do %s, semana a semana" % (ano, c["nome"]),
+            "resumo": {"agora": agora, "janela": janela, "janela_aberta": aberta,
+                       "proximo": proximo},
+            "blocos": blocos}
 
 
 # -------------------------------------------------------------------- escudo
@@ -2255,6 +2579,8 @@ def ajuda():
     telas = {
         "painel": "O veredito da semana: se o time tem condicao de entrar em campo, a ultima "
                   "partida (com notas e lances) e o proximo adversario.",
+        "calendario": "A temporada do seu clube semana a semana: jogos (com placar depois de "
+                      "jogados), quando a janela abre e fecha e as datas FIFA.",
         "elenco": "Todos os seus jogadores. Marque varios para vender, renovar ou emprestar de uma vez.",
         "base": "Os garotos da academia. Nao jogam ate subir ao profissional; ao passar da idade, "
                 "sobem ou sao liberados.",

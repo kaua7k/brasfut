@@ -8,13 +8,16 @@ janela tkinter. Aqui mora o que precisa do mundo: quantas semanas cada opcao
 cobre agora, o relato de cada semana e o motivo de parar antes.
 
 Paradas que valem sempre, qualquer que seja o ritmo: fim do estadual, fim da
-temporada, carreira encerrada e demissao (a escolha do clube novo trava o jogo).
+temporada, carreira encerrada, demissao (a escolha do clube novo trava o jogo)
+e a abertura da janela de transferencias - esta era opcional, e desmarcada o
+Simular parava calado e seguia janela adentro no clique seguinte.
 """
 
 import brasfut as eng
 
-PARADAS_PADRAO = {"lesao": True, "janela": True, "proposta": False, "quebrado": True,
-                  "emprego": True}
+PARADAS_PADRAO = {"lesao": True, "proposta": False, "quebrado": True, "emprego": True}
+
+MOTIVO_JANELA = "a janela de transferencias abriu"
 
 
 def _semanas_ate_mudar_janela(G):
@@ -156,10 +159,11 @@ def motivo_de_parar(G, antes, paradas, encerrada, pendencia):
         return "a temporada acabou"
     if antes["fase"] == "estadual" and G["fase"] != "estadual":
         return "o estadual acabou"
+    # a janela abrir para sempre, marcada ou nao (navegador antigo ainda manda "janela")
+    if eng.mercado_aberto(G) and not antes["janela"]:
+        return MOTIVO_JANELA
     p = dict(PARADAS_PADRAO, **(paradas or {}))
     c = G["clubes"][G["clube"]]
-    if p["janela"] and eng.mercado_aberto(G) and not antes["janela"]:
-        return "a janela de transferencias abriu"
     if p["proposta"] and len(eng.propostas_recebidas(G)) > antes["propostas"]:
         return "chegou proposta por um jogador seu"
     novas = [o for o in eng.propostas_emprego(G) if o["id"] not in antes.get("empregos", set())]

@@ -26,6 +26,41 @@ tocar no mapa.
 Rodar os testes antes de considerar algo pronto:
 `cd testes && python -m unittest -v` (unittest da stdlib, sem pip, ~2 min).
 
+## Arquitetura em poucas linhas
+
+Um motor só (`brasfut.py`, Python stdlib pura, sem pip) atende três
+interfaces: terminal (`python brasfut.py`), janela tkinter
+(`brasfut_app.py`) e web. Na web, `server.py` (`http.server`, só em
+127.0.0.1:8770, porta via `BRASFUT_PORTA`) serve `web/dist` e a API
+`api/` (`rotas.py` URL→função, `sessao.py` guarda o `G` em memória sob um
+`RLock` e salva, `dto.py` traduz `G` para cada tela). A versão celular
+(`npm run build:pages`) roda o mesmo motor no navegador via Pyodide num Web
+Worker, com o save no IndexedDB — por isso o motor não pode ganhar
+dependência fora da stdlib. Detalhes: `ARQUITETURA-WEB.md`.
+
+## Comandos
+
+- Jogar na web: `python server.py` (`--sem-abrir` para não abrir o
+  navegador). Exige `web/dist` compilado.
+- Front em desenvolvimento: `cd web && npm run dev` (Vite no 5173, faz proxy
+  de `/api` para o `server.py` no 8770 — suba os dois).
+- Build do front: `cd web && npm run build` (`tsc -b && vite build`).
+  **`web/dist` é versionado**: depois de mexer em `web/src`, rode o build e
+  commite `web/dist` junto (o CI avisa se ficou velho).
+- Build da versão celular/GitHub Pages: `cd web && npm run build:pages`
+  (gera `web/dist-pages`, ignorado pelo git).
+- Um arquivo de teste: `cd testes && python -m unittest -v test_mercado_regras`;
+  um caso só: `python -m unittest test_mercado_regras.Classe.test_x`.
+- Harness lentos (fora da suite e do CI): `testes/balanceamento.py` (rodar
+  quando a mudança altera resultado de partida, tática, força, IA) e
+  `testes/desempenho.py` (quando a mudança altera tempo).
+- Executável Windows: `build-windows.bat` (PyInstaller, gera `dist/BRASFUT.exe`).
+
+Testes importam `testes/apoio.py` **antes** de `api`: ele aponta o motor para
+uma cópia do save em `testes/_tmp`. O `brasfut_save.json` da raiz é o save
+real do jogador — nunca escreva nele nem o apague (nem o `.lock`, a menos que
+o servidor esteja comprovadamente parado).
+
 ## Git e PRs
 
 - Um branch por tema, a partir da `main` atualizada: `tipo/assunto`

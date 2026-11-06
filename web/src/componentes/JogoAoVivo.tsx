@@ -1,9 +1,11 @@
 // O jogo do meu clube, ao vivo, como no Brasfoot: o botao "Jogar" abre esta
-// tela e o relogio corre. Na liga o motor joga o primeiro tempo antes da
-// semana e para aos 45': o relogio vai de 0 a 45 mostrando os lances, o
-// intervalo pede as decisoes (mentalidade e trocas), o servidor termina a
-// partida e a semana, e o relogio segue de 46 ao apito com o resultado de
-// verdade. Copa e estadual (sem intervalo no motor) correm do inicio ao fim.
+// tela e o relogio corre. Em todo jogo meu (liga, copa, estadual) o motor joga
+// o primeiro tempo antes da semana e para aos 45': o relogio vai de 0 a 45
+// mostrando os lances, o intervalo pede as decisoes (mentalidade e trocas), o
+// servidor termina a partida e o relogio segue de 46 ao apito com o resultado
+// de verdade. Semana com outro jogo meu: o "Proximo jogo da semana" abre o
+// intervalo dele, e so depois do ultimo a semana anda. Com o intervalo
+// desligado, os jogos correm do inicio ao fim (modo 'inteiro').
 //
 // O que aparece e sempre o que o motor ja decidiu ate aquele minuto: o segundo
 // tempo nao existe enquanto o tecnico nao decide o intervalo.
@@ -124,7 +126,8 @@ export function JogoAoVivo({ modo, ocupado, aoSegundoTempo, aoTerminar }: Props)
   const segundoTempo = async (tatica: string, trocas: [number, number][], desligar: boolean) => {
     const r = await aoSegundoTempo(tatica, trocas, desligar)
     if (!r) return
-    const meu = (r.partidas ?? []).find((x) => x.times[0] === times[0] && x.times[1] === times[1])
+    // r.partida: ainda ha jogo meu na semana (o intervalo dele vem em r.intervalo)
+    const meu = r.partida ?? (r.partidas ?? []).find((x) => x.times[0] === times[0] && x.times[1] === times[1])
     if (!meu) {
       aoTerminar(r)
       return
@@ -263,6 +266,10 @@ export function JogoAoVivo({ modo, ocupado, aoSegundoTempo, aoTerminar }: Props)
               </button>
               {indice + 1 < fila.length ? (
                 <button type="button" className="bt-acao" onClick={proximo}>
+                  Proximo jogo da semana
+                </button>
+              ) : final?.r.intervalo ? (
+                <button type="button" className="bt-acao" onClick={() => aoTerminar(final.r)}>
                   Proximo jogo da semana
                 </button>
               ) : (

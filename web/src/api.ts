@@ -41,6 +41,7 @@ import type {
   SlotSave,
   DadosEscudo,
   TelaBase,
+  TelaCalendario,
   TelaElenco,
   TelaEscalacao,
   TelaEstadio,
@@ -159,6 +160,7 @@ export const api = {
     pedir<{ recado: string; tela: TelaFinancas }>('/api/patrocinio/assinar-equilibradas', {}),
   infra: () => pedir<{ tela: TelaInfra }>('/api/infra'),
   noticias: () => pedir<{ tela: TelaNoticias }>('/api/noticias'),
+  calendario: () => pedir<{ tela: TelaCalendario }>('/api/calendario'),
   carreira: () => pedir<{ tela: TelaCarreira }>('/api/carreira'),
   clube: (id?: number) =>
     id === undefined
