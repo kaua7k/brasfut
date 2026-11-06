@@ -380,7 +380,8 @@ export interface OpcaoAvanco {
   nota: string
 }
 
-export type Paradas = Record<'lesao' | 'janela' | 'proposta' | 'quebrado' | 'emprego', boolean>
+// a janela abrir nao e opcional: para sempre (avanco.MOTIVO_JANELA)
+export type Paradas = Record<'lesao' | 'proposta' | 'quebrado' | 'emprego', boolean>
 
 export interface LinhaRelato {
   texto: string
@@ -419,14 +420,19 @@ export interface RespostaAvanco {
   /** as partidas desta semana (dto.partida), para o resumo no fim do Simular */
   partidas?: Partida[]
   parar?: string
+  /** a janela de transferencias abriu nesta semana: o Simular fecha e avisa */
+  janela_abriu?: boolean
   opcoes?: OpcaoAvanco[]
   cabecalho?: Cabecalho
   /** veio na virada do ano: a tela abre o resumo antes de qualquer outra coisa */
   resumo?: ResumoTemporada
   /** modo caos: os plantoes da semana */
   plantao?: EventoCaos[]
-  /** o meu jogo de liga parou no intervalo: a tela decide antes do segundo tempo */
+  /** um jogo meu parou no intervalo: a tela decide antes do segundo tempo */
   intervalo?: Intervalo
+  /** semana com outro jogo meu: o placar final do que acabou de terminar (o
+   *  intervalo do proximo vem junto, e a semana ainda nao andou) */
+  partida?: Partida
 }
 
 export interface Intervalo {
@@ -800,6 +806,36 @@ export interface TelaInfra {
   titulo: string
   subtitulo: string
   itens: ItemInfra[]
+}
+
+/** Um jogo do meu clube no calendario. placar e [meus gols, gols dele], so depois de jogado. */
+export interface JogoCalendario {
+  comp: string
+  competicao: string
+  detalhe: string
+  adversario_id: number | null
+  adversario: string | null
+  mando: 'casa' | 'fora' | 'neutro' | 'ida_volta' | null
+  placar: [number, number] | null
+  resultado: 'v' | 'e' | 'd' | null
+}
+
+export interface SemanaCalendario {
+  numero: number
+  rotulo: string
+  atual: boolean
+  passada: boolean
+  janela: 'abre' | 'aberta' | 'fecha' | null
+  fifa: boolean
+  jogos: JogoCalendario[]
+}
+
+export interface TelaCalendario {
+  cabecalho: Cabecalho
+  titulo: string
+  subtitulo: string
+  resumo: { agora: string; janela: string; janela_aberta: boolean; proximo: string | null }
+  blocos: { id: string; titulo: string; subtitulo: string; semanas: SemanaCalendario[] }[]
 }
 
 export interface TelaNoticias {

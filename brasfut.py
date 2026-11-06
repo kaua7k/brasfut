@@ -316,6 +316,11 @@ CUSTO_TATICA = {
     "Pressao total":   (13, 26, 1.40),
 }
 
+# Desgaste por posicao, por cima do da tatica: goleiro corre 5-6 km por jogo
+# contra 10-12 da linha e quase nao da pique. Era 1.0 para todos e o goleiro,
+# que joga os 90 de todo jogo, terminava a pior condicao do time (2026-11-06).
+FADIGA_POSICAO = {"GOL": 0.35, "ZAG": 1.0, "LAT": 1.0, "VOL": 1.0, "MEI": 1.0, "ATA": 1.0}
+
 # zagueiro e volante levam mais cartao que atacante; goleiro quase nunca
 # Lesao em jogo: chance por jogador a cada 90 minutos, antes de medico, regime
 # de treino e fisico. Era 0.026 com lesoes de ate 13 semanas; jogador reclamou
@@ -324,6 +329,18 @@ CUSTO_TATICA = {
 RISCO_LESAO_JOGO = 0.015
 SEMANAS_LESAO = [1, 1, 1, 1, 2, 2, 3, 4, 6, 9]   # sorteio; +1 semana na hora
 RISCO_CARTAO = {"GOL": 0.25, "ZAG": 1.25, "LAT": 1.10, "VOL": 1.45, "MEI": 0.95, "ATA": 0.80}
+# Chance de cartao por jogador a cada 90 minutos, antes de posicao, tatica,
+# intensidade e arbitro. Eram 0.214 e 0.013 (~5,4 amarelos e ~0,64 vermelho por
+# jogo, quase todo jogo entre 3 e 8 cartoes); o jogador pediu menos e mais
+# variado (2026-11-06): ~4 amarelos, ~0,3 vermelho.
+TAXA_AMARELO = 0.19
+TAXA_VERMELHO_DIRETO = 0.005
+# Rigor do arbitro: um por partida, vale para os dois times e multiplica as
+# duas taxas. Gama de media 1 (forma RIGOR_ARBITRO_FORMA) com teto: tem juiz
+# que deixa o jogo correr - jogo sem cartao passa a existir - e juiz que
+# apita tudo, sem passar de RIGOR_ARBITRO_MAX.
+RIGOR_ARBITRO_FORMA = 3.0
+RIGOR_ARBITRO_MAX = 1.5
 ATT_W = {"GOL": 0.00, "ZAG": 0.06, "LAT": 0.22, "VOL": 0.28, "MEI": 0.85, "ATA": 1.00}
 DEF_W = {"GOL": 1.10, "ZAG": 1.00, "LAT": 0.72, "VOL": 0.68, "MEI": 0.22, "ATA": 0.05}
 GOL_W = {"GOL": 0.0, "ZAG": 6, "LAT": 5, "VOL": 8, "MEI": 26, "ATA": 55}
@@ -3106,6 +3123,7 @@ def _fadigar(G, esc, minutos, dono, efeitos):
     for pid in esc:
         j = G["jogadores"][pid]
         gasto = (rng.uniform(fad_min, fad_max) + efeitos["fadiga"]) * (minutos / 90.0)
+        gasto *= FADIGA_POSICAO.get(j["pos"], 1.0)
         # inteiro: condicao e um numero que o jogador LE na tabela, e 53.9903
         # nao e leitura, e vazamento de conta interna
         j["cond"] = int(round(clamp(j["cond"] - gasto, 5, 100)))
@@ -3114,12 +3132,78 @@ def _fadigar(G, esc, minutos, dono, efeitos):
 # Intervalo interativo: a API joga o primeiro tempo do meu jogo antes da
 # semana, para no intervalo e, com as decisoes do tecnico, termina a partida.
 # O resultado fica aqui (memoria do processo, nunca no save) e o simular da
-# semana devolve ele quando chegar a vez desse jogo.
-PARTIDA_PRONTA: Dict[str, Any] = {}
+# semana devolve ele quando chegar a vez desse jogo. Uma entrada por jogo,
+# com a chave (casa, fora, comp, semana_absoluta): a semana pode ter mais de
+# um jogo meu (liga e copa, ida e volta do mata-mata) e todos param.
+PARTIDA_PRONTA: Dict[Tuple[int, int, str, int], Dict[str, Any]] = {}
 
 
 def intervalo_ligado(G: Mundo) -> bool:
     return G.get("intervalo_interativo", True) is not False
+
+
+def _meus_jogos_mata(G: Mundo, chave: str, cid: int) -> List[Dict[str, Any]]:
+    """Os jogos do meu clube na fase de mata-mata desta semana, com o mando e
+    o campo que jogar_fase_copa vai usar: jogo unico (neutro na final) ou ida
+    na casa de a e volta na casa de b."""
+    cp = G["copas"][chave]
+    if len(cp["vivos"]) < 2:
+        return []
+    par = next((tuple(p) for p in sorteio_da_copa(G, chave) if cid in p), None)
+    if not par:
+        return []
+    a, b = par
+    final = len(cp["vivos"]) == 2 and not cp.get("final_ida_volta") and not cp.get("espera")
+    if final or cp.get("jogo_unico"):
+        return [{"comp": chave, "casa": a, "fora": b, "neutro": final or bool(cp.get("neutro")),
+                 "perna": None}]
+    return [{"comp": chave, "casa": a, "fora": b, "neutro": False, "perna": "ida"},
+            {"comp": chave, "casa": b, "fora": a, "neutro": False, "perna": "volta"}]
+
+
+def meus_jogos_ao_vivo(G: Mundo) -> List[Dict[str, Any]]:
+    """Cada jogo do meu clube nesta semana, na ordem em que a semana joga e
+    com o mesmo mando e campo que o motor vai usar: {comp, casa, fora, neutro,
+    perna}. E a fila do intervalo interativo - liga, copa e estadual.
+
+    Fica de fora a Intercontinental: o campeao europeu entra no chaveamento so
+    na hora do jogo (entrar_campeao_europeu), entao o confronto ainda nao existe."""
+    cid = G.get("clube")
+    if cid is None:
+        return []
+    out: List[Dict[str, Any]] = []
+    if G.get("fase") == "estadual":
+        for _comp, casa, fora in jogos_estaduais_da_semana(G, cid):
+            out.append({"comp": "estadual", "casa": casa, "fora": fora, "neutro": False, "perna": None})
+        rodada = int(G.get("semana_est", 1))
+        for chave, cp in G["copas"].items():
+            if copa_do_estadual_na_semana(cp, rodada):
+                out.extend(_meus_jogos_mata(G, chave, cid))
+        return out
+    if G.get("fase") != "liga" or temporada_encerrada(G):
+        return []
+    sem = G["semana"]
+    c = G["clubes"][cid]
+    if sem <= SEMANAS_LIGA and c["divisao"] in G["ligas"]:
+        liga = G["ligas"][c["divisao"]]
+        if liga["rodada"] < len(liga["rodadas"]):
+            for casa, fora in liga["rodadas"][liga["rodada"]]:
+                if cid in (casa, fora):
+                    out.append({"comp": "liga", "casa": casa, "fora": fora, "neutro": False, "perna": None})
+    for chave, cp in G["copas"].items():
+        if cp["campeao"] or cp.get("intercontinental"):
+            continue
+        if em_grupos(cp):
+            if cp["semanas_grupos"][cp["rodada_grupo"]] == sem:
+                jogo = jogo_de_grupo(cp, cid)
+                if jogo:
+                    out.append({"comp": chave, "casa": jogo[0], "fora": jogo[1],
+                                "neutro": bool(cp.get("neutro")), "perna": None})
+            continue
+        if ((cp["fase"] < len(cp["semanas"]) and cp["semanas"][cp["fase"]] == sem)
+                or (cp.get("semanas_est") and cp["fase"] < len(cp["semanas_est"]))):
+            out.extend(_meus_jogos_mata(G, chave, cid))
+    return out
 
 
 def meu_jogo_de_liga(G: Mundo) -> Optional[Tuple[int, int]]:
@@ -3134,10 +3218,9 @@ def meu_jogo_de_liga(G: Mundo) -> Optional[Tuple[int, int]]:
 def simular(G, casa_id, fora_id, comp="liga", neutro=False):
     """A partida inteira, sem pausa. O jogo que o tecnico ja jogou no intervalo
     interativo volta pronto."""
-    if PARTIDA_PRONTA.get("chave") == (casa_id, fora_id, comp, semana_absoluta(G)):
-        r = PARTIDA_PRONTA["r"]
-        PARTIDA_PRONTA.clear()
-        return r
+    pronta = PARTIDA_PRONTA.pop((casa_id, fora_id, comp, semana_absoluta(G)), None)
+    if pronta is not None:
+        return pronta
     g = partida(G, casa_id, fora_id, comp, neutro)
     try:
         next(g)
@@ -3216,6 +3299,7 @@ def partida(G, casa_id, fora_id, comp="liga", neutro=False, pausar_lado=None):
     instrucoes = []
     amarelados: set = set()          # amarelo neste jogo: o segundo e vermelho
     expulsos: List[Tuple[int, int, int, int]] = []
+    rigor = min(RIGOR_ARBITRO_MAX, rng.gammavariate(RIGOR_ARBITRO_FORMA, 1.0 / RIGOR_ARBITRO_FORMA))
     try:
         for ini, fim, minutos in ((1, 45, 45), (46, 70, 25), (71, 92, 20)):
             if ini > 1:
@@ -3293,13 +3377,13 @@ def partida(G, casa_id, fora_id, comp="liga", neutro=False, pausar_lado=None):
                 jogaram = jogaram_c if lado == 0 else jogaram_f
                 banco = banco_c if lado == 0 else banco_f
                 _, _, mult_cartao = CUSTO_TATICA.get(dono["tatica"], (9, 20, 1.0))
-                mult_cartao *= ef["cartao"]
+                mult_cartao *= ef["cartao"] * rigor
                 for pid in list(esc):
                     j = G["jogadores"][pid]
                     peso = RISCO_CARTAO[vagas.get(pid, j["pos"])] * mult_cartao * (minutos / 90.0)
                     if rng.random() < 0.55 * peso:
                         stats["faltas"][lado] += 1
-                    if rng.random() < 0.214 * peso:
+                    if rng.random() < TAXA_AMARELO * peso:
                         j["ca"] += 1
                         notas[pid] = notas.get(pid, 6.0) - 0.25
                         minuto_cartao = rng.randint(ini, fim)
@@ -3321,7 +3405,7 @@ def partida(G, casa_id, fora_id, comp="liga", neutro=False, pausar_lado=None):
                             j["amar"][comp] = 0
                             j["susp"][comp] = j["susp"].get(comp, 0) + 1
                             sincronizar_suspensao(j)
-                    if rng.random() < 0.013 * peso:
+                    if rng.random() < TAXA_VERMELHO_DIRETO * peso:
                         j["cv"] += 1
                         j["susp"][comp] = j["susp"].get(comp, 0) + 1 + rng.randint(0, 2)
                         sincronizar_suspensao(j)
@@ -3463,7 +3547,7 @@ def partida(G, casa_id, fora_id, comp="liga", neutro=False, pausar_lado=None):
         pagar_bicho(G, vencedor, list(jogaram_v))
     eventos.sort(key=lambda e: e[0])
     return {"casa": casa_id, "fora": fora_id, "gc": gc, "gf": gf,
-            "pub": pub, "renda": renda, "eventos": eventos, "comp": comp,
+            "pub": pub, "renda": renda, "eventos": eventos, "comp": comp, "rigor": round(rigor, 2),
             "stats": stats, "notas": notas, "subs": subs, "instrucoes": instrucoes,
             "xi": {"casa": jogaram_c, "fora": jogaram_f}}
 
@@ -10284,10 +10368,27 @@ def placares_da_temporada(G: Mundo, temporada: Optional[int] = None) -> List[Lis
     return [p for p in G.get("placar_hist", []) if int(p[0]) == alvo]
 
 
+# historico_meus, ultimos_meus e placar_hist sao do TECNICO: guardam os jogos do
+# clube que ele dirigia quando a semana rodou. Depois de assumir_clube, o que a
+# tela chama de "meu clube" e o novo - quem le esses registros para mostrar o
+# clube passa pelos filtros abaixo (que olham o id do clube no registro).
+
+def historico_do_clube(G: Mundo) -> List[Dict[str, Any]]:
+    """As partidas guardadas (historico_meus) do clube atual, da mais antiga a mais nova."""
+    cid = G.get("clube")
+    return [reg for reg in G.get("historico_meus", []) if cid in (reg.get("casa"), reg.get("fora"))]
+
+
 def forma_recente(G: Mundo, quantos: int = 5) -> List[Tuple[str, str]]:
-    """Ultimos resultados como [(V|E|D, texto)], do mais antigo ao mais novo."""
+    """Ultimos resultados do clube atual como [(V|E|D, texto)], do mais antigo ao
+    mais novo. Sai do historico_meus (que guarda o id do clube) e nao do
+    placar_hist (que nao guarda): trocou de clube, a forma recomeca."""
     out = []
-    for temp, _sem, comp, adv, gm, gs, casa in G.get("placar_hist", [])[-quantos:]:
+    cid = G.get("clube")
+    for reg in historico_do_clube(G)[-quantos:]:
+        casa = reg["casa"] == cid
+        gm, gs = (reg["gc"], reg["gf"]) if casa else (reg["gf"], reg["gc"])
+        adv = reg["fora"] if casa else reg["casa"]
         letra = "V" if gm > gs else ("E" if gm == gs else "D")
         nome = G["clubes"][adv]["nome"] if adv in G["clubes"] else "adversario"
         onde = "em casa" if casa else "fora"
@@ -10297,8 +10398,10 @@ def forma_recente(G: Mundo, quantos: int = 5) -> List[Tuple[str, str]]:
 
 
 def resultados_da_semana(G: Mundo) -> List[Dict[str, Any]]:
-    """O que o meu clube jogou na ultima semana processada."""
-    return list(G.get("ultimos_meus") or [])
+    """O que o clube atual jogou na ultima semana processada (nada, se a semana
+    foi jogada pelo clube anterior)."""
+    cid = G.get("clube")
+    return [r for r in G.get("ultimos_meus") or [] if cid in (r.get("casa"), r.get("fora"))]
 
 
 HISTORICO_PARTIDAS = 10     # ultimas partidas do meu clube guardadas no save

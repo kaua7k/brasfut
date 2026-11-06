@@ -483,7 +483,7 @@ export function Escalacao({ tela, ocupado, mercadoPronto, aoAbrirFicha, aoAgir, 
                 disabled={ocupado}
                 onChange={(e) => aoAgir({ tipo: 'intervalo', ligado: e.target.checked })}
               />
-              Parar no intervalo dos meus jogos de liga para mexer no time
+              Parar no intervalo dos meus jogos (liga, copas e estadual) para mexer no time
             </label>
           </div>
         </div>

@@ -120,6 +120,17 @@ vaga aberta, e só entra se melhorar o time naquele estado — nos últimos 20 m
 descansada compensa um pouco de qualidade. Medido: ter banco vale **+0,55 ponto por jogo**
 contra jogar só com os 11.
 
+**Cartões e o árbitro.** Cada jogador tem a sua chance de cartão, maior para volante e
+zagueiro, quase nenhuma para goleiro, e maior quanto mais agressiva a mentalidade (Pressão
+total ×1,40) e a intensidade (Intenso ×1,12). Por cima disso, cada partida tem um **árbitro
+mais ou menos rigoroso**, sorteado para o jogo e igual para os dois times: tem jogo que
+corre sem cartão nenhum e jogo que chove amarelo. Na média dá uns 4 amarelos e 0,3
+vermelho por jogo; dois amarelos no mesmo jogo viram vermelho.
+
+**Desgaste.** A mentalidade define quanto o time cansa (Retranca poupa, Pressão total
+esgota). O goleiro gasta só um terço do que gasta a linha: ele joga os 90 minutos de
+todo jogo, mas corre bem menos, então não precisa de rodízio como os jogadores de linha.
+
 **A tela da partida.** Avançar uma semana abre o jogo: o placar grande, as estatísticas
 lado a lado em barras, o minuto a minuto (gols com assistência, cartões, lesões,
 substituições) e a **nota de cada jogador** do seu time, com o melhor em campo destacado.
@@ -168,11 +179,16 @@ Durante a temporada o botão principal é o do jogo:
   chegar proposta de emprego, ou o estadual ou a temporada acabarem.
 - Com jogo na semana o botão vira **Jogar · x Adversário** (ou "em Adversário" fora de
   casa): a partida passa **ao vivo**, com relógio, placar e lances no minuto em que
-  acontecem (velocidade 1x, 2x ou 4x, que o jogo lembra). No jogo de liga ela para no
+  acontecem (velocidade 1x, 2x ou 4x, que o jogo lembra). Todo jogo seu — liga, copa
+  (grupos e mata-mata, final em campo neutro inclusive) e estadual — para no
   **intervalo**: troque a mentalidade do segundo tempo e faça substituições (toque em quem
   sai e depois em quem entra, até 5 no jogo); **Começar o 2º tempo** joga o resto da
-  partida e o segundo tempo também corre ao vivo. Copa e estadual correm do início ao fim.
-  No apito, as estatísticas e as notas; **Continuar** volta ao Painel com a semana jogada.
+  partida e o segundo tempo também corre ao vivo. Semana com mais de um jogo seu (liga e
+  copa, ou ida e volta do mata-mata): no apito, **Próximo jogo da semana** abre o
+  intervalo do seguinte, e a semana só anda depois do último. Pênaltis são decididos no
+  fim, sem disputa interativa. A Copa Intercontinental corre inteira (o adversário só
+  existe na hora do jogo). No apito do último, as estatísticas e as notas; **Continuar**
+  volta ao Painel com a semana jogada.
 - **Avançar semana**, ao lado, joga a semana sem assistir, para quem quer ir rápido.
 
 Se você escolheu a mentalidade no intervalo, a instrução condicional dos 46' não passa por
@@ -205,7 +221,9 @@ cartões; as condições de parar ficam logo abaixo. O relato mostra cada semana
 resultado, placar com o mandante primeiro, seu time em destaque e a competição. No
 mata-mata, o jogo que decide diz o que aconteceu: "Classificado nos pênaltis · agregado
 3 x 3", "Eliminado · agregado 1 x 2", "Campeão". Lesão e proposta nova aparecem na semana
-em que aconteceram, e no fim vem o resumo da última partida.
+em que aconteceram, e no fim vem o resumo da última partida. A **janela de transferências
+abrir sempre para a simulação**, em qualquer ritmo (não é uma condição opcional): o Simular
+fecha e o Painel avisa que a janela abriu, para você ir ao mercado antes de seguir.
 
 **Renovar vários.** Marque os jogadores no Elenco (ou use "Renovar os N" no Painel) e uma
 janela só mostra o que cada um pede para renovar, num prazo único para todos (5 anos por

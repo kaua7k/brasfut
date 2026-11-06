@@ -42,7 +42,8 @@ Atas de decisão de roadmap: `docs/three-amigos/`.
 | `api/avanco.py` | — | Avançar em ritmos (jogo/semana/mês/janela/temporada) | Botão *Avançar*/*Simular* |
 | `api/campo.py` | — | Vaga (GOL, ZAG...) → ponto no campo, para as formações | Desenho do campo na Escalação |
 | `api/navegador.py` | — | Modo navegador (versão do celular): `pedido(metodo, caminho, corpo_json)` para o Web Worker do Pyodide, sobre o mesmo `rotas.despachar`; `iniciar(pasta)` aponta o save para o IndexedDB; `medir(N)` = carreira de teste fora do save (`test_navegador.py`) | Versão do celular, medição de desempenho no navegador |
-| `web/src/telas/*.tsx` | 16 arquivos | Uma tela por arquivo (Painel, Elenco, Escalação, Mercado, Financas, Clube, Estatísticas, etc.) | Ao mexer numa tela específica |
+| `web/src/telas/*.tsx` | 17 arquivos | Uma tela por arquivo (Painel, Elenco, Escalação, Mercado, Financas, Clube, Estatísticas, etc.) | Ao mexer numa tela específica |
+| `web/src/telas/Calendario.tsx` + `estilo/telas-calendario.css` | — | A temporada do meu clube semana a semana (`GET /api/calendario`, `dto.calendario`): estadual e 38 semanas da liga, jogos com placar depois de jogados, copas vivas (adversário quando já saiu do grupo/sorteio), janela abre/aberta/fecha e datas FIFA. Só lê o motor (`test_calendario.py`) | Ao mexer no calendário |
 | `web/src/componentes/*.tsx` | 25 arquivos (`Ajuda.tsx`: ajuda e boas-vindas; `Partida.tsx`: resumo e detalhe da partida; `AoVivo.tsx`: a partida lance a lance, relógio e lances no minuto; `JogoAoVivo.tsx`: o Jogar ao vivo (1º tempo, intervalo, 2º tempo); `Intervalo.tsx`: as decisões do intervalo (mentalidade e trocas); `DialogoRenovar.tsx`: renovação em lote; `Celulas.tsx`: selo de posição, selo de overall e barra de físico das listas; `Resumo.tsx`: resumo da temporada; `Escudo.tsx`: escudo SVG de cada clube pelo nome, com o mapa de `/api/escudos`; `Plantao.tsx`: boletim do modo caos) | Diálogos e peças reusáveis (Mesa, Grade, Campo, Ficha...) | Componente compartilhado entre telas |
 | `web/src/api.ts`, `tipos.ts`, `formato.ts` | — | Cliente HTTP, tipos TS espelhando os DTOs, formatação (dinheiro, número) | Contrato front↔back |
 | `web/src/motor/` (`worker.ts`, `cliente.ts`, `protocolo.ts`), `web/src/modo.ts`, `web/pages/` (`montar.mjs`, `sw.js`, `icones/`), `.github/workflows/pages.yml` | — | **Versão do celular**: motor no navegador (Pyodide num Web Worker, save no IndexedDB), PWA offline e publicação no GitHub Pages. `npm run build:pages` gera `web/dist-pages` (não versionado). Detalhes e números em `ARQUITETURA-WEB.md`, seção *Versão do celular* | Mexer no modo navegador, na PWA ou no deploy do Pages |
@@ -126,7 +127,11 @@ decisões em `docs/three-amigos/2026-09-25-onda-2-decisoes.md`):
   (`pausar_lado`), `simular` roda sem pausa; a API joga o 1º tempo antes da
   semana (`/api/avancar` com `intervalo`), `/api/partida/segundo-tempo` termina
   e guarda o resultado em `PARTIDA_PRONTA` (memória, nunca no save)
-  (`test_intervalo.py`, `componentes/Intervalo.tsx`).
+  (`test_intervalo.py`, `componentes/Intervalo.tsx`). Desde 2026-11-06 vale
+  para todo jogo meu (liga, copa, estadual): `meus_jogos_ao_vivo` monta a fila
+  da semana com o mando/campo que o motor usa, `PARTIDA_PRONTA` guarda um jogo
+  por chave `(casa, fora, comp, semana_abs)` e o segundo tempo devolve o
+  intervalo do próximo (`SESSAO.fila_ao_vivo`, `test_intervalo_todos.py`).
 - ~~IA com identidade tática e rebalanceamento~~ — feito: `ESTILOS` por clube
   (`estilo_de`, escola do país), `tatica_do_jogo` ajusta um degrau pela força,
   `TATICAS` recalibradas (`test_estilos.py`).

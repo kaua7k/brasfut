@@ -1,0 +1,169 @@
+/* Calendario: grade de meses (4 semanas por mes, como o motor conta), um
+ * quadrado por semana.
+ *
+ * So var(--...) do :root de base.css. Azul = acao/agora e janela que abre,
+ * verde = janela aberta e vitoria, ambar = janela que fecha, vermelho =
+ * derrota, roxo = data FIFA. A barra no alto do quadrado e a janela. */
+
+.cal-resumo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--pad-meio);
+}
+.cal-resumo-valor { margin-top: var(--pad-mini); font-size: var(--fs-m); color: var(--txt); }
+.cal-resumo-valor.cal-aberta { color: var(--ok); }
+
+/* legenda das cores */
+.cal-legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--pad-mini) var(--pad);
+  font-size: var(--fs-p);
+  color: var(--txt-3);
+}
+.cal-legenda span { display: inline-flex; align-items: center; gap: var(--pad-mini); }
+.cal-cor {
+  display: inline-block;
+  width: 1.4em;
+  height: 0.55em;
+  border-radius: var(--raio-p);
+  background: var(--neutro);
+}
+.cal-cor.janela-abre { background: var(--acao-linha); }
+.cal-cor.janela-aberta { background: var(--ok); }
+.cal-cor.janela-fecha { background: var(--atencao); }
+.cal-cor-fifa { background: var(--titular); }
+.cal-cor-atual { background: var(--acao); }
+
+/* bloco (estadual / liga) e meses */
+.cal-bloco-cab {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--pad-meio);
+  margin-bottom: var(--pad-meio);
+}
+.cal-bloco-titulo { margin: 0; font-family: var(--titulo); font-size: var(--fs-g); color: var(--txt); }
+.cal-bloco-sub { font-size: var(--fs-p); color: var(--fraco); }
+
+.cal-mes { margin-bottom: var(--pad); }
+.cal-mes-titulo {
+  font-size: var(--fs-mini);
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--txt-2);
+  padding-bottom: var(--pad-mini);
+  margin-bottom: var(--pad-meio);
+  border-bottom: 1px solid var(--borda-media);
+}
+.cal-mes-faixa { color: var(--fraco); font-weight: 400; letter-spacing: 0.04em; }
+
+.cal-grade {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--pad-meio);
+}
+
+/* o quadrado da semana: borda forte e barra de janela no alto */
+.cal-semana {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pad-mini);
+  min-height: 9rem;
+  padding: var(--pad-meio);
+  background: var(--painel-alto);
+  border: 1px solid var(--borda-controle);
+  border-top: 4px solid var(--borda-media);
+  border-radius: var(--raio-m);
+  scroll-margin-top: var(--pad);
+}
+.cal-semana.passada { background: var(--painel); border-color: var(--borda-media); }
+.cal-semana.passada .cal-rotulo { color: var(--txt-3); }
+.cal-semana.janela-abre { border-top-color: var(--acao-linha); }
+.cal-semana.janela-aberta { border-top-color: var(--ok); }
+.cal-semana.janela-fecha { border-top-color: var(--atencao); }
+.cal-semana.atual {
+  border: 2px solid var(--acao-linha);
+  border-top-width: 4px;
+  background: var(--acao-apagado);
+  box-shadow: 0 0 0 3px var(--acao-leve);
+}
+.cal-semana.atual.janela-aberta { border-top-color: var(--ok); }
+.cal-semana.atual.janela-fecha { border-top-color: var(--atencao); }
+
+.cal-cab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pad-mini);
+  padding-bottom: var(--pad-mini);
+  border-bottom: 1px solid var(--borda-media);
+}
+.cal-rotulo { font-family: var(--titulo); font-size: var(--fs-base); font-weight: 700; color: var(--txt); }
+
+.cal-selos { display: flex; flex-wrap: wrap; gap: var(--pad-mini); }
+.cal-selo {
+  font-size: var(--fs-mini);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 1px var(--pad-mini);
+  border-radius: var(--raio-p);
+  border: 1px solid var(--borda-media);
+  color: var(--fraco);
+  white-space: nowrap;
+}
+.cal-selo-atual { color: var(--acao-txt); background: var(--acao); border-color: var(--acao); }
+.cal-janela-abre { color: var(--acao-linha); border-color: var(--acao-linha); }
+.cal-janela-aberta { color: var(--ok); border-color: var(--ok-fundo); }
+.cal-janela-fecha { color: var(--atencao); border-color: var(--atencao-borda); background: var(--atencao-brilho); }
+.cal-fifa { color: var(--titular); border-color: var(--titular); background: var(--titular-fundo); }
+
+/* jogos dentro do quadrado */
+.cal-jogos { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--pad-meio); }
+.cal-jogo { display: grid; gap: 2px; min-width: 0; }
+.cal-jogo + .cal-jogo { padding-top: var(--pad-mini); border-top: 1px dashed var(--borda-media); }
+.cal-comp {
+  font-size: var(--fs-p);
+  color: var(--txt-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cal-detalhe { color: var(--fraco); }
+.cal-linha-adv { display: flex; align-items: baseline; justify-content: space-between; gap: var(--pad-mini); min-width: 0; }
+.cal-adv {
+  font-size: var(--fs-m);
+  font-weight: 700;
+  color: var(--txt);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cal-indef { color: var(--fraco); font-weight: 400; font-style: italic; }
+.cal-mando { font-size: var(--fs-p); color: var(--fraco); white-space: nowrap; }
+.cal-folga { font-size: var(--fs-p); color: var(--apagado); margin: auto 0; text-align: center; }
+
+.cal-placar {
+  font-family: var(--titulo);
+  font-weight: 700;
+  font-size: var(--fs-m);
+  padding: 0 var(--pad-mini);
+  border-radius: var(--raio-p);
+  white-space: nowrap;
+}
+.cal-v { color: var(--ok); background: var(--ok-brilho); }
+.cal-e { color: var(--txt-2); background: var(--chip); }
+.cal-d { color: var(--critico); background: var(--critico-brilho); }
+
+@media (max-width: 900px) {
+  .cal-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 420px) {
+  .cal-grade { grid-template-columns: minmax(0, 1fr); }
+  .cal-semana { min-height: 0; }
+}

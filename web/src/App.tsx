@@ -32,6 +32,7 @@ import { Financas } from './telas/Financas'
 import { Infra } from './telas/Infra'
 import { Mercado, type AcaoMercado } from './telas/Mercado'
 import { Noticias } from './telas/Noticias'
+import { Calendario } from './telas/Calendario'
 import { Carreira } from './telas/Carreira'
 import { Clube } from './telas/Clube'
 import { Estatisticas } from './telas/Estatisticas'
@@ -70,6 +71,7 @@ import type {
   TelaInfra,
   TelaMercado,
   TelaNoticias,
+  TelaCalendario,
   TelaTabela,
   TelaTreino,
   TipoMesa,
@@ -85,6 +87,7 @@ type Conteudo =
   | { tipo: 'financas'; dados: TelaFinancas }
   | { tipo: 'infra'; dados: TelaInfra }
   | { tipo: 'noticias'; dados: TelaNoticias }
+  | { tipo: 'calendario'; dados: TelaCalendario }
   | { tipo: 'carreira'; dados: TelaCarreira }
   | { tipo: 'clube'; dados: TelaClube }
   | { tipo: 'estatisticas'; dados: TelaEstatisticas }
@@ -108,6 +111,8 @@ export function App() {
   const [slots, setSlots] = useState<SlotSave[]>([])
   const [plantao, setPlantao] = useState<EventoCaos[]>([])
   const [jogo, setJogo] = useState<ModoJogo | null>(null)
+  // muda a cada jogo da semana: a tela do jogo ao vivo recomeca do zero no proximo
+  const [jogoN, setJogoN] = useState(0)
   const [config, setConfig] = useState<Config | null>(null)
   // modo navegador: a primeira abertura espera o Python subir no aparelho
   const [etapaMotor, setEtapaMotor] = useState('')
@@ -203,6 +208,9 @@ export function App() {
               break
             case 'noticias':
               setConteudo({ tipo: 'noticias', dados: (await api.noticias()).tela })
+              break
+            case 'calendario':
+              setConteudo({ tipo: 'calendario', dados: (await api.calendario()).tela })
               break
             case 'estatisticas':
               setConteudo({ tipo: 'estatisticas', dados: (await api.estatisticas(alvo)).tela })
@@ -381,6 +389,7 @@ export function App() {
     else if (r.painel?.cabecalho.fase === 'encerrada')
       setRecado(`A temporada acabou. ${r.painel.cabecalho.acao} vira o ano e mostra o resumo.`)
     else if (r.fim_do_estadual) setRecado('O estadual acabou. Comeca a Serie A.')
+    else if (r.janela_abriu) setRecado('A janela de transferencias abriu. Semana processada e salva.')
     else setRecado('Semana processada e salva.')
   }
 
@@ -426,8 +435,8 @@ export function App() {
       }
     })
 
-  // "Jogar": o jogo da semana ao vivo. Liga para no intervalo; copa e
-  // estadual correm inteiros. Sem jogo meu na semana, vira um avanco comum
+  // "Jogar": os jogos da semana ao vivo, cada um parando no intervalo (liga,
+  // copa e estadual). Sem jogo meu na semana, vira um avanco comum
   const jogar = (confirmar = false) =>
     comErro(async () => {
       setOcupado(true)
@@ -926,6 +935,7 @@ export function App() {
           <Infra tela={conteudo.dados} ocupado={ocupado} aoInvestir={investir} />
         )}
         {conteudo.tipo === 'noticias' && <Noticias tela={conteudo.dados} />}
+        {conteudo.tipo === 'calendario' && <Calendario tela={conteudo.dados} />}
         {conteudo.tipo === 'estatisticas' && (
           <Estatisticas tela={conteudo.dados} aoAbrirFicha={abrirFicha}
           aoTrocar={(alvo) => irPara('estatisticas', alvo)} />
@@ -997,7 +1007,7 @@ export function App() {
             setSimulando(false)
             irPara('escalacao')
           }}
-          aoFechar={(houve, p, eventos) => {
+          aoFechar={(houve, p, eventos, recado) => {
             setSimulando(false)
             if (p) setPendencia(p)
             if (eventos?.length) setPlantao(eventos)
@@ -1006,6 +1016,8 @@ export function App() {
               if (conteudo.tipo === 'mercado') recarregarAtual()
               else irPara(conteudo.tipo)
             }
+            // depois do irPara, que limpa o recado ao trocar de tela
+            if (recado) setRecado(recado)
           }}
         />
       )}
@@ -1115,7 +1127,16 @@ export function App() {
           modo={jogo}
           ocupado={ocupado}
           aoSegundoTempo={segundoTempo}
-          aoTerminar={(r) => tratarAvanco(r)}
+          key={jogoN}
+          aoTerminar={(r) => {
+            // outro jogo meu na semana: a tela recomeca no intervalo dele
+            if (r.intervalo) {
+              setJogo({ tipo: 'intervalo', dados: r.intervalo })
+              setJogoN((n) => n + 1)
+              return
+            }
+            tratarAvanco(r)
+          }}
         />
       )}
 

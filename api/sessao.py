@@ -59,6 +59,8 @@ class Sessao(object):
         # jogo parado no intervalo interativo (gerador do motor); so na memoria
         self.intervalo = None
         self.ultimo_corpo_intervalo = None
+        # os outros jogos meus da semana, esperando a vez do intervalo deles
+        self.fila_ao_vivo = []
         # tres saves lado a lado: o slot 1 e o brasfut_save.json de sempre (o
         # save antigo continua abrindo), 2 e 3 ganham _2 e _3 no nome
         self._save_base = None
@@ -213,6 +215,7 @@ class Sessao(object):
         eng.trocar_de_clube = self._demitido
         self.G = G
         self.intervalo = None
+        self.fila_ao_vivo = []
         self.pendencia = G.get("pendencia_web")
         self.invalidar()
         self.esquecer_desfazer()
