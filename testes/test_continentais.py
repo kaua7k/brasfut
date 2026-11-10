@@ -84,8 +84,11 @@ class TestSaveAntigo(unittest.TestCase):
         hash_antes = apoio.hash_do_save_real()
         apoio.abrir_copia_do_save()
         G = apoio.SESSAO.G
-        nomes = {c["nome"] for c in G["clubes"].values() if c["divisao"] == "EX"}
-        self.assertTrue({d[0] for d in eng.CLUBES_LIB + eng.CLUBES_SUL} <= nomes)
+        # em qualquer divisao de fora: desde as ligas do continente eles moram na
+        # liga do pais (so entre os "EX" era o bug dos clubes-fantasma), e sem repetir
+        de_fora = [c["nome"] for c in G["clubes"].values() if c["divisao"] not in eng.DIVISOES_BR]
+        self.assertTrue({d[0] for d in eng.CLUBES_LIB + eng.CLUBES_SUL} <= set(de_fora))
+        self.assertEqual(len(de_fora), len(set(de_fora)), "clube de fora duplicado")
         ids = [p for c in G["clubes"].values() for p in c["elenco"]]
         self.assertEqual(len(ids), len(set(ids)), "jogador em dois elencos")
         self.assertEqual(apoio.hash_do_save_real(), hash_antes)

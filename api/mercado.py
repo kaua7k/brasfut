@@ -29,14 +29,18 @@ def _limpo(txt):
 # ======================================================================= tela
 def _filtros(f):
     """Filtros vindos da tela, ja saneados: numero vira numero ou some."""
+    if not isinstance(f, dict):
+        f = {}
+
     def inteiro(chave):
         try:
             v = int(f.get(chave) or 0)
         except (TypeError, ValueError):
             return None
         return v or None
-    pos = f.get("pos") if f.get("pos") in eng.POS else None
-    regiao = f.get("regiao") if f.get("regiao") in REGIOES else None
+    # so texto: lista ou objeto no lugar do codigo quebrava a busca no dicionario
+    pos = f.get("pos") if isinstance(f.get("pos"), str) and f.get("pos") in eng.POS else None
+    regiao = f.get("regiao") if isinstance(f.get("regiao"), str) and f.get("regiao") in REGIOES else None
     return {"pos": pos, "ovr": inteiro("ovr"), "idade": inteiro("idade"),
             "teto": inteiro("teto"), "idade_min": inteiro("idade_min"),
             "pot_min": inteiro("pot_min"), "regiao": regiao, "so_venda": bool(f.get("so_venda"))}
@@ -351,7 +355,7 @@ def mesa(tipo, pid, proposta=None):
     j = G["jogadores"].get(int(pid))
     if j is None:
         raise KeyError("jogador %s nao existe" % pid)
-    p = proposta or {}
+    p = proposta if isinstance(proposta, dict) else {}
     anos = int(eng.clamp(_inteiro(p.get("anos"), 3) or 3, 1, 5))
     m = _mesa_estado(tipo, j["id"])
     # quem ja e do clube nao volta a mesa de compra: a nao ser a mesa que
@@ -518,6 +522,8 @@ def propor(tipo, pid, p):
     j = G["jogadores"].get(int(pid))
     if j is None:
         raise KeyError("jogador %s nao existe" % pid)
+    if not isinstance(p, dict):
+        p = {}
     m = _mesa_estado(tipo, j["id"])
     if m["encerrada"]:
         raise ValueError("Essa mesa ja fechou nesta semana. Tente de novo na proxima.")
@@ -666,7 +672,7 @@ def linhas_renovacao(ids, anos):
     """
     G = SESSAO.exigir()
     c = G["clubes"][G["clube"]]
-    anos = int(eng.clamp(int(anos or ANOS_RENOVACAO_LOTE), 1, 5))
+    anos = int(eng.clamp(_inteiro(anos, ANOS_RENOVACAO_LOTE) or ANOS_RENOVACAO_LOTE, 1, 5))
     linhas, soma = [], 0
     for pid in ids:
         j = G["jogadores"].get(pid)
@@ -692,7 +698,7 @@ def renovar_lote(ids, anos):
     """Fecha a renovacao de todos os validos pelo que pediram, no mesmo prazo."""
     G = SESSAO.exigir()
     c = G["clubes"][G["clube"]]
-    anos = int(eng.clamp(int(anos or ANOS_RENOVACAO_LOTE), 1, 5))
+    anos = int(eng.clamp(_inteiro(anos, ANOS_RENOVACAO_LOTE) or ANOS_RENOVACAO_LOTE, 1, 5))
     feitos, pulados = [], []
     for pid in ids:
         j = G["jogadores"].get(pid)

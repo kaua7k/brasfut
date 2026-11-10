@@ -60,6 +60,14 @@ export function Estadio({ tela, ocupado, aoAgir }: Props) {
     <div className="tela">
       <CabecalhoTela titulo={tela.titulo} sub={tela.subtitulo} metricas={tela.metricas} />
 
+      {tela.interdicao && (
+        <div className="estadio-interdicao" role="status">
+          <strong>Estadio interditado.</strong> {tela.interdicao.fechados} dos {tela.interdicao.total} lugares estao
+          fechados{tela.interdicao.semanas > 0 ? ` por mais ${plural(tela.interdicao.semanas, 'semana')}` : ''}. Eles
+          voltam sozinhos, e uma obra feita agora soma ao estadio inteiro.
+        </div>
+      )}
+
       {ocupacao > 0 && (
         <section className="painel estadio-lotacao" aria-label="Lotacao tipica">
           <div className="estadio-lotacao-cab">
@@ -71,7 +79,7 @@ export function Estadio({ tela, ocupado, aoAgir }: Props) {
           </div>
           <div className="estadio-lotacao-nota">
             {torcida.toLocaleString('pt-BR')} pessoas em {lugaresTotal.toLocaleString('pt-BR')} lugares
-            {ocupacao < 60 ? ': lugar sobrando so custa manutencao' : ocupacao >= 95 ? ': casa cheia, da para subir o ingresso ou ampliar' : ''}
+            {ocupacao < 60 ? ': lugar sobrando so custa manutencao' : ocupacao >= 95 && !tela.interdicao ? ': casa cheia, da para subir o ingresso ou ampliar' : ''}
           </div>
         </section>
       )}

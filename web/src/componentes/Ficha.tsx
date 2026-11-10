@@ -4,6 +4,7 @@
 // caractere. Aqui os mesmos julgamentos do motor vem em campos, entao a barra
 // e barra de verdade e o numero fica legivel de relance.
 
+import { useFocoInicial } from '../foco'
 import { seloCapitao, seloPos } from './Celulas'
 import type { FichaJogador } from '../tipos'
 
@@ -27,6 +28,7 @@ function faixaOvr(ovr: number) {
 }
 
 export function Ficha({ ficha, aoFechar, acoes }: Props) {
+  const caixa = useFocoInicial()
   return (
     <div
       className="fundo-modal"
@@ -34,8 +36,9 @@ export function Ficha({ ficha, aoFechar, acoes }: Props) {
       aria-modal="true"
       aria-label={`Ficha de ${ficha.nome}`}
       onClick={aoFechar}
+      onKeyDown={(e) => e.key === 'Escape' && aoFechar()}
     >
-      <div className="modal modal-ficha" onClick={(e) => e.stopPropagation()}>
+      <div className="modal modal-ficha" ref={caixa} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
         <div className="ficha-topo">
           <div className={`ficha-ovr ${faixaOvr(ficha.ovr)}`}>
             {ficha.ovr}

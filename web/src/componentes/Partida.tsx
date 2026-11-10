@@ -9,6 +9,7 @@
 // chamada a API.
 
 import { useState } from 'react'
+import { useFocoInicial } from '../foco'
 import { iconeDeEstado } from '../icones'
 import { AoVivo } from './AoVivo'
 import { Escudo } from './Escudo'
@@ -220,6 +221,7 @@ function TabelaNotas({ titulo, linhas }: { titulo: string; linhas: LinhaNota[] }
 
 export function DetalhePartida({ p, aoFechar }: { p: Partida; aoFechar: () => void }) {
   const d = p.detalhes
+  const caixa = useFocoInicial()
   return (
     <div
       className="fundo-modal"
@@ -233,7 +235,7 @@ export function DetalhePartida({ p, aoFechar }: { p: Partida; aoFechar: () => vo
         if (e.key === 'Escape') aoFechar()
       }}
     >
-      <div className="modal modal-largo" onClick={(e) => e.stopPropagation()}>
+      <div className="modal modal-largo" ref={caixa} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
         <div className="detalhe-placar">
           <div className={`detalhe-time${p.eu === 0 ? ' eu' : ''}`}>
             <Escudo nome={p.times[0]} tamanho={48} />

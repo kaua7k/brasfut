@@ -81,7 +81,7 @@ class TestSaveAntigoGanhaEuropa(unittest.TestCase):
         hash_antes = apoio.hash_do_save_real()
         apoio.abrir_copia_do_save()
         G = apoio.SESSAO.G
-        self.assertEqual(len(eng.ligas_ext(G)), 9)
+        self.assertGreaterEqual(len(eng.ligas_ext(G)), 9)     # as 9 da Europa; depois vieram as do continente
         self.assertNotIn("ligas_ext", G)
         arsenal = next(c for c in G["clubes"].values() if c["nome"] == "Arsenal")
         self.assertEqual(arsenal["divisao"], "ENG")

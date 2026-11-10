@@ -55,26 +55,26 @@ def cabecalho(G):
     # renovar quem venceu) e o ano em andamento
     if eng.temporada_encerrada(G):
         fase = "encerrada"
-        quando = "Temporada %d encerrada . a virada acontece quando voce mandar" % G["temporada"]
+        quando = "Temporada %d encerrada · a virada acontece quando voce mandar" % G["temporada"]
         acao = "Comecar o ano %d" % (G["temporada"] + 1)
     elif G["fase"] == "entretemporada":
-        quando = "Pre-temporada %d . mercado aberto, o ano comeca pelo estadual" % G["temporada"]
+        quando = "Pre-temporada %d · mercado aberto, o ano comeca pelo estadual" % G["temporada"]
         acao = "Comecar o estadual"
     elif G["fase"] == "estadual":
         est = eng.meu_estadual(G)
-        quando = "%s . %s . semana %d de %d" % (est["nome"] if est else "Estadual",
+        quando = "%s · %s · semana %d de %d" % (est["nome"] if est else "Estadual",
                                                 eng.etapa_estadual(est) if est else "sem jogo",
                                                 int(G.get("semana_est", 1)),
                                                 eng.rodadas_estaduais(G))
         acao = "Avancar rodada"
     else:
-        quando = "Temporada %d . semana %d de %d" % (G["temporada"], G["semana"],
+        quando = "Temporada %d · semana %d de %d" % (G["temporada"], G["semana"],
                                                      eng.SEMANAS_LIGA)
         acao = "Avancar semana"
     return {
         "clube": c["nome"],
         "divisao": c["divisao"],
-        "subtitulo": "%s . %s" % (eng.nome_da_liga(G, c["divisao"]), quando),
+        "subtitulo": "%s · %s" % (eng.nome_da_liga(G, c["divisao"]), quando),
         "fase": fase,
         "acao": acao,
         "chips": [
@@ -192,10 +192,10 @@ def _proximo(G, d):
             cadv = G["clubes"][adv]
             if comp == "estadual":
                 est = eng.meu_estadual(G)
-                legenda = "%s . %s" % (_corta(est["nome"], 22) if est else "Estadual",
+                legenda = "%s · %s" % (_corta(est["nome"], 22) if est else "Estadual",
                                        eng.etapa_estadual(est).lower() if est else "")
             else:
-                legenda = "%s . rodada %d" % (eng.nome_da_liga(G, c["divisao"]),
+                legenda = "%s · rodada %d" % (eng.nome_da_liga(G, c["divisao"]),
                                                     G["ligas"][c["divisao"]]["rodada"] + 1)
             base.update(tipo="jogo", adversario=eng.nome_clube(G, cadv["id"]), legenda=legenda,
                         em_casa=(casa == G["clube"]),
@@ -213,7 +213,7 @@ def _proximo(G, d):
         cadv = G["clubes"][adv]
         g = eng.grupo_de(copa, G["clube"])
         base.update(tipo="copa", adversario=eng.nome_clube(G, cadv["id"]),
-                    legenda="%s . %s, rodada %d" % (copa["nome"], g["nome"] if g else eng.FASE_GRUPOS,
+                    legenda="%s · %s, rodada %d" % (copa["nome"], g["nome"] if g else eng.FASE_GRUPOS,
                                                     copa["rodada_grupo"] + 1),
                     em_casa=casa == G["clube"], forte=cadv["reputacao"] > c["reputacao"])
         duelo(chave, cadv, casa == G["clube"])
@@ -225,7 +225,7 @@ def _proximo(G, d):
             cadv = G["clubes"][adv]
             final = len(copa["vivos"]) == 2
             base.update(tipo="copa", adversario=eng.nome_clube(G, cadv["id"]),
-                        legenda="%s . %s" % (copa["nome"], eng.fase_da_copa(copa)),
+                        legenda="%s · %s" % (copa["nome"], eng.fase_da_copa(copa)),
                         em_casa=None if final else (par[0] == G["clube"]),
                         forte=cadv["reputacao"] > c["reputacao"])
             duelo(chave, cadv, None if final else (par[0] == G["clube"]))
@@ -352,12 +352,12 @@ def _tabela(G, quantas=6):
     c = G["clubes"][G["clube"]]
     est = eng.meu_estadual(G) if G["fase"] == "estadual" else None
     liga = est or G["ligas"][c["divisao"]]
-    titulo = est["nome"] if est else "Classificacao . %s" % eng.nome_da_liga(G, c["divisao"])
+    titulo = est["nome"] if est else "Classificacao · %s" % eng.nome_da_liga(G, c["divisao"])
     g = eng.grupo_do_clube(est, c["id"]) if est else None
     if g is not None:
         # no estadual com grupos, a briga e dentro do meu grupo
         liga = eng.subtabela(est, est["grupos"][g])
-        titulo = "%s . Grupo %s" % (est["nome"], "ABCDEFGH"[g])
+        titulo = "%s · Grupo %s" % (est["nome"], "ABCDEFGH"[g])
     if liga["rodada"] <= 0 or c["id"] not in liga["times"]:
         return {"titulo": titulo, "linhas": [],
                 "vazio": "Ainda nao comecou." if liga["rodada"] <= 0
@@ -488,15 +488,15 @@ def partida(reg):
 
 
 def _nome_do_jogo(G, comp, casa, perna=None):
-    """'Libertadores . Oitavas de final, ida', 'Paulistao . Primeira fase, rodada 3'."""
+    """'Libertadores · Oitavas de final, ida', 'Paulistao · Primeira fase, rodada 3'."""
     nome = eng.nome_competicao(G, comp, G["clubes"][casa])
     if comp == "estadual":
         est = eng.meu_estadual(G)
-        return "%s . %s" % (nome, eng.etapa_estadual(est)) if est else nome
+        return "%s · %s" % (nome, eng.etapa_estadual(est)) if est else nome
     cp = G["copas"].get(comp)
     if cp:
         fase = eng.fase_da_copa(cp)
-        return "%s . %s%s" % (nome, fase, ", " + perna if perna else "")
+        return "%s · %s%s" % (nome, fase, ", " + perna if perna else "")
     return nome
 
 
@@ -1650,7 +1650,7 @@ def calendario():
         prox = next((w for w in sorted(eng.JANELAS) if w > G["semana"]), None)
         if prox and not eng.temporada_encerrada(G):
             falta = prox - G["semana"]
-            janela = "Fechada . abre na semana %d (em %d semana%s)" % (prox, falta, "s" if falta > 1 else "")
+            janela = "Fechada · abre na semana %d (em %d semana%s)" % (prox, falta, "s" if falta > 1 else "")
         else:
             janela = "Fechada ate a pre-temporada"
 
@@ -1663,7 +1663,7 @@ def calendario():
             if j:
                 adv = j["adversario"] or "adversario a definir"
                 mando = {"casa": " (casa)", "fora": " (fora)", "neutro": " (campo neutro)"}.get(j["mando"], "")
-                proximo = "%s . %s . %s%s" % (s["rotulo"], j["competicao"], adv, mando)
+                proximo = "%s · %s · %s%s" % (s["rotulo"], j["competicao"], adv, mando)
                 break
         if proximo:
             break
@@ -2318,12 +2318,18 @@ def estadio():
     obra = None
     if c["obra_semanas"]:
         obra = {"lugares": milhar(c["obra_lugares"]), "semanas": c["obra_semanas"]}
+    # modo caos: parte do estadio fechada por um plantao, por algumas semanas
+    interdicao = eng.interdicao_de(G, c)
+    if interdicao:
+        interdicao = {"fechados": milhar(interdicao["fechados"]), "semanas": interdicao["semanas"],
+                      "total": milhar(c["capacidade"] + interdicao["fechados"])}
     return {
         "cabecalho": cabecalho(G),
         "titulo": "Estadio",
         "subtitulo": c["estadio"],
         "metricas": [
-            {"valor": milhar(c["capacidade"]), "nome": "lugares"},
+            {"valor": milhar(c["capacidade"]), "nome": "lugares em uso" if interdicao else "lugares",
+             "estado": "critico" if interdicao else None},
             {"valor": "R$ %d" % c["preco"], "nome": "ingresso"},
             {"valor": "+%s" % obra["lugares"] if obra else "nenhuma", "nome": "obra",
              "estado": "atencao" if obra else None},
@@ -2332,6 +2338,7 @@ def estadio():
         "preco_min": PRECO_MIN,
         "preco_max": PRECO_MAX,
         "obra": obra,
+        "interdicao": interdicao,
         "custo_lugar": CUSTO_LUGAR,
         "lugares_min": LUGARES_MIN,
         "lugares_max": LUGARES_MAX,

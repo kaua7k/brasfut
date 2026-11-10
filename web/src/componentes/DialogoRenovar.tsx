@@ -9,6 +9,7 @@
 import { porque, AGUARDE } from '../motivo'
 import { useEffect, useState } from 'react'
 import { api, ErroDaApi } from '../api'
+import { useFocoInicial } from '../foco'
 import { plural } from '../formato'
 import type { PreviaRenovacao } from '../tipos'
 
@@ -22,6 +23,7 @@ interface Props {
 const PRAZOS = [1, 2, 3, 4, 5]
 
 export function DialogoRenovar({ ids, ocupado, aoConfirmar, aoFechar }: Props) {
+  const caixa = useFocoInicial()
   const [anos, setAnos] = useState(5)
   const [previa, setPrevia] = useState<PreviaRenovacao | null>(null)
   const [erro, setErro] = useState<string | null>(null)
@@ -43,7 +45,7 @@ export function DialogoRenovar({ ids, ocupado, aoConfirmar, aoFechar }: Props) {
       aria-label="Renovar contratos"
       onKeyDown={(e) => e.key === 'Escape' && aoFechar()}
     >
-      <div className="modal modal-largo dlg">
+      <div className="modal modal-largo dlg" ref={caixa} tabIndex={-1}>
         <header className="dlg-cab">
           <div className="dlg-textos">
             <div className="dlg-kicker">Contratos em lote</div>

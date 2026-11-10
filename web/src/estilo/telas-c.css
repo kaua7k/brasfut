@@ -200,6 +200,16 @@ body .patrocinio-cartao .bt-acao { margin: 10px 0 0; justify-content: center; wi
 
 body /* ===================================================================== ESTADIO */
 
+.estadio-interdicao {
+  padding: 12px 16px;
+  border-radius: var(--raio-m);
+  border: 1px solid var(--critico-borda);
+  background: var(--critico-brilho);
+  color: var(--txt);
+  font-size: var(--fs-m);
+  line-height: 1.5;
+}
+body .estadio-interdicao strong { color: var(--critico); }
 .estadio-lotacao { padding: 14px 18px; display: flex; flex-direction: column; gap: 8px; }
 body .estadio-lotacao-cab { display: flex; justify-content: space-between; align-items: baseline; }
 body .estadio-lotacao-cab strong { font-family: var(--titulo); font-size: var(--fs-gg); font-variant-numeric: tabular-nums; }
@@ -400,3 +410,18 @@ body /* ajuda dentro do dialogo: o corpo ja rola */
 body .dlg .ajuda-lista > div { padding-bottom: 10px; border-bottom: 1px solid var(--divisor); }
 body .dlg .ajuda-lista dt { color: var(--txt); }
 body .dlg .ajuda-lista dd { color: var(--txt-3); line-height: 1.5; }
+
+/* ============================================================ acertos de 2026-11-10 */
+/* confirmar acao perigosa: era texto rosa sobre o azul de acao comum (contraste 2,7:1) */
+body .bt-acao.bt-perigo { background: var(--critico-fundo); border: 1px solid var(--critico); color: var(--branco); }
+body .bt-acao.bt-perigo:hover:not(:disabled) { background: var(--rival); }
+/* barra de acoes das listas: com muitos botoes o resumo era esmagado em 3 linhas sob eles */
+body .painel-lista .barra-presa { flex-wrap: wrap; row-gap: 8px; }
+body .painel-lista .barra-presa .resumo { flex: 1 1 200px; }
+/* a janela que recebe o foco para o Esc nao ganha contorno */
+body .modal:focus { outline: none; }
+body .recado-app.aviso-save { background: var(--critico-brilho); }
+/* nomes longos no intervalo ganham reticencias em vez de alargar a coluna */
+body .intervalo-listas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* a tragedia do plantao tinha borda preta sobre fundo escuro: invisivel */
+body .plantao-item.tragedia { border-left-color: var(--critico-forte); }

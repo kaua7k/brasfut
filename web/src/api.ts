@@ -62,6 +62,28 @@ export class ErroDaApi extends Error {
   }
 }
 
+// O salvamento automatico do servidor falhou (disco cheio, pasta sem permissao,
+// arquivo preso por outro programa)? Toda resposta traz o motivo em
+// `save_falhou` enquanto durar; a tela escuta aqui e mantem o aviso ate o jogo
+// voltar a gravar. Antes a falha era muda e o jogador so descobria ao reabrir.
+let falhaAoSalvar: string | null = null
+const ouvintesDoSave = new Set<(motivo: string | null) => void>()
+
+export function ouvirFalhaAoSalvar(ouvinte: (motivo: string | null) => void): () => void {
+  ouvintesDoSave.add(ouvinte)
+  ouvinte(falhaAoSalvar)
+  return () => {
+    ouvintesDoSave.delete(ouvinte)
+  }
+}
+
+function anotarSave(dados: unknown) {
+  const motivo = (dados as { save_falhou?: string } | null)?.save_falhou ?? null
+  if (motivo === falhaAoSalvar) return
+  falhaAoSalvar = motivo
+  ouvintesDoSave.forEach((f) => f(motivo))
+}
+
 async function pedir<T>(caminho: string, corpo?: unknown): Promise<T> {
   if (MODO_NAVEGADOR) return pedirNoNavegador<T>(caminho, corpo)
   let resposta: Response
@@ -79,6 +101,7 @@ async function pedir<T>(caminho: string, corpo?: unknown): Promise<T> {
   if (!resposta.ok) {
     throw new ErroDaApi(dados?.erro ?? `erro ${resposta.status}`, resposta.status)
   }
+  anotarSave(dados)
   return dados as T
 }
 
@@ -93,6 +116,7 @@ async function pedirNoNavegador<T>(caminho: string, corpo?: unknown): Promise<T>
   }
   const dados = (r.corpo ?? {}) as { erro?: string }
   if (r.status < 200 || r.status >= 300) throw new ErroDaApi(dados.erro ?? `erro ${r.status}`, r.status)
+  anotarSave(dados)
   return dados as T
 }
 

@@ -170,7 +170,7 @@ def preferencia_intervalo(corpo):
     """Parar ou nao no intervalo dos meus jogos (liga, copa e estadual)."""
     with SESSAO.cadeado:
         G = SESSAO.exigir()
-        G["intervalo_interativo"] = bool(corpo.get("ligado"))
+        G["intervalo_interativo"] = _booleano(corpo, "ligado")
         eng.salvar_auto(G, forcar=True)
         return {"ligado": G["intervalo_interativo"], "tela": dto.escalacao(),
                 "recado": ("O jogo para no intervalo para voce mexer." if G["intervalo_interativo"]
@@ -202,6 +202,12 @@ def voltar_ao_menu(_corpo):
 def escolher_clube(corpo):
     if corpo.get("encerrar"):
         with SESSAO.cadeado:
+            # so quem esta escolhendo clube novo (demitido) pode parar de vez: um
+            # pedido fora de hora (aba antiga, clique repetido) acabava com a
+            # carreira no meio da temporada e gravava no save
+            if (SESSAO.pendencia or {}).get("tipo") != "novo_clube":
+                SESSAO.exigir()
+                raise ErroDeUso("Nao ha carreira para encerrar agora.")
             SESSAO.encerrar_carreira()
             SESSAO.salvar()
             return {"jogo": "pronto", "pendencia": SESSAO.pendencia,
@@ -291,6 +297,14 @@ def _abrir_intervalo(G, jogo, corpo):
     SESSAO.intervalo = {"gen": gen, "casa": casa, "fora": fora, "comp": comp, "foto": foto,
                         "corpo": dict(corpo)}
     return dto.intervalo(G, casa, fora, foto, comp, jogo.get("perna"))
+
+
+def _booleano(corpo, chave):
+    """true ou false de verdade: bool("false") e True, e a tela ligava o que pediu para desligar."""
+    v = corpo.get(chave)
+    if not isinstance(v, bool):
+        raise ErroDeUso("o campo %s precisa ser true ou false" % chave)
+    return v
 
 
 # jogos do intervalo que a semana nao usou desde que o processo subiu (ver _avancar_agora)
@@ -467,13 +481,12 @@ def opcoes_de_avanco(_corpo):
 
 @rota("POST", "/api/escalacao/auto")
 def escalacao_auto(corpo):
-    if "ligada" not in corpo:
-        raise ErroDeUso("falta o campo ligada")
+    ligada = _booleano(corpo, "ligada")
     with SESSAO.cadeado:
-        mudou = SESSAO.definir_auto(corpo["ligada"])
+        mudou = SESSAO.definir_auto(ligada)
         if mudou:
             SESSAO.esquecer_desfazer()
-            if corpo["ligada"]:
+            if ligada:
                 G = SESSAO.exigir()
                 _esquecer_vagas_manuais(G["clubes"][G["clube"]])
             eng.salvar_auto(SESSAO.exigir(), forcar=True)
@@ -486,7 +499,12 @@ def escalacao_auto(corpo):
 @rota("POST", "/api/salvar")
 def salvar(_corpo):
     with SESSAO.cadeado:
-        SESSAO.salvar()
+        try:
+            SESSAO.salvar()
+        except OSError as e:
+            # disco cheio, pasta sem permissao, arquivo preso por outro programa
+            raise ErroDeUso("Nao deu para gravar o save: %s." % e)
+        eng.FALHA_AO_SALVAR = None
         return {"ok": True}
 
 
@@ -1458,7 +1476,7 @@ def sugerir_precos(corpo):
 @rota("POST", "/api/mercado/vitrine/por")
 def por_a_venda(corpo):
     precos = corpo.get("precos") or []
-    if not precos:
+    if not isinstance(precos, list) or not precos:
         raise ErroDeUso("ninguem para por na vitrine")
     with SESSAO.cadeado:
         G = SESSAO.exigir()
@@ -1621,14 +1639,22 @@ def despachar(metodo, caminho, corpo):
     if corpo is not None and not isinstance(corpo, dict):
         return 400, {"erro": "o corpo do pedido precisa ser um objeto JSON"}
     try:
-        return 200, func(corpo or {})
+        resposta = func(corpo or {})
     except SemJogo as e:
         return 409, {"erro": str(e), "jogo": "sem_save" if not SESSAO.tem_save() else "tem_save"}
     except ErroDeUso as e:
         return 400, {"erro": str(e)}
     except Exception as e:
         traceback.print_exc()
-        return 500, {"erro": "%s: %s" % (type(e).__name__, e)}
+        # a frase e para o jogador; o tecnico vai em "detalhe" e no console
+        return 500, {"erro": "Algo deu errado no jogo. Tente de novo; se repetir, o detalhe esta "
+                             "na janela preta do servidor.",
+                     "detalhe": "%s: %s" % (type(e).__name__, e)}
+    # o salvamento automatico falhou: toda resposta leva o motivo ate dar certo
+    # de novo, e a tela mantem o aviso (antes a falha era muda)
+    if eng.FALHA_AO_SALVAR and isinstance(resposta, dict):
+        resposta = dict(resposta, save_falhou=eng.FALHA_AO_SALVAR)
+    return 200, resposta
 
 
 def json_bytes(obj):

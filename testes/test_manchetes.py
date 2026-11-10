@@ -51,6 +51,34 @@ class TestClassicos(unittest.TestCase):
         textos = self.feed_da_semana([self.jogo("Flamengo", "Fluminense", 4, 0)])
         self.assertEqual(textos, ["Fla-Flu: Flamengo 4 x 0 Fluminense (Serie A). Goleada."])
 
+    def test_goleada_na_liga_de_fora_so_para_quem_treina_la(self):
+        # treinando no Brasil, a liga inglesa nao disputa o feed; treinando la, a
+        # goleada da minha liga vira manchete (antes nunca virava)
+        G = self.G
+        ing = [c for c in G["clubes"].values() if c["divisao"] == "ENG"]
+        jogo = {"casa": ing[0]["id"], "fora": ing[1]["id"], "gc": 5, "gf": 0, "comp": "liga"}
+        self.assertEqual(self.feed_da_semana([jogo]), [])
+        meu = G["clube"]
+        G["clube"] = ing[2]["id"]
+        try:
+            textos = self.feed_da_semana([jogo])
+        finally:
+            G["clube"] = meu
+        self.assertEqual(len(textos), 1)
+        self.assertTrue(textos[0].startswith("Goleada: %s 5 x 0 %s" % (ing[0]["nome"], ing[1]["nome"])), textos)
+
+    def test_serie_c_so_para_quem_treina_la(self):
+        G = self.G
+        c = [x for x in G["clubes"].values() if x["divisao"] == "C"]
+        jogo = {"casa": c[0]["id"], "fora": c[1]["id"], "gc": 6, "gf": 0, "comp": "liga"}
+        self.assertEqual(self.feed_da_semana([jogo]), [])
+        meu = G["clube"]
+        G["clube"] = c[2]["id"]
+        try:
+            self.assertEqual(len(self.feed_da_semana([jogo])), 1)
+        finally:
+            G["clube"] = meu
+
     def test_classico_sem_apelido(self):
         textos = self.feed_da_semana([self.jogo("Vasco da Gama", "Botafogo", 0, 0)])
         self.assertEqual(textos, ["Classico: Vasco da Gama 0 x 0 Botafogo (Serie A)."])
