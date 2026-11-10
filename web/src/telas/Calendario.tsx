@@ -37,7 +37,7 @@ function Jogo({ jogo }: { jogo: JogoCalendario }) {
     <li className="cal-jogo">
       <div className="cal-comp" title={comp}>
         {jogo.competicao}
-        {jogo.detalhe && <span className="cal-detalhe"> . {jogo.detalhe}</span>}
+        {jogo.detalhe && <span className="cal-detalhe"> · {jogo.detalhe}</span>}
       </div>
       <div className="cal-linha-adv">
         <span className="cal-adv" title={jogo.adversario ?? undefined}>
@@ -133,7 +133,7 @@ export function Calendario({ tela }: { tela: TelaCalendario }) {
               <div className="cal-mes-titulo">
                 Mes {m + 1}
                 <span className="cal-mes-faixa">
-                  {' . '}
+                  {' · '}
                   {mes[0].rotulo.replace('Semana ', 'semanas ')}
                   {mes.length > 1 && `-${mes[mes.length - 1].numero}`}
                 </span>

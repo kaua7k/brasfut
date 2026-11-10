@@ -5,11 +5,11 @@
 // nunca tenta adivinhar sozinha o que mudou. Foi assim que a janela tkinter
 // manteve cinco pontos da interface dando o mesmo veredito.
 
-import { porque, AGUARDE } from './motivo'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { api, ErroDaApi } from './api'
+import { api, ErroDaApi, ouvirFalhaAoSalvar } from './api'
 import { MODO_NAVEGADOR } from './modo'
 import { BarraTopo } from './componentes/BarraTopo'
+import { Confirmacao } from './componentes/Confirmacao'
 import { DialogoAvanco } from './componentes/DialogoAvanco'
 import { DialogoCeder } from './componentes/DialogoCeder'
 import { DialogoVitrine } from './componentes/DialogoVitrine'
@@ -142,6 +142,9 @@ export function App() {
   const [mudandoAuto, setMudandoAuto] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [pergunta, setPergunta] = useState<Pergunta | null>(null)
+  // o salvamento automatico falhou no servidor: aviso fixo ate voltar a gravar
+  const [falhaAoSalvar, setFalhaAoSalvar] = useState<string | null>(null)
+  useEffect(() => ouvirFalhaAoSalvar(setFalhaAoSalvar), [])
   const [pendencia, setPendencia] = useState<Pendencia | null>(null)
   const [ficha, setFicha] = useState<FichaJogador | null>(null)
   // dialogos do mercado: mesa de negociacao, vitrine e renovacao em lote, cessao.
@@ -171,6 +174,9 @@ export function App() {
     try {
       await acao()
     } catch (e) {
+      // a pergunta aberta sai da frente: o erro aparece na faixa de recado, que
+      // fica atras do veu do dialogo ("cliquei em Confirmar e nada aconteceu")
+      setPergunta(null)
       setErro(e instanceof ErroDaApi ? e.message : String(e))
     }
   }, [])
@@ -811,8 +817,15 @@ export function App() {
           menuAberto={menuAberto}
         />
 
+        {falhaAoSalvar && (
+          <div role="alert" className="recado-app erro aviso-save">
+            <strong>O jogo nao esta sendo salvo.</strong> Confira o espaco em disco e se a pasta do jogo aceita
+            gravacao, depois use Salvar no menu. Motivo: {falhaAoSalvar}
+          </div>
+        )}
+
         {(erro || recado) && (
-          <div role="status" className={erro ? 'recado-app erro' : 'recado-app'}>
+          <div role={erro ? 'alert' : 'status'} className={erro ? 'recado-app erro' : 'recado-app'}>
             {erro ?? recado}
             {!erro && desfazer && (
               <button type="button" className="bt-fantasma bt-mini bt-desfazer" onClick={desfazer}>
@@ -1071,44 +1084,22 @@ export function App() {
       )}
 
       {pergunta && (
-        <div
-          className="fundo-modal"
-          role="dialog"
-          aria-modal="true"
-          aria-label={pergunta.confirmar.titulo}
-        >
-          <div className="modal">
-            <h2>{pergunta.confirmar.titulo}</h2>
-            <p>{pergunta.confirmar.texto}</p>
-            <div className="modal-acoes">
-              <button type="button" className="bt-fantasma" onClick={() => setPergunta(null)}>
-                Cancelar
-              </button>
-              {pergunta.destino && pergunta.destino !== conteudo.tipo && (
-                <button
-                  type="button"
-                  className="bt-fantasma"
-                  onClick={() => {
-                    const destino = pergunta.destino as string
-                    setPergunta(null)
-                    irPara(destino)
-                  }}
-                >
-                  Abrir {pergunta.destino}
-                </button>
-              )}
-              <button
-                type="button"
-                className={`bt-acao${pergunta.confirmar.perigo ? ' bt-perigo' : ''}`}
-                title={porque([[ocupado, AGUARDE]])}
-                disabled={ocupado}
-                onClick={() => pergunta.aoConfirmar()}
-              >
-                Confirmar
-              </button>
-            </div>
-          </div>
-        </div>
+        <Confirmacao
+          confirmar={pergunta.confirmar}
+          destino={
+            pergunta.destino && pergunta.destino !== conteudo.tipo
+              ? (cabecalho.menu.find((m) => m.id === pergunta.destino)?.nome ?? pergunta.destino)
+              : undefined
+          }
+          ocupado={ocupado}
+          aoCancelar={() => setPergunta(null)}
+          aoConfirmar={() => pergunta.aoConfirmar()}
+          aoAbrirDestino={() => {
+            const destino = pergunta.destino as string
+            setPergunta(null)
+            irPara(destino)
+          }}
+        />
       )}
 
       {resumo && (

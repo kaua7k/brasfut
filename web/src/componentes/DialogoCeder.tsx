@@ -8,6 +8,7 @@
 import { porque, AGUARDE } from '../motivo'
 import { useEffect, useState } from 'react'
 import { api, ErroDaApi } from '../api'
+import { useFocoInicial } from '../foco'
 import { dinheiro as reais, plural } from '../formato'
 import type { LinhaCessao } from '../tipos'
 import { Grade, type Coluna } from './Grade'
@@ -36,6 +37,7 @@ const COLUNAS: Coluna<LinhaCessao>[] = [
 ]
 
 export function DialogoCeder({ ids, ocupado, aoConfirmar, aoFechar }: Props) {
+  const caixa = useFocoInicial()
   const [linhas, setLinhas] = useState<LinhaCessao[] | null>(null)
   // a escolha e por jogador: id -> indice da linha escolhida
   const [escolha, setEscolha] = useState<Record<number, number>>({})
@@ -79,7 +81,7 @@ export function DialogoCeder({ ids, ocupado, aoConfirmar, aoFechar }: Props) {
       aria-label="Ceder por emprestimo"
       onKeyDown={(e) => e.key === 'Escape' && aoFechar()}
     >
-      <div className="modal modal-largo dlg">
+      <div className="modal modal-largo dlg" ref={caixa} tabIndex={-1}>
         <header className="dlg-cab">
           <div className="dlg-textos">
             <div className="dlg-kicker">Emprestimo</div>
@@ -128,7 +130,7 @@ export function DialogoCeder({ ids, ocupado, aoConfirmar, aoFechar }: Props) {
 
         <div className="modal-acoes">
           <button type="button" className="bt-fantasma bt-media" onClick={aoFechar}>
-            Fechar
+            Cancelar
           </button>
           <button
             type="button"

@@ -7,6 +7,7 @@
 // Tudo vem no mesmo objeto Partida do resumo, sem outra chamada a API.
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useFocoInicial } from '../foco'
 import { Escudo } from './Escudo'
 import { DetalhePartida } from './Partida'
 import type { Lado, Partida } from '../tipos'
@@ -84,6 +85,7 @@ export function AoVivo({ p, aoFechar }: { p: Partida; aoFechar: () => void }) {
   const [noIntervalo, setNoIntervalo] = useState(false)
   const [detalhe, setDetalhe] = useState(false)
   const intervaloFeito = useRef(false)
+  const caixa = useFocoInicial()
 
   const acabou = minuto >= fim
 
@@ -146,13 +148,14 @@ export function AoVivo({ p, aoFechar }: { p: Partida; aoFechar: () => void }) {
       onKeyDown={(e) => {
         e.stopPropagation()
         if (e.key === 'Escape') aoFechar()
-        if (e.key === ' ' && e.target === e.currentTarget) {
+        // espaco pausa quando o foco esta na janela (num botao, o espaco e do botao)
+        if (e.key === ' ' && (e.target === e.currentTarget || e.target === caixa.current)) {
           e.preventDefault()
           pausarOuSeguir()
         }
       }}
     >
-      <div className="modal modal-largo ao-vivo" onClick={(e) => e.stopPropagation()}>
+      <div className="modal modal-largo ao-vivo" ref={caixa} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
         <p className="tag-fraco detalhe-sub">
           {p.comp} · {p.rodada}
           {p.detalhes.publico && ` · ${p.detalhes.publico}`}

@@ -9,6 +9,7 @@
 import { porque, AGUARDE } from '../motivo'
 import { useEffect, useState } from 'react'
 import { api, ErroDaApi } from '../api'
+import { useFocoInicial } from '../foco'
 import { dinheiro as reais, plural } from '../formato'
 import type { LinhaPrecoVitrine } from '../tipos'
 import { CampoDinheiro } from './CampoDinheiro'
@@ -28,6 +29,7 @@ const PERCENTUAIS = [
 ]
 
 export function DialogoVitrine({ ids, ocupado, aoConfirmar, aoFechar }: Props) {
+  const caixa = useFocoInicial()
   const [linhas, setLinhas] = useState<LinhaPrecoVitrine[]>([])
   const [precos, setPrecos] = useState<Record<number, number>>({})
   const [fixo, setFixo] = useState(0)
@@ -64,7 +66,7 @@ export function DialogoVitrine({ ids, ocupado, aoConfirmar, aoFechar }: Props) {
       aria-label="Por a venda"
       onKeyDown={(e) => e.key === 'Escape' && aoFechar()}
     >
-      <div className="modal modal-largo dlg">
+      <div className="modal modal-largo dlg" ref={caixa} tabIndex={-1}>
         <header className="dlg-cab">
           <div className="dlg-textos">
             <div className="dlg-kicker">Vitrine em lote</div>

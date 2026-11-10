@@ -11,6 +11,7 @@
 import { porque } from '../motivo'
 import { useEffect, useRef, useState } from 'react'
 import { api, ErroDaApi } from '../api'
+import { useFocoInicial } from '../foco'
 import { plural } from '../formato'
 import { iconeDeEstado } from '../icones'
 import type { EventoCaos, OpcaoAvanco, Paradas, Partida, Pendencia, RelatoSemana } from '../tipos'
@@ -49,6 +50,7 @@ function guardar(chave: string, valor: unknown) {
 }
 
 export function DialogoAvanco({ aoFechar, aoAbrirEscalacao }: Props) {
+  const caixa = useFocoInicial()
   const [opcoes, setOpcoes] = useState<OpcaoAvanco[]>([])
   const [escolha, setEscolha] = useState<string>(() => lembrar('brasfut.avanco.escolha', 'semana'))
   const [paradas, setParadas] = useState<Paradas | null>(null)
@@ -167,7 +169,7 @@ export function DialogoAvanco({ aoFechar, aoAbrirEscalacao }: Props) {
       aria-label="Simular"
       onKeyDown={(e) => e.key === 'Escape' && fechar()}
     >
-      <div className="modal modal-largo simular dlg">
+      <div className="modal modal-largo simular dlg" ref={caixa} tabIndex={-1}>
         <header className="dlg-cab">
           <div className="dlg-textos">
             <div className="dlg-kicker">Avancar o calendario</div>
