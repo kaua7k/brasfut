@@ -362,6 +362,7 @@ def rodar_todos(G, sementes=range(6)):
             for c in G["clubes"].values():
                 if c.get("cap_original"):
                     c["capacidade"] = c.pop("cap_original")
+                    c.pop("cap_fechada", None)
             # vaquinha e greve so valem para caixa negativo
             meu = G["clubes"][G["clube"]]
             caixa = meu["dinheiro"]
@@ -589,6 +590,7 @@ class TestPlantoesDosAmigos(unittest.TestCase):
         for c in G["clubes"].values():
             if c.get("cap_original"):
                 c["capacidade"] = c.pop("cap_original")
+                c.pop("cap_fechada", None)
             c.pop("vagas_perdidas", None)
         eng.estado_caos(G)["pendentes"] = []
         # o sorteio de clube cai sempre no do jogador
@@ -727,8 +729,38 @@ class TestPlantoesDosAmigos(unittest.TestCase):
         self.assertEqual(c["capacidade"], 1000)
         pend = [p for p in eng.estado_caos(G)["pendentes"] if p["tipo"] == "estadio_volta"]
         self.assertEqual(pend[0]["quando"] - eng.semana_absoluta(G), 15)
+        self.assertEqual(eng.interdicao_de(G, c), {"fechados": cap - 1000, "semanas": 15})
+        tela = apoio.chamar("GET", "/api/estadio")["tela"]
+        self.assertEqual(tela["interdicao"]["semanas"], 15)
+        self.assertEqual(tela["metricas"][0]["nome"], "lugares em uso")
         eng.BOMBAS_CAOS["estadio_volta"](G, pend[0])
         self.assertEqual(c["capacidade"], cap)
+        self.assertIsNone(eng.interdicao_de(G, c))
+        self.assertNotIn("cap_fechada", c)
+        self.assertIsNone(apoio.chamar("GET", "/api/estadio")["tela"]["interdicao"])
+
+    def test_obra_concluida_na_interdicao_nao_se_perde(self):
+        # bug de 2026-11-10: a volta devolvia a capacidade antiga por cima da ampliacao paga
+        G, c = self.G, self.meu()
+        cap = c["capacidade"]
+        self.assertTrue(eng.ev_arqueologia(G))
+        c["capacidade"] += 5000          # a obra terminou com o estadio fechado
+        pend = [p for p in eng.estado_caos(G)["pendentes"] if p["tipo"] == "estadio_volta"]
+        eng.BOMBAS_CAOS["estadio_volta"](G, pend[0])
+        self.assertEqual(c["capacidade"], cap + 5000)
+
+    def test_save_antigo_interditado_nao_encolhe_na_volta(self):
+        # save de antes de cap_fechada: so cap_original gravado
+        G, c = self.G, self.meu()
+        cap = c["capacidade"]
+        self.assertTrue(eng.ev_arqueologia(G))
+        c.pop("cap_fechada")
+        self.assertEqual(eng.interdicao_de(G, c)["fechados"], cap - 1000)
+        c["capacidade"] = cap + 3000     # cresceu alem do original no meio do caminho
+        pend = [p for p in eng.estado_caos(G)["pendentes"] if p["tipo"] == "estadio_volta"]
+        eng.BOMBAS_CAOS["estadio_volta"](G, pend[0])
+        self.assertEqual(c["capacidade"], cap + 3000)
+        self.assertNotIn("cap_original", c)
 
     def test_revelacao_divina_zagueiro_vira_meia(self):
         G, c = self.G, self.meu()

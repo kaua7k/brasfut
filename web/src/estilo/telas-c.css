@@ -200,6 +200,16 @@ body .patrocinio-cartao .bt-acao { margin: 10px 0 0; justify-content: center; wi
 
 body /* ===================================================================== ESTADIO */
 
+.estadio-interdicao {
+  padding: 12px 16px;
+  border-radius: var(--raio-m);
+  border: 1px solid var(--critico-borda);
+  background: var(--critico-brilho);
+  color: var(--txt);
+  font-size: var(--fs-m);
+  line-height: 1.5;
+}
+body .estadio-interdicao strong { color: var(--critico); }
 .estadio-lotacao { padding: 14px 18px; display: flex; flex-direction: column; gap: 8px; }
 body .estadio-lotacao-cab { display: flex; justify-content: space-between; align-items: baseline; }
 body .estadio-lotacao-cab strong { font-family: var(--titulo); font-size: var(--fs-gg); font-variant-numeric: tabular-nums; }

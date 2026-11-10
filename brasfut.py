@@ -1146,7 +1146,13 @@ def criar_mundo(nome_tecnico):
          "objetivo": "", "log_semana": [], "artilharia_temp": {},
          "placar_hist": [], "temporada_stats": {}, "ultimos_meus": [], "historico_meus": [],
          "agendadas": [], "emp_ofertas": {"stamp": "", "itens": []},
-         "estaduais": {}, "semana_est": 0}
+         "estaduais": {}, "semana_est": 0,
+         # o que migrar() daria a um save antigo ja nasce aqui: salvar e reabrir
+         # um mundo novo nao pode muda-lo (test_ida_e_volta). Sem correcao_notas,
+         # o save reaberto pela primeira vez em 2028+ levava a correcao de
+         # inflacao por cima de um mundo saudavel.
+         "correcao_notas": 2, "semana_abs": 0, "convocacao": None,
+         "ofertas": {"stamp": "", "itens": []}}
     usados = set()
     for dados in CLUBES_A:
         novo_clube(G, dados, "A", usados)
@@ -11702,10 +11708,16 @@ def ev_heranca(G):
 
 
 def _interditar(G, c, fracao, semanas):
+    """Fecha parte do estadio por algumas semanas. Guarda quantos lugares
+    fecharam (cap_fechada): na volta eles sao somados ao que o clube tiver, e
+    uma obra concluida no meio da interdicao nao se perde (bug de 2026-11-10:
+    a volta devolvia a capacidade antiga por cima da ampliacao paga)."""
     if c.get("cap_original"):
         return False
+    nova = max(1000, int(c["capacidade"] * fracao))
     c["cap_original"] = c["capacidade"]
-    c["capacidade"] = max(1000, int(c["capacidade"] * fracao))
+    c["cap_fechada"] = c["capacidade"] - nova
+    c["capacidade"] = nova
     _agendar(G, semanas, "estadio_volta", clube=c["id"])
     return True
 
@@ -11713,8 +11725,30 @@ def _interditar(G, c, fracao, semanas):
 def ev_estadio_volta(G, p):
     c = G["clubes"].get(p["clube"])
     if c and c.get("cap_original"):
-        c["capacidade"] = c.pop("cap_original")
+        original = c.pop("cap_original")
+        fechada = c.pop("cap_fechada", None)
+        if fechada is None:
+            # save de antes de cap_fechada: devolve o original sem encolher o que ja cresceu
+            c["capacidade"] = max(int(c["capacidade"]), int(original))
+        else:
+            c["capacidade"] = int(c["capacidade"]) + int(fechada)
     return None
+
+
+def interdicao_de(G: Mundo, c: Clube) -> Optional[Dict[str, int]]:
+    """Estadio interditado por um plantao: {"fechados": lugares fora de uso,
+    "semanas": quantas faltam}. None se esta inteiro."""
+    if not c.get("cap_original"):
+        return None
+    fechados = c.get("cap_fechada")
+    if fechados is None:
+        fechados = max(0, int(c["cap_original"]) - int(c["capacidade"]))
+    agora = semana_absoluta(G)
+    semanas = 0
+    for p in (G.get("caos") or {}).get("pendentes") or []:
+        if p.get("tipo") == "estadio_volta" and p.get("clube") == c["id"]:
+            semanas = max(semanas, int(p["quando"]) - agora)
+    return {"fechados": int(fechados), "semanas": semanas}
 
 
 def ev_interdicao(G):
@@ -13145,8 +13179,77 @@ def migrar_economia_estrelas(G):
                 k["semanal"] = max(int(k["semanal"]), int(patrocinio_base(G, c, espaco) * 0.96 / 100) * 100)
 
 
+def remover_clubes_fantasma(G: Mundo) -> int:
+    """Tira os sul-americanos duplicados que a migracao antiga criava.
+
+    Ate 2026-11-10 migrar() procurava os clubes de CLUBES_LIB/CLUBES_SUL so
+    entre os "EX". Desde as ligas do continente eles moram na liga do pais,
+    entao todo save reaberto ganhava os 48 de novo: River Plate "EX" ao lado
+    do River Plate da liga argentina, com 26 jogadores cada (1.248 no total,
+    10% do save), parados para sempre e tomando vaga nas convocacoes.
+
+    Fantasma e o "EX" sul-americano com um gemeo de mesmo nome numa liga. So
+    sai quem nunca entrou em nada: fora de toda copa, sem titulo, sem jogo
+    meu contra ele e com o elenco inteiro ainda dele. Devolve quantos sairam."""
+    em_liga = {c["nome"] for c in G["clubes"].values()
+               if c["divisao"] != "EX" and c["divisao"] not in DIVISOES_BR}
+    suspeitos = [c for c in G["clubes"].values()
+                 if c["divisao"] == "EX" and not c.get("europeu") and not c.get("liga_ext")
+                 and c["nome"] in em_liga]
+    if not suspeitos:
+        return 0
+
+    def inteiros(o, achados):
+        if isinstance(o, bool):
+            return
+        if isinstance(o, int):
+            achados.add(o)
+        elif isinstance(o, dict):
+            for v in o.values():
+                inteiros(v, achados)
+        elif isinstance(o, (list, tuple)):
+            for v in o:
+                inteiros(v, achados)
+
+    # onde um id de clube pode estar guardado fora de G["clubes"]
+    citados: set = set()
+    for chave in ("copas", "copinha", "estaduais", "ligas", "propostas_emprego", "agendadas",
+                  "class_A_anterior", "carreira"):
+        inteiros(G.get(chave), citados)
+    for reg in list(G.get("historico_meus") or []) + list(G.get("ultimos_meus") or []):
+        citados.update(x for x in (reg.get("casa"), reg.get("fora")) if isinstance(x, int))
+    for linha in G.get("placar_hist") or []:
+        if len(linha) > 3 and isinstance(linha[3], int):
+            citados.add(linha[3])
+    citados.update(p.get("clube") for p in (G.get("caos") or {}).get("pendentes") or [])
+    citados.add(G.get("clube"))
+
+    fora = 0
+    removidos: set = set()
+    for c in suspeitos:
+        cid = c["id"]
+        if cid in citados or c.get("titulos") or c.get("titulos_hist") or c.get("emprestados"):
+            continue
+        ids = list(c.get("elenco", [])) + list(c.get("base_elenco", []))
+        jogs = [G["jogadores"].get(p) for p in ids]
+        if any(j is None or j.get("clube") != cid or j.get("dono") for j in jogs):
+            continue
+        for p in ids:
+            del G["jogadores"][p]
+        removidos.update(ids)
+        del G["clubes"][cid]
+        fora += 1
+    cv = G.get("convocacao")
+    if removidos and isinstance(cv, dict):
+        for nac, lista in (cv.get("listas") or {}).items():
+            cv["listas"][nac] = [p for p in lista if p not in removidos]
+    return fora
+
+
 def migrar(G):
-    ja = {c["nome"] for c in G["clubes"].values() if c["divisao"] == "EX"}
+    # em qualquer divisao de fora: os sul-americanos saem de "EX" para a liga
+    # do pais, e procurar so entre os "EX" recriava todos a cada save reaberto
+    ja = {c["nome"] for c in G["clubes"].values() if c["divisao"] not in DIVISOES_BR}
     faltam = [d for d in CLUBES_LIB + CLUBES_SUL if d[0] not in ja]
     if faltam:
         usados = {j["nome"] for j in G["jogadores"].values()}
@@ -13154,6 +13257,7 @@ def migrar(G):
         G["seq"] = max([G.get("seq", 0)] + list(G["jogadores"]))
         for dados in faltam:
             novo_clube(G, dados, "EX", usados)
+    remover_clubes_fantasma(G)
     if G.get("ligas_ext"):
         for codigo, liga in G.pop("ligas_ext").items():
             G["ligas"][codigo] = liga

@@ -1025,6 +1025,8 @@ export interface TelaEstadio {
   preco_min: number
   preco_max: number
   obra: { lugares: string; semanas: number } | null
+  /** modo caos: lugares fechados por um plantao e por quantas semanas (null = estadio inteiro) */
+  interdicao: { fechados: string; semanas: number; total: string } | null
   custo_lugar: number
   lugares_min: number
   lugares_max: number

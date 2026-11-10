@@ -2318,12 +2318,18 @@ def estadio():
     obra = None
     if c["obra_semanas"]:
         obra = {"lugares": milhar(c["obra_lugares"]), "semanas": c["obra_semanas"]}
+    # modo caos: parte do estadio fechada por um plantao, por algumas semanas
+    interdicao = eng.interdicao_de(G, c)
+    if interdicao:
+        interdicao = {"fechados": milhar(interdicao["fechados"]), "semanas": interdicao["semanas"],
+                      "total": milhar(c["capacidade"] + interdicao["fechados"])}
     return {
         "cabecalho": cabecalho(G),
         "titulo": "Estadio",
         "subtitulo": c["estadio"],
         "metricas": [
-            {"valor": milhar(c["capacidade"]), "nome": "lugares"},
+            {"valor": milhar(c["capacidade"]), "nome": "lugares em uso" if interdicao else "lugares",
+             "estado": "critico" if interdicao else None},
             {"valor": "R$ %d" % c["preco"], "nome": "ingresso"},
             {"valor": "+%s" % obra["lugares"] if obra else "nenhuma", "nome": "obra",
              "estado": "atencao" if obra else None},
@@ -2332,6 +2338,7 @@ def estadio():
         "preco_min": PRECO_MIN,
         "preco_max": PRECO_MAX,
         "obra": obra,
+        "interdicao": interdicao,
         "custo_lugar": CUSTO_LUGAR,
         "lugares_min": LUGARES_MIN,
         "lugares_max": LUGARES_MAX,
