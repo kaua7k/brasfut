@@ -96,6 +96,27 @@ class TestMobilidade(unittest.TestCase):
         self.assertEqual(tela["totais"]["clubes"], 2)
         self.assertTrue(tela["passagens"][0]["atual"])
 
+    def test_credito_fica_com_o_clube_que_tomou(self):
+        # bug de 2026-11-10: o credito seguia o tecnico e o clube novo pagava as
+        # parcelas de um dinheiro que ficou no clube antigo
+        G = self.G
+        antigo = G["clubes"][G["clube"]]
+        ok, _ = eng.tomar_credito(G, 2_000_000, 12)
+        self.assertTrue(ok)
+        saldo = G["credito"]["saldo"]
+        caixa_antigo = antigo["dinheiro"]
+        pend = apoio.chamar("POST", "/api/carreira/demitir")["pendencia"]
+        novo = G["clubes"][pend["opcoes"][0]["id"]]
+        caixa_novo = novo["dinheiro"]
+        apoio.chamar("POST", "/api/clube", {"id": novo["id"]})
+        self.assertIsNone(eng.credito(G))
+        self.assertEqual(antigo["dinheiro"], caixa_antigo - saldo)
+        self.assertEqual(novo["dinheiro"], caixa_novo)
+        self.assertIsNone(apoio.chamar("GET", "/api/financas")["tela"]["credito"]["ativo"])
+        # e a virada do mes nao cobra nada do clube novo
+        eng.pagar_parcela_credito(G)
+        self.assertEqual(novo["dinheiro"], caixa_novo)
+
     def test_proposta_aceita_troca_de_clube(self):
         cand = [c for c in self.G["clubes"].values()
                 if c["divisao"] == "A" and c["id"] != self.G["clube"]][0]

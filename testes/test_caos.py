@@ -739,6 +739,16 @@ class TestPlantoesDosAmigos(unittest.TestCase):
         self.assertNotIn("cap_fechada", c)
         self.assertIsNone(apoio.chamar("GET", "/api/estadio")["tela"]["interdicao"])
 
+    def test_naming_rights_continua_com_o_estadio_interditado(self):
+        # o contrato vale pelo estadio inteiro: fechado por umas semanas, ele nao some da receita
+        G, c = self.G, self.meu()
+        c["capacidade"] = max(c["capacidade"], eng.NAMING_CAPACIDADE + 5000)
+        self.assertIn("naming", eng.espacos_do_clube(c))
+        self.assertTrue(eng.ev_arqueologia(G))
+        self.assertLess(c["capacidade"], eng.NAMING_CAPACIDADE)
+        self.assertEqual(eng.capacidade_total(c), c["capacidade"] + c["cap_fechada"])
+        self.assertIn("naming", eng.espacos_do_clube(c))
+
     def test_obra_concluida_na_interdicao_nao_se_perde(self):
         # bug de 2026-11-10: a volta devolvia a capacidade antiga por cima da ampliacao paga
         G, c = self.G, self.meu()

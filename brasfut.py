@@ -5,7 +5,7 @@ BRASFUT 1.0 - gerenciador de futebol brasileiro, 100% em texto.
 Sem dependencias externas. Rodar: python3 brasfut.py
 """
 
-import base64, dataclasses, json, os, random, re, sys, time, zlib
+import base64, dataclasses, json, os, random, re, shutil, sys, time, zlib
 from typing import Any, Dict, List, Optional, Tuple
 from math import exp
 
@@ -4444,10 +4444,22 @@ NOME_ESPACO = {"master": "Patrocinio master", "uniforme": "Fornecedor de uniform
 ANOS_ESPACO = {"naming": 2}
 
 
+def capacidade_total(c) -> int:
+    """Os lugares do estadio inteiro, contando os que um plantao do modo caos
+    fechou por algumas semanas (ver _interditar)."""
+    cap = int(c.get("capacidade", 0))
+    if not c.get("cap_original"):
+        return cap
+    fechada = c.get("cap_fechada")
+    return cap + int(fechada) if fechada is not None else max(cap, int(c["cap_original"]))
+
+
 def espacos_do_clube(c) -> Tuple[str, ...]:
-    """Os espacos que este clube tem para vender: naming so com estadio grande."""
+    """Os espacos que este clube tem para vender: naming so com estadio grande.
+    Vale o estadio inteiro: interditado por umas semanas, o contrato de naming
+    nao some da receita nem deixa de contar a temporada."""
     return tuple(e for e in ESPACOS_PATROCINIO
-                 if e != "naming" or c.get("capacidade", 0) >= NAMING_CAPACIDADE)
+                 if e != "naming" or capacidade_total(c) >= NAMING_CAPACIDADE)
 EMPRESAS = {
     "master": ["Banco Horizonte", "Viva Telecom", "Construtora Atlas", "Seguros Farol",
                "Rede Mercadao", "Aurora Energia", "Grupo Ventura", "Credito Popular",
@@ -4812,13 +4824,23 @@ def recuperacao(G):
 SALVAR_NA_SEMANA = True
 
 
+# Por que o ultimo salvar_auto falhou (None = gravou). So memoria. Sem isto a
+# falha era muda: disco cheio, pasta sem permissao ou arquivo preso por
+# antivirus/sincronizador, e o jogador seguia jogando sem nada ser gravado. A
+# API anexa o motivo a resposta (rotas.despachar) e a tela avisa.
+FALHA_AO_SALVAR: Optional[str] = None
+
+
 def salvar_auto(G, forcar=False):
+    global FALHA_AO_SALVAR
     if not SALVAR_NA_SEMANA and not forcar:
         return False
     try:
         salvar(G)
+        FALHA_AO_SALVAR = None
         return True
-    except Exception:
+    except Exception as e:
+        FALHA_AO_SALVAR = "%s: %s" % (type(e).__name__, e)
         return False
 
 
@@ -4870,10 +4892,14 @@ def _onde(G: Mundo, r: Dict[str, Any]) -> str:
 def manchetes_da_semana(G: Mundo, jogos: List[Dict[str, Any]],
                         lideres_antes: Dict[str, Optional[int]]) -> None:
     candidatas = []   # (peso, texto): so as maiores da semana viram manchete
+    # a liga do meu clube sempre interessa: treinando fora (ou na Serie C/D), a
+    # goleada, a zebra e o classico da minha liga nunca viravam manchete
+    meu = G["clubes"].get(G.get("clube"))
+    de_interesse = ("A", "B", meu["divisao"] if meu else None)
     for r in jogos:
         casa, fora = G["clubes"][r["casa"]], G["clubes"][r["fora"]]
         # Serie D e continental entre estrangeiros enchem o feed sem interessar
-        if r.get("comp") == "liga" and casa["divisao"] not in "AB":
+        if r.get("comp") == "liga" and casa["divisao"] not in de_interesse:
             continue
         if casa["divisao"] == "EX" and fora["divisao"] == "EX":
             continue
@@ -8750,6 +8776,7 @@ def assumir_clube(G: Mundo, cid: int, saida: str) -> None:
     da saida e abre a nova. Serve a demissao, ao pedido de demissao e a
     proposta aceita - e o unico lugar que muda G["clube"] depois do inicio."""
     antigo = G["clubes"][G["clube"]]
+    deixar_credito(G, antigo)
     _fechar_passagem(G, saida)
     largar_clube(antigo)
     limpar_vitrine_herdada(G, G["clubes"][cid])
@@ -8764,6 +8791,22 @@ def assumir_clube(G: Mundo, cid: int, saida: str) -> None:
     carreira(G).append(_passagem(G, cid))
     noticia(G, "%s deixa o %s (%s) e assume o %s." %
             (G.get("tecnico") or "O tecnico", antigo["nome"], saida, G["clubes"][cid]["nome"]))
+
+
+def deixar_credito(G: Mundo, antigo: Clube) -> int:
+    """A divida e do clube que tomou o credito, nao do tecnico. G["credito"]
+    acompanha o tecnico, e sem isto ele pegava 3 meses de receita no clube A,
+    saia, e as parcelas (e os atrasos na confianca) caiam no clube B, que nunca
+    viu o dinheiro. O saldo sai do caixa do clube antigo de uma vez - a maquina
+    nao parcela - e o tecnico chega sem divida. Devolve o saldo deixado."""
+    cr = credito(G)
+    if not cr:
+        return 0
+    saldo = int(cr["saldo"])
+    lancar(G, antigo, -saldo, "credito_parcela")
+    G["credito"] = None
+    noticia(G, "O credito em aberto (%s) fica com o %s." % (din(saldo), antigo["nome"]))
+    return saldo
 
 
 def largar_clube(c: Clube) -> None:
@@ -11740,9 +11783,7 @@ def interdicao_de(G: Mundo, c: Clube) -> Optional[Dict[str, int]]:
     "semanas": quantas faltam}. None se esta inteiro."""
     if not c.get("cap_original"):
         return None
-    fechados = c.get("cap_fechada")
-    if fechados is None:
-        fechados = max(0, int(c["cap_original"]) - int(c["capacidade"]))
+    fechados = capacidade_total(c) - int(c["capacidade"])
     agora = semana_absoluta(G)
     semanas = 0
     for p in (G.get("caos") or {}).get("pendentes") or []:
@@ -13653,7 +13694,7 @@ def simulacao(temporadas, semente="teste"):
     definir_objetivo(G)
     print("Clube: %s" % G["clubes"][G["clube"]]["nome"])
     for _ in range(temporadas):
-        while 0 < G["semana"] <= SEMANAS_LIGA:
+        while G["fase"] == "estadual" or 0 < G["semana"] <= SEMANAS_LIGA:
             avancar_semana(G)
         c = G["clubes"][G["clube"]]
         camp = {d: G["clubes"][classificacao(G, G["ligas"][d])[0]]["nome"] for d in "ABCD"}
@@ -13692,7 +13733,15 @@ def main():
                 print(cor("Carregado: %s, temporada %d." %
                           (G["clubes"][G["clube"]]["nome"], G["temporada"]), "ok"))
             except Exception as e:
-                print(cor("Falha ao carregar (%s). Comecando um jogo novo." % e, "ruim"))
+                # o jogo novo grava no mesmo arquivo ja na primeira semana: o
+                # save que nao abriu fica guardado ao lado, para tentar recuperar
+                copia = SAVE + ".corrompido"
+                try:
+                    shutil.copy2(SAVE, copia)
+                    guardado = " O save antigo ficou em %s." % copia
+                except OSError:
+                    guardado = ""
+                print(cor("Falha ao carregar (%s).%s Comecando um jogo novo." % (e, guardado), "ruim"))
                 G = None
     if G is None:
         G = novo_jogo()
