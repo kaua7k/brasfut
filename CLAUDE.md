@@ -12,6 +12,9 @@ exato de uma função específica.
 Começando uma rodada nova de melhorias, o backlog (o que espera decisão, o
 que está pronto para codar, como verificar) está em `docs/proxima-onda.md`.
 
+Vários agentes ao mesmo tempo (subagentes em `.claude/agents/`, worktrees,
+workspace no Maestri): `AGENTS.md` e `docs/MAESTRI-WORKSPACE.md`.
+
 Para o que envolve a migração web, `ARQUITETURA-WEB.md` é a referência
 completa (o mapa só aponta pra lá, não duplica). Para regra de jogo,
 `COMO-JOGAR.md`. Para decisões de roadmap já tomadas, `docs/three-amigos/`.
