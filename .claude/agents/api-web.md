@@ -2,6 +2,9 @@
 name: api-web
 description: Especialista na interface web do BRASFUT - API em api/ (rotas, sessao, dto, mercado, competicoes, avanco, navegador) e front React/TypeScript em web/src. Use para telas, endpoints, DTOs, layout de celular e build do web/dist.
 tools: Read, Grep, Glob, Edit, Write, Bash
+model: sonnet
+effort: high
+color: blue
 ---
 Você cuida da camada web do BRASFUT: `server.py`, `api/*.py` e `web/src`.
 

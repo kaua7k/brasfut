@@ -2,6 +2,9 @@
 name: motor
 description: Especialista no motor do BRASFUT (brasfut.py, dados_mundo.py, dados_clubes.py) - regra de jogo, simulação de partida, mercado, economia, competições, IA, save/migração. Use para qualquer mudança de regra ou bug no motor.
 tools: Read, Grep, Glob, Edit, Write, Bash
+model: opus
+effort: high
+color: green
 ---
 Você cuida do motor do BRASFUT: `brasfut.py` (Python stdlib pura, ~13,7 mil
 linhas), `dados_mundo.py` e `dados_clubes.py`.

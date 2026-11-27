@@ -54,8 +54,25 @@ fluxo da rodada):
 └──────────────────────────────┘
 ```
 
-Em cada terminal: `cd` para o worktree e `claude`. Para outro agente (Codex
-etc.) funciona igual: ele lê o `AGENTS.md` da raiz.
+No Maestri: *Novo Terminal* > Início rápido **Claude Code**, e preencha
+(o resto fica no padrão; **Monitorar Atividade** ligado):
+
+| Nome | Comando | Diretório de Trabalho | Chave Maestro |
+|---|---|---|---|
+| Maestro | `claude --model opus --effort high` | `C:\dev\brasfut` | ligada |
+| Motor | `claude --model opus --effort high --permission-mode acceptEdits` | `C:\dev\brasfut-motor-<data>` | desligada |
+| Web | `claude --model sonnet --effort high --permission-mode acceptEdits` | `C:\dev\brasfut-web-<data>` | desligada |
+| QA | `claude --model sonnet --effort medium --permission-mode acceptEdits` | `C:\dev\brasfut-qa-<data>` | desligada |
+| Design | `claude --model sonnet --effort medium` | `C:\dev\brasfut-design-<data>` | desligada |
+
+Por quê: o motor (13 mil linhas, regra que mexe em tudo) e o planejamento do
+maestro pedem o modelo mais forte; tela, testes e medição rodam bem no Sonnet,
+mais barato e rápido. `acceptEdits` deixa o agente editar arquivos do próprio
+worktree sem pedir licença a cada um (comando no terminal continua pedindo).
+Os subagentes em `.claude/agents/` têm o mesmo `model`/`effort` no frontmatter.
+Dentro do terminal dá para trocar a qualquer hora com `/model` e `/effort`.
+
+Outro agente (Codex etc.) funciona igual: ele lê o `AGENTS.md` da raiz.
 
 Atalhos estilo tmux do Maestri trocam entre terminais; o Ombro resume o que
 cada um fez enquanto você estava fora.
