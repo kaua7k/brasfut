@@ -54,6 +54,7 @@ Atas de decisão de roadmap: `docs/three-amigos/`.
 | `ferramentas/capturas.py` | — | Capturas das 13 telas em 5 resoluções (Edge headless, cópia isolada) e comparação por pixel | Antes/depois de mexer em CSS ou tela |
 | `baixar-nova-versao.bat` + `ferramentas/nova-versao.ps1` | — | Baixa a `main` já extraída em `Documents\bras2.0\<N>.0` (próximo número) e copia save, config e elencos da pasta anterior | Para atualizar a cópia local do Kauã |
 | `ferramentas/importar_elencos.py` | — | Importa elencos reais (football-data.org / API-Football) | Atualização de temporada real |
+| `AGENTS.md`, `.claude/agents/` (`motor`, `api-web`, `qa`, `game-design`), `docs/agentes/QUADRO.md`, `docs/MAESTRI-WORKSPACE.md`, `ferramentas/agentes-worktrees.sh`/`.ps1` | — | **Vários agentes em paralelo**: contexto único para qualquer agente, papéis com dono por área, quadro de recados, um git worktree por agente e o roteiro do workspace no Maestri | Antes de rodar mais de um agente ao mesmo tempo |
 | `.github/pull_request_template.md` | — | Modelo de PR (o que muda, por que, testes, docs); convenções de branch e título no `CLAUDE.md` | Ao abrir PR |
 
 ## Índice do motor (`brasfut.py`) — por seção
