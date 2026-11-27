@@ -5,28 +5,29 @@ onde cada terminal de agente vira um nó, ao lado de notas e desenhos. Aqui fica
 como montar o workspace do BRASFUT com vários agentes em paralelo sem um
 pisar no outro.
 
-> **Atenção: o Maestri é app nativo de macOS.** No Windows (a cópia em
-> `Documents\bras2.0\<N>.0`) não roda. Opções no Windows: vários terminais do
-> Windows Terminal lado a lado, um por worktree, com o mesmo roteiro abaixo; ou
-> sessões do Claude Code na nuvem (claude.ai/code), uma por frente.
+> **Não use a pasta de jogar** (`Documents\bras2.0\<N>.0`): ela vem do
+> `baixar-nova-versao.bat`, não é um clone do git e guarda o save de verdade.
+> Os agentes trabalham num clone separado, em `C:\dev`.
 
-## 1. Preparar o repo (uma vez por rodada)
+## 1. Preparar o repo
 
-Clone o repo no Mac (fora de pasta sincronizada por iCloud):
+Uma vez só, no PowerShell (precisa do Git for Windows e do Claude Code
+instalados):
 
-```bash
-git clone https://github.com/kaua7k/brasfut.git ~/dev/brasfut
+```powershell
+git clone https://github.com/kaua7k/brasfut.git C:\dev\brasfut
 ```
 
-Crie um worktree por agente (pastas irmãs `~/dev/brasfut-<nome>`, cada uma no seu
-branch saindo da `main`):
+A cada rodada, crie um worktree por agente (pastas irmãs
+`C:\dev\brasfut-<nome>`, cada uma no seu branch saindo da `main`):
 
-```bash
-cd ~/dev/brasfut && ferramentas/agentes-worktrees.sh feat/motor-socios feat/web-socios test/qa-socios docs/design-socios
+```powershell
+cd C:\dev\brasfut; git pull; powershell -ExecutionPolicy Bypass -File ferramentas\agentes-worktrees.ps1
 ```
 
-Sem argumentos o script cria `motor`, `web`, `qa` e `design` com a data. No
-Windows: `powershell -File ferramentas\agentes-worktrees.ps1 ...`.
+Sem argumentos o script cria `motor`, `web`, `qa` e `design` com a data; com
+argumentos, usa os branches dados (`feat/motor-socios feat/web-socios ...`). No
+Mac/Linux: `ferramentas/agentes-worktrees.sh`, com clone em `~/dev/brasfut`.
 
 Por que worktree: o `brasfut.py` tem 13 mil linhas e todo mundo acaba tocando
 nele; com uma pasta e um branch por agente cada um tem sua cópia, e o conflito
@@ -40,7 +41,7 @@ fluxo da rodada):
 ```
 ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
 │ NOTA: Rodada │   │ T1 MAESTRO   │   │ NOTA: Quadro │
-│ (objetivo e  │   │ ~/dev/brasfut│   │ docs/agentes/│
+│ (objetivo e  │   │ C:\dev\brasfut│   │ docs/agentes/│
 │  critérios)  │   │ main, só lê  │   │ QUADRO.md    │
 └──────────────┘   └──────────────┘   └──────────────┘
 ┌──────────────┐   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
@@ -64,7 +65,7 @@ cada um fez enquanto você estava fora.
 Cole como primeira mensagem. Troque `<OBJETIVO>` pelo item do
 `docs/proxima-onda.md` que a rodada vai atacar.
 
-**T1 — Maestro** (`~/dev/brasfut`, na `main`, não edita código):
+**T1 — Maestro** (`C:\dev\brasfut`, na `main`, não edita código):
 
 ```
 Você é o maestro desta rodada do BRASFUT. Leia AGENTS.md, docs/MAPA-DO-PROJETO.md
@@ -76,7 +77,7 @@ Não edite código. Depois acompanhe docs/agentes/QUADRO.md nos worktrees e diga
 a ordem de merge.
 ```
 
-**T2 — Motor** (`~/dev/brasfut-motor`):
+**T2 — Motor** (`C:\dev\brasfut-motor`):
 
 ```
 Use o subagente motor (.claude/agents/motor.md) como sua regra. Leia AGENTS.md
@@ -85,7 +86,7 @@ Ao terminar: suíte verde, contrato motor->web escrito em docs/agentes/QUADRO.md
 commit tipo(escopo): descricao.
 ```
 
-**T3 — API e web** (`~/dev/brasfut-web`):
+**T3 — API e web** (`C:\dev\brasfut-web`):
 
 ```
 Use o subagente api-web (.claude/agents/api-web.md) como sua regra. Leia
@@ -95,7 +96,7 @@ motor não entrega o campo, trabalhe contra o contrato do QUADRO.md. Suba
 portas 5173/8770). Build do web/dist só no fim, depois de rebasear na main.
 ```
 
-**T4 — QA** (`~/dev/brasfut-qa`):
+**T4 — QA** (`C:\dev\brasfut-qa`):
 
 ```
 Use o subagente qa (.claude/agents/qa.md) como sua regra. Tarefa: escreva os
@@ -104,7 +105,7 @@ o motor entregar). Depois revise os branches dos outros com
 `git fetch && git diff origin/main...<branch>` contra o checklist do qa.md.
 ```
 
-**T5 — Game design** (`~/dev/brasfut-design`):
+**T5 — Game design** (`C:\dev\brasfut-design`):
 
 ```
 Use o subagente game-design (.claude/agents/game-design.md) como sua regra.
